@@ -10,8 +10,10 @@ public:
 
 	void init(std::string title, int width, int height);
 	void pollEvents();
+	bool isRunning() const { return running; }
 
-	SDL_Window* pWindow = nullptr;
-	SDL_Renderer* pRenderer = nullptr;
+	SDL_Window* m_window = nullptr;
+
+private:
 	bool running = true;
 };

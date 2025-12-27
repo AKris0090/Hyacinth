@@ -2,17 +2,25 @@
 
 SDLWindow::~SDLWindow()
 {
-	SDL_DestroyRenderer(pRenderer);
-	SDL_DestroyWindow(pWindow);
+	SDL_DestroyWindow(m_window);
 }
 
 void SDLWindow::init(std::string title, int width, int height)
 {
+	std::cout << ":::    ::: :::   :::   :::      :::::::: ::::::::::: ::::    ::: ::::::::::: :::    :::" << std::endl;
+	std::cout << ":+:    :+: :+:   :+: :+: :+:   :+:    :+:    :+:     :+:+:   :+:     :+:     :+:    :+:" << std::endl;
+	std::cout << "+:+    +:+  +:+ +:+ +:+   +:+  +:+           +:+     :+:+:+  +:+     +:+     +:+    +:+" << std::endl;
+	std::cout << "+#++:++#++   +#++: +#++:++#++: +#+           +#+     +#+ +:+ +#+     +#+     +#++:++#++" << std::endl;
+	std::cout << "+#+    +#+    +#+  +#+     +#+ +#+           +#+     +#+  +#+#+#     +#+     +#+    +#+" << std::endl;
+	std::cout << "#+#    #+#    #+#  #+#     #+# #+#    #+#    #+#     #+#   #+#+#     #+#     #+#    #+#" << std::endl;
+	std::cout << "###    ###    ###  ###     ###  ######## ########### ###    ####     ###     ###    ###" << std::endl;
+	std::cout << std::endl;
+	std::cout << std::endl;
+
 	SDL_Init(SDL_INIT_VIDEO);
-	pWindow = SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
-	SDL_SetWindowPosition(pWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-	pRenderer = SDL_CreateRenderer(pWindow, NULL);
-	SDL_SetWindowRelativeMouseMode(pWindow, true);
+	m_window = SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+	SDL_SetWindowPosition(m_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+	SDL_SetWindowRelativeMouseMode(m_window, true);
 }
 
 void SDLWindow::pollEvents()

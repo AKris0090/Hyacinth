@@ -103,6 +103,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -120,6 +121,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -131,11 +133,16 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="sdlwindow.cpp" />
+    <ClCompile Include="vkdebugutils.h" />
+    <ClCompile Include="vkswapchainutils.cpp" />
     <ClCompile Include="vkengine.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sdlwindow.h" />
+    <ClInclude Include="vkdeviceutils.h" />
     <ClInclude Include="vkengine.h" />
+    <ClInclude Include="vkimageutils.h" />
+    <ClInclude Include="vkswapchainutils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
