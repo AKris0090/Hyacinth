@@ -111,6 +111,10 @@
       <AdditionalLibraryDirectories>C:\VulkanSDK\1.4.335.0\Lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -129,6 +133,10 @@
       <AdditionalLibraryDirectories>C:\VulkanSDK\1.4.335.0\Lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -142,7 +150,12 @@
     <ClInclude Include="vkdeviceutils.h" />
     <ClInclude Include="vkengine.h" />
     <ClInclude Include="vkimageutils.h" />
+    <ClInclude Include="vkpipelineutils.h" />
     <ClInclude Include="vkswapchainutils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="shaders\shader.frag" />
+    <Text Include="shaders\shader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

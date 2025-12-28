@@ -1,11 +1,14 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include "vk_mem_alloc.h"
 
 struct VulkanImage {
 	VkImage image;
-	VkDeviceMemory memory;
 	VkImageView imageView;
+	VmaAllocation imageAllocation;
+	VkExtent3D extent;
+	VkFormat imageFormat;
 };
 
 namespace vkimageutils {

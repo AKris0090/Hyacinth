@@ -25,6 +25,9 @@
     <Filter Include="Source Files\engine\vkutils\swapchain">
       <UniqueIdentifier>{822191b5-9152-45b4-84a9-e488dc4249d7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\engine\shaders">
+      <UniqueIdentifier>{1985ba56-382c-44ca-b675-3e60bbaa9c85}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -59,5 +62,16 @@
     <ClInclude Include="vkimageutils.h">
       <Filter>Source Files\engine\vkutils</Filter>
     </ClInclude>
+    <ClInclude Include="vkpipelineutils.h">
+      <Filter>Source Files\engine\vkutils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="shaders\shader.vert">
+      <Filter>Source Files\engine\shaders</Filter>
+    </Text>
+    <Text Include="shaders\shader.frag">
+      <Filter>Source Files\engine\shaders</Filter>
+    </Text>
   </ItemGroup>
 </Project>
