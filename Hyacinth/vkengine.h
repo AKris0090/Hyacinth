@@ -19,11 +19,6 @@ const bool enableValLayers = false;
 const bool enableValLayers = true;
 #endif
 
-const std::vector<VkDynamicState> dynamicStates = {
-		VK_DYNAMIC_STATE_VIEWPORT,
-		VK_DYNAMIC_STATE_SCISSOR
-};
-
 class HyacinthEngine {
 public:
 	struct SDL_Window* m_window{ nullptr };
@@ -44,6 +39,7 @@ private:
 	bool m_initialized = false;
 	int  m_frameIndex = 0;
 	int	 maxFramesInFlight = 1;
+	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkInstance						m_instance				{ VK_NULL_HANDLE };
 	VkPhysicalDevice				m_physicalDevice		{ VK_NULL_HANDLE };
@@ -62,7 +58,7 @@ private:
 	std::vector<VkImage>			m_swapChainImages		{};
 	std::vector<VkImageView>		m_swapChainImageViews	{};
 	SWChainImageFormat				m_swImageFormat			{};
-	VulkanPipeline 					m_pipeline				{ VK_NULL_HANDLE, VK_NULL_HANDLE };
+	VulkanPipelineBuilder 			m_pipelineUtil;
 	VkRenderPass 					m_renderPass			{ VK_NULL_HANDLE };
 	std::vector<VkFramebuffer>		m_swapChainFramebuffers	{};
 

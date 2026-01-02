@@ -28,6 +28,9 @@
     <Filter Include="Source Files\engine\shaders">
       <UniqueIdentifier>{1985ba56-382c-44ca-b675-3e60bbaa9c85}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\engine\vkutils\pipeline">
+      <UniqueIdentifier>{c6959573-451a-4de4-9ece-bceaa6d26fb7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -44,6 +47,9 @@
     </ClCompile>
     <ClCompile Include="vkswapchainutils.cpp">
       <Filter>Source Files\engine\vkutils\swapchain</Filter>
+    </ClCompile>
+    <ClCompile Include="vkpipelineutils.cpp">
+      <Filter>Source Files\engine\vkutils\pipeline</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -63,7 +69,7 @@
       <Filter>Source Files\engine\vkutils</Filter>
     </ClInclude>
     <ClInclude Include="vkpipelineutils.h">
-      <Filter>Source Files\engine\vkutils</Filter>
+      <Filter>Source Files\engine\vkutils\pipeline</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -215,40 +215,25 @@ void HyacinthEngine::createSyncObjects()
 
 void HyacinthEngine::createGraphicsPipeline()
 {
-    auto vertShaderCode = readFile("shaders/vert.spv");
-    auto fragShaderCode = readFile("shaders/frag.spv");
+    m_pipelineUtil.addShader(m_device, "shaders/vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    m_pipelineUtil.addShader(m_device, "shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    VkShaderModule vertShaderModule = createShaderModule(m_device, vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(m_device, fragShaderCode);
+    m_pipelineUtil.m_inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    m_pipelineUtil.m_inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vertShaderModule;
-    vertShaderStageInfo.pName = "main";
+    m_pipelineUtil.m_rasterizer.depthClampEnable = VK_FALSE;
+    m_pipelineUtil.m_rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    m_pipelineUtil.m_rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    m_pipelineUtil.m_rasterizer.lineWidth = 1.0f;
+    m_pipelineUtil.m_rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    m_pipelineUtil.m_rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    m_pipelineUtil.m_rasterizer.depthBiasEnable = VK_FALSE;
 
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fragShaderModule;
-    fragShaderStageInfo.pName = "main";
+    m_pipelineUtil.m_multisampling.sampleShadingEnable = VK_FALSE;
+    m_pipelineUtil.m_multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-    VkPipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();
-
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
+    m_pipelineUtil.m_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    m_pipelineUtil.m_colorBlendAttachment.blendEnable = VK_FALSE;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -269,57 +254,10 @@ void HyacinthEngine::createGraphicsPipeline()
     viewportState.scissorCount = 1;
     viewportState.pScissors = &scissor;
 
-    VkPipelineRasterizationStateCreateInfo rasterizer{};
-    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable = VK_FALSE;
-    rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-    rasterizer.depthBiasEnable = VK_FALSE;
+	m_pipelineUtil.m_viewportState.pViewports = &viewport;
+    m_pipelineUtil.m_viewportState.pScissors = &scissor;
 
-    VkPipelineMultisampleStateCreateInfo multisampling{};
-    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
-
-    VkPipelineColorBlendStateCreateInfo colorBlending{};
-    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlending.logicOpEnable = VK_FALSE;
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &colorBlendAttachment;
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    
-    VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutInfo, nullptr, &m_pipeline.layout));
-
-    VkGraphicsPipelineCreateInfo pipelineInfo{};
-    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
-
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
-    pipelineInfo.pInputAssemblyState = &inputAssembly;
-    pipelineInfo.pViewportState = &viewportState;
-    pipelineInfo.pRasterizationState = &rasterizer;
-    pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDynamicState = &dynamicState;
-
-    pipelineInfo.layout = m_pipeline.layout;
-	pipelineInfo.renderPass = m_renderPass;
-	pipelineInfo.subpass = 0;
-
-    VK_CHECK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline.pipeline));
-
-    vkDestroyShaderModule(m_device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(m_device, vertShaderModule, nullptr);
+	m_pipelineUtil.buildPipeline(m_device, m_renderPass);
 }
 
 void HyacinthEngine::createRenderPass()
@@ -491,7 +429,7 @@ void HyacinthEngine::draw()
     uint32_t imageIndex;
 	VkCommandBuffer cmd = setupDraw(imageIndex);
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.pipeline);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -526,8 +464,8 @@ void HyacinthEngine::cleanup()
         vkDestroyFramebuffer(m_device, framebuffer, nullptr);
     }
 
-	vkDestroyPipeline(m_device, m_pipeline.pipeline, nullptr);
-    vkDestroyPipelineLayout(m_device, m_pipeline.layout, nullptr);
+	vkDestroyPipeline(m_device, m_pipelineUtil.m_pipeline.pipeline, nullptr);
+    vkDestroyPipelineLayout(m_device, m_pipelineUtil.m_pipeline.layout, nullptr);
 
 	vkDestroyRenderPass(m_device, m_renderPass, nullptr);
 

@@ -40,3 +40,24 @@ static VkShaderModule createShaderModule(VkDevice& device, const std::vector<cha
 
     return shaderModule;
 }
+
+class VulkanPipelineBuilder {
+public:
+    VulkanPipeline                                  m_pipeline;
+	std::vector<VkPipelineShaderStageCreateInfo>    m_shaderStages;
+
+    VkPipelineInputAssemblyStateCreateInfo          m_inputAssembly;
+    VkPipelineRasterizationStateCreateInfo          m_rasterizer;
+    VkPipelineColorBlendAttachmentState             m_colorBlendAttachment;
+    VkPipelineMultisampleStateCreateInfo            m_multisampling;
+    VkPipelineLayout                                m_pipelineLayout;
+    VkPipelineDepthStencilStateCreateInfo           m_depthStencil;
+    VkPipelineRenderingCreateInfo                   m_renderInfo;
+	VkPipelineViewportStateCreateInfo               m_viewportState;
+    VkFormat                                        m_colorAttachmentformat;
+
+    void reset();
+    VulkanPipelineBuilder() { reset(); };
+    void buildPipeline(VkDevice& dev, VkRenderPass& renderPass);
+	void addShader(VkDevice& device, std::string shaderFile, VkShaderStageFlagBits stage);
+};
