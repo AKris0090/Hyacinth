@@ -374,7 +374,7 @@ void HyacinthEngine::createBuffers() {
 	m_meshBuffers.indexCount = static_cast<uint32_t>(indices.size());
 }
 
-glm::mat4 HyacinthEngine::getCamMatrix() {
+glm::mat4 HyacinthEngine::getCamMatrix() const {
     glm::mat4 rotation = glm::mat4(1.0f);
     rotation = glm::rotate(rotation, (SDL_GetTicks() / 1000.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 
@@ -436,7 +436,7 @@ void HyacinthEngine::draw()
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
 
-    GPUDrawPushConstants push_constants;
+    GPUDrawPushConstants push_constants{};
     push_constants.worldMatrix = getCamMatrix();
     push_constants.vertexBuffer = m_meshBuffers.vertexBufferAddress;
 
