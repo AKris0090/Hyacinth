@@ -19,6 +19,8 @@ const bool enableValLayers = false;
 const bool enableValLayers = true;
 #endif
 
+const VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+
 class HyacinthEngine {
 public:
 	struct SDL_Window* m_window{ nullptr };
@@ -59,16 +61,12 @@ private:
 	std::vector<VkImageView>		m_swapChainImageViews	{};
 	SWChainImageFormat				m_swImageFormat			{};
 	VulkanPipelineBuilder 			m_pipelineUtil;
-	VkRenderPass 					m_renderPass			{ VK_NULL_HANDLE };
-	std::vector<VkFramebuffer>		m_swapChainFramebuffers	{};
 
 	void createInstance();
 	void createSwapchain();
 	void createCommandBuffers();
 	void createSyncObjects();
-	void createRenderPass();
 	void createGraphicsPipeline();
-	void createFramebuffers();
 
 	VkCommandBuffer& setupDraw(uint32_t& imageIndex);
 	void endDraw(VkCommandBuffer& cmd, uint32_t& imageIndex);

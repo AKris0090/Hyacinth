@@ -32,7 +32,7 @@ namespace vkimageutils {
 		return imageView;
 	}
 
-	static void transition_image(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout)
+	static void transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout)
 	{
 		VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
 		imageBarrier.pNext = nullptr;
@@ -63,5 +63,16 @@ namespace vkimageutils {
 		depInfo.pImageMemoryBarriers = &imageBarrier;
 
 		vkCmdPipelineBarrier2(cmd, &depInfo);
+	}
+
+	static VkRenderingAttachmentInfo createAttachmentInfo(VkImageView imageView, const VkClearValue& clearColor, VkImageLayout imageLayout) {
+		VkRenderingAttachmentInfo attachmentInfo{};
+		attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+		attachmentInfo.imageView = imageView;
+		attachmentInfo.imageLayout = imageLayout;
+		attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachmentInfo.clearValue = clearColor;
+		return attachmentInfo;
 	}
 }

@@ -95,6 +95,7 @@ void HyacinthEngine::createInstance()
     VkPhysicalDeviceVulkan13Features physDevFeatures{};
 	physDevFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     physDevFeatures.synchronization2 = true;
+    physDevFeatures.dynamicRendering = true;
 
     VkDeviceCreateInfo deviceCInfo{};
     deviceCInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -218,22 +219,15 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.addShader(m_device, "shaders/vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
     m_pipelineUtil.addShader(m_device, "shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    m_pipelineUtil.m_inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    m_pipelineUtil.m_inputAssembly.primitiveRestartEnable = VK_FALSE;
+	m_pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	m_pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
+	m_pipelineUtil.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	m_pipelineUtil.setColorAttachmentFormat(m_swImageFormat.format);
+    m_pipelineUtil.setMultisamplingNone();
+	m_pipelineUtil.disableBlending();
 
-    m_pipelineUtil.m_rasterizer.depthClampEnable = VK_FALSE;
-    m_pipelineUtil.m_rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    m_pipelineUtil.m_rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    m_pipelineUtil.m_rasterizer.lineWidth = 1.0f;
-    m_pipelineUtil.m_rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    m_pipelineUtil.m_rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-    m_pipelineUtil.m_rasterizer.depthBiasEnable = VK_FALSE;
-
-    m_pipelineUtil.m_multisampling.sampleShadingEnable = VK_FALSE;
-    m_pipelineUtil.m_multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    m_pipelineUtil.m_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    m_pipelineUtil.m_colorBlendAttachment.blendEnable = VK_FALSE;
+    m_pipelineUtil.disableDepthTest();
+    m_pipelineUtil.setDepthAttachmentFormat(VK_FORMAT_UNDEFINED);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -257,70 +251,7 @@ void HyacinthEngine::createGraphicsPipeline()
 	m_pipelineUtil.m_viewportState.pViewports = &viewport;
     m_pipelineUtil.m_viewportState.pScissors = &scissor;
 
-	m_pipelineUtil.buildPipeline(m_device, m_renderPass);
-}
-
-void HyacinthEngine::createRenderPass()
-{
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = m_swImageFormat.format;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
-
-    VK_CHECK(vkCreateRenderPass(m_device, &renderPassInfo, nullptr, &m_renderPass));
-}
-
-void HyacinthEngine::createFramebuffers()
-{
-    m_swapChainFramebuffers.resize(m_swapChainImageViews.size());
-    for (size_t i = 0; i < m_swapChainImageViews.size(); i++) {
-        VkImageView attachments[] = {
-            m_swapChainImageViews[i]
-        };
-
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = m_renderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = attachments;
-        framebufferInfo.width = m_swImageFormat.extent.width;
-        framebufferInfo.height = m_swImageFormat.extent.height;
-        framebufferInfo.layers = 1;
-
-        VK_CHECK(vkCreateFramebuffer(m_device, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]));
-    }
+	m_pipelineUtil.buildPipeline(m_device);
 }
 
 void HyacinthEngine::init()
@@ -340,11 +271,11 @@ void HyacinthEngine::init()
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &m_allocator);
 
-    createRenderPass();
+    //createRenderPass();
 
     createGraphicsPipeline();
 
-    createFramebuffers();
+    //createFramebuffers();
 
     m_initialized = true;
 }
@@ -361,27 +292,15 @@ VkCommandBuffer& HyacinthEngine::setupDraw(uint32_t& imageIndex)
     VK_CHECK(vkResetCommandBuffer(cmd, 0));
     vkdeviceutils::beginCommandBuffer(cmd);
 
-    vkimageutils::transition_image(cmd, m_swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = m_renderPass;
-    renderPassInfo.framebuffer = m_swapChainFramebuffers[imageIndex];
-
-    renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = m_swImageFormat.extent;
-
-    VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
-    vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
     return cmd;
 }
 
 void HyacinthEngine::endDraw(VkCommandBuffer& cmd, uint32_t& imageIndex)
 {
-    vkCmdEndRenderPass(cmd);
+    vkCmdEndRendering(cmd);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     VK_CHECK(vkEndCommandBuffer(cmd));
 
@@ -428,6 +347,9 @@ void HyacinthEngine::draw()
 {
     uint32_t imageIndex;
 	VkCommandBuffer cmd = setupDraw(imageIndex);
+    VkRenderingAttachmentInfo colorAttachment = vkimageutils::createAttachmentInfo(m_swapChainImageViews[imageIndex], clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, nullptr);
+    vkCmdBeginRendering(cmd, &renderingInfo);
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
 
@@ -460,14 +382,8 @@ void HyacinthEngine::cleanup()
 
 	vmaDestroyAllocator(m_allocator);
 
-    for (auto framebuffer : m_swapChainFramebuffers) {
-        vkDestroyFramebuffer(m_device, framebuffer, nullptr);
-    }
-
 	vkDestroyPipeline(m_device, m_pipelineUtil.m_pipeline.pipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineUtil.m_pipeline.layout, nullptr);
-
-	vkDestroyRenderPass(m_device, m_renderPass, nullptr);
 
     for(int i = 0; i < maxFramesInFlight; i++) {
 		vkDestroySemaphore(m_device, m_imageAcquiredSemas[i], nullptr);

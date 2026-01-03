@@ -58,6 +58,15 @@ public:
 
     void reset();
     VulkanPipelineBuilder() { reset(); };
-    void buildPipeline(VkDevice& dev, VkRenderPass& renderPass);
+    void buildPipeline(VkDevice& dev);
 	void addShader(VkDevice& device, std::string shaderFile, VkShaderStageFlagBits stage);
+
+    void setInputTopology(VkPrimitiveTopology topology);
+	void setPolygonMode(VkPolygonMode polygonMode);
+    void setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace);
+	void setMultisamplingNone();
+    void disableBlending();
+	void setColorAttachmentFormat(VkFormat format);
+	void setDepthAttachmentFormat(VkFormat format);
+	void disableDepthTest();
 };

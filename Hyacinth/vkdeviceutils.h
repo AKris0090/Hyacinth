@@ -9,6 +9,7 @@
 
 const std::vector<const char*> deviceExts = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
 };
 
 struct QueueFamilyIndices {
@@ -127,4 +128,19 @@ namespace vkdeviceutils {
 
         return VK_SAMPLE_COUNT_1_BIT;
     }
+
+    static VkRenderingInfo createRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* colorAttachment, VkRenderingAttachmentInfo* depthAttachment) {
+        VkRenderingInfo renderingInfo{};
+        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        renderingInfo.renderArea = VkRect2D{ VkOffset2D {0, 0}, renderArea };
+        renderingInfo.layerCount = 1;
+
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = 1;
+        renderingInfo.pColorAttachments = colorAttachment;
+        renderingInfo.pDepthAttachment = depthAttachment;
+        renderingInfo.pStencilAttachment = nullptr;
+
+        return renderingInfo;
+	}
 }

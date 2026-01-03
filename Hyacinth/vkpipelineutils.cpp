@@ -28,7 +28,7 @@ void VulkanPipelineBuilder::addShader(VkDevice& device, std::string shaderFile, 
     m_shaderStages.push_back(shaderStageInfo);
 }
 
-void VulkanPipelineBuilder::buildPipeline(VkDevice& dev, VkRenderPass& renderPass) {
+void VulkanPipelineBuilder::buildPipeline(VkDevice& dev) {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
@@ -60,7 +60,6 @@ void VulkanPipelineBuilder::buildPipeline(VkDevice& dev, VkRenderPass& renderPas
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDepthStencilState = &m_depthStencil;
     pipelineInfo.layout = m_pipeline.layout;
-	pipelineInfo.renderPass = renderPass;
 
     VkDynamicState state[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
     VkPipelineDynamicStateCreateInfo dynamicInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
@@ -74,4 +73,59 @@ void VulkanPipelineBuilder::buildPipeline(VkDevice& dev, VkRenderPass& renderPas
     for (auto & stage : m_shaderStages) {
         vkDestroyShaderModule(dev, stage.module, nullptr);
 	}
+}
+
+void VulkanPipelineBuilder::setInputTopology(VkPrimitiveTopology topology) {
+    m_inputAssembly.topology = topology;
+	m_inputAssembly.primitiveRestartEnable = VK_FALSE;
+}
+
+void VulkanPipelineBuilder::setPolygonMode(VkPolygonMode polygonMode) {
+    m_rasterizer.polygonMode = polygonMode;
+    m_rasterizer.lineWidth = 1.0f;
+    m_rasterizer.depthClampEnable = VK_FALSE;
+    m_rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    m_rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    m_rasterizer.lineWidth = 1.0f;
+    m_rasterizer.depthBiasEnable = VK_FALSE;
+}
+
+void VulkanPipelineBuilder::setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace) {
+    m_rasterizer.cullMode = cullMode;
+    m_rasterizer.frontFace = frontFace;
+}
+
+void VulkanPipelineBuilder::setMultisamplingNone() {
+    m_multisampling.sampleShadingEnable = VK_FALSE;
+    m_multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    m_multisampling.minSampleShading = 1.0f;
+    m_multisampling.alphaToCoverageEnable = VK_FALSE;
+    m_multisampling.alphaToOneEnable = VK_FALSE;
+}
+
+void VulkanPipelineBuilder::disableBlending() {
+    m_colorBlendAttachment.blendEnable = VK_FALSE;
+	m_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+}
+
+void VulkanPipelineBuilder::setColorAttachmentFormat(VkFormat format) {
+    m_colorAttachmentformat = format;
+    m_renderInfo.colorAttachmentCount = 1;
+    m_renderInfo.pColorAttachmentFormats = &m_colorAttachmentformat;
+}
+
+void VulkanPipelineBuilder::setDepthAttachmentFormat(VkFormat format) {
+    m_renderInfo.depthAttachmentFormat = format;
+}
+
+void VulkanPipelineBuilder::disableDepthTest() {
+    m_depthStencil.depthTestEnable = VK_FALSE;
+    m_depthStencil.depthWriteEnable = VK_FALSE;
+    m_depthStencil.depthCompareOp = VK_COMPARE_OP_NEVER;
+    m_depthStencil.depthBoundsTestEnable = VK_FALSE;
+    m_depthStencil.stencilTestEnable = VK_FALSE;
+    m_depthStencil.front = {};
+    m_depthStencil.back = {};
+    m_depthStencil.minDepthBounds = 0.f;
+    m_depthStencil.maxDepthBounds = 1.f;
 }
