@@ -88,21 +88,24 @@ void HyacinthEngine::createInstance()
         queuecInfos.push_back(queuecInfo);
     }
 
-    // TODO: populate when needed
-    VkPhysicalDeviceFeatures gpuFeatures{};
+    VkPhysicalDeviceVulkan12Features dev12Features{};
+    dev12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    dev12Features.bufferDeviceAddress = true;
+    dev12Features.descriptorIndexing = true;
 
     // TODO: populate when needed
-    VkPhysicalDeviceVulkan13Features physDevFeatures{};
-	physDevFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-    physDevFeatures.synchronization2 = true;
-    physDevFeatures.dynamicRendering = true;
+    VkPhysicalDeviceVulkan13Features dev13Features{};
+    dev13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+	dev13Features.pNext = &dev12Features;
+    dev13Features.synchronization2 = true;
+    dev13Features.dynamicRendering = true;
 
     VkDeviceCreateInfo deviceCInfo{};
     deviceCInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    deviceCInfo.pNext = &physDevFeatures;
+    deviceCInfo.pNext = &dev13Features;
     deviceCInfo.queueCreateInfoCount = static_cast<uint32_t>(queuecInfos.size());
     deviceCInfo.pQueueCreateInfos = queuecInfos.data();
-    deviceCInfo.pEnabledFeatures = &gpuFeatures;
+    deviceCInfo.pEnabledFeatures = nullptr;
 
 	// deviceExts declared in vkdeviceutils.h
     deviceCInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExts.size());
@@ -167,6 +170,40 @@ void HyacinthEngine::createSwapchain()
     for (uint32_t i = 0; i < numImages; i++) {
         m_swapChainImageViews[i] = vkimageutils::createImageView(m_device, m_swapChainImages[i], m_swImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
+
+    VkExtent3D extent3D = {
+        extent.width,
+        extent.height,
+        1
+    };
+
+    VmaAllocationCreateInfo rimg_allocinfo = {};
+    rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    m_depthImages.resize(numImages);
+    for (uint32_t i = 0; i < numImages; i++) {
+        m_depthImages[i].imageFormat = VK_FORMAT_D32_SFLOAT;
+        m_depthImages[i].extent = extent3D;
+
+        VkImageUsageFlags depthImageUsages{};
+        depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+        VkImageCreateInfo imageCreateInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+        imageCreateInfo.format = m_depthImages[i].imageFormat;
+        imageCreateInfo.usage = depthImageUsages;
+        imageCreateInfo.extent = m_depthImages[i].extent;
+        imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageCreateInfo.mipLevels = 1;
+        imageCreateInfo.arrayLayers = 1;
+        imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        vmaCreateImage(m_allocator, &imageCreateInfo, &rimg_allocinfo, &m_depthImages[i].image, &m_depthImages[i].imageAllocation, nullptr);
+
+        m_depthImages[i].imageView = vkimageutils::createImageView(m_device, m_depthImages[i].image, m_depthImages[i].imageFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    }
 }
 
 void HyacinthEngine::createCommandBuffers()
@@ -191,6 +228,16 @@ void HyacinthEngine::createCommandBuffers()
 
         VK_CHECK(vkAllocateCommandBuffers(m_device, &CBAllocateInfo, &m_frameData[i].commandBuffer));
     }
+
+    VK_CHECK(vkCreateCommandPool(m_device, &commandPoolCInfo, nullptr, &uploadFrame.commandPool));
+
+    VkCommandBufferAllocateInfo CBAllocateInfo{};
+    CBAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    CBAllocateInfo.commandPool = uploadFrame.commandPool;
+    CBAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    CBAllocateInfo.commandBufferCount = 1;
+
+    VK_CHECK(vkAllocateCommandBuffers(m_device, &CBAllocateInfo, &uploadFrame.commandBuffer));
 }
 
 void HyacinthEngine::createSyncObjects()
@@ -212,6 +259,9 @@ void HyacinthEngine::createSyncObjects()
         VK_CHECK(vkCreateSemaphore(m_device, &semaInfo, nullptr, &m_imageAcquiredSemas[i]));
         VK_CHECK(vkCreateSemaphore(m_device, &semaInfo, nullptr, &m_imageFinishedSemas[i]));
     }
+
+	fenceInfo.flags = 0;
+    VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_uploadFence));
 }
 
 void HyacinthEngine::createGraphicsPipeline()
@@ -221,13 +271,13 @@ void HyacinthEngine::createGraphicsPipeline()
 
 	m_pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	m_pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
-	m_pipelineUtil.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	m_pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	m_pipelineUtil.setColorAttachmentFormat(m_swImageFormat.format);
     m_pipelineUtil.setMultisamplingNone();
 	m_pipelineUtil.disableBlending();
 
-    m_pipelineUtil.disableDepthTest();
-    m_pipelineUtil.setDepthAttachmentFormat(VK_FORMAT_UNDEFINED);
+    m_pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    m_pipelineUtil.setDepthAttachmentFormat(m_depthImages[0].imageFormat);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -251,18 +301,94 @@ void HyacinthEngine::createGraphicsPipeline()
 	m_pipelineUtil.m_viewportState.pViewports = &viewport;
     m_pipelineUtil.m_viewportState.pScissors = &scissor;
 
+    VkPushConstantRange bufferRange{};
+    bufferRange.offset = 0;
+    bufferRange.size = sizeof(GPUDrawPushConstants);
+    bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCInfo { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    pipelineLayoutCInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCInfo.pPushConstantRanges = &bufferRange;
+
+	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
+
 	m_pipelineUtil.buildPipeline(m_device);
+}
+
+// TODO: not hardcoded, load from model
+void HyacinthEngine::createBuffers() {
+	std::vector<Vertex> vertices;
+	std::vector<uint32_t> indices;
+
+    float halfExtent = 0.5f;
+	glm::vec4 color1 = { 1.0f, 0.0f, 0.0f, 1.0f };
+    glm::vec4 color2 = { 0.0f, 1.0f, 0.0f, 1.0f };
+    glm::vec4 color3 = { 0.0f, 0.0f, 1.0f, 1.0f };
+    glm::vec4 color4 = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    const glm::vec3 p[8] = {
+        {-halfExtent, -halfExtent, -halfExtent}, // 0
+        { halfExtent, -halfExtent, -halfExtent}, // 1
+        { halfExtent,  halfExtent, -halfExtent}, // 2
+        {-halfExtent,  halfExtent, -halfExtent}, // 3
+        {-halfExtent, -halfExtent,  halfExtent}, // 4
+        { halfExtent, -halfExtent,  halfExtent}, // 5
+        { halfExtent,  halfExtent,  halfExtent}, // 6
+        {-halfExtent,  halfExtent,  halfExtent}  // 7
+    };
+
+    struct Face {
+        uint32_t i0, i1, i2, i3;
+        glm::vec3 normal;
+    };
+
+    const Face faces[6] = {
+        {4, 5, 6, 7, { 0,  0,  1}}, // Front
+        {1, 0, 3, 2, { 0,  0, -1}}, // Back
+        {0, 4, 7, 3, {-1,  0,  0}}, // Left
+        {5, 1, 2, 6, { 1,  0,  0}}, // Right
+        {3, 7, 6, 2, { 0,  1,  0}}, // Top
+        {0, 1, 5, 4, { 0, -1,  0}}  // Bottom
+    };
+
+    for (uint32_t f = 0; f < 6; ++f) {
+        uint32_t baseIndex = static_cast<uint32_t>(vertices.size());
+
+        const Face& face = faces[f];
+
+        vertices.push_back({ p[face.i0], 0.0f, face.normal, 0.0f, color1 });
+        vertices.push_back({ p[face.i1], 1.0f, face.normal, 0.0f, color2 });
+        vertices.push_back({ p[face.i2], 1.0f, face.normal, 1.0f, color3 });
+        vertices.push_back({ p[face.i3], 0.0f, face.normal, 1.0f, color4 });
+
+        indices.push_back(baseIndex + 0);
+        indices.push_back(baseIndex + 1);
+        indices.push_back(baseIndex + 2);
+
+        indices.push_back(baseIndex + 2);
+        indices.push_back(baseIndex + 3);
+        indices.push_back(baseIndex + 0);
+    }
+
+    m_meshBuffers = vkmeshutils::uploadMesh(m_device, m_allocator, uploadFrame.commandBuffer, m_graphicsQueue, m_uploadFence, indices, vertices);
+	m_meshBuffers.indexCount = static_cast<uint32_t>(indices.size());
+}
+
+glm::mat4 HyacinthEngine::getCamMatrix() {
+    glm::mat4 rotation = glm::mat4(1.0f);
+    rotation = glm::rotate(rotation, (SDL_GetTicks() / 1000.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+    glm::mat4 view = glm::translate(glm::mat4(1.f), glm::vec3{0,0,-4});
+    glm::mat4 projection = glm::perspective(glm::radians(90.f), (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height, 0.1f, 1000.0f);
+
+    projection[1][1] *= -1;
+
+    return projection * view * rotation;
 }
 
 void HyacinthEngine::init()
 {
 	createInstance();
-
-	createSwapchain();
-
-	createCommandBuffers();
-
-	createSyncObjects();
 
     VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.physicalDevice = m_physicalDevice;
@@ -271,7 +397,15 @@ void HyacinthEngine::init()
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &m_allocator);
 
+	createSwapchain();
+
+	createCommandBuffers();
+
+	createSyncObjects();
+
     createGraphicsPipeline();
+
+    createBuffers();
 
     m_initialized = true;
 }
@@ -288,6 +422,7 @@ void HyacinthEngine::setupDraw()
     vkdeviceutils::beginCommandBuffer(cmd);
 
     vkimageutils::transitionImage(cmd, m_swapChainImages[m_imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkimageutils::transitionImage(cmd, m_depthImages[m_imageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 }
 
 void HyacinthEngine::draw()
@@ -295,10 +430,18 @@ void HyacinthEngine::draw()
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
     VkRenderingAttachmentInfo colorAttachment = vkimageutils::createAttachmentInfo(m_swapChainImageViews[m_imageIndex], clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, nullptr);
+	VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_depthImages[m_imageIndex].imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
+
+    GPUDrawPushConstants push_constants;
+    push_constants.worldMatrix = getCamMatrix();
+    push_constants.vertexBuffer = m_meshBuffers.vertexBufferAddress;
+
+    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+    vkCmdBindIndexBuffer(cmd, m_meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -314,7 +457,7 @@ void HyacinthEngine::draw()
     scissor.extent = m_swImageFormat.extent;
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    vkCmdDraw(cmd, 3, 1, 0, 0);
+	vkCmdDrawIndexed(cmd, m_meshBuffers.indexCount, 1, 0, 0, 0);
 
     endDraw();
 }
@@ -374,7 +517,10 @@ void HyacinthEngine::cleanup()
 
 	vkDeviceWaitIdle(m_device);
 
-	vmaDestroyAllocator(m_allocator);
+	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.indexBuffer);
+	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.vertexBuffer);
+
+	vkDestroyFence(m_device, m_uploadFence, nullptr);
 
 	vkDestroyPipeline(m_device, m_pipelineUtil.m_pipeline.pipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineUtil.m_pipeline.layout, nullptr);
@@ -385,7 +531,14 @@ void HyacinthEngine::cleanup()
 		vkDestroyFence(m_device, m_inFlightFences[i], nullptr);
 
         vkDestroyCommandPool(m_device, m_frameData[i].commandPool, nullptr);
+
+        vkDestroyImageView(m_device, m_depthImages[i].imageView, nullptr);
+        vmaDestroyImage(m_allocator, m_depthImages[i].image, m_depthImages[i].imageAllocation);
 	}
+
+    vmaDestroyAllocator(m_allocator);
+
+	vkDestroyCommandPool(m_device, uploadFrame.commandPool, nullptr);
 
 	cleanupSwapchain(m_device, m_swapChain, m_swapChainImageViews);
 

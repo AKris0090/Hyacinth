@@ -10,8 +10,13 @@
 #include "vkdebugutils.h"
 #include "vkimageutils.h"
 #include "vkpipelineutils.h"
+#include "vkmeshutils.h"
 
 #include "vk_mem_alloc.h"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #ifdef NDEBUG
 const bool enableValLayers = false;
@@ -58,16 +63,23 @@ private:
 	std::vector<VkSemaphore>		m_imageAcquiredSemas	{};
 	std::vector<VkSemaphore>		m_imageFinishedSemas	{};
 	std::vector<VkFence> 			m_inFlightFences		{};
+	VkFence							m_uploadFence			{ VK_NULL_HANDLE };
 	std::vector<VkImage>			m_swapChainImages		{};
 	std::vector<VkImageView>		m_swapChainImageViews	{};
+	std::vector<VulkanImage>		m_depthImages			{};
 	SWChainImageFormat				m_swImageFormat			{};
 	VulkanPipelineBuilder 			m_pipelineUtil;
+	VulkanBuffer 					m_vertexBuffer			{};
+	GPUMeshBuffers					m_meshBuffers			{};
+	perFrame						uploadFrame				{};
 
 	void createInstance();
 	void createSwapchain();
 	void createCommandBuffers();
 	void createSyncObjects();
 	void createGraphicsPipeline();
+	void createBuffers();
+	glm::mat4 getCamMatrix();
 
 	void setupDraw();
 	void endDraw();

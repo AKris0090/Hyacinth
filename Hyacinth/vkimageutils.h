@@ -75,4 +75,15 @@ namespace vkimageutils {
 		attachmentInfo.clearValue = clearColor;
 		return attachmentInfo;
 	}
+
+	static VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView imageView, VkImageLayout imageLayout) {
+		VkRenderingAttachmentInfo attachmentInfo{};
+		attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+		attachmentInfo.imageView = imageView;
+		attachmentInfo.imageLayout = imageLayout;
+		attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachmentInfo.clearValue.depthStencil.depth = 0.f;
+		return attachmentInfo;
+	}
 }

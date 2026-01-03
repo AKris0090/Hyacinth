@@ -31,6 +31,9 @@
     <Filter Include="Source Files\engine\vkutils\pipeline">
       <UniqueIdentifier>{c6959573-451a-4de4-9ece-bceaa6d26fb7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\engine\vkutils\mesh">
+      <UniqueIdentifier>{a34500b4-a288-42d7-bbdf-412e3a67c312}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -51,6 +54,9 @@
     <ClCompile Include="vkpipelineutils.cpp">
       <Filter>Source Files\engine\vkutils\pipeline</Filter>
     </ClCompile>
+    <ClCompile Include="vkmeshutils.cpp">
+      <Filter>Source Files\engine\vkutils\mesh</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vkengine.h">
@@ -70,6 +76,9 @@
     </ClInclude>
     <ClInclude Include="vkpipelineutils.h">
       <Filter>Source Files\engine\vkutils\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="vkmeshutils.h">
+      <Filter>Source Files\engine\vkutils\mesh</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

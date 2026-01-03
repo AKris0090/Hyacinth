@@ -29,11 +29,6 @@ void VulkanPipelineBuilder::addShader(VkDevice& device, std::string shaderFile, 
 }
 
 void VulkanPipelineBuilder::buildPipeline(VkDevice& dev) {
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-
-    VK_CHECK(vkCreatePipelineLayout(dev, &pipelineLayoutInfo, nullptr, &m_pipeline.layout));
-
     m_viewportState.viewportCount = 1;
     m_viewportState.scissorCount = 1;
 
@@ -118,10 +113,10 @@ void VulkanPipelineBuilder::setDepthAttachmentFormat(VkFormat format) {
     m_renderInfo.depthAttachmentFormat = format;
 }
 
-void VulkanPipelineBuilder::disableDepthTest() {
-    m_depthStencil.depthTestEnable = VK_FALSE;
-    m_depthStencil.depthWriteEnable = VK_FALSE;
-    m_depthStencil.depthCompareOp = VK_COMPARE_OP_NEVER;
+void VulkanPipelineBuilder::enableDepthTest(bool depthWrite, VkCompareOp op) {
+    m_depthStencil.depthTestEnable = VK_TRUE;
+    m_depthStencil.depthWriteEnable = depthWrite;
+    m_depthStencil.depthCompareOp = op;
     m_depthStencil.depthBoundsTestEnable = VK_FALSE;
     m_depthStencil.stencilTestEnable = VK_FALSE;
     m_depthStencil.front = {};

@@ -142,6 +142,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="sdlwindow.cpp" />
     <ClCompile Include="vkdebugutils.h" />
+    <ClCompile Include="vkmeshutils.cpp" />
     <ClCompile Include="vkpipelineutils.cpp" />
     <ClCompile Include="vkswapchainutils.cpp" />
     <ClCompile Include="vkengine.cpp" />
@@ -151,6 +152,7 @@
     <ClInclude Include="vkdeviceutils.h" />
     <ClInclude Include="vkengine.h" />
     <ClInclude Include="vkimageutils.h" />
+    <ClInclude Include="vkmeshutils.h" />
     <ClInclude Include="vkpipelineutils.h" />
     <ClInclude Include="vkswapchainutils.h" />
   </ItemGroup>

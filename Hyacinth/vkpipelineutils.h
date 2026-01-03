@@ -50,7 +50,6 @@ public:
     VkPipelineRasterizationStateCreateInfo          m_rasterizer;
     VkPipelineColorBlendAttachmentState             m_colorBlendAttachment;
     VkPipelineMultisampleStateCreateInfo            m_multisampling;
-    VkPipelineLayout                                m_pipelineLayout;
     VkPipelineDepthStencilStateCreateInfo           m_depthStencil;
     VkPipelineRenderingCreateInfo                   m_renderInfo;
 	VkPipelineViewportStateCreateInfo               m_viewportState;
@@ -68,5 +67,5 @@ public:
     void disableBlending();
 	void setColorAttachmentFormat(VkFormat format);
 	void setDepthAttachmentFormat(VkFormat format);
-	void disableDepthTest();
+	void enableDepthTest(bool depthWrite, VkCompareOp op);
 };

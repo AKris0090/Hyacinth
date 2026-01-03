@@ -2,6 +2,7 @@
 
 #include "vkswapchainutils.h"
 #include "vkdebugutils.h"
+#include "vk_mem_alloc.h"
 
 #include <string>
 #include <set>
@@ -9,7 +10,8 @@
 
 const std::vector<const char*> deviceExts = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
+    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+    VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME
 };
 
 struct QueueFamilyIndices {
@@ -20,13 +22,39 @@ struct QueueFamilyIndices {
     bool isComplete() const { return (graphicsFamily.has_value() && presentFamily.has_value()); }
 };
 
+struct VulkanBuffer {
+    VkBuffer buffer;
+    VmaAllocation allocation;
+    VmaAllocationInfo info;
+};
+
 namespace vkdeviceutils {
     static void beginCommandBuffer(VkCommandBuffer& commandBuffer) {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		beginInfo.pInheritanceInfo = nullptr;
         VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
     }
+
+    static void endSubmitCommandBuffer(VkCommandBuffer& commandBuffer, VkDevice& dev, VkQueue& queue, VkFence& uploadFence) {
+        VK_CHECK(vkEndCommandBuffer(commandBuffer));
+
+        VkSubmitInfo submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pNext = nullptr;
+        submitInfo.waitSemaphoreCount = 0;
+        submitInfo.pWaitSemaphores = nullptr;
+        submitInfo.pWaitDstStageMask = nullptr;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+        submitInfo.signalSemaphoreCount = 0;
+        submitInfo.pSignalSemaphores = nullptr;
+
+        VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, uploadFence));
+        vkWaitForFences(dev, 1, &uploadFence, true, 9999999999);
+        vkResetFences(dev, 1, &uploadFence);
+	}
 
     static bool checkExtSupport(VkPhysicalDevice physicalDevice) {
         uint32_t numExts;
@@ -142,5 +170,24 @@ namespace vkdeviceutils {
         renderingInfo.pStencilAttachment = nullptr;
 
         return renderingInfo;
+	}
+
+    static VulkanBuffer createBuffer(VmaAllocator& allocator, size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage) {
+		VkBufferCreateInfo bufferInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+        bufferInfo.size = size;
+        bufferInfo.usage = usage;
+
+		VmaAllocationCreateInfo allocInfo = {};
+        allocInfo.usage = memUsage;
+        allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+        VulkanBuffer buffer{};
+
+        VK_CHECK(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &buffer.buffer, &buffer.allocation, &buffer.info));
+        return buffer;
+    }
+
+    static void destroyBuffer(VmaAllocator& allocator, VulkanBuffer& buffer) {
+        vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
 	}
 }
