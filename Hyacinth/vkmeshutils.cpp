@@ -7,11 +7,7 @@ GPUMeshBuffers vkmeshutils::uploadMesh(VkDevice& dev, VmaAllocator& alloc, VkCom
 
 	GPUMeshBuffers gpuMesh{};
 
-	gpuMesh.vertexBuffer = vkdeviceutils::createBuffer(alloc, vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-	VkBufferDeviceAddressInfo deviceAddressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
-	deviceAddressInfo.buffer = gpuMesh.vertexBuffer.buffer;
-	gpuMesh.vertexBufferAddress = vkGetBufferDeviceAddress(dev, &deviceAddressInfo);
-
+	gpuMesh.vertexBuffer = vkdeviceutils::createBuffer(alloc, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	gpuMesh.indexBuffer = vkdeviceutils::createBuffer(alloc, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 	VulkanBuffer staging = vkdeviceutils::createBuffer(alloc, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);

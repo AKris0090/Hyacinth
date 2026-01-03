@@ -1,5 +1,6 @@
 #include "vkpipelineutils.h"
 #include "vkdebugutils.h"
+#include "vkmeshutils.h"
 
 void VulkanPipelineBuilder::reset() {
     m_inputAssembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
@@ -39,9 +40,14 @@ void VulkanPipelineBuilder::buildPipeline(VkDevice& dev) {
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &m_colorBlendAttachment;
 
+    auto bindings = Vertex::getBindingDescription();
+    auto attributes = Vertex::getAttributeDescriptions();
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindings;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size());
+	vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
 
     VkGraphicsPipelineCreateInfo pipelineInfo = { .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
     pipelineInfo.pNext = &m_renderInfo;

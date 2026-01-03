@@ -356,10 +356,10 @@ void HyacinthEngine::createBuffers() {
 
         const Face& face = faces[f];
 
-        vertices.push_back({ p[face.i0], 0.0f, face.normal, 0.0f, color1 });
-        vertices.push_back({ p[face.i1], 1.0f, face.normal, 0.0f, color2 });
-        vertices.push_back({ p[face.i2], 1.0f, face.normal, 1.0f, color3 });
-        vertices.push_back({ p[face.i3], 0.0f, face.normal, 1.0f, color4 });
+        vertices.push_back({ glm::vec4(p[face.i0], 0.0f), glm::vec4(face.normal, 0.0f), color1 });
+        vertices.push_back({ glm::vec4(p[face.i1], 1.0f), glm::vec4(face.normal, 0.0f), color2 });
+        vertices.push_back({ glm::vec4(p[face.i2], 1.0f), glm::vec4(face.normal, 1.0f), color3 });
+        vertices.push_back({ glm::vec4(p[face.i3], 0.0f), glm::vec4(face.normal, 1.0f), color4 });
 
         indices.push_back(baseIndex + 0);
         indices.push_back(baseIndex + 1);
@@ -423,6 +423,12 @@ void HyacinthEngine::setupDraw()
 
     vkimageutils::transitionImage(cmd, m_swapChainImages[m_imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkimageutils::transitionImage(cmd, m_depthImages[m_imageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
+
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(cmd, 0, 1, &m_meshBuffers.vertexBuffer.buffer, offsets);
+    vkCmdBindIndexBuffer(cmd, m_meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 }
 
 void HyacinthEngine::draw()
@@ -434,11 +440,8 @@ void HyacinthEngine::draw()
 	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
-
     GPUDrawPushConstants push_constants{};
     push_constants.worldMatrix = getCamMatrix();
-    push_constants.vertexBuffer = m_meshBuffers.vertexBufferAddress;
 
     vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
     vkCmdBindIndexBuffer(cmd, m_meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);

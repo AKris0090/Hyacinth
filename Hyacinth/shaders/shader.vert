@@ -1,33 +1,21 @@
 #version 450
-#extension GL_EXT_buffer_reference: require
 
-layout(location = 0) out vec3 fragColor;
-layout (location = 1) out vec2 outUV;
+layout	(location = 0) in vec4 inPosition;
+layout	(location = 1) in vec4 inNormal;
+layout	(location = 2) in vec4 inColor;
 
-struct Vertex {
-	vec3 position;
-	float uv_x;
-	vec3 normal;
-	float uv_y;
-	vec4 color;
-}; 
-
-layout(buffer_reference, std430) readonly buffer VertexBuffer{ 
-	Vertex vertices[];
-};
+layout	(location = 0) out vec3 fragColor;
+layout	(location = 1) out vec2 outUV;
 
 layout( push_constant ) uniform constants
 {	
 	mat4 render_matrix;
-	VertexBuffer vertexBuffer;
 } PushConstants;
 
 void main() 
 {
-	Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
-
-	gl_Position = PushConstants.render_matrix * vec4(v.position, 1.0f);
-	fragColor = v.color.xyz;
-	outUV.x = v.uv_x;
-	outUV.y = v.uv_y;
+	gl_Position = PushConstants.render_matrix * vec4(inPosition.xyz, 1.0f);
+	fragColor	= inColor.xyz;
+	outUV.x		= inPosition.w;
+	outUV.y		= inNormal.w;
 }
