@@ -40,6 +40,7 @@ private:
 
 	bool m_initialized = false;
 	int  m_frameIndex = 0;
+	uint32_t m_imageIndex = 0;
 	int	 maxFramesInFlight = 1;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
@@ -68,8 +69,8 @@ private:
 	void createSyncObjects();
 	void createGraphicsPipeline();
 
-	VkCommandBuffer& setupDraw(uint32_t& imageIndex);
-	void endDraw(VkCommandBuffer& cmd, uint32_t& imageIndex);
+	void setupDraw();
+	void endDraw();
 
 	inline perFrame& getCurrentFrame() {
 		return m_frameData[m_frameIndex];

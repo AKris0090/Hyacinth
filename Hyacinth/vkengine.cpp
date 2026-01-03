@@ -271,83 +271,30 @@ void HyacinthEngine::init()
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &m_allocator);
 
-    //createRenderPass();
-
     createGraphicsPipeline();
-
-    //createFramebuffers();
 
     m_initialized = true;
 }
 
-
-VkCommandBuffer& HyacinthEngine::setupDraw(uint32_t& imageIndex)
+void HyacinthEngine::setupDraw()
 {
     VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_frameIndex], VK_TRUE, UINT64_MAX));
 
-    VK_CHECK(vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_imageAcquiredSemas[m_frameIndex], VK_NULL_HANDLE, &imageIndex));
+    VK_CHECK(vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_imageAcquiredSemas[m_frameIndex], VK_NULL_HANDLE, &m_imageIndex));
 
     vkResetFences(m_device, 1, &m_inFlightFences[m_frameIndex]);
     VkCommandBuffer& cmd = getCurrentFrame().commandBuffer;
     VK_CHECK(vkResetCommandBuffer(cmd, 0));
     vkdeviceutils::beginCommandBuffer(cmd);
 
-    vkimageutils::transitionImage(cmd, m_swapChainImages[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
-    return cmd;
-}
-
-void HyacinthEngine::endDraw(VkCommandBuffer& cmd, uint32_t& imageIndex)
-{
-    vkCmdEndRendering(cmd);
-    vkimageutils::transitionImage(cmd, m_swapChainImages[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-    VK_CHECK(vkEndCommandBuffer(cmd));
-
-    // submit the command buffer to the graphics queue
-    VkSemaphoreSubmitInfo waitSemaSubmitInfo{};
-    waitSemaSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-    waitSemaSubmitInfo.semaphore = m_imageAcquiredSemas[m_frameIndex];
-    waitSemaSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR;
-
-    VkSemaphoreSubmitInfo signalSemaSubmitInfo{};
-    signalSemaSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-    signalSemaSubmitInfo.semaphore = m_imageFinishedSemas[imageIndex];
-    signalSemaSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
-
-    VkCommandBufferSubmitInfo cmdSubmitInfo{};
-    cmdSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-    cmdSubmitInfo.commandBuffer = cmd;
-
-    VkSubmitInfo2 queueSubmitInfo = {};
-    queueSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
-    queueSubmitInfo.waitSemaphoreInfoCount = 1;
-    queueSubmitInfo.pWaitSemaphoreInfos = &waitSemaSubmitInfo;
-    queueSubmitInfo.signalSemaphoreInfoCount = 1;
-    queueSubmitInfo.pSignalSemaphoreInfos = &signalSemaSubmitInfo;
-    queueSubmitInfo.commandBufferInfoCount = 1;
-    queueSubmitInfo.pCommandBufferInfos = &cmdSubmitInfo;
-
-    VK_CHECK(vkQueueSubmit2(m_graphicsQueue, 1, &queueSubmitInfo, m_inFlightFences[m_frameIndex]));
-
-    VkPresentInfoKHR presentInfo{};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &m_imageFinishedSemas[imageIndex];
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &m_swapChain;
-    presentInfo.pImageIndices = &imageIndex;
-
-    VK_CHECK(vkQueuePresentKHR(m_presentQueue, &presentInfo));
-
-    incrementFrameIndex(m_frameIndex);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 }
 
 void HyacinthEngine::draw()
 {
-    uint32_t imageIndex;
-	VkCommandBuffer cmd = setupDraw(imageIndex);
-    VkRenderingAttachmentInfo colorAttachment = vkimageutils::createAttachmentInfo(m_swapChainImageViews[imageIndex], clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    setupDraw();
+    VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
+    VkRenderingAttachmentInfo colorAttachment = vkimageutils::createAttachmentInfo(m_swapChainImageViews[m_imageIndex], clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, nullptr);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
@@ -369,7 +316,54 @@ void HyacinthEngine::draw()
 
     vkCmdDraw(cmd, 3, 1, 0, 0);
 
-    endDraw(cmd, imageIndex);
+    endDraw();
+}
+
+void HyacinthEngine::endDraw()
+{
+    VkCommandBuffer& cmd = getCurrentFrame().commandBuffer;
+    vkCmdEndRendering(cmd);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+    VK_CHECK(vkEndCommandBuffer(cmd));
+
+    // submit the command buffer to the graphics queue
+    VkSemaphoreSubmitInfo waitSemaSubmitInfo{};
+    waitSemaSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+    waitSemaSubmitInfo.semaphore = m_imageAcquiredSemas[m_frameIndex];
+    waitSemaSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR;
+
+    VkSemaphoreSubmitInfo signalSemaSubmitInfo{};
+    signalSemaSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+    signalSemaSubmitInfo.semaphore = m_imageFinishedSemas[m_imageIndex];
+    signalSemaSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+
+    VkCommandBufferSubmitInfo cmdSubmitInfo{};
+    cmdSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+    cmdSubmitInfo.commandBuffer = cmd;
+
+    VkSubmitInfo2 queueSubmitInfo = {};
+    queueSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+    queueSubmitInfo.waitSemaphoreInfoCount = 1;
+    queueSubmitInfo.pWaitSemaphoreInfos = &waitSemaSubmitInfo;
+    queueSubmitInfo.signalSemaphoreInfoCount = 1;
+    queueSubmitInfo.pSignalSemaphoreInfos = &signalSemaSubmitInfo;
+    queueSubmitInfo.commandBufferInfoCount = 1;
+    queueSubmitInfo.pCommandBufferInfos = &cmdSubmitInfo;
+
+    VK_CHECK(vkQueueSubmit2(m_graphicsQueue, 1, &queueSubmitInfo, m_inFlightFences[m_frameIndex]));
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &m_imageFinishedSemas[m_imageIndex];
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &m_swapChain;
+    presentInfo.pImageIndices = &m_imageIndex;
+
+    VK_CHECK(vkQueuePresentKHR(m_presentQueue, &presentInfo));
+
+    incrementFrameIndex(m_frameIndex);
 }
 
 void HyacinthEngine::cleanup()
