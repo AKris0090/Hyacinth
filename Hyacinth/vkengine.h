@@ -79,7 +79,7 @@ private:
 	void createSyncObjects();
 	void createGraphicsPipeline();
 	void createBuffers();
-	glm::mat4 getCamMatrix();
+	glm::mat4 getCamMatrix() const;
 
 	void setupDraw();
 	void endDraw();
