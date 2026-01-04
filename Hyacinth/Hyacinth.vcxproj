@@ -151,6 +151,7 @@
     <ClCompile Include="vkengine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="fpcam.h" />
     <ClInclude Include="gltfutils.h" />
     <ClInclude Include="sdlwindow.h" />
     <ClInclude Include="vkdeviceutils.h" />

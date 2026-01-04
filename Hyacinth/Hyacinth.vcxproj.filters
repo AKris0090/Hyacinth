@@ -37,6 +37,9 @@
     <Filter Include="Source Files\engine\gltfutils">
       <UniqueIdentifier>{af396933-eef6-42c5-bf4b-1b2c3b236b7f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\engine\camera">
+      <UniqueIdentifier>{9e408cb8-5fdf-4497-965f-1e9c79b6c068}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -88,6 +91,9 @@
     </ClInclude>
     <ClInclude Include="gltfutils.h">
       <Filter>Source Files\engine\gltfutils</Filter>
+    </ClInclude>
+    <ClInclude Include="fpcam.h">
+      <Filter>Source Files\engine\camera</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

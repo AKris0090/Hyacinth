@@ -10,8 +10,11 @@ int main() {
 	hyacinthEngine.init();
 
 	while(sdlwindow.isRunning()) {
-		sdlwindow.pollEvents();
-
+		SDL_Event event;
+		while (SDL_PollEvent(&event)) {
+			sdlwindow.pollEvents(event);
+			hyacinthEngine.update(event);
+		}
 		hyacinthEngine.draw();
 	}
 

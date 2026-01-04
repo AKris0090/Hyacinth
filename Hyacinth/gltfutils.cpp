@@ -75,7 +75,12 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
 
                 v.pos = glm::vec4(glm::make_vec3(&positionBuff[vert * 3]), 0.0f);
                 v.normal = glm::vec4(normal, 0.0f);
-				v.color = glm::vec4(0.5f);
+                v.color = glm::vec4(
+                    static_cast<float>(rand()) / RAND_MAX,
+                    static_cast<float>(rand()) / RAND_MAX,
+                    static_cast<float>(rand()) / RAND_MAX,
+                    1.0f
+                );
                 p->vertices.push_back(v);
             }
 
@@ -150,6 +155,7 @@ void sceneGraph::buildSceneGraph() {
     for (const auto& obj : objects) {
         uint32_t currentNumMatrices = static_cast<uint32_t>(transformMatrices.size());
 
+        int id = 0;
         for (const auto& node: obj.nodes) {
             transformMatrices.push_back(node.get()->worldTransform);
             for (const auto& prim : node.get()->primitives) {
@@ -158,8 +164,9 @@ void sceneGraph::buildSceneGraph() {
 
                 VkDrawIndexedIndirectCommand drawCmd{};
 				drawCmd.firstIndex = firstIndex;
-                drawCmd.indexCount = prim.get()->indices.size();
+                drawCmd.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
                 drawCmd.instanceCount = 1;
+                drawCmd.firstInstance = id;
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);
@@ -168,9 +175,10 @@ void sceneGraph::buildSceneGraph() {
                     indices.push_back(index + firstVertex);
 				}
 
-                transformIndices.push_back(transformMatrices.size() - 1);
+                transformIndices.push_back(static_cast<uint32_t>(transformMatrices.size()) - 1);
 				drawCommands.push_back(drawCmd);
             }
+            id++;
 		}
     }
 }

@@ -24,6 +24,7 @@ struct QueueFamilyIndices {
 
 struct VulkanBuffer {
     VkBuffer buffer;
+	VkDeviceAddress gpuAddress;
     VmaAllocation allocation;
     VmaAllocationInfo info;
 };
@@ -186,18 +187,24 @@ namespace vkdeviceutils {
         return renderingInfo;
 	}
 
-    static VulkanBuffer createBuffer(VmaAllocator& allocator, size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage) {
+    static VulkanBuffer createBuffer(VkDevice& device, VmaAllocator& allocator, size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags) {
 		VkBufferCreateInfo bufferInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         bufferInfo.size = size;
-        bufferInfo.usage = usage;
+        bufferInfo.usage = usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
 		VmaAllocationCreateInfo allocInfo = {};
         allocInfo.usage = memUsage;
-        allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        allocInfo.flags = vmaFlags;
 
         VulkanBuffer buffer{};
 
         VK_CHECK(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &buffer.buffer, &buffer.allocation, &buffer.info));
+
+        VkBufferDeviceAddressInfo addressInfo{};
+        addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+        addressInfo.buffer = buffer.buffer;
+        buffer.gpuAddress = vkGetBufferDeviceAddress(device, &addressInfo);
+        
         return buffer;
     }
 
@@ -206,7 +213,7 @@ namespace vkdeviceutils {
     }
 
     static void uploadToBuffer(DeviceContext& ctx, VulkanBuffer& buffer, size_t size, void* data) {
-        VulkanBuffer stagingBuffer = vkdeviceutils::createBuffer(*ctx.allocator, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+        VulkanBuffer stagingBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
         memcpy(stagingBuffer.info.pMappedData, data, size);
 
         vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {

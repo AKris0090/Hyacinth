@@ -88,6 +88,9 @@ void HyacinthEngine::createInstance()
         queuecInfos.push_back(queuecInfo);
     }
 
+	VkPhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.multiDrawIndirect = VK_TRUE;
+
     VkPhysicalDeviceVulkan12Features dev12Features{};
     dev12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     dev12Features.bufferDeviceAddress = true;
@@ -105,7 +108,7 @@ void HyacinthEngine::createInstance()
     deviceCInfo.pNext = &dev13Features;
     deviceCInfo.queueCreateInfoCount = static_cast<uint32_t>(queuecInfos.size());
     deviceCInfo.pQueueCreateInfos = queuecInfos.data();
-    deviceCInfo.pEnabledFeatures = nullptr;
+    deviceCInfo.pEnabledFeatures = &deviceFeatures;
 
 	// deviceExts declared in vkdeviceutils.h
     deviceCInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExts.size());
@@ -316,26 +319,22 @@ void HyacinthEngine::createGraphicsPipeline()
 }
 
 void HyacinthEngine::createBuffers() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "monkey.glb";
+    auto path = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes.glb";
 	m_scene.objects.push_back(gltfutils::loadFromFile(path.string()));
 	m_scene.buildSceneGraph();
     m_meshBuffers = vkmeshutils::uploadMesh(m_devContext, m_scene.indices, m_scene.vertices);
 
 	size_t drawCmdBufferSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.drawCommands.size();
-    m_indirectDrawBuffer = vkdeviceutils::createBuffer(m_allocator, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    m_indirectDrawBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
 	vkdeviceutils::uploadToBuffer(m_devContext, m_indirectDrawBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
+
+	size_t matrixBuffSize = sizeof(glm::mat4) * m_scene.transformMatrices.size();
+    m_worldMatrixBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+	vkdeviceutils::uploadToBuffer(m_devContext, m_worldMatrixBuffer, matrixBuffSize, m_scene.transformMatrices.data());
 }
 
 glm::mat4 HyacinthEngine::getCamMatrix() const {
-    glm::mat4 rotation = glm::mat4(1.0f);
-    rotation = glm::rotate(rotation, (SDL_GetTicks() / 1000.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-
-    glm::mat4 view = glm::translate(glm::mat4(1.f), glm::vec3{0,0,-4});
-    glm::mat4 projection = glm::perspective(glm::radians(90.f), (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height, 0.1f, 1000.0f);
-
-    projection[1][1] *= -1;
-
-    return projection * view * rotation;
+    return m_camera.getProjectionMatrix(((float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height)) * m_camera.getViewMatrix();
 }
 
 void HyacinthEngine::init()
@@ -368,6 +367,10 @@ void HyacinthEngine::init()
     m_initialized = true;
 }
 
+void HyacinthEngine::update(SDL_Event& event) {
+    m_camera.processSDL(event);
+}
+
 void HyacinthEngine::setupDraw()
 {
     VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_frameIndex], VK_TRUE, UINT64_MAX));
@@ -398,10 +401,14 @@ void HyacinthEngine::draw()
 	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
-    GPUDrawPushConstants push_constants{};
-    push_constants.worldMatrix = getCamMatrix();
+    glm::mat4 rotation = glm::mat4(1.0f);
+    rotation = glm::rotate(rotation, (SDL_GetTicks() / 1000.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 
-    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+    GPUDrawPushConstants pushConstants{};
+    pushConstants.worldMatrix = getCamMatrix();
+    pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
+
+    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
     vkCmdBindIndexBuffer(cmd, m_meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     VkViewport viewport{};
@@ -481,6 +488,7 @@ void HyacinthEngine::cleanup()
 	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.indexBuffer);
 	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.vertexBuffer);
 	vkdeviceutils::destroyBuffer(m_allocator, m_indirectDrawBuffer);
+	vkdeviceutils::destroyBuffer(m_allocator, m_worldMatrixBuffer);
 
 	vkDestroyFence(m_device, m_uploadFence, nullptr);
 

@@ -7,15 +7,13 @@ GPUMeshBuffers vkmeshutils::uploadMesh(DeviceContext& ctx, std::vector<uint32_t>
 
 	GPUMeshBuffers gpuMesh{};
 
-	gpuMesh.vertexBuffer = vkdeviceutils::createBuffer(*ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-	gpuMesh.indexBuffer = vkdeviceutils::createBuffer(*ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	gpuMesh.vertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+	gpuMesh.indexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
 
-	VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-	void* data;
-	vmaMapMemory(*ctx.allocator, staging.allocation, &data);
+	VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-	memcpy(data, vertices.data(), vertexBufferSize);
-	memcpy((char*)data + vertexBufferSize, indices.data(), indexBufferSize);
+	memcpy(staging.info.pMappedData, vertices.data(), vertexBufferSize);
+	memcpy((char*)staging.info.pMappedData + vertexBufferSize, indices.data(), indexBufferSize);
 
 	VkBufferCopy vertexCopyRegion{};
 	vertexCopyRegion.srcOffset = 0;
@@ -32,7 +30,6 @@ GPUMeshBuffers vkmeshutils::uploadMesh(DeviceContext& ctx, std::vector<uint32_t>
 		vkCmdCopyBuffer(cmd, staging.buffer, gpuMesh.indexBuffer.buffer, 1, &indexCopyRegion);
 		});
 
-	vmaUnmapMemory(*ctx.allocator, staging.allocation);
 	vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
 
 	return gpuMesh;

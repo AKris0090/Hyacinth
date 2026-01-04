@@ -13,6 +13,8 @@
 #include "vkmeshutils.h"
 #include "gltfutils.h"
 
+#include "fpcam.h"
+
 #include "vk_mem_alloc.h"
 
 #include <glm/glm.hpp>
@@ -35,6 +37,7 @@ public:
 	~HyacinthEngine() { cleanup(); };
 
 	void init();
+	void update(SDL_Event& event);
 	void draw();
 	void cleanup();
 
@@ -73,8 +76,11 @@ private:
 	VulkanPipelineBuilder 			m_pipelineUtil;
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
+	VulkanBuffer 					m_worldMatrixBuffer		{};
 	perFrame						uploadFrame				{};
 	sceneGraph						m_scene					{};
+
+	FPSCam							m_camera				{};
 
 	void createInstance();
 	void createSwapchain();
