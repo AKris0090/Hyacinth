@@ -60,6 +60,7 @@ private:
 	VkQueue							m_presentQueue			{ VK_NULL_HANDLE };
 	QueueFamilyIndices				m_qfIndices				{};
 	VmaAllocator					m_allocator				{};
+	DeviceContext					m_devContext			{};
 	std::vector<perFrame>			m_frameData				{};
 	std::vector<VkSemaphore>		m_imageAcquiredSemas	{};
 	std::vector<VkSemaphore>		m_imageFinishedSemas	{};
@@ -73,7 +74,6 @@ private:
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
 	perFrame						uploadFrame				{};
-
 	sceneGraph						m_scene					{};
 
 	void createInstance();

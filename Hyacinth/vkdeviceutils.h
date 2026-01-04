@@ -28,6 +28,14 @@ struct VulkanBuffer {
     VmaAllocationInfo info;
 };
 
+struct DeviceContext {
+    VkDevice* device;
+    VmaAllocator* allocator;
+	VkQueue* graphicsQueue;
+    VkCommandBuffer* commandBuffer;
+	VkFence* uploadFence;
+};
+
 namespace vkdeviceutils {
     static void beginCommandBuffer(VkCommandBuffer& commandBuffer) {
         VkCommandBufferBeginInfo beginInfo{};
@@ -37,8 +45,8 @@ namespace vkdeviceutils {
         VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
     }
 
-    static void endSubmitCommandBuffer(VkCommandBuffer& commandBuffer, VkDevice& dev, VkQueue& queue, VkFence& uploadFence) {
-        VK_CHECK(vkEndCommandBuffer(commandBuffer));
+    static void endSubmitCommandBuffer(DeviceContext* ctx) {
+        VK_CHECK(vkEndCommandBuffer(*ctx->commandBuffer));
 
         VkSubmitInfo submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -47,14 +55,22 @@ namespace vkdeviceutils {
         submitInfo.pWaitSemaphores = nullptr;
         submitInfo.pWaitDstStageMask = nullptr;
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
+        submitInfo.pCommandBuffers = ctx->commandBuffer;
         submitInfo.signalSemaphoreCount = 0;
         submitInfo.pSignalSemaphores = nullptr;
 
-        VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, uploadFence));
-        vkWaitForFences(dev, 1, &uploadFence, true, 9999999999);
-        vkResetFences(dev, 1, &uploadFence);
+        VK_CHECK(vkQueueSubmit(*ctx->graphicsQueue, 1, &submitInfo, *ctx->uploadFence));
+        vkWaitForFences(*ctx->device, 1, ctx->uploadFence, true, 9999999999);
+        vkResetFences(*ctx->device, 1, ctx->uploadFence);
 	}
+
+    template<typename Func>
+    void executeSingleTimeCommands(DeviceContext& ctx, Func&& f) {
+        vkResetCommandBuffer(*ctx.commandBuffer, 0);
+        beginCommandBuffer(*ctx.commandBuffer);
+        f(*ctx.commandBuffer);
+        endSubmitCommandBuffer(&ctx);
+    }
 
     static bool checkExtSupport(VkPhysicalDevice physicalDevice) {
         uint32_t numExts;
@@ -162,8 +178,6 @@ namespace vkdeviceutils {
         renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
         renderingInfo.renderArea = VkRect2D{ VkOffset2D {0, 0}, renderArea };
         renderingInfo.layerCount = 1;
-
-        renderingInfo.layerCount = 1;
         renderingInfo.colorAttachmentCount = 1;
         renderingInfo.pColorAttachments = colorAttachment;
         renderingInfo.pDepthAttachment = depthAttachment;
@@ -191,16 +205,16 @@ namespace vkdeviceutils {
         vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
     }
 
-    static void uploadToBuffer(VkDevice& dev, VkQueue& gQueue, VmaAllocator& alloc, VkCommandBuffer& cmd, VulkanBuffer& buffer, VkFence& uploadFence, size_t size, void* data) {
-        vkdeviceutils::beginCommandBuffer(cmd);
-        VulkanBuffer stagingBuffer = vkdeviceutils::createBuffer(alloc, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    static void uploadToBuffer(DeviceContext& ctx, VulkanBuffer& buffer, size_t size, void* data) {
+        VulkanBuffer stagingBuffer = vkdeviceutils::createBuffer(*ctx.allocator, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
         memcpy(stagingBuffer.info.pMappedData, data, size);
-        VkBufferCopy copyRegion{};
-        copyRegion.srcOffset = 0;
-        copyRegion.dstOffset = 0;
-        copyRegion.size = size;
-        vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copyRegion);
-        vkdeviceutils::endSubmitCommandBuffer(cmd, dev, gQueue, uploadFence);
-        vkdeviceutils::destroyBuffer(alloc, stagingBuffer);
+
+        vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
+            VkBufferCopy copyRegion{};
+            copyRegion.size = size;
+            vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copyRegion);
+        });
+
+        vkdeviceutils::destroyBuffer(*ctx.allocator, stagingBuffer);
     }
 }

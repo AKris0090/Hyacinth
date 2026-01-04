@@ -49,5 +49,5 @@ struct GPUDrawPushConstants {
 };
 
 namespace vkmeshutils {
-	GPUMeshBuffers uploadMesh(VkDevice& dev, VmaAllocator& alloc, VkCommandBuffer& cmd, VkQueue& gQueue, VkFence& uploadFence, std::vector<uint32_t>& indices, std::vector<Vertex>& vertices);
+	GPUMeshBuffers uploadMesh(DeviceContext& ctx, std::vector<uint32_t>& indices, std::vector<Vertex>& vertices);
 }
