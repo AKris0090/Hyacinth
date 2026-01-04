@@ -159,6 +159,7 @@ void sceneGraph::buildSceneGraph() {
                 VkDrawIndexedIndirectCommand drawCmd{};
 				drawCmd.firstIndex = firstIndex;
                 drawCmd.indexCount = prim.get()->indices.size();
+                drawCmd.instanceCount = 1;
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);

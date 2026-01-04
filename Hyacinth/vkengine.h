@@ -70,8 +70,8 @@ private:
 	std::vector<VulkanImage>		m_depthImages			{};
 	SWChainImageFormat				m_swImageFormat			{};
 	VulkanPipelineBuilder 			m_pipelineUtil;
-	VulkanBuffer 					m_vertexBuffer			{};
 	GPUMeshBuffers					m_meshBuffers			{};
+	VulkanBuffer 					m_indirectDrawBuffer	{};
 	perFrame						uploadFrame				{};
 
 	sceneGraph						m_scene					{};

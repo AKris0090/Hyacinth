@@ -4,6 +4,9 @@
 #include <vector>
 #include <iostream>
 
+#include <filesystem>
+#include <windows.h>
+
 // macro to check vk function results
 #define VK_CHECK(x)                                                     \
     do {                                                                \
@@ -85,5 +88,12 @@ namespace vkdebugutils {
         else {
             throw std::runtime_error("failed to get vkDestroyDebugUtilsMessengerEXT function address!");
         }
+    }
+
+    static std::filesystem::path getExeDir()
+    {
+        wchar_t buffer[MAX_PATH];
+        GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+        return std::filesystem::path(buffer).parent_path();
     }
 }

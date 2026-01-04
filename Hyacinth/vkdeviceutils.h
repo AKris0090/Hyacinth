@@ -189,5 +189,18 @@ namespace vkdeviceutils {
 
     static void destroyBuffer(VmaAllocator& allocator, VulkanBuffer& buffer) {
         vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
-	}
+    }
+
+    static void uploadToBuffer(VkDevice& dev, VkQueue& gQueue, VmaAllocator& alloc, VkCommandBuffer& cmd, VulkanBuffer& buffer, VkFence& uploadFence, size_t size, void* data) {
+        vkdeviceutils::beginCommandBuffer(cmd);
+        VulkanBuffer stagingBuffer = vkdeviceutils::createBuffer(alloc, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+        memcpy(stagingBuffer.info.pMappedData, data, size);
+        VkBufferCopy copyRegion{};
+        copyRegion.srcOffset = 0;
+        copyRegion.dstOffset = 0;
+        copyRegion.size = size;
+        vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copyRegion);
+        vkdeviceutils::endSubmitCommandBuffer(cmd, dev, gQueue, uploadFence);
+        vkdeviceutils::destroyBuffer(alloc, stagingBuffer);
+    }
 }

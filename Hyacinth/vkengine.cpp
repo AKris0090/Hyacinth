@@ -316,9 +316,14 @@ void HyacinthEngine::createGraphicsPipeline()
 }
 
 void HyacinthEngine::createBuffers() {
-	m_scene.objects.push_back(gltfutils::loadFromFile("./objects/monkey.glb"));
+    auto path = vkdebugutils::getExeDir() / "objects" / "monkey.glb";
+	m_scene.objects.push_back(gltfutils::loadFromFile(path.string()));
 	m_scene.buildSceneGraph();
     m_meshBuffers = vkmeshutils::uploadMesh(m_device, m_allocator, uploadFrame.commandBuffer, m_graphicsQueue, m_uploadFence, m_scene.indices, m_scene.vertices);
+
+	size_t drawCmdBufferSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.drawCommands.size();
+    m_indirectDrawBuffer = vkdeviceutils::createBuffer(m_allocator, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	vkdeviceutils::uploadToBuffer(m_device, m_graphicsQueue, m_allocator, uploadFrame.commandBuffer, m_indirectDrawBuffer, m_uploadFence, drawCmdBufferSize, m_scene.drawCommands.data());
 }
 
 glm::mat4 HyacinthEngine::getCamMatrix() const {
@@ -407,9 +412,7 @@ void HyacinthEngine::draw()
     scissor.extent = m_swImageFormat.extent;
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-    for (auto& draw : m_scene.drawCommands) {
-		vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, draw.vertexOffset, 0);
-    }
+	vkCmdDrawIndexedIndirect(cmd, m_indirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
     endDraw();
 }
@@ -471,6 +474,7 @@ void HyacinthEngine::cleanup()
 
 	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.indexBuffer);
 	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.vertexBuffer);
+	vkdeviceutils::destroyBuffer(m_allocator, m_indirectDrawBuffer);
 
 	vkDestroyFence(m_device, m_uploadFence, nullptr);
 
