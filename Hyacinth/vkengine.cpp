@@ -1,6 +1,6 @@
-#include "vkengine.h"
-
 #define VMA_IMPLEMENTATION
+
+#include "vkengine.h"
 #include "vk_mem_alloc.h"
 
 void HyacinthEngine::createInstance()
@@ -276,7 +276,7 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.setMultisamplingNone();
 	m_pipelineUtil.disableBlending();
 
-    m_pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    m_pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
     m_pipelineUtil.setDepthAttachmentFormat(m_depthImages[0].imageFormat);
 
     VkViewport viewport{};
@@ -284,8 +284,8 @@ void HyacinthEngine::createGraphicsPipeline()
     viewport.y = 0.0f;
     viewport.width = (float)m_swImageFormat.extent.width;
     viewport.height = (float)m_swImageFormat.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    viewport.minDepth = 1.0f;
+    viewport.maxDepth = 0.0f;
 
     VkRect2D scissor{};
     scissor.offset = { 0, 0 };
@@ -315,63 +315,10 @@ void HyacinthEngine::createGraphicsPipeline()
 	m_pipelineUtil.buildPipeline(m_device);
 }
 
-// TODO: not hardcoded, load from model
 void HyacinthEngine::createBuffers() {
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
-
-    float halfExtent = 0.5f;
-	glm::vec4 color1 = { 1.0f, 0.0f, 0.0f, 1.0f };
-    glm::vec4 color2 = { 0.0f, 1.0f, 0.0f, 1.0f };
-    glm::vec4 color3 = { 0.0f, 0.0f, 1.0f, 1.0f };
-    glm::vec4 color4 = { 1.0f, 1.0f, 1.0f, 1.0f };
-
-    const glm::vec3 p[8] = {
-        {-halfExtent, -halfExtent, -halfExtent}, // 0
-        { halfExtent, -halfExtent, -halfExtent}, // 1
-        { halfExtent,  halfExtent, -halfExtent}, // 2
-        {-halfExtent,  halfExtent, -halfExtent}, // 3
-        {-halfExtent, -halfExtent,  halfExtent}, // 4
-        { halfExtent, -halfExtent,  halfExtent}, // 5
-        { halfExtent,  halfExtent,  halfExtent}, // 6
-        {-halfExtent,  halfExtent,  halfExtent}  // 7
-    };
-
-    struct Face {
-        uint32_t i0, i1, i2, i3;
-        glm::vec3 normal;
-    };
-
-    const Face faces[6] = {
-        {4, 5, 6, 7, { 0,  0,  1}}, // Front
-        {1, 0, 3, 2, { 0,  0, -1}}, // Back
-        {0, 4, 7, 3, {-1,  0,  0}}, // Left
-        {5, 1, 2, 6, { 1,  0,  0}}, // Right
-        {3, 7, 6, 2, { 0,  1,  0}}, // Top
-        {0, 1, 5, 4, { 0, -1,  0}}  // Bottom
-    };
-
-    for (uint32_t f = 0; f < 6; ++f) {
-        uint32_t baseIndex = static_cast<uint32_t>(vertices.size());
-
-        const Face& face = faces[f];
-
-        vertices.push_back({ glm::vec4(p[face.i0], 0.0f), glm::vec4(face.normal, 0.0f), color1 });
-        vertices.push_back({ glm::vec4(p[face.i1], 1.0f), glm::vec4(face.normal, 0.0f), color2 });
-        vertices.push_back({ glm::vec4(p[face.i2], 1.0f), glm::vec4(face.normal, 1.0f), color3 });
-        vertices.push_back({ glm::vec4(p[face.i3], 0.0f), glm::vec4(face.normal, 1.0f), color4 });
-
-        indices.push_back(baseIndex + 0);
-        indices.push_back(baseIndex + 1);
-        indices.push_back(baseIndex + 2);
-
-        indices.push_back(baseIndex + 2);
-        indices.push_back(baseIndex + 3);
-        indices.push_back(baseIndex + 0);
-    }
-
-    m_meshBuffers = vkmeshutils::uploadMesh(m_device, m_allocator, uploadFrame.commandBuffer, m_graphicsQueue, m_uploadFence, indices, vertices);
-	m_meshBuffers.indexCount = static_cast<uint32_t>(indices.size());
+	m_scene.objects.push_back(gltfutils::loadFromFile("./objects/monkey.glb"));
+	m_scene.buildSceneGraph();
+    m_meshBuffers = vkmeshutils::uploadMesh(m_device, m_allocator, uploadFrame.commandBuffer, m_graphicsQueue, m_uploadFence, m_scene.indices, m_scene.vertices);
 }
 
 glm::mat4 HyacinthEngine::getCamMatrix() const {
@@ -460,7 +407,9 @@ void HyacinthEngine::draw()
     scissor.extent = m_swImageFormat.extent;
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-	vkCmdDrawIndexed(cmd, m_meshBuffers.indexCount, 1, 0, 0, 0);
+    for (auto& draw : m_scene.drawCommands) {
+		vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, draw.vertexOffset, 0);
+    }
 
     endDraw();
 }

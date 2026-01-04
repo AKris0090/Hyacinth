@@ -83,7 +83,7 @@ namespace vkimageutils {
 		attachmentInfo.imageLayout = imageLayout;
 		attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachmentInfo.clearValue.depthStencil.depth = 0.f;
+		attachmentInfo.clearValue.depthStencil.depth = 1.f;
 		return attachmentInfo;
 	}
 }

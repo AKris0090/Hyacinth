@@ -34,6 +34,9 @@
     <Filter Include="Source Files\engine\vkutils\mesh">
       <UniqueIdentifier>{a34500b4-a288-42d7-bbdf-412e3a67c312}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\engine\gltfutils">
+      <UniqueIdentifier>{af396933-eef6-42c5-bf4b-1b2c3b236b7f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -57,6 +60,9 @@
     <ClCompile Include="vkmeshutils.cpp">
       <Filter>Source Files\engine\vkutils\mesh</Filter>
     </ClCompile>
+    <ClCompile Include="gltfutils.cpp">
+      <Filter>Source Files\engine\gltfutils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vkengine.h">
@@ -79,6 +85,9 @@
     </ClInclude>
     <ClInclude Include="vkmeshutils.h">
       <Filter>Source Files\engine\vkutils\mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="gltfutils.h">
+      <Filter>Source Files\engine\gltfutils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

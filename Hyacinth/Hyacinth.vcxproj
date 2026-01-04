@@ -102,7 +102,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -124,7 +124,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -139,6 +139,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="gltfutils.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="sdlwindow.cpp" />
     <ClCompile Include="vkdebugutils.h" />
@@ -148,6 +149,7 @@
     <ClCompile Include="vkengine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="gltfutils.h" />
     <ClInclude Include="sdlwindow.h" />
     <ClInclude Include="vkdeviceutils.h" />
     <ClInclude Include="vkengine.h" />

@@ -11,6 +11,7 @@
 #include "vkimageutils.h"
 #include "vkpipelineutils.h"
 #include "vkmeshutils.h"
+#include "gltfutils.h"
 
 #include "vk_mem_alloc.h"
 
@@ -73,6 +74,8 @@ private:
 	GPUMeshBuffers					m_meshBuffers			{};
 	perFrame						uploadFrame				{};
 
+	sceneGraph						m_scene					{};
+
 	void createInstance();
 	void createSwapchain();
 	void createCommandBuffers();
@@ -88,7 +91,7 @@ private:
 		return m_frameData[m_frameIndex];
 	}
 
-	void incrementFrameIndex(int& frameInd)
+	void incrementFrameIndex(int& frameInd) const
 	{
 		frameInd = (frameInd + 1) % maxFramesInFlight;
 	}

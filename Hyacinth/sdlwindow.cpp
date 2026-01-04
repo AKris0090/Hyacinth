@@ -20,7 +20,7 @@ void SDLWindow::init(std::string title, int width, int height)
 	SDL_Init(SDL_INIT_VIDEO);
 	m_window = SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 	SDL_SetWindowPosition(m_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-	SDL_SetWindowRelativeMouseMode(m_window, true);
+	//SDL_SetWindowRelativeMouseMode(m_window, true);
 }
 
 void SDLWindow::pollEvents()
