@@ -1,5 +1,7 @@
 #include "sdlwindow.h"
 #include "vkengine.h"
+#include "input.h"
+#include "time.h"
 
 int main() {
 	SDLWindow sdlwindow;
@@ -9,13 +11,20 @@ int main() {
 	hyacinthEngine.m_window = sdlwindow.m_window;
 	hyacinthEngine.init();
 
-	while(sdlwindow.isRunning()) {
+	Time::setInitialTime();
+
+	while(sdlwindow.running) {
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
-			sdlwindow.pollEvents(event);
-			hyacinthEngine.update(event);
+			Input::handleSDLInput(event);
+			if (event.type == SDL_EVENT_QUIT) {
+				sdlwindow.running = false;
+			}
 		}
+		hyacinthEngine.m_camera.update(Time::getDeltaTime());
 		hyacinthEngine.draw();
+
+		Time::updateTime();
 	}
 
 	return 0;

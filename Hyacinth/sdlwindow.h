@@ -10,10 +10,7 @@ public:
 
 	void init(std::string title, int width, int height);
 	void pollEvents(SDL_Event& event);
-	bool isRunning() const { return running; }
 
 	SDL_Window* m_window = nullptr;
-
-private:
 	bool running = true;
 };

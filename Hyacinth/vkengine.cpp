@@ -128,8 +128,7 @@ void HyacinthEngine::createSwapchain()
     VkPresentModeKHR presentMode = swInfo.chooseSwPresMode(swInfo.presentModes);
     VkExtent2D extent = swInfo.chooseSwExtent(swInfo.capabilities, m_window);
 
-    uint32_t numImages = swInfo.capabilities.maxImageCount;
-    maxFramesInFlight = numImages;
+    uint32_t numImages = swInfo.capabilities.minImageCount + 1;
 
     if (swInfo.capabilities.maxImageCount > 0 && numImages > swInfo.capabilities.maxImageCount) {
         numImages = swInfo.capabilities.maxImageCount;
@@ -217,9 +216,9 @@ void HyacinthEngine::createCommandBuffers()
     commandPoolCInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     commandPoolCInfo.queueFamilyIndex = m_qfIndices.graphicsFamily.value();
 
-	m_frameData.resize(maxFramesInFlight);
+	m_frameData.resize(MAX_FRAMES_IN_FLIGHT);
     
-    for (int i = 0; i < maxFramesInFlight; i++) {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         VK_CHECK(vkCreateCommandPool(m_device, &commandPoolCInfo, nullptr, &m_frameData[i].commandPool));
 
         // create command buffers
@@ -252,11 +251,11 @@ void HyacinthEngine::createSyncObjects()
     VkSemaphoreCreateInfo semaInfo = {};
     semaInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    m_inFlightFences.resize(maxFramesInFlight);
-    m_imageAcquiredSemas.resize(maxFramesInFlight);
-    m_imageFinishedSemas.resize(maxFramesInFlight);
+    m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    m_imageAcquiredSemas.resize(MAX_FRAMES_IN_FLIGHT);
+    m_imageFinishedSemas.resize(MAX_FRAMES_IN_FLIGHT);
 
-    for (int i = 0; i < maxFramesInFlight; i++) {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_inFlightFences[i]));
 
         VK_CHECK(vkCreateSemaphore(m_device, &semaInfo, nullptr, &m_imageAcquiredSemas[i]));
@@ -312,6 +311,8 @@ void HyacinthEngine::createGraphicsPipeline()
 	VkPipelineLayoutCreateInfo pipelineLayoutCInfo { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pipelineLayoutCInfo.pushConstantRangeCount = 1;
     pipelineLayoutCInfo.pPushConstantRanges = &bufferRange;
+	pipelineLayoutCInfo.setLayoutCount = 1;
+	pipelineLayoutCInfo.pSetLayouts = &m_descriptorSetLayout;
 
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
 
@@ -331,10 +332,47 @@ void HyacinthEngine::createBuffers() {
 	size_t matrixBuffSize = sizeof(glm::mat4) * m_scene.transformMatrices.size();
     m_worldMatrixBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
 	vkdeviceutils::uploadToBuffer(m_devContext, m_worldMatrixBuffer, matrixBuffSize, m_scene.transformMatrices.data());
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        m_frameData[i].uniformBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, sizeof(UBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        m_frameData[i].mappedUniformBuffer = m_frameData[i].uniformBuffer.info.pMappedData;
+    }
 }
 
-glm::mat4 HyacinthEngine::getCamMatrix() const {
-    return m_camera.getProjectionMatrix(((float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height)) * m_camera.getViewMatrix();
+void HyacinthEngine::createDescriptorSets()
+{
+    std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
+    {
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
+    };
+
+    m_descriptorAllocator.initPool(m_device, MAX_FRAMES_IN_FLIGHT, sizes);
+
+    {
+		DescriptorLayoutBuilder uboLayoutBuilder;
+		uboLayoutBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		m_descriptorSetLayout = uboLayoutBuilder.buildLayout(m_device, VK_SHADER_STAGE_VERTEX_BIT);
+    }
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        m_frameData[i].descriptorSet = m_descriptorAllocator.allocate(m_device, m_descriptorSetLayout);
+
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = m_frameData[i].uniformBuffer.buffer;
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UBO);
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_frameData[i].descriptorSet;
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+		vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+    }
 }
 
 void HyacinthEngine::init()
@@ -359,31 +397,43 @@ void HyacinthEngine::init()
     m_devContext.graphicsQueue = &m_graphicsQueue;
     m_devContext.commandBuffer = &uploadFrame.commandBuffer;
 	m_devContext.uploadFence = &m_uploadFence;
-
-    createGraphicsPipeline();
+    m_camera.aspectRatio = (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height;
 
     createBuffers();
+
+    createDescriptorSets();
+
+    createGraphicsPipeline();
 
     m_initialized = true;
 }
 
-void HyacinthEngine::update(SDL_Event& event) {
-    m_camera.processSDL(event);
+void HyacinthEngine::update() {
+    UBO newuniform{};
+    newuniform.proj = m_camera.getProjectionMatrix();
+    newuniform.view = m_camera.getViewMatrix();
+
+    memcpy(m_frameData[m_frameIndex].mappedUniformBuffer, &newuniform, sizeof(UBO));
 }
 
 void HyacinthEngine::setupDraw()
 {
     VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_frameIndex], VK_TRUE, UINT64_MAX));
-
-    VK_CHECK(vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_imageAcquiredSemas[m_frameIndex], VK_NULL_HANDLE, &m_imageIndex));
-
     vkResetFences(m_device, 1, &m_inFlightFences[m_frameIndex]);
+
+    VkResult res = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_imageAcquiredSemas[m_frameIndex], VK_NULL_HANDLE, &m_swImageIndex);
+    if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("Swapchain out of date!");
+    }
+
+    update();
+
     VkCommandBuffer& cmd = getCurrentFrame().commandBuffer;
     VK_CHECK(vkResetCommandBuffer(cmd, 0));
     vkdeviceutils::beginCommandBuffer(cmd);
 
-    vkimageutils::transitionImage(cmd, m_swapChainImages[m_imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	vkimageutils::transitionImage(cmd, m_depthImages[m_imageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkimageutils::transitionImage(cmd, m_depthImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
 
@@ -396,20 +446,26 @@ void HyacinthEngine::draw()
 {
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
-    VkRenderingAttachmentInfo colorAttachment = vkimageutils::createAttachmentInfo(m_swapChainImageViews[m_imageIndex], clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_depthImages[m_imageIndex].imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+    VkRenderingAttachmentInfo colorAttachment = vkimageutils::createAttachmentInfo(m_swapChainImageViews[m_swImageIndex], clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_depthImages[m_swImageIndex].imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
-    glm::mat4 rotation = glm::mat4(1.0f);
-    rotation = glm::rotate(rotation, (SDL_GetTicks() / 1000.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+    vkCmdBindDescriptorSets(
+        cmd,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        m_pipelineUtil.m_pipeline.layout,
+        0,
+        1,
+        &m_frameData[m_frameIndex].descriptorSet,
+        0,
+        nullptr
+    );
 
     GPUDrawPushConstants pushConstants{};
-    pushConstants.worldMatrix = getCamMatrix();
     pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
 
     vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-    vkCmdBindIndexBuffer(cmd, m_meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -434,7 +490,7 @@ void HyacinthEngine::endDraw()
 {
     VkCommandBuffer& cmd = getCurrentFrame().commandBuffer;
     vkCmdEndRendering(cmd);
-    vkimageutils::transitionImage(cmd, m_swapChainImages[m_imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     VK_CHECK(vkEndCommandBuffer(cmd));
 
@@ -442,11 +498,11 @@ void HyacinthEngine::endDraw()
     VkSemaphoreSubmitInfo waitSemaSubmitInfo{};
     waitSemaSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
     waitSemaSubmitInfo.semaphore = m_imageAcquiredSemas[m_frameIndex];
-    waitSemaSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR;
+    waitSemaSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     VkSemaphoreSubmitInfo signalSemaSubmitInfo{};
     signalSemaSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-    signalSemaSubmitInfo.semaphore = m_imageFinishedSemas[m_imageIndex];
+    signalSemaSubmitInfo.semaphore = m_imageFinishedSemas[m_frameIndex];
     signalSemaSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
 
     VkCommandBufferSubmitInfo cmdSubmitInfo{};
@@ -467,14 +523,14 @@ void HyacinthEngine::endDraw()
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &m_imageFinishedSemas[m_imageIndex];
+    presentInfo.pWaitSemaphores = &m_imageFinishedSemas[m_frameIndex];
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_swapChain;
-    presentInfo.pImageIndices = &m_imageIndex;
+    presentInfo.pImageIndices = &m_swImageIndex;
 
     VK_CHECK(vkQueuePresentKHR(m_presentQueue, &presentInfo));
 
-    incrementFrameIndex(m_frameIndex);
+    m_frameIndex = (m_frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void HyacinthEngine::cleanup()
@@ -495,7 +551,7 @@ void HyacinthEngine::cleanup()
 	vkDestroyPipeline(m_device, m_pipelineUtil.m_pipeline.pipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineUtil.m_pipeline.layout, nullptr);
 
-    for(int i = 0; i < maxFramesInFlight; i++) {
+    for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(m_device, m_imageAcquiredSemas[i], nullptr);
 		vkDestroySemaphore(m_device, m_imageFinishedSemas[i], nullptr);
 		vkDestroyFence(m_device, m_inFlightFences[i], nullptr);
@@ -504,7 +560,12 @@ void HyacinthEngine::cleanup()
 
         vkDestroyImageView(m_device, m_depthImages[i].imageView, nullptr);
         vmaDestroyImage(m_allocator, m_depthImages[i].image, m_depthImages[i].imageAllocation);
+
+		vkdeviceutils::destroyBuffer(m_allocator, m_frameData[i].uniformBuffer);
 	}
+
+	m_descriptorAllocator.destroyPool(m_device);
+	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 
     vmaDestroyAllocator(m_allocator);
 

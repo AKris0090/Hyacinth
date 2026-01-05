@@ -141,10 +141,14 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ecshelpers.h" />
     <ClCompile Include="gltfutils.cpp" />
+    <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="sdlwindow.cpp" />
+    <ClCompile Include="time.cpp" />
     <ClCompile Include="vkdebugutils.h" />
+    <ClCompile Include="vkdescriptorutils.cpp" />
     <ClCompile Include="vkmeshutils.cpp" />
     <ClCompile Include="vkpipelineutils.cpp" />
     <ClCompile Include="vkswapchainutils.cpp" />
@@ -153,7 +157,10 @@
   <ItemGroup>
     <ClInclude Include="fpcam.h" />
     <ClInclude Include="gltfutils.h" />
+    <ClInclude Include="input.h" />
     <ClInclude Include="sdlwindow.h" />
+    <ClInclude Include="time.h" />
+    <ClInclude Include="vkdescriptorutils.h" />
     <ClInclude Include="vkdeviceutils.h" />
     <ClInclude Include="vkengine.h" />
     <ClInclude Include="vkimageutils.h" />

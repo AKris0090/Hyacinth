@@ -1,0 +1,29 @@
+#include "time.h"
+
+namespace Time {
+	std::chrono::time_point<std::chrono::system_clock> lastTime;
+	std::chrono::time_point<std::chrono::system_clock> currentTime;
+	float deltaTime;
+	bool start = false;
+
+	void Time::updateTime() {
+		currentTime = std::chrono::system_clock::now();
+		std::chrono::duration<float> elapsed_seconds = currentTime - lastTime;
+		deltaTime = elapsed_seconds.count();
+		lastTime = currentTime;
+	}
+
+	float Time::getDeltaTime() {
+		return deltaTime;
+	}
+
+	std::chrono::time_point<std::chrono::system_clock> getCurrentTime() {
+		return currentTime;
+	}
+
+	void Time::setInitialTime() {
+		currentTime = std::chrono::system_clock::now();
+		lastTime = currentTime;
+		deltaTime = 0;
+	}
+}

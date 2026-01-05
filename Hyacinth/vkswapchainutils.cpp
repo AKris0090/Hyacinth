@@ -11,11 +11,11 @@ VkSurfaceFormatKHR SWChainSuppDetails::chooseSwSurfaceFormat(const std::vector<V
 }
 
 VkPresentModeKHR SWChainSuppDetails::chooseSwPresMode(const std::vector<VkPresentModeKHR>& availablePresModes) {
-    //for (const VkPresentModeKHR& availablePresMode : availablePresModes) {
-    //    if (availablePresMode == VK_PRESENT_MODE_FIFO_KHR) {
-    //        return availablePresMode;
-    //    }
-    //}
+    for (const VkPresentModeKHR& availablePresMode : availablePresModes) {
+        if (availablePresMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return availablePresMode;
+        }
+    }
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 

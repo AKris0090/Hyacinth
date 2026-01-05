@@ -10,6 +10,7 @@
 #include "vkdebugutils.h"
 #include "vkimageutils.h"
 #include "vkpipelineutils.h"
+#include "vkdescriptorutils.h"
 #include "vkmeshutils.h"
 #include "gltfutils.h"
 
@@ -28,16 +29,22 @@ const bool enableValLayers = true;
 #endif
 
 const VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+constexpr int MAX_FRAMES_IN_FLIGHT = 3;
+
+struct UBO {
+	glm::mat4 view;
+	glm::mat4 proj;
+};
 
 class HyacinthEngine {
 public:
 	struct SDL_Window* m_window{ nullptr };
+	FPSCam							m_camera{};
 
 	HyacinthEngine() {};
 	~HyacinthEngine() { cleanup(); };
 
 	void init();
-	void update(SDL_Event& event);
 	void draw();
 	void cleanup();
 
@@ -45,12 +52,14 @@ private:
 	struct perFrame {
 		VkCommandPool	commandPool;
 		VkCommandBuffer commandBuffer;
+		VulkanBuffer	uniformBuffer;
+		void*			mappedUniformBuffer;
+		VkDescriptorSet descriptorSet;
 	};
 
 	bool m_initialized = false;
-	int  m_frameIndex = 0;
-	uint32_t m_imageIndex = 0;
-	int	 maxFramesInFlight = 1;
+	uint32_t  m_frameIndex = 0;
+	uint32_t m_swImageIndex = 0;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkInstance						m_instance				{ VK_NULL_HANDLE };
@@ -79,8 +88,8 @@ private:
 	VulkanBuffer 					m_worldMatrixBuffer		{};
 	perFrame						uploadFrame				{};
 	sceneGraph						m_scene					{};
-
-	FPSCam							m_camera				{};
+	DescriptorAllocator				m_descriptorAllocator	{};
+	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
 
 	void createInstance();
 	void createSwapchain();
@@ -88,17 +97,12 @@ private:
 	void createSyncObjects();
 	void createGraphicsPipeline();
 	void createBuffers();
-	glm::mat4 getCamMatrix() const;
-
+	void createDescriptorSets();
+	void update();
 	void setupDraw();
 	void endDraw();
 
 	inline perFrame& getCurrentFrame() {
 		return m_frameData[m_frameIndex];
-	}
-
-	void incrementFrameIndex(int& frameInd) const
-	{
-		frameInd = (frameInd + 1) % maxFramesInFlight;
 	}
 };

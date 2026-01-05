@@ -3,14 +3,18 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "SDL3/SDL.h"
+#include "ecshelpers.h"
+#include "input.h"
 
-#define PI 3.14159265359f
+constexpr float PI = 3.14159265359f;
 
 struct FPSCam {
-	glm::vec3 position{0.f, 0.f, 0.f};
-	float pitch = 0.f, yaw = 0.f;
+	float pitch = 0.f, yaw = 0.f, moveSpeed = 3.5f, lookSpeed = 45.f;
 	float aspectRatio;
 	float FOV;
+
+    transform transform;
+    glm::vec3 forward, right, up = { 0.f, 1.f, 0.f };
 
 	glm::mat4 getViewMatrix() const {
 		glm::vec3 front;
@@ -18,40 +22,55 @@ struct FPSCam {
 		front.y = sin(glm::radians(pitch));
 		front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
 		front = glm::normalize(front);
-		return glm::lookAt(position, position + front, glm::vec3(0.0f, 1.0f, 0.0f));
+		return glm::lookAt(transform.position, transform.position + front, glm::vec3(0.0f, 1.0f, 0.0f));
 	}
 
-	glm::mat4 getProjectionMatrix(float aspectRatio) const {
+	glm::mat4 getProjectionMatrix() const {
 		glm::mat4 proj = glm::perspective(glm::radians(90.0f), aspectRatio, 0.1f, 1000.0f);
 		proj[1][1] *= -1;
 		return proj;
 	}
 
-	void processSDL(SDL_Event& event) {
-		if (event.type == SDL_EVENT_MOUSE_MOTION) {
-			yaw += ((float)event.motion.xrel * 5.f) * (PI / 180.0f);
-			pitch -= ((float)event.motion.yrel * 5.f) * (PI / 180.0f);
-		}
-		if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
-			bool isDown = (event.type == SDL_EVENT_KEY_DOWN);
-			float cameraSpeed = 0.1f;
+    void update(float deltaTime) {
+        std::pair<float, float> mouseMotion = Input::getMouseMotion();
+        yaw += mouseMotion.first * lookSpeed * deltaTime;
+        pitch -= mouseMotion.second * lookSpeed * deltaTime;
 
-			SDL_Keycode key = event.key.scancode;
+        forward = glm::normalize(glm::vec3(
+            cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+            sin(glm::radians(pitch)),
+            sin(glm::radians(yaw)) * cos(glm::radians(pitch))
+		));
+		right = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+		up = glm::normalize(glm::cross(right, forward));
 
-			if (isDown) {
-				if (key == SDL_SCANCODE_W) {
-					position += cameraSpeed * glm::vec3(0.0f, 0.0f, -1.0f);
-				}
-				if (key == SDL_SCANCODE_S) {
-					position -= cameraSpeed * glm::vec3(0.0f, 0.0f, -1.0f);
-				}
-				if (key == SDL_SCANCODE_A) {
-					position -= glm::normalize(glm::cross(glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f))) * cameraSpeed;
-				}
-				if (key == SDL_SCANCODE_D) {
-					position += glm::normalize(glm::cross(glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f))) * cameraSpeed;
-				}
-			}
-		}
-	}
+        glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
+        if (Input::forwardKeyDown()) {
+            localDisplacement += forward;
+        }
+
+        if (Input::backwardKeyDown()) {
+            localDisplacement -= forward;
+        }
+
+        if (Input::rightKeyDown()) {
+            localDisplacement += right;
+        }
+
+        if (Input::leftKeyDown()) {
+            localDisplacement -= right;
+        }
+
+        if (Input::upKeyDown()) {
+            localDisplacement += up;
+        }
+
+        if (Input::downKeyDown()) {
+            localDisplacement -= up;
+        }
+
+        if (glm::length(localDisplacement) > 0) {
+            transform.position += glm::normalize(localDisplacement) * moveSpeed * deltaTime;
+        }
+    }
 };
