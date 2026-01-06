@@ -18,13 +18,3 @@ struct SWChainImageFormat {
     VkFormat format;
 	VkExtent2D extent;
 };
-
-static void cleanupSwapchain(VkDevice& device, VkSwapchainKHR& swapChain, std::vector<VkImageView>& swapChainImageViews) {
-    for (auto& imageView : swapChainImageViews) {
-        vkDestroyImageView(device, imageView, nullptr);
-	}
-    swapChainImageViews.clear();
-
-    vkDestroySwapchainKHR(device, swapChain, nullptr);
-	swapChain = VK_NULL_HANDLE;
-}

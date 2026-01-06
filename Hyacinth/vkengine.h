@@ -78,16 +78,17 @@ private:
 	std::vector<VkSemaphore>		m_imageFinishedSemas	{};
 	std::vector<VkFence> 			m_inFlightFences		{};
 	VkFence							m_uploadFence			{ VK_NULL_HANDLE };
-	std::vector<VkImage>			m_swapChainImages		{};
-	std::vector<VkImageView>		m_swapChainImageViews	{};
+	std::vector<VulkanImage>		m_swapChainImages		{};
 	std::vector<VulkanImage>		m_depthImages			{};
 	SWChainImageFormat				m_swImageFormat			{};
 	VulkanPipelineBuilder 			m_pipelineUtil;
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
 	VulkanBuffer 					m_worldMatrixBuffer		{};
+	VulkanBuffer					m_drawDataBuffer		{};
+	VulkanBuffer					m_materialBuffer		{};
 	perFrame						uploadFrame				{};
-	sceneGraph						m_scene					{};
+	SceneGraph						m_scene					{};
 	DescriptorAllocator				m_descriptorAllocator	{};
 	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
 
@@ -98,6 +99,7 @@ private:
 	void createGraphicsPipeline();
 	void createBuffers();
 	void createDescriptorSets();
+	void loadScene();
 	void update();
 	void setupDraw();
 	void endDraw();

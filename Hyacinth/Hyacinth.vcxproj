@@ -149,6 +149,7 @@
     <ClCompile Include="time.cpp" />
     <ClCompile Include="vkdebugutils.h" />
     <ClCompile Include="vkdescriptorutils.cpp" />
+    <ClCompile Include="vkimageutils.cpp" />
     <ClCompile Include="vkmeshutils.cpp" />
     <ClCompile Include="vkpipelineutils.cpp" />
     <ClCompile Include="vkswapchainutils.cpp" />

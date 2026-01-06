@@ -46,8 +46,26 @@ struct GPUMeshBuffers {
 
 struct GPUDrawPushConstants {
 	VkDeviceAddress transformAddress;
+	VkDeviceAddress materialAddress;
+	VkDeviceAddress drawDataAddress;
 };
 
 namespace vkmeshutils {
 	GPUMeshBuffers uploadMesh(DeviceContext& ctx, std::vector<uint32_t>& indices, std::vector<Vertex>& vertices);
 }
+
+struct MaterialPipeline {
+	VkPipelineLayout    layout;
+	VkPipeline          pipeline;
+};
+
+struct MaterialInstance {
+	uint32_t baseColorIndex;
+
+	MaterialPipeline* pipeline;
+	VkDescriptorSet materialSet;
+};
+
+struct GPUMaterialIndices {
+	int32_t baseColorIndex;
+};

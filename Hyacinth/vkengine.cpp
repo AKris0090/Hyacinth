@@ -1,5 +1,13 @@
 #define VMA_IMPLEMENTATION
 
+#ifndef NDEBUG
+#define VMA_DEBUG_LOG_FORMAT(format, ...) \
+    printf("[VMA] " format "\n", __VA_ARGS__)
+
+#define VMA_LEAK_LOG_FORMAT(format, ...) \
+    printf("[VMA-LEAK] " format "\n", __VA_ARGS__)
+#endif
+
 #include "vkengine.h"
 #include "vk_mem_alloc.h"
 
@@ -90,11 +98,14 @@ void HyacinthEngine::createInstance()
 
 	VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.multiDrawIndirect = VK_TRUE;
+    deviceFeatures.shaderSampledImageArrayDynamicIndexing = true;
+    deviceFeatures.samplerAnisotropy = true;
 
     VkPhysicalDeviceVulkan12Features dev12Features{};
     dev12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     dev12Features.bufferDeviceAddress = true;
     dev12Features.descriptorIndexing = true;
+    dev12Features.runtimeDescriptorArray = true;
 
     // TODO: populate when needed
     VkPhysicalDeviceVulkan13Features dev13Features{};
@@ -118,6 +129,10 @@ void HyacinthEngine::createInstance()
 
     vkGetDeviceQueue(m_device, m_qfIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
     vkGetDeviceQueue(m_device, m_qfIndices.presentFamily.value(), 0, &m_presentQueue);
+
+    VkFormatProperties formatProperties;
+    vkGetPhysicalDeviceFormatProperties(m_physicalDevice, VK_FORMAT_R8G8B8A8_SRGB, &formatProperties);
+    vkimageutils::setLinear(formatProperties.optimalTilingFeatures);
 }
 
 void HyacinthEngine::createSwapchain()
@@ -142,7 +157,7 @@ void HyacinthEngine::createSwapchain()
     swapchainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
     swapchainCreateInfo.imageExtent = extent;
     swapchainCreateInfo.imageArrayLayers = 1;
-    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     QueueFamilyIndices indices = vkdeviceutils::findQueueFamilies(m_physicalDevice, m_surface);
     uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
@@ -166,11 +181,16 @@ void HyacinthEngine::createSwapchain()
     m_swImageFormat.format = surfaceFormat.format;
     m_swImageFormat.extent = extent;
     m_swapChainImages.resize(numImages);
-    vkGetSwapchainImagesKHR(m_device, m_swapChain, &numImages, m_swapChainImages.data());
+    std::vector<VkImage> tempSWImages(numImages);
+    vkGetSwapchainImagesKHR(m_device, m_swapChain, &numImages, tempSWImages.data());
 
-    m_swapChainImageViews.resize(numImages);
     for (uint32_t i = 0; i < numImages; i++) {
-        m_swapChainImageViews[i] = vkimageutils::createImageView(m_device, m_swapChainImages[i], m_swImageFormat.format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+        m_swapChainImages[i].image = tempSWImages[i];
+        m_swapChainImages[i].imageFormat = m_swImageFormat.format;
+    }
+
+    for (uint32_t i = 0; i < numImages; i++) {
+        vkimageutils::createImageView(m_device, m_swapChainImages[i], VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
     VkExtent3D extent3D = {
@@ -203,8 +223,7 @@ void HyacinthEngine::createSwapchain()
         imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         vmaCreateImage(m_allocator, &imageCreateInfo, &rimg_allocinfo, &m_depthImages[i].image, &m_depthImages[i].imageAllocation, nullptr);
-
-        m_depthImages[i].imageView = vkimageutils::createImageView(m_device, m_depthImages[i].image, m_depthImages[i].imageFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+        vkimageutils::createImageView(m_device, m_depthImages[i], VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 }
 
@@ -319,11 +338,23 @@ void HyacinthEngine::createGraphicsPipeline()
 	m_pipelineUtil.buildPipeline(m_device);
 }
 
-void HyacinthEngine::createBuffers() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes.glb";
-	m_scene.objects.push_back(gltfutils::loadFromFile(path.string()));
-	m_scene.buildSceneGraph();
+void HyacinthEngine::loadScene() {
+    auto path = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured.glb";
+    auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
+    m_scene.objects.push_back(gltfutils::loadFromFile(path.string(), m_devContext));
+    m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
+    m_scene.buildSceneGraph();
     m_meshBuffers = vkmeshutils::uploadMesh(m_devContext, m_scene.indices, m_scene.vertices);
+}
+
+void HyacinthEngine::createBuffers() {
+    size_t drawDataBufferSize = sizeof(DrawData) * m_scene.drawData.size();
+    m_drawDataBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, drawDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    vkdeviceutils::uploadToBuffer(m_devContext, m_drawDataBuffer, drawDataBufferSize, m_scene.drawData.data());
+
+    size_t materialDataBufferSize = sizeof(GPUMaterialIndices) * m_scene.materialObjects.size();
+    m_materialBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, materialDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    vkdeviceutils::uploadToBuffer(m_devContext, m_materialBuffer, materialDataBufferSize, m_scene.materialObjects.data());
 
 	size_t drawCmdBufferSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.drawCommands.size();
     m_indirectDrawBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
@@ -343,15 +374,17 @@ void HyacinthEngine::createDescriptorSets()
 {
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
     {
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float) m_scene.numTextures }
     };
 
     m_descriptorAllocator.initPool(m_device, MAX_FRAMES_IN_FLIGHT, sizes);
 
     {
-		DescriptorLayoutBuilder uboLayoutBuilder;
-		uboLayoutBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		m_descriptorSetLayout = uboLayoutBuilder.buildLayout(m_device, VK_SHADER_STAGE_VERTEX_BIT);
+		DescriptorLayoutBuilder layoutBuilder;
+        layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+        layoutBuilder.addBinding(1, m_scene.numTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+		m_descriptorSetLayout = layoutBuilder.buildLayout(m_device, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
     }
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -372,6 +405,8 @@ void HyacinthEngine::createDescriptorSets()
         descriptorWrite.pBufferInfo = &bufferInfo;
 
 		vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
+
+        m_scene.uploadTextures(m_device, m_frameData[i].descriptorSet);
     }
 }
 
@@ -399,6 +434,8 @@ void HyacinthEngine::init()
 	m_devContext.uploadFence = &m_uploadFence;
     m_camera.aspectRatio = (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height;
 
+    loadScene();
+
     createBuffers();
 
     createDescriptorSets();
@@ -421,8 +458,8 @@ void HyacinthEngine::setupDraw()
     VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_frameIndex], VK_TRUE, UINT64_MAX));
     vkResetFences(m_device, 1, &m_inFlightFences[m_frameIndex]);
 
-    VkResult res = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_imageAcquiredSemas[m_frameIndex], VK_NULL_HANDLE, &m_swImageIndex);
-    if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+    VkResult res2 = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_imageAcquiredSemas[m_frameIndex], VK_NULL_HANDLE, &m_swImageIndex);
+    if (res2 == VK_ERROR_OUT_OF_DATE_KHR || res2 == VK_SUBOPTIMAL_KHR) {
         throw std::runtime_error("Swapchain out of date!");
     }
 
@@ -432,7 +469,7 @@ void HyacinthEngine::setupDraw()
     VK_CHECK(vkResetCommandBuffer(cmd, 0));
     vkdeviceutils::beginCommandBuffer(cmd);
 
-    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkimageutils::transitionImage(cmd, m_depthImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
@@ -446,7 +483,7 @@ void HyacinthEngine::draw()
 {
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
-    VkRenderingAttachmentInfo colorAttachment = vkimageutils::createAttachmentInfo(m_swapChainImageViews[m_swImageIndex], clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkRenderingAttachmentInfo colorAttachment = vkimageutils::createAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_depthImages[m_swImageIndex].imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderingInfo);
@@ -464,6 +501,8 @@ void HyacinthEngine::draw()
 
     GPUDrawPushConstants pushConstants{};
     pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
+    pushConstants.materialAddress = m_materialBuffer.gpuAddress;
+    pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
 
     vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
@@ -490,7 +529,7 @@ void HyacinthEngine::endDraw()
 {
     VkCommandBuffer& cmd = getCurrentFrame().commandBuffer;
     vkCmdEndRendering(cmd);
-    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     VK_CHECK(vkEndCommandBuffer(cmd));
 
@@ -545,11 +584,21 @@ void HyacinthEngine::cleanup()
 	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.vertexBuffer);
 	vkdeviceutils::destroyBuffer(m_allocator, m_indirectDrawBuffer);
 	vkdeviceutils::destroyBuffer(m_allocator, m_worldMatrixBuffer);
+    vkdeviceutils::destroyBuffer(m_allocator, m_drawDataBuffer);
+    vkdeviceutils::destroyBuffer(m_allocator, m_materialBuffer);
 
 	vkDestroyFence(m_device, m_uploadFence, nullptr);
 
 	vkDestroyPipeline(m_device, m_pipelineUtil.m_pipeline.pipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineUtil.m_pipeline.layout, nullptr);
+
+    for (auto& obj : m_scene.objects) {
+        for (auto& tex : obj.textures) {
+            vkDestroySampler(m_device, tex.imageSampler, nullptr);
+            vkDestroyImageView(m_device, tex.imageView, nullptr);
+            vmaDestroyImage(m_allocator, tex.image, tex.imageAllocation);
+        }
+    }
 
     for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(m_device, m_imageAcquiredSemas[i], nullptr);
@@ -558,11 +607,13 @@ void HyacinthEngine::cleanup()
 
         vkDestroyCommandPool(m_device, m_frameData[i].commandPool, nullptr);
 
-        vkDestroyImageView(m_device, m_depthImages[i].imageView, nullptr);
-        vmaDestroyImage(m_allocator, m_depthImages[i].image, m_depthImages[i].imageAllocation);
-
 		vkdeviceutils::destroyBuffer(m_allocator, m_frameData[i].uniformBuffer);
 	}
+
+    for (int i = 0; i < m_swapChainImages.size(); i++) {
+        vkDestroyImageView(m_device, m_depthImages[i].imageView, nullptr);
+        vmaDestroyImage(m_allocator, m_depthImages[i].image, m_depthImages[i].imageAllocation);
+    }
 
 	m_descriptorAllocator.destroyPool(m_device);
 	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
@@ -571,7 +622,10 @@ void HyacinthEngine::cleanup()
 
 	vkDestroyCommandPool(m_device, uploadFrame.commandPool, nullptr);
 
-	cleanupSwapchain(m_device, m_swapChain, m_swapChainImageViews);
+    for (VulkanImage& img : m_swapChainImages) {
+        vkDestroyImageView(m_device, img.imageView, nullptr);
+    }
+    vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
 
     if (m_device != VK_NULL_HANDLE) {
         vkDestroyDevice(m_device, nullptr);

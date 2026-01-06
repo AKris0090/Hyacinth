@@ -36,6 +36,8 @@ struct FPSCam {
         yaw += mouseMotion.first * lookSpeed * deltaTime;
         pitch -= mouseMotion.second * lookSpeed * deltaTime;
 
+        pitch = glm::clamp(pitch, -89.9f, 89.9f);
+
         forward = glm::normalize(glm::vec3(
             cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
             sin(glm::radians(pitch)),
@@ -45,29 +47,12 @@ struct FPSCam {
 		up = glm::normalize(glm::cross(right, forward));
 
         glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
-        if (Input::forwardKeyDown()) {
-            localDisplacement += forward;
-        }
-
-        if (Input::backwardKeyDown()) {
-            localDisplacement -= forward;
-        }
-
-        if (Input::rightKeyDown()) {
-            localDisplacement += right;
-        }
-
-        if (Input::leftKeyDown()) {
-            localDisplacement -= right;
-        }
-
-        if (Input::upKeyDown()) {
-            localDisplacement += up;
-        }
-
-        if (Input::downKeyDown()) {
-            localDisplacement -= up;
-        }
+        if (Input::forwardKeyDown())    localDisplacement += forward;
+        if (Input::backwardKeyDown())   localDisplacement -= forward;
+        if (Input::rightKeyDown())      localDisplacement += right;
+        if (Input::leftKeyDown())       localDisplacement -= right;
+        if (Input::upKeyDown())         localDisplacement += up;
+        if (Input::downKeyDown())       localDisplacement -= up;
 
         if (glm::length(localDisplacement) > 0) {
             transform.position += glm::normalize(localDisplacement) * moveSpeed * deltaTime;

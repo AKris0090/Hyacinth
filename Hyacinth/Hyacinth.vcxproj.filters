@@ -49,6 +49,9 @@
     <Filter Include="Source Files\time">
       <UniqueIdentifier>{938847ef-989a-48a3-be34-df5e0b89a124}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\rendering\vkutils\image">
+      <UniqueIdentifier>{c58cb432-42a8-4d55-b466-455af9ae2e4d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -87,6 +90,9 @@
     <ClCompile Include="time.cpp">
       <Filter>Source Files\time</Filter>
     </ClCompile>
+    <ClCompile Include="vkimageutils.cpp">
+      <Filter>Source Files\rendering\vkutils\image</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vkengine.h">
@@ -100,9 +106,6 @@
     </ClInclude>
     <ClInclude Include="vkswapchainutils.h">
       <Filter>Source Files\rendering\vkutils\swapchain</Filter>
-    </ClInclude>
-    <ClInclude Include="vkimageutils.h">
-      <Filter>Source Files\rendering\vkutils</Filter>
     </ClInclude>
     <ClInclude Include="vkpipelineutils.h">
       <Filter>Source Files\rendering\vkutils\pipeline</Filter>
@@ -124,6 +127,9 @@
     </ClInclude>
     <ClInclude Include="time.h">
       <Filter>Source Files\time</Filter>
+    </ClInclude>
+    <ClInclude Include="vkimageutils.h">
+      <Filter>Source Files\rendering\vkutils\image</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

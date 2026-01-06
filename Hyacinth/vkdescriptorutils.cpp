@@ -1,11 +1,12 @@
 #include "vkdescriptorutils.h"
 #include "vkdebugutils.h"
 
-void DescriptorLayoutBuilder::addBinding(uint32_t binding, VkDescriptorType type) {
+void DescriptorLayoutBuilder::addBinding(uint32_t binding, uint32_t count, VkDescriptorType type, VkShaderStageFlags stages) {
     VkDescriptorSetLayoutBinding newBind{};
     newBind.binding = binding;
-    newBind.descriptorCount = 1;
+    newBind.descriptorCount = count;
     newBind.descriptorType = type;
+    newBind.stageFlags = stages;
 
     bindings.push_back(newBind);
 }
@@ -15,12 +16,8 @@ void DescriptorLayoutBuilder::clear()
     bindings.clear();
 }
 
-VkDescriptorSetLayout DescriptorLayoutBuilder::buildLayout(VkDevice& device, VkShaderStageFlags shaderStages, void* pNext, VkDescriptorSetLayoutCreateFlags flags)
+VkDescriptorSetLayout DescriptorLayoutBuilder::buildLayout(VkDevice& device, void* pNext, VkDescriptorSetLayoutCreateFlags flags)
 {
-    for (auto& b : bindings) {
-        b.stageFlags |= shaderStages;
-    }
-
     VkDescriptorSetLayoutCreateInfo info = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
     info.pNext = pNext;
 
@@ -45,7 +42,7 @@ void DescriptorAllocator::initPool(VkDevice& device, uint32_t maxSets, std::vect
     }
 
     VkDescriptorPoolCreateInfo poolInfo = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-    poolInfo.flags = 0;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
     poolInfo.maxSets = maxSets;
     poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
     poolInfo.pPoolSizes = poolSizes.data();

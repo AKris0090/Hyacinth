@@ -3,6 +3,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include "gltfutils.h"
+#include "vkimageutils.h"
 #include <glm/gtc/type_ptr.hpp>
 
 static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
@@ -26,13 +27,11 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
     }
 
     uint32_t nodeIndex = obj.nodeCounter++;
-    if (parent > 0) {
-        obj.nodes[parent]->childrenIndices.push_back(obj.nodeCounter);
-    }
     obj.nodes.push_back(std::move(node));
 
-	gltfNode* nodePtr = obj.nodes[nodeIndex].get();
-    if (parent > 0) {
+    gltfNode* nodePtr = obj.nodes[nodeIndex].get();
+    if (parent >= 0) {
+        obj.nodes[parent]->childrenIndices.push_back(nodeIndex);
         nodePtr->worldTransform = obj.nodes[parent]->worldTransform * nodePtr->worldTransform;
     }
 
@@ -45,10 +44,11 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
     if (nodeIn.mesh > -1) {
         const tinygltf::Mesh mesh = model->meshes[nodeIn.mesh];
         for (size_t i = 0; i < mesh.primitives.size(); i++) {
-            const tinygltf::Primitive& gltfPrims = mesh.primitives[i];
+            const tinygltf::Primitive& gltfPrim = mesh.primitives[i];
 			auto prim = std::make_unique<gltfPrimitive>();
 			nodePtr->primitives.push_back(std::move(prim));
-			gltfPrimitive* p = obj.nodes[nodeIndex]->primitives[i].get();
+			gltfPrimitive* p = obj.nodes[nodeIndex]->primitives.back().get();
+            p->materialIndex = gltfPrim.material;
 
             uint32_t currentNumIndices = 0;
             uint32_t currentNumVertices = 0;
@@ -56,25 +56,33 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
             // FOR VERTICES
             const float* positionBuff = nullptr;
             const float* normalsBuff = nullptr;
+            const float* uvBuff = nullptr;
 
-            if (gltfPrims.attributes.find("POSITION") != gltfPrims.attributes.end()) {
-                const tinygltf::Accessor& accessor = model->accessors[gltfPrims.attributes.find("POSITION")->second];
+            if (gltfPrim.attributes.find("POSITION") != gltfPrim.attributes.end()) {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("POSITION")->second];
                 const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
                 positionBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
                 currentNumVertices = static_cast<uint32_t>(accessor.count);
             }
-            if (gltfPrims.attributes.find("NORMAL") != gltfPrims.attributes.end()) {
-                const tinygltf::Accessor& accessor = model->accessors[gltfPrims.attributes.find("NORMAL")->second];
+            if (gltfPrim.attributes.find("NORMAL") != gltfPrim.attributes.end()) {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("NORMAL")->second];
                 const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
                 normalsBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+            }
+            if (gltfPrim.attributes.find("TEXCOORD_0") != gltfPrim.attributes.end()) {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("TEXCOORD_0")->second];
+                const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
+                uvBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
             }
 
             for (size_t vert = 0; vert < currentNumVertices; vert++) {
                 Vertex v{};
                 glm::vec3 normal = glm::normalize(glm::vec3(normalsBuff ? glm::make_vec3(&normalsBuff[vert * 3]) : glm::vec3(0.0f)));
 
-                v.pos = glm::vec4(glm::make_vec3(&positionBuff[vert * 3]), 0.0f);
-                v.normal = glm::vec4(normal, 0.0f);
+                glm::vec2 uv = uvBuff ? glm::make_vec2(&uvBuff[vert * 2]) : glm::vec3(0.0f);
+
+                v.pos = glm::vec4(glm::make_vec3(&positionBuff[vert * 3]), uv.x);
+                v.normal = glm::vec4(normal, uv.y);
                 v.color = glm::vec4(
                     static_cast<float>(rand()) / RAND_MAX,
                     static_cast<float>(rand()) / RAND_MAX,
@@ -84,7 +92,7 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
                 p->vertices.push_back(v);
             }
 
-            const tinygltf::Accessor& accessor = model->accessors[gltfPrims.indices];
+            const tinygltf::Accessor& accessor = model->accessors[gltfPrim.indices];
             const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
             const tinygltf::Buffer& buffer = model->buffers[view.buffer];
 
@@ -118,7 +126,7 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
     }
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& ctx) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
@@ -147,15 +155,74 @@ gltfObject gltfutils::loadFromFile(const std::string& filename) {
         const tinygltf::Node node = model->nodes[scene.nodes[i]];
         loadGLTFNode(object, model, node, -1);
     }
+
+    for (size_t i = 0; i < model->images.size(); i++) {
+        VulkanImage texImage{};
+        tinygltf::Image& curImage = model->images[i];
+        std::vector<unsigned char> rgba;
+        rgba.resize(curImage.width * curImage.height * 4);
+
+        switch (curImage.component) {
+        case 4:
+            memcpy(rgba.data(), curImage.image.data(), rgba.size());
+            break;
+        case 3:
+            {
+                std::vector<unsigned char> rgb;
+                rgb.resize(curImage.width * curImage.height * 3);
+                memcpy(rgb.data(), curImage.image.data(), rgb.size());
+                for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
+                    rgba[j] = rgb[j];
+                    rgba[j + 1] = rgb[j + 1];
+                    rgba[j + 2] = rgb[j + 2];
+                    rgba[j + 3] = 255;
+                }
+            }
+        case 1:
+            {
+                std::vector<unsigned char> r;
+                r.resize(curImage.width * curImage.height);
+                memcpy(r.data(), curImage.image.data(), r.size());
+                for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
+                    rgba[j] = rgba[j + 1] = rgba[j + 2] = r[j];
+                    rgba[j + 3] = 255;
+                }
+            }
+        }
+        VkExtent3D imageExtents{};
+        imageExtents.width = curImage.width;
+        imageExtents.height = curImage.height;
+        imageExtents.depth = 1;
+        texImage = vkimageutils::createImage(ctx, rgba.data(), imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        vkimageutils::createImageSampler(*ctx.device, texImage);
+        object.textures.push_back(texImage);
+    }
+
+    object.textureIndices.resize(model->textures.size());
+    for (size_t i = 0; i < model->textures.size(); i++) {
+        object.textureIndices[i] = model->textures[i].source;
+    }
+
+    object.materials.resize(model->materials.size());
+    for (size_t i = 0; i < model->materials.size(); i++) {
+        tinygltf::Material gltfMat = model->materials[i];
+        if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
+            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()]; // image index
+        }
+    }
+
 	delete model;
 	return object;
 }
 
-void sceneGraph::buildSceneGraph() {
+void SceneGraph::buildSceneGraph() {
+    uint32_t materialOffset = 0;
+    uint32_t textureOffset = 0;
+    uint32_t drawID = 0;
+    uint32_t matrixID = 0;
     for (const auto& obj : objects) {
         uint32_t currentNumMatrices = static_cast<uint32_t>(transformMatrices.size());
 
-        int id = 0;
         for (const auto& node: obj.nodes) {
             transformMatrices.push_back(node.get()->worldTransform);
             for (const auto& prim : node.get()->primitives) {
@@ -166,7 +233,7 @@ void sceneGraph::buildSceneGraph() {
 				drawCmd.firstIndex = firstIndex;
                 drawCmd.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
                 drawCmd.instanceCount = 1;
-                drawCmd.firstInstance = id;
+                drawCmd.firstInstance = drawID;
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);
@@ -175,10 +242,40 @@ void sceneGraph::buildSceneGraph() {
                     indices.push_back(index + firstVertex);
 				}
 
-                transformIndices.push_back(static_cast<uint32_t>(transformMatrices.size()) - 1);
-				drawCommands.push_back(drawCmd);
+                sortedDrawCalls[prim.get()->materialIndex + materialOffset].push_back(drawCmd);
+
+                DrawData primDrawData{};
+                primDrawData.materialIndex = prim.get()->materialIndex + materialOffset;
+                primDrawData.transformIndex = matrixID;
+                drawData.push_back(primDrawData);
+
+                drawID++;
             }
-            id++;
+            matrixID++;
 		}
+        
+        // upload materialIDBuffer
+        for (const auto& mat : obj.materials) {
+            GPUMaterialIndices newMatIndices{};
+            newMatIndices.baseColorIndex = mat.baseColorIndex + textureOffset;
+            materialObjects.push_back(newMatIndices);
+        }
+        materialOffset += obj.materials.size();
+        textureOffset += obj.textures.size();
+    }
+
+    numTextures = textureOffset;
+    for (const auto& [key, value] : sortedDrawCalls) {
+        drawCommands.insert(drawCommands.end(), value.begin(), value.end());
+    }
+}
+
+void SceneGraph::uploadTextures(VkDevice& dev, VkDescriptorSet& descriptor) {
+    uint32_t textureOffset = 0;
+    for (const auto& obj : objects) {
+        for (const auto& tex : obj.textures) {
+            vkimageutils::storeTexture(dev, descriptor, tex, textureOffset);
+            textureOffset++;
+        }
     }
 }
