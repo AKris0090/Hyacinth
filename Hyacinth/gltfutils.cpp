@@ -128,11 +128,11 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
 
 void gltfutils::loadTexture(DeviceContext& ctx, gltfObject& object, tinygltf::Model* model, VkFormat format, uint32_t imageIndex) {
     // TODO: update as adding more dummy textures
-    if (imageIndex <= 0) {
+    if (imageIndex < 0) {
         return;
     }
     // TODO: update with num dummy textures as you add more
-    tinygltf::Image& curImage = model->images[imageIndex - 1];
+    tinygltf::Image& curImage = model->images[imageIndex];
     VulkanImage texImage{};
     std::vector<unsigned char> rgba;
     rgba.resize(curImage.width * curImage.height * 4);
@@ -147,11 +147,12 @@ void gltfutils::loadTexture(DeviceContext& ctx, gltfObject& object, tinygltf::Mo
         rgb.resize(curImage.width * curImage.height * 3);
         memcpy(rgb.data(), curImage.image.data(), rgb.size());
         for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
-            rgba[j] = rgb[j];
-            rgba[j + 1] = rgb[j + 1];
-            rgba[j + 2] = rgb[j + 2];
-            rgba[j + 3] = 255;
+            rgba[j * 4] = rgb[j * 3];
+            rgba[j * 4 + 1] = rgb[j * 3 + 1];
+            rgba[j * 4 + 2] = rgb[j * 3 + 2];
+            rgba[j * 4 + 3] = 255;
         }
+        break;
     }
     case 1:
     {
@@ -159,9 +160,9 @@ void gltfutils::loadTexture(DeviceContext& ctx, gltfObject& object, tinygltf::Mo
         r.resize(curImage.width * curImage.height);
         memcpy(r.data(), curImage.image.data(), r.size());
         for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
-            rgba[j] = rgba[j + 1] = rgba[j + 2] = r[j];
-            rgba[j + 3] = 255;
+            rgba[j * 4] = rgba[j * 4 + 1] = rgba[j * 4 + 2] = rgba[j * 4 + 3] = r[j];
         }
+        break;
     }
     }
     VkExtent3D imageExtents{};
@@ -209,26 +210,23 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
         object.textureIndices[i] = model->textures[i].source;
     }
 
-    // + 1 for dummy textures
+    // + 1 for dummy textures TODO: update when all added
     object.materials.resize(model->materials.size());
     for (size_t i = 0; i < model->materials.size(); i++) {
         tinygltf::Material gltfMat = model->materials[i];
         if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
-            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 1; // image index
+            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()]; // image index
+            object.materials[i].baseColorIndex++;
         }
         if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {
-            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + 1;
+            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()];
+            object.materials[i].normalIndex++;
         }
         else { object.materials[i].normalIndex = DUMMY_NORMAL_TEX_INDEX; }
     }
 
-    for (size_t i = 0; i < object.materials.size(); i++) {
-        // load color images
-        uint32_t colorIndex = object.materials[i].baseColorIndex;
-        loadTexture(ctx, object, model, VK_FORMAT_R8G8B8A8_SRGB, colorIndex);
-
-        uint32_t normalIndex = object.materials[i].normalIndex;
-        loadTexture(ctx, object, model, VK_FORMAT_R8G8B8A8_UNORM, normalIndex);
+    for (uint32_t i = 0; i < model->images.size(); i++) {
+        loadTexture(ctx, object, model, VK_FORMAT_R8G8B8A8_SRGB, i);
     }
 
 	delete model;
@@ -237,7 +235,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
 
 void SceneGraph::buildSceneGraph() {
     uint32_t materialOffset = 0;
-    uint32_t textureOffset = 1;
+    uint32_t textureOffset = 0;
     uint32_t drawID = 0;
     uint32_t matrixID = 0;
     for (const auto& obj : objects) {
@@ -284,7 +282,7 @@ void SceneGraph::buildSceneGraph() {
         textureOffset += obj.textures.size();
     }
 
-    numTextures = textureOffset;
+    numTextures = textureOffset + 1;
     for (const auto& [key, value] : sortedDrawCalls) {
         drawCommands.insert(drawCommands.end(), value.begin(), value.end());
     }
