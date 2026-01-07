@@ -6,11 +6,19 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <array>
+#include <glm/gtx/hash.hpp>
 
 struct Vertex {
 	glm::vec4 pos;		// uvX is in w component
 	glm::vec4 normal;	// uvY is in w component
-	glm::vec4 color;
+	glm::vec4 tangent;
+
+	// for hashing for tangent generation
+	bool operator==(const Vertex& other) const {
+		return pos == other.pos &&
+			normal == other.normal &&
+			tangent == other.tangent;
+	}
 
 	static VkVertexInputBindingDescription getBindingDescription() {
 		VkVertexInputBindingDescription bindingDescription{};
@@ -33,10 +41,18 @@ struct Vertex {
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;
 		attributeDescriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-		attributeDescriptions[2].offset = offsetof(Vertex, color);
+		attributeDescriptions[2].offset = offsetof(Vertex, tangent);
 		return attributeDescriptions;
 	}
 };
+
+namespace std {
+	template<> struct hash<Vertex> {
+		size_t operator()(Vertex const& vertex) const {
+			return (hash<glm::vec4>()(vertex.pos) ^ hash<glm::vec4>()(vertex.normal) ^ hash<glm::vec4>()(vertex.tangent));
+		}
+	};
+}
 
 struct GPUMeshBuffers {
 	VulkanBuffer vertexBuffer;

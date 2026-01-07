@@ -52,6 +52,9 @@
     <Filter Include="Source Files\rendering\vkutils\image">
       <UniqueIdentifier>{c58cb432-42a8-4d55-b466-455af9ae2e4d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\mikktspace">
+      <UniqueIdentifier>{28cdfd25-0448-43d4-b39c-261578067c74}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -93,6 +96,9 @@
     <ClCompile Include="vkimageutils.cpp">
       <Filter>Source Files\rendering\vkutils\image</Filter>
     </ClCompile>
+    <ClCompile Include="mikktspace\mikktspace.cpp">
+      <Filter>Resource Files\mikktspace</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vkengine.h">
@@ -130,6 +136,12 @@
     </ClInclude>
     <ClInclude Include="vkimageutils.h">
       <Filter>Source Files\rendering\vkutils\image</Filter>
+    </ClInclude>
+    <ClInclude Include="mikktspace\mikktspace.h">
+      <Filter>Resource Files\mikktspace</Filter>
+    </ClInclude>
+    <ClInclude Include="tangentHelper.h">
+      <Filter>Source Files\rendering\gltfutils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

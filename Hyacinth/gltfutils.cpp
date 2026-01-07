@@ -5,8 +5,52 @@
 #include "gltfutils.h"
 #include "vkimageutils.h"
 #include <glm/gtc/type_ptr.hpp>
+#include "tangentHelper.h"
+
+static void generateTangents(gltfPrimitive* p, SMikkTSpaceContext& mikktContext) {
+    //UNPACK VERTICES
+    std::vector<Vertex> unpacked(p->indices.size());
+    uint32_t newInd = 0;
+    for (uint32_t index : p->indices) {
+        unpacked[newInd] = p->vertices[static_cast<std::vector<Vertex, std::allocator<Vertex>>::size_type>(index)];
+        newInd++;
+    }
+    p->vertices = std::move(unpacked);
+    p->indices.clear();
+
+    // GEN TANGENT SPACE
+    MikkTSpaceHelper::MikkTContext context{ p };
+    mikktContext.m_pUserData = &context;
+    genTangSpaceDefault(&mikktContext);
+
+    //WELD VERTICES
+    p->indices.clear();
+    p->indices.reserve(p->vertices.size());
+    std::unordered_map<Vertex, uint32_t> uniqueVertices;
+
+    size_t oldVertexCount = p->vertices.size();
+    uint32_t postTVertexCount = 0;
+    for (size_t i = 0; i < oldVertexCount; ++i) {
+        Vertex v = p->vertices[i];
+
+        auto index = uniqueVertices.find(v);
+        if (index == uniqueVertices.end()) {
+            uint32_t vertIndex = postTVertexCount;
+            postTVertexCount++;
+            uniqueVertices.insert(std::make_pair(v, vertIndex));
+            p->vertices[vertIndex] = v;
+            p->indices.push_back(vertIndex);
+        }
+        else {
+            p->indices.push_back(index->second);
+        }
+    }
+    p->vertices.resize(postTVertexCount);
+}
 
 static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
+    SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
+
     auto node = std::make_unique<gltfNode>();
     node->parentIndex = parent;
 
@@ -57,6 +101,7 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
             const float* positionBuff = nullptr;
             const float* normalsBuff = nullptr;
             const float* uvBuff = nullptr;
+            const float* tangentsBuff = nullptr;
 
             if (gltfPrim.attributes.find("POSITION") != gltfPrim.attributes.end()) {
                 const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("POSITION")->second];
@@ -74,6 +119,11 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
                 const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
                 uvBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
             }
+            if (gltfPrim.attributes.find("TANGENT") != gltfPrim.attributes.end()) {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("TANGENT")->second];
+                const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
+                tangentsBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+            }
 
             for (size_t vert = 0; vert < currentNumVertices; vert++) {
                 Vertex v{};
@@ -83,12 +133,7 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
 
                 v.pos = glm::vec4(glm::make_vec3(&positionBuff[vert * 3]), uv.x);
                 v.normal = glm::vec4(normal, uv.y);
-                v.color = glm::vec4(
-                    static_cast<float>(rand()) / RAND_MAX,
-                    static_cast<float>(rand()) / RAND_MAX,
-                    static_cast<float>(rand()) / RAND_MAX,
-                    1.0f
-                );
+                v.tangent = tangentsBuff ? glm::make_vec4(&tangentsBuff[vert * 4]) : glm::vec4(0.0f);
                 p->vertices.push_back(v);
             }
 
@@ -121,6 +166,10 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
             default:
                 std::cout << "index component type not supported" << std::endl;
                 std::_Xruntime_error("index component type not supported");
+            }
+
+            if (!tangentsBuff) {
+                generateTangents(p, mikktContext);
             }
         }
     }
