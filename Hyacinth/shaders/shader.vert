@@ -5,9 +5,10 @@ layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inColor;
 
-layout(location = 0) flat out int samplerIndex;
-layout	(location = 1) out vec4 fragNormal;
-layout	(location = 2) out vec2 outUV;
+layout	(location = 0) flat out int colorSamplerIndex;
+layout	(location = 1) flat out int normalSamplerIndex;
+layout	(location = 2) out vec4 fragNormal;
+layout	(location = 3) out vec2 outUV;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 view;
@@ -20,6 +21,7 @@ layout(buffer_reference, std430) readonly buffer TransformBuffer{
 
 struct Material {
 	int baseColorIndex;
+	int normalIndex;
 };
 
 struct DrawData {
@@ -46,7 +48,9 @@ void main()
 {
 	DrawData draw = PushConstants.drawDataBuffer.draws[gl_InstanceIndex];
 	gl_Position = ubo.proj * ubo.view * PushConstants.transformBuffer.model[draw.transformIndex] * vec4(inPosition.xyz, 1.0f);
-	samplerIndex = draw.materialIndex;
+	Material mat = PushConstants.materialBuffer.mats[draw.materialIndex];
+	colorSamplerIndex = mat.baseColorIndex;
+	normalSamplerIndex = mat.normalIndex;
 	fragNormal	= inNormal;
 	outUV.x		= inPosition.w;
 	outUV.y		= inNormal.w;

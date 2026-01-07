@@ -61,11 +61,13 @@ struct MaterialPipeline {
 
 struct MaterialInstance {
 	uint32_t baseColorIndex;
+	uint32_t normalIndex;
 
 	MaterialPipeline* pipeline;
 	VkDescriptorSet materialSet;
 };
 
 struct GPUMaterialIndices {
-	int32_t baseColorIndex;
+	uint32_t baseColorIndex;
+	uint32_t normalIndex;
 };

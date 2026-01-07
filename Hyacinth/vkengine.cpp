@@ -106,8 +106,8 @@ void HyacinthEngine::createInstance()
     dev12Features.bufferDeviceAddress = true;
     dev12Features.descriptorIndexing = true;
     dev12Features.runtimeDescriptorArray = true;
+    dev12Features.runtimeDescriptorArray = true;
 
-    // TODO: populate when needed
     VkPhysicalDeviceVulkan13Features dev13Features{};
     dev13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
 	dev13Features.pNext = &dev12Features;
@@ -339,12 +339,13 @@ void HyacinthEngine::createGraphicsPipeline()
 }
 
 void HyacinthEngine::loadScene() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured.glb";
-    auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
+    auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
+    // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
     m_scene.objects.push_back(gltfutils::loadFromFile(path.string(), m_devContext));
-    m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
+    // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
     m_scene.buildSceneGraph();
     m_meshBuffers = vkmeshutils::uploadMesh(m_devContext, m_scene.indices, m_scene.vertices);
+    m_scene.createDummyTextures(m_devContext);
 }
 
 void HyacinthEngine::createBuffers() {
@@ -372,10 +373,12 @@ void HyacinthEngine::createBuffers() {
 
 void HyacinthEngine::createDescriptorSets()
 {
+    // all +1 are for dummyTextures
+    // TODO: update when adding rest of dummies
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
     {
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float) m_scene.numTextures }
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float) m_scene.numTextures + 1 }
     };
 
     m_descriptorAllocator.initPool(m_device, MAX_FRAMES_IN_FLIGHT, sizes);
@@ -383,7 +386,7 @@ void HyacinthEngine::createDescriptorSets()
     {
 		DescriptorLayoutBuilder layoutBuilder;
         layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-        layoutBuilder.addBinding(1, m_scene.numTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+        layoutBuilder.addBinding(1, m_scene.numTextures + 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
 		m_descriptorSetLayout = layoutBuilder.buildLayout(m_device, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
     }
 

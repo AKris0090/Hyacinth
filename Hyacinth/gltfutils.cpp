@@ -126,6 +126,54 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
     }
 }
 
+void gltfutils::loadTexture(DeviceContext& ctx, gltfObject& object, tinygltf::Model* model, VkFormat format, uint32_t imageIndex) {
+    // TODO: update as adding more dummy textures
+    if (imageIndex <= 0) {
+        return;
+    }
+    // TODO: update with num dummy textures as you add more
+    tinygltf::Image& curImage = model->images[imageIndex - 1];
+    VulkanImage texImage{};
+    std::vector<unsigned char> rgba;
+    rgba.resize(curImage.width * curImage.height * 4);
+
+    switch (curImage.component) {
+    case 4:
+        memcpy(rgba.data(), curImage.image.data(), rgba.size());
+        break;
+    case 3:
+    {
+        std::vector<unsigned char> rgb;
+        rgb.resize(curImage.width * curImage.height * 3);
+        memcpy(rgb.data(), curImage.image.data(), rgb.size());
+        for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
+            rgba[j] = rgb[j];
+            rgba[j + 1] = rgb[j + 1];
+            rgba[j + 2] = rgb[j + 2];
+            rgba[j + 3] = 255;
+        }
+    }
+    case 1:
+    {
+        std::vector<unsigned char> r;
+        r.resize(curImage.width * curImage.height);
+        memcpy(r.data(), curImage.image.data(), r.size());
+        for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
+            rgba[j] = rgba[j + 1] = rgba[j + 2] = r[j];
+            rgba[j + 3] = 255;
+        }
+    }
+    }
+    VkExtent3D imageExtents{};
+    imageExtents.width = curImage.width;
+    imageExtents.height = curImage.height;
+    imageExtents.depth = 1;
+    texImage = vkimageutils::createImage(ctx, rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+    vkimageutils::createImageSampler(*ctx.device, texImage);
+    object.textures.push_back(texImage);
+    std::cout << "created image: " << curImage.name << std::endl;
+}
+
 gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& ctx) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
@@ -156,59 +204,31 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
         loadGLTFNode(object, model, node, -1);
     }
 
-    for (size_t i = 0; i < model->images.size(); i++) {
-        VulkanImage texImage{};
-        tinygltf::Image& curImage = model->images[i];
-        std::vector<unsigned char> rgba;
-        rgba.resize(curImage.width * curImage.height * 4);
-
-        switch (curImage.component) {
-        case 4:
-            memcpy(rgba.data(), curImage.image.data(), rgba.size());
-            break;
-        case 3:
-            {
-                std::vector<unsigned char> rgb;
-                rgb.resize(curImage.width * curImage.height * 3);
-                memcpy(rgb.data(), curImage.image.data(), rgb.size());
-                for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
-                    rgba[j] = rgb[j];
-                    rgba[j + 1] = rgb[j + 1];
-                    rgba[j + 2] = rgb[j + 2];
-                    rgba[j + 3] = 255;
-                }
-            }
-        case 1:
-            {
-                std::vector<unsigned char> r;
-                r.resize(curImage.width * curImage.height);
-                memcpy(r.data(), curImage.image.data(), r.size());
-                for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
-                    rgba[j] = rgba[j + 1] = rgba[j + 2] = r[j];
-                    rgba[j + 3] = 255;
-                }
-            }
-        }
-        VkExtent3D imageExtents{};
-        imageExtents.width = curImage.width;
-        imageExtents.height = curImage.height;
-        imageExtents.depth = 1;
-        texImage = vkimageutils::createImage(ctx, rgba.data(), imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
-        vkimageutils::createImageSampler(*ctx.device, texImage);
-        object.textures.push_back(texImage);
-    }
-
     object.textureIndices.resize(model->textures.size());
     for (size_t i = 0; i < model->textures.size(); i++) {
         object.textureIndices[i] = model->textures[i].source;
     }
 
+    // + 1 for dummy textures
     object.materials.resize(model->materials.size());
     for (size_t i = 0; i < model->materials.size(); i++) {
         tinygltf::Material gltfMat = model->materials[i];
         if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
-            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()]; // image index
+            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 1; // image index
         }
+        if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {
+            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + 1;
+        }
+        else { object.materials[i].normalIndex = DUMMY_NORMAL_TEX_INDEX; }
+    }
+
+    for (size_t i = 0; i < object.materials.size(); i++) {
+        // load color images
+        uint32_t colorIndex = object.materials[i].baseColorIndex;
+        loadTexture(ctx, object, model, VK_FORMAT_R8G8B8A8_SRGB, colorIndex);
+
+        uint32_t normalIndex = object.materials[i].normalIndex;
+        loadTexture(ctx, object, model, VK_FORMAT_R8G8B8A8_UNORM, normalIndex);
     }
 
 	delete model;
@@ -217,7 +237,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
 
 void SceneGraph::buildSceneGraph() {
     uint32_t materialOffset = 0;
-    uint32_t textureOffset = 0;
+    uint32_t textureOffset = 1;
     uint32_t drawID = 0;
     uint32_t matrixID = 0;
     for (const auto& obj : objects) {
@@ -254,10 +274,10 @@ void SceneGraph::buildSceneGraph() {
             matrixID++;
 		}
         
-        // upload materialIDBuffer
         for (const auto& mat : obj.materials) {
             GPUMaterialIndices newMatIndices{};
             newMatIndices.baseColorIndex = mat.baseColorIndex + textureOffset;
+            newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + textureOffset;
             materialObjects.push_back(newMatIndices);
         }
         materialOffset += obj.materials.size();
@@ -270,8 +290,33 @@ void SceneGraph::buildSceneGraph() {
     }
 }
 
+void SceneGraph::createDummyTextures(DeviceContext& ctx) {
+    // add dummy textures
+    VulkanImage texImage{};
+    stbi_uc* pixels = nullptr;
+    int texWidth, texHeight, texChannels;
+    pixels = stbi_load("./shaders/dummyNormal.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    if (!pixels) {
+        throw std::runtime_error("failed to load normal dummy image!");
+    }
+    texImage.extent.width = texWidth;
+    texImage.extent.height = texHeight;
+
+    VkExtent3D imageExtents{};
+    imageExtents.width = texImage.extent.width;
+    imageExtents.height = texImage.extent.height;
+    imageExtents.depth = 1;
+    texImage = vkimageutils::createImage(ctx, (void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+    vkimageutils::createImageSampler(*ctx.device, texImage);
+    dummyTextures.push_back(texImage);
+}
+
 void SceneGraph::uploadTextures(VkDevice& dev, VkDescriptorSet& descriptor) {
     uint32_t textureOffset = 0;
+    for (const auto& tex : dummyTextures) {
+        vkimageutils::storeTexture(dev, descriptor, tex, textureOffset);
+        textureOffset++;
+    }
     for (const auto& obj : objects) {
         for (const auto& tex : obj.textures) {
             vkimageutils::storeTexture(dev, descriptor, tex, textureOffset);

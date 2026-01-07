@@ -4,6 +4,8 @@
 #include "vkmeshutils.h"
 #include "vkimageutils.h"
 
+#define DUMMY_NORMAL_TEX_INDEX 0
+
 static std::string getFilePathExtension(const std::string& FileName) {
     if (FileName.find_last_of(".") != std::string::npos)
         return FileName.substr(FileName.find_last_of(".") + 1);
@@ -43,6 +45,7 @@ struct SceneGraph {
     std::vector<glm::mat4> transformMatrices;
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
+    std::vector<VulkanImage> dummyTextures;
     uint32_t numTextures;
 
     std::vector<VkSampler> imageSamplers;
@@ -55,9 +58,11 @@ struct SceneGraph {
     std::vector<GPUMaterialIndices> materialObjects;
 
     void buildSceneGraph();
+    void createDummyTextures(DeviceContext& ctx);
     void uploadTextures(VkDevice& dev, VkDescriptorSet& descriptor);
 };
 
 namespace gltfutils {
+    void loadTexture(DeviceContext& ctx, gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
     gltfObject loadFromFile(const std::string& filename, DeviceContext& ctx);
 }
