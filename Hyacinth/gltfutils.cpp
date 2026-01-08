@@ -176,11 +176,6 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
 }
 
 void gltfutils::loadTexture(DeviceContext& ctx, gltfObject& object, tinygltf::Model* model, VkFormat format, uint32_t imageIndex) {
-    // TODO: update as adding more dummy textures
-    if (imageIndex < 0) {
-        return;
-    }
-    // TODO: update with num dummy textures as you add more
     tinygltf::Image& curImage = model->images[imageIndex];
     VulkanImage texImage{};
     std::vector<unsigned char> rgba;
@@ -265,13 +260,17 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
     for (size_t i = 0; i < model->materials.size(); i++) {
         tinygltf::Material gltfMat = model->materials[i];
         if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
-            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 1; // image index
-            object.imageIsSRGB->insert(object.materials[i].baseColorIndex - 1);
+            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 2; // image index
+            object.imageIsSRGB->insert(object.materials[i].baseColorIndex - 2);
         }
         if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {
-            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + 1;
+            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + 2;
         }
         else { object.materials[i].normalIndex = DUMMY_NORMAL_TEX_INDEX; }
+        if (gltfMat.values.find("metallicRoughnessTexture") != gltfMat.values.end()) {
+            object.materials[i].metallicRoughnessIndex = object.textureIndices[gltfMat.values["metallicRoughnessTexture"].TextureIndex()] + 2;
+        }
+        else { object.materials[i].metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
     }
 
     for (uint32_t i = 0; i < model->images.size(); i++) {
@@ -326,6 +325,7 @@ void SceneGraph::buildSceneGraph() {
             GPUMaterialIndices newMatIndices{};
             newMatIndices.baseColorIndex = mat.baseColorIndex + textureOffset;
             newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + textureOffset;
+            newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + textureOffset;
             materialObjects.push_back(newMatIndices);
         }
         materialOffset += obj.materials.size();
@@ -340,23 +340,25 @@ void SceneGraph::buildSceneGraph() {
 
 void SceneGraph::createDummyTextures(DeviceContext& ctx) {
     // add dummy textures
-    VulkanImage texImage{};
-    stbi_uc* pixels = nullptr;
-    int texWidth, texHeight, texChannels;
-    pixels = stbi_load("./shaders/dummyNormal.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    if (!pixels) {
-        throw std::runtime_error("failed to load normal dummy image!");
-    }
-    texImage.extent.width = texWidth;
-    texImage.extent.height = texHeight;
+    for (const auto& path : DUMMY_PATHS) {
+        VulkanImage texImage{};
+        stbi_uc* pixels = nullptr;
+        int texWidth, texHeight, texChannels;
+        pixels = stbi_load(path.data(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        if (!pixels) {
+            throw std::runtime_error("failed to load dummy image " + path + "!");
+        }
+        texImage.extent.width = texWidth;
+        texImage.extent.height = texHeight;
 
-    VkExtent3D imageExtents{};
-    imageExtents.width = texImage.extent.width;
-    imageExtents.height = texImage.extent.height;
-    imageExtents.depth = 1;
-    texImage = vkimageutils::createImage(ctx, (void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
-    vkimageutils::createImageSampler(*ctx.device, texImage);
-    dummyTextures.push_back(texImage);
+        VkExtent3D imageExtents{};
+        imageExtents.width = texImage.extent.width;
+        imageExtents.height = texImage.extent.height;
+        imageExtents.depth = 1;
+        texImage = vkimageutils::createImage(ctx, (void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        vkimageutils::createImageSampler(*ctx.device, texImage);
+        dummyTextures.push_back(texImage);
+    }
 }
 
 void SceneGraph::uploadTextures(VkDevice& dev, VkDescriptorSet& descriptor) {

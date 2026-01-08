@@ -355,7 +355,7 @@ void HyacinthEngine::createDescriptorSets()
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
     {
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float) m_scene.numTextures + 1 }
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float) m_scene.numTextures + 2 }
     };
 
     m_descriptorAllocator.initPool(m_device, MAX_FRAMES_IN_FLIGHT, sizes);
@@ -445,7 +445,7 @@ void HyacinthEngine::update() {
     newuniform.proj = m_camera.getProjectionMatrix();
     newuniform.view = m_camera.getViewMatrix();
     newuniform.viewPos = glm::vec4(m_camera.transform.position, 0.0f);
-    newuniform.lightPos = glm::vec4(0.0f, 75.0f, 0.0f, 1.0f);
+    newuniform.lightPos = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
 
     memcpy(m_frameData[m_frameIndex].mappedUniformBuffer, &newuniform, sizeof(UBO));
 }

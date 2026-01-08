@@ -7,10 +7,11 @@ layout	(location = 2) in vec4 inTangent;
 
 layout	(location = 0) flat out int colorSamplerIndex;
 layout	(location = 1) flat out int normalSamplerIndex;
-layout  (location = 2) out vec4 outNormal;
-layout	(location = 3) out vec4 fragPos;
-layout	(location = 4) out mat3 TBNMatrix;
-layout	(location = 7) out vec2 outUV;
+layout	(location = 2) flat out int metalRoughSamplerIndex;
+layout  (location = 3) out vec4 outNormal;
+layout	(location = 4) out vec4 fragPos;
+layout	(location = 5) out mat3 TBNMatrix;
+layout	(location = 8) out vec2 outUV;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 view;
@@ -26,6 +27,7 @@ layout(buffer_reference, std430) readonly buffer TransformBuffer{
 struct Material {
 	int baseColorIndex;
 	int normalIndex;
+	int metalRoughIndex;
 };
 
 struct DrawData {
@@ -66,6 +68,7 @@ void main()
 
 	colorSamplerIndex = mat.baseColorIndex;
 	normalSamplerIndex = mat.normalIndex;
+	metalRoughSamplerIndex = mat.metalRoughIndex;
 	outNormal = vec4(mat3(transpose(inverse(model))) * inNormal.xyz, 1.0);
 
 	outUV.x		= inPosition.w;

@@ -6,6 +6,12 @@
 #include <unordered_set>
 
 #define DUMMY_NORMAL_TEX_INDEX 0
+#define DUMMY_METALROUGH_TEX_INDEX 1
+
+const std::vector<std::string> DUMMY_PATHS = {
+        "./shaders/dummyNormal.png",
+        "./shaders/dummyMetallicRoughness.png"
+};
 
 static std::string getFilePathExtension(const std::string& FileName) {
     if (FileName.find_last_of(".") != std::string::npos)

@@ -78,6 +78,7 @@ struct MaterialPipeline {
 struct MaterialInstance {
 	uint32_t baseColorIndex;
 	uint32_t normalIndex;
+	uint32_t metallicRoughnessIndex;
 
 	MaterialPipeline* pipeline;
 	VkDescriptorSet materialSet;
@@ -86,4 +87,5 @@ struct MaterialInstance {
 struct GPUMaterialIndices {
 	uint32_t baseColorIndex;
 	uint32_t normalIndex;
+	uint32_t metallicRoughnessIndex;
 };
