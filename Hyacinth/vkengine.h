@@ -34,6 +34,8 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 3;
 struct UBO {
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::vec4 viewPos;
+	glm::vec4 lightPos;
 };
 
 class HyacinthEngine {
@@ -78,8 +80,10 @@ private:
 	std::vector<VkSemaphore>		m_imageFinishedSemas	{};
 	std::vector<VkFence> 			m_inFlightFences		{};
 	VkFence							m_uploadFence			{ VK_NULL_HANDLE };
-	std::vector<VulkanImage>		m_swapChainImages		{};
+	std::vector<VulkanImage>		m_colorImages			{};
+	std::vector<VulkanImage>		m_swapChainImages		{}; // a.k.a color resolve
 	std::vector<VulkanImage>		m_depthImages			{};
+	std::vector<VulkanImage>		m_depthResolveImages	{};
 	SWChainImageFormat				m_swImageFormat			{};
 	VulkanPipelineBuilder 			m_pipelineUtil;
 	GPUMeshBuffers					m_meshBuffers			{};

@@ -64,6 +64,7 @@ public:
 	void setPolygonMode(VkPolygonMode polygonMode);
     void setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace);
 	void setMultisamplingNone();
+    void setMultisampling(VkSampleCountFlagBits sampleCount);
     void disableBlending();
 	void setColorAttachmentFormat(VkFormat format);
 	void setDepthAttachmentFormat(VkFormat format);

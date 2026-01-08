@@ -228,6 +228,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
+    object.imageIsSRGB = new std::unordered_set<uint32_t>();
     tinygltf::Model* model;
     model = new tinygltf::Model();
     tinygltf::TinyGLTF gltfContext;
@@ -264,18 +265,18 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
     for (size_t i = 0; i < model->materials.size(); i++) {
         tinygltf::Material gltfMat = model->materials[i];
         if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
-            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()]; // image index
-            object.materials[i].baseColorIndex++;
+            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 1; // image index
+            object.imageIsSRGB->insert(object.materials[i].baseColorIndex - 1);
         }
         if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {
-            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()];
-            object.materials[i].normalIndex++;
+            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + 1;
         }
         else { object.materials[i].normalIndex = DUMMY_NORMAL_TEX_INDEX; }
     }
 
     for (uint32_t i = 0; i < model->images.size(); i++) {
-        loadTexture(ctx, object, model, VK_FORMAT_R8G8B8A8_SRGB, i);
+        VkFormat format = (object.imageIsSRGB->find(i) == object.imageIsSRGB->end()) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
+        loadTexture(ctx, object, model, format, i);
     }
 
 	delete model;

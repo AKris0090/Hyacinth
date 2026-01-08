@@ -3,6 +3,7 @@
 #include "tiny_gltf.h"
 #include "vkmeshutils.h"
 #include "vkimageutils.h"
+#include <unordered_set>
 
 #define DUMMY_NORMAL_TEX_INDEX 0
 
@@ -33,6 +34,8 @@ struct gltfObject {
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;
     std::vector<MaterialInstance> materials;
+
+    std::unordered_set<uint32_t>* imageIsSRGB;
 };
 
 struct DrawData {

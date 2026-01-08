@@ -9,7 +9,7 @@
 constexpr float PI = 3.14159265359f;
 
 struct FPSCam {
-	float pitch = 0.f, yaw = 0.f, moveSpeed = 3.5f, lookSpeed = 45.f;
+	float pitch = 0.f, yaw = 0.f, moveSpeed = 3.5f, lookSpeed = 70.f;
 	float aspectRatio;
 	float FOV;
 

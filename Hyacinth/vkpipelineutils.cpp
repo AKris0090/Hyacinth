@@ -104,6 +104,14 @@ void VulkanPipelineBuilder::setMultisamplingNone() {
     m_multisampling.alphaToOneEnable = VK_FALSE;
 }
 
+void VulkanPipelineBuilder::setMultisampling(VkSampleCountFlagBits sampleCount) {
+    m_multisampling.sampleShadingEnable = VK_FALSE;
+    m_multisampling.minSampleShading = 0.0f;
+    m_multisampling.rasterizationSamples = sampleCount;
+    m_multisampling.alphaToCoverageEnable = VK_FALSE;
+    m_multisampling.alphaToOneEnable = VK_FALSE;
+}
+
 void VulkanPipelineBuilder::disableBlending() {
     m_colorBlendAttachment.blendEnable = VK_FALSE;
 	m_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;

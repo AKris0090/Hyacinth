@@ -7,12 +7,16 @@ layout	(location = 2) in vec4 inTangent;
 
 layout	(location = 0) flat out int colorSamplerIndex;
 layout	(location = 1) flat out int normalSamplerIndex;
-layout	(location = 2) out mat3 TBNMatrix;
-layout	(location = 5) out vec2 outUV;
+layout  (location = 2) out vec4 outNormal;
+layout	(location = 3) out vec4 fragPos;
+layout	(location = 4) out mat3 TBNMatrix;
+layout	(location = 7) out vec2 outUV;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
+	vec4 viewPos;
+	vec4 lightPos;
 } ubo;
 
 layout(buffer_reference, std430) readonly buffer TransformBuffer{ 
@@ -50,6 +54,8 @@ void main()
 	mat4 model = PushConstants.transformBuffer.model[draw.transformIndex];
 	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0f);
 
+	fragPos = model * vec4(inPosition.xyz, 1.0);
+
 	vec4 biTangent = vec4(normalize(cross(inNormal.xyz, inTangent.xyz)), 0.0);
 	vec3 T = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));
 	vec3 B = normalize(vec3(model * biTangent));
@@ -60,6 +66,7 @@ void main()
 
 	colorSamplerIndex = mat.baseColorIndex;
 	normalSamplerIndex = mat.normalIndex;
+	outNormal = vec4(mat3(transpose(inverse(model))) * inNormal.xyz, 1.0);
 
 	outUV.x		= inPosition.w;
 	outUV.y		= inNormal.w;

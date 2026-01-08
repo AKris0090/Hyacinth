@@ -36,7 +36,7 @@ void vkimageutils::createImageView(VkDevice& device, VulkanImage& image, VkImage
 	VK_CHECK(vkCreateImageView(device, &viewInfo, nullptr, &image.imageView));
 }
 
-VulkanImage vkimageutils::createImage(DeviceContext& ctx, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped) {
+VulkanImage vkimageutils::createImage(DeviceContext& ctx, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits numSamples, bool mipped) {
 	VulkanImage newImage{};
 	newImage.imageFormat = format;
 	newImage.extent = size;
@@ -47,9 +47,10 @@ VulkanImage vkimageutils::createImage(DeviceContext& ctx, VkExtent3D size, VkFor
 	imgInfo.extent = size;
 	imgInfo.imageType = VK_IMAGE_TYPE_2D;
 	imgInfo.arrayLayers = 1;
-	imgInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imgInfo.samples = numSamples;
 	imgInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	imgInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	imgInfo.mipLevels = 1;
 
 	if (mipped) {
 		imgInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2((std::max)(size.width, size.height)))) + 1;
@@ -109,7 +110,7 @@ VulkanImage vkimageutils::createImage(DeviceContext& ctx, void* data, VkExtent3D
 	size_t dataSize = size.depth * size.width * size.height * 4;
 	VulkanBuffer uploadBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 	memcpy(uploadBuffer.info.pMappedData, data, dataSize);
-	VulkanImage newImage = vkimageutils::createImage(ctx, size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipped);
+	VulkanImage newImage = vkimageutils::createImage(ctx, size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, mipped);
 
 	vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
 		vkimageutils::transitionImage(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -154,24 +155,28 @@ void vkimageutils::createImageSampler(VkDevice& device, VulkanImage& image) {
 	VK_CHECK(vkCreateSampler(device, &samplerCInfo, nullptr, &image.imageSampler));
 }
 
-VkRenderingAttachmentInfo vkimageutils::createAttachmentInfo(VkImageView imageView, const VkClearValue& clearColor, VkImageLayout imageLayout) {
-	VkRenderingAttachmentInfo attachmentInfo{};
-	attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-	attachmentInfo.imageView = imageView;
+VkRenderingAttachmentInfo vkimageutils::createColorAttachmentInfo(VkImageView& msaaColorView, VkImageView& resolveImageView, const VkClearValue& clearColor, VkImageLayout imageLayout) {
+	VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+	attachmentInfo.imageView = msaaColorView;
 	attachmentInfo.imageLayout = imageLayout;
 	attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachmentInfo.resolveImageView = resolveImageView;
+	attachmentInfo.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	attachmentInfo.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
 	attachmentInfo.clearValue = clearColor;
 	return attachmentInfo;
 }
 
-VkRenderingAttachmentInfo vkimageutils::createDepthAttachmentInfo(VkImageView imageView, VkImageLayout imageLayout) {
-	VkRenderingAttachmentInfo attachmentInfo{};
-	attachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-	attachmentInfo.imageView = imageView;
-	attachmentInfo.imageLayout = imageLayout;
+VkRenderingAttachmentInfo vkimageutils::createDepthAttachmentInfo(VkImageView& msaaDepthView, VkImageView& resolvedDepthView) {
+	VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+	attachmentInfo.imageView = msaaDepthView;
+	attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
 	attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachmentInfo.resolveImageView = resolvedDepthView;
+	attachmentInfo.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+	attachmentInfo.resolveMode = VK_RESOLVE_MODE_MIN_BIT;
 	attachmentInfo.clearValue.depthStencil.depth = 1.f;
 	return attachmentInfo;
 }
