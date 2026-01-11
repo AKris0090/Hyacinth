@@ -58,6 +58,9 @@
     <Filter Include="Source Files\rendering\shadow">
       <UniqueIdentifier>{4e44b4a4-6950-4df9-86a2-e85730c57ac3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\imgui">
+      <UniqueIdentifier>{0d2186a3-7ea5-4fd3-9983-e6f6c7a6cce1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -105,6 +108,27 @@
     <ClCompile Include="csm.cpp">
       <Filter>Source Files\rendering\shadow</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui.cpp">
+      <Filter>Resource Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_demo.cpp">
+      <Filter>Resource Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_draw.cpp">
+      <Filter>Resource Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_tables.cpp">
+      <Filter>Resource Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_widgets.cpp">
+      <Filter>Resource Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.cpp">
+      <Filter>Resource Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_vulkan.cpp">
+      <Filter>Resource Files\imgui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vkengine.h">
@@ -151,6 +175,33 @@
     </ClInclude>
     <ClInclude Include="csm.h">
       <Filter>Source Files\rendering\shadow</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imconfig.h">
+      <Filter>Resource Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imgui.h">
+      <Filter>Resource Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imgui_internal.h">
+      <Filter>Resource Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_rectpack.h">
+      <Filter>Resource Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_textedit.h">
+      <Filter>Resource Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_truetype.h">
+      <Filter>Resource Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.h">
+      <Filter>Resource Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_vulkan.h">
+      <Filter>Resource Files\imgui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

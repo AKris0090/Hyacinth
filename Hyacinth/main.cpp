@@ -16,6 +16,8 @@ int main() {
 	while(sdlwindow.running) {
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
+			ImGui_ImplSDL3_ProcessEvent(&event);
+
 			Input::handleSDLInput(event);
 			if (event.type == SDL_EVENT_QUIT) {
 				sdlwindow.running = false;

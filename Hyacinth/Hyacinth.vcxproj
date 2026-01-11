@@ -102,7 +102,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -125,7 +125,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -141,6 +141,13 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.cpp" />
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_vulkan.cpp" />
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui.cpp" />
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_demo.cpp" />
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_draw.cpp" />
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_tables.cpp" />
+    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_widgets.cpp" />
     <ClCompile Include="csm.cpp" />
     <ClCompile Include="ecshelpers.h" />
     <ClCompile Include="gltfutils.cpp" />
@@ -158,11 +165,20 @@
     <ClCompile Include="vkengine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.h" />
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_vulkan.h" />
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imconfig.h" />
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imgui.h" />
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imgui_internal.h" />
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_rectpack.h" />
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_textedit.h" />
+    <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_truetype.h" />
     <ClInclude Include="csm.h" />
     <ClInclude Include="fpcam.h" />
     <ClInclude Include="gltfutils.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="mikktspace\mikktspace.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="sdlwindow.h" />
     <ClInclude Include="tangentHelper.h" />
     <ClInclude Include="time.h" />

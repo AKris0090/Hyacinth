@@ -15,7 +15,7 @@
 
 #define SHADOW_MAP_CASCADE_COUNT 3
 constexpr float cascadeSplitLambda = 0.95f;
-constexpr int cascadeImageSize = 2048;
+constexpr int cascadeImageSize = 4096;
 
 struct shadowUniform {
 	glm::mat4 viewProj[SHADOW_MAP_CASCADE_COUNT];

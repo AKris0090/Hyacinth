@@ -411,6 +411,41 @@ void HyacinthEngine::createDescriptorSets()
     }
 }
 
+static void imgui_check_vk_result(VkResult err)
+{
+    if (err == VK_SUCCESS)
+        return;
+    fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
+    if (err < 0)
+        abort();
+}
+
+void HyacinthEngine::setupImGUI() 
+{
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    ImGui_ImplSDL3_InitForVulkan(m_window);
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.ApiVersion = VK_API_VERSION_1_3;
+    init_info.Instance = m_instance;
+    init_info.PhysicalDevice = m_physicalDevice;
+    init_info.Device = m_device;
+    init_info.PipelineInfoMain.PipelineRenderingCreateInfo = m_pipelineUtil.m_renderInfo;
+    init_info.PipelineInfoMain.MSAASamples = m_msaaSamples;
+    init_info.QueueFamily = m_qfIndices.graphicsFamily.value();
+    init_info.Queue = m_graphicsQueue;
+    init_info.UseDynamicRendering = true;
+    init_info.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE;
+    init_info.MinImageCount = m_swapChainImages.size();
+    init_info.ImageCount = m_swapChainImages.size();
+    init_info.CheckVkResultFn = imgui_check_vk_result;
+    init_info.Allocator = nullptr;
+    ImGui_ImplVulkan_Init(&init_info);
+}
+
 void HyacinthEngine::init()
 {
 	createInstance();
@@ -459,6 +494,8 @@ void HyacinthEngine::init()
     createDescriptorSets();
 
     createGraphicsPipeline();
+
+    setupImGUI();
 
     m_initialized = true;
 }
@@ -563,6 +600,16 @@ void HyacinthEngine::drawShadowMaps(VkCommandBuffer& cmd) {
 
 void HyacinthEngine::draw()
 {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::Begin("FPS MENU");
+    auto framesPerSecond = 1.0f / Time::getDeltaTime();
+    ImGui::Text("rfps: %.0f", framesPerSecond);
+    ImGui::Text("  ft: %.2f ms", Time::getDeltaTime() * 1000.0f);
+    ImGui::End();
+
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
 
@@ -615,6 +662,10 @@ void HyacinthEngine::draw()
 void HyacinthEngine::endDraw()
 {
     VkCommandBuffer& cmd = getCurrentFrame().commandBuffer;
+
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
     vkCmdEndRendering(cmd);
     vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -673,6 +724,10 @@ void HyacinthEngine::cleanup()
 	vkdeviceutils::destroyBuffer(m_allocator, m_worldMatrixBuffer);
     vkdeviceutils::destroyBuffer(m_allocator, m_drawDataBuffer);
     vkdeviceutils::destroyBuffer(m_allocator, m_materialBuffer);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
 
 	vkDestroyFence(m_device, m_uploadFence, nullptr);
 

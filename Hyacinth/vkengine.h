@@ -5,6 +5,9 @@
 #include <stdexcept>
 #include <iostream>
 #include <utility>
+#include <imgui.h>
+#include "backends/imgui_impl_sdl3.h"
+#include "backends/imgui_impl_vulkan.h"
 
 #include "vkdeviceutils.h"
 #include "vkdebugutils.h"
@@ -108,6 +111,7 @@ private:
 	void createGraphicsPipeline();
 	void createBuffers();
 	void createDescriptorSets();
+	void setupImGUI();
 	void loadScene();
 	void update();
 	void setupDraw();
