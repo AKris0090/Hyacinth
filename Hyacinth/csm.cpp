@@ -250,7 +250,7 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 
 		glm::vec3 lightDir = glm::normalize(-lightPos);
 		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+		glm::mat4 lightOrthoMatrix = glm::orthoZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
 		// Store split distance and matrix in cascade
 		m_cascades[i].splitDepth = (camNear + splitDist * clipRange) * -1.f;

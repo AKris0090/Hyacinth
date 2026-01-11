@@ -404,7 +404,8 @@ void HyacinthEngine::createDescriptorSets()
         descriptorShadowWrite.dstArrayElement = 0;
         descriptorShadowWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorShadowWrite.descriptorCount = 1;
-        descriptorShadowWrite.pBufferInfo = &bufferInfo;
+        descriptorShadowWrite.pImageInfo = &depthImageInfo;
+        vkUpdateDescriptorSets(m_device, 1, &descriptorShadowWrite, 0, nullptr);
     }
 }
 
@@ -442,8 +443,8 @@ void HyacinthEngine::init()
     m_colorImages.resize(numImages);
     m_depthResolveImages.resize(numImages);
     for (uint32_t i = 0; i < numImages; i++) {
-        m_depthImages[i] = vkimageutils::createImage(m_devContext, extent, VK_FORMAT_D16_UNORM, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false);
-        m_depthResolveImages[i] = vkimageutils::createImage(m_devContext, extent, VK_FORMAT_D16_UNORM, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, false);
+        m_depthImages[i] = vkimageutils::createImage(m_devContext, extent, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false);
+        m_depthResolveImages[i] = vkimageutils::createImage(m_devContext, extent, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, false);
         m_colorImages[i] = vkimageutils::createImage(m_devContext, extent, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, m_msaaSamples, false);
     }
 
@@ -451,11 +452,11 @@ void HyacinthEngine::init()
 
     createBuffers();
 
+    m_shadowHelper.setup(m_devContext, MAX_FRAMES_IN_FLIGHT);
+
     createDescriptorSets();
 
     createGraphicsPipeline();
-
-    m_shadowHelper.setup(m_devContext, MAX_FRAMES_IN_FLIGHT);
 
     m_initialized = true;
 }

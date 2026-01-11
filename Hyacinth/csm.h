@@ -36,7 +36,7 @@ struct shadowGPUPushConstant {
 
 class shadowHelper {
 private:
-	VkFormat shadowFormat = VK_FORMAT_D16_UNORM;
+	VkFormat shadowFormat = VK_FORMAT_D32_SFLOAT;
 	glm::vec3 lightPos = glm::vec3(2.f, 10.f, 0.f);
 	std::vector<void*> m_mappedUniformBuffers;
 	std::vector<glm::vec4> corners;

@@ -77,6 +77,41 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
+float textureProj(vec4 shadowCoord, vec2 offset, uint cascadeIndex)
+{
+	float shadow = 1.0;
+	float bias = 0.005;
+
+	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
+		float dist = texture(shadowDepthMap, vec3(shadowCoord.st + offset, cascadeIndex)).r;
+		if (shadowCoord.w > 0 && dist < shadowCoord.z - bias) {
+			shadow = 0.1;
+		}
+	}
+	return shadow;
+
+}
+
+float filterPCF(vec4 sc, uint cascadeIndex)
+{
+	ivec2 texDim = textureSize(shadowDepthMap, 0).xy;
+	float scale = 0.75;
+	float dx = scale * 1.0 / float(texDim.x);
+	float dy = scale * 1.0 / float(texDim.y);
+
+	float shadowFactor = 0.0;
+	int count = 0;
+	int range = 1;
+	
+	for (int x = -range; x <= range; x++) {
+		for (int y = -range; y <= range; y++) {
+			shadowFactor += textureProj(sc, vec2(dx*x, dy*y), cascadeIndex);
+			count++;
+		}
+	}
+	return shadowFactor / count;
+}
+
 void main() {
     vec4 sampledColor = texture(globalTextures2D[colorSamplerIndex], inUV);
     vec4 metalRough = texture(globalTextures2D[metalRoughSamplerIndex], inUV);
@@ -119,6 +154,8 @@ void main() {
 			cascadeIndex = i + 1;
 		}
 	}
+    vec4 shadowCoord = (biasMat * ubo.cascadeViewProj[cascadeIndex]) * vec4(fragPos.xyz, 1.0);	
+	float shadow = filterPCF(shadowCoord / shadowCoord.w, cascadeIndex);
 
-    outColor = vec4(color, 1.0f);
+    outColor = vec4(color * shadow, 1.0f);
 }

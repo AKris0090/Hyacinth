@@ -64,7 +64,7 @@ VulkanImage vkimageutils::createImage(DeviceContext& ctx, VkExtent3D size, VkFor
 	VK_CHECK(vmaCreateImage(*ctx.allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.imageAllocation, nullptr));
 
 	VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
-	if (format == VK_FORMAT_D16_UNORM) {
+	if (format == VK_FORMAT_D32_SFLOAT) {
 		aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
 	}
 
