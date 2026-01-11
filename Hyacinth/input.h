@@ -14,6 +14,7 @@ namespace Input {
 	bool leftKeyDown();
 	bool upKeyDown();
 	bool downKeyDown();
+	bool mouseDown();
 
 	std::pair<float, float> getMouseMotion();
 };

@@ -5,6 +5,7 @@ namespace Input {
 	bool left, right;
 	bool up, down;
 	float xrel, yrel;
+	bool mouseLeft;
 
 	void handleSDLInput(SDL_Event& e) {
 		if (e.type == SDL_EVENT_KEY_DOWN) {
@@ -39,6 +40,14 @@ namespace Input {
 			xrel = static_cast<float>(e.motion.xrel);
 			yrel = static_cast<float>(e.motion.yrel);
 		}
+
+		if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+			mouseLeft = true;
+		}
+
+		if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+			mouseLeft = false;
+		}
 	}
 
 	bool forwardKeyDown() {
@@ -63,6 +72,10 @@ namespace Input {
 
 	bool downKeyDown() {
 		return down;
+	}
+
+	bool mouseDown() {
+		return mouseLeft;
 	}
 
 	std::pair<float, float> getMouseMotion() {

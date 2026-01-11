@@ -320,6 +320,8 @@ void HyacinthEngine::createGraphicsPipeline()
 void HyacinthEngine::loadScene() {
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
+
     m_scene.objects.push_back(gltfutils::loadFromFile(path.string(), m_devContext));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
     m_scene.buildSceneGraph();
@@ -467,9 +469,9 @@ void HyacinthEngine::update() {
     UBO newuniform{};
     newuniform.proj = m_camera.proj;
     newuniform.view = m_camera.view;
-    newuniform.viewPos = glm::vec4(m_camera.transform.position, 0.0f);
+    newuniform.viewPos = glm::vec4(m_camera.transform.position, Input::mouseDown() ? 0.f : 1.f);
     newuniform.lightPos = glm::vec4(0.0f, 20.0f, 0.0f, 1.0f);
-    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, 1.f);
+    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_camera.farClip);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeViewProj[i] = m_shadowHelper.m_cascades[i].viewProj;
     }

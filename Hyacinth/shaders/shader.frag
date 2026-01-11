@@ -80,11 +80,20 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 float textureProj(vec4 shadowCoord, vec2 offset, uint cascadeIndex)
 {
 	float shadow = 1.0;
-	float bias = 0.005;
+    const float biasModifier = 1.0;
+    float scaledBias = max(0.005 * (1.0 - dot(normalize(inNormal.xyz), (ubo.lightPos.xyz - fragPos.xyz))), 0.005);
+    if (cascadeIndex == SHADOW_MAP_CASCADE_COUNT)
+    {
+        scaledBias *= 1.0 / (ubo.cascadeSplits[SHADOW_MAP_CASCADE_COUNT] * biasModifier);
+    }
+    else
+    {
+        scaledBias *= 1.0 / (ubo.cascadeSplits[cascadeIndex] * biasModifier);
+    }
 
 	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
 		float dist = texture(shadowDepthMap, vec3(shadowCoord.st + offset, cascadeIndex)).r;
-		if (shadowCoord.w > 0 && dist < shadowCoord.z - bias) {
+		if (shadowCoord.w > 0 && dist < shadowCoord.z - scaledBias) {
 			shadow = 0.1;
 		}
 	}
@@ -154,8 +163,23 @@ void main() {
 			cascadeIndex = i + 1;
 		}
 	}
+
     vec4 shadowCoord = (biasMat * ubo.cascadeViewProj[cascadeIndex]) * vec4(fragPos.xyz, 1.0);	
 	float shadow = filterPCF(shadowCoord / shadowCoord.w, cascadeIndex);
 
     outColor = vec4(color * shadow, 1.0f);
+
+    if (ubo.viewPos.w == 0.0) {
+		switch(cascadeIndex) {
+			case 0 : 
+				outColor.rgb *= vec3(1.0f, 0.25f, 0.25f);
+				break;
+			case 1 : 
+				outColor.rgb *= vec3(0.25f, 1.0f, 0.25f);
+				break;
+			case 2 : 
+				outColor.rgb *= vec3(0.25f, 0.25f, 1.0f);
+				break;
+		}
+	}
 }
