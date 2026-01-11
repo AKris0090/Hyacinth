@@ -37,13 +37,13 @@ struct shadowGPUPushConstant {
 class shadowHelper {
 private:
 	VkFormat shadowFormat = VK_FORMAT_D32_SFLOAT;
-	glm::vec3 lightPos = glm::vec3(2.f, 10.f, 0.f);
 	std::vector<void*> m_mappedUniformBuffers;
 	std::vector<glm::vec4> corners;
 
 	void updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view);
 
 public:
+	transform transform;
 	std::vector<Cascade> m_cascades;
 	VkExtent2D extent;
 	VkImage shadowImage;

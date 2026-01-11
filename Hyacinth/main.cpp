@@ -5,6 +5,7 @@
 
 int main() {
 	SDLWindow sdlwindow;
+	bool mouseLocked = true;
 	sdlwindow.init("Hyacinth Engine", 1280, 720);
 
 	HyacinthEngine hyacinthEngine;
@@ -21,6 +22,10 @@ int main() {
 			Input::handleSDLInput(event);
 			if (event.type == SDL_EVENT_QUIT) {
 				sdlwindow.running = false;
+			}
+			if (event.type == SDL_EVENT_KEY_DOWN && event.key.scancode == SDL_SCANCODE_ESCAPE) {
+				mouseLocked = !mouseLocked;
+				SDL_SetWindowRelativeMouseMode(hyacinthEngine.m_window, mouseLocked);
 			}
 		}
 		hyacinthEngine.draw();

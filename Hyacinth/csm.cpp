@@ -1,6 +1,8 @@
 #include "csm.h"
 
 void shadowHelper::setup(DeviceContext& ctx, int maxFramesInFlight) {
+	transform.position = glm::vec3(-2.f, 12.f, -6.f);
+
 	m_cascades.resize(SHADOW_MAP_CASCADE_COUNT);
 	m_uniformBuffers.resize(maxFramesInFlight);
 	m_mappedUniformBuffers.resize(maxFramesInFlight);
@@ -249,7 +251,7 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 		glm::mat4 scalarMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(texelsPerUnit));
 		glm::vec3 zero = glm::vec3(0.0f);
 		glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-		glm::vec3 lightDir = glm::normalize(-lightPos);
+		glm::vec3 lightDir = glm::normalize(-transform.position);
 
 		glm::mat4 lookAt = glm::lookAt(lightDir, zero, up);
 		lookAt = scalarMatrix * lookAt;

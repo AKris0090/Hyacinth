@@ -507,7 +507,7 @@ void HyacinthEngine::update() {
     newuniform.proj = m_camera.proj;
     newuniform.view = m_camera.view;
     newuniform.viewPos = glm::vec4(m_camera.transform.position, Input::mouseDown() ? 0.f : 1.f);
-    newuniform.lightPos = glm::vec4(0.0f, 20.0f, 0.0f, 1.0f);
+    newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 1.f);
     newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_camera.farClip);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeViewProj[i] = m_shadowHelper.m_cascades[i].viewProj;
@@ -598,8 +598,7 @@ void HyacinthEngine::drawShadowMaps(VkCommandBuffer& cmd) {
     vkimageutils::transitionImage(cmd, m_shadowHelper.shadowImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
 }
 
-void HyacinthEngine::draw()
-{
+void HyacinthEngine::drawImGui() {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
@@ -607,8 +606,19 @@ void HyacinthEngine::draw()
     ImGui::Begin("FPS MENU");
     auto framesPerSecond = 1.0f / Time::getDeltaTime();
     ImGui::Text("rfps: %.0f", framesPerSecond);
-    ImGui::Text("  ft: %.2f ms", Time::getDeltaTime() * 1000.0f);
+    ImGui::Text("ft: %.2f ms", Time::getDeltaTime() * 1000.0f);
     ImGui::End();
+
+    ImGui::Begin("Var Editor");
+    ImGui::DragFloat("light position x", &m_shadowHelper.transform.position.x, 0.1f );
+    ImGui::DragFloat("light position y", &m_shadowHelper.transform.position.y, 0.1f);
+    ImGui::DragFloat("light position z", &m_shadowHelper.transform.position.z, 0.1f);
+    ImGui::End();
+}
+
+void HyacinthEngine::draw()
+{
+    drawImGui();
 
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;

@@ -112,6 +112,7 @@ private:
 	void createBuffers();
 	void createDescriptorSets();
 	void setupImGUI();
+	void drawImGui();
 	void loadScene();
 	void update();
 	void setupDraw();
