@@ -21,7 +21,6 @@ int main() {
 				sdlwindow.running = false;
 			}
 		}
-		hyacinthEngine.m_camera.update(Time::getDeltaTime());
 		hyacinthEngine.draw();
 
 		Time::updateTime();

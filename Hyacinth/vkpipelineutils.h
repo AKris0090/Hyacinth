@@ -54,6 +54,7 @@ public:
     VkPipelineRenderingCreateInfo                   m_renderInfo;
 	VkPipelineViewportStateCreateInfo               m_viewportState;
     VkFormat                                        m_colorAttachmentformat;
+    VkPipelineVertexInputStateCreateInfo            m_vertexInputInfo;
 
     void reset();
     VulkanPipelineBuilder() { reset(); };
@@ -69,4 +70,9 @@ public:
 	void setColorAttachmentFormat(VkFormat format);
 	void setDepthAttachmentFormat(VkFormat format);
 	void enableDepthTest(bool depthWrite, VkCompareOp op);
+    void setDefaultAttributes();
+    void setPositionAttribute();
+
+private:
+    bool depthPass;
 };

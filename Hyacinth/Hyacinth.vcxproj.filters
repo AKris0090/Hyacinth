@@ -55,6 +55,9 @@
     <Filter Include="Resource Files\mikktspace">
       <UniqueIdentifier>{28cdfd25-0448-43d4-b39c-261578067c74}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\rendering\shadow">
+      <UniqueIdentifier>{4e44b4a4-6950-4df9-86a2-e85730c57ac3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -98,6 +101,9 @@
     </ClCompile>
     <ClCompile Include="mikktspace\mikktspace.cpp">
       <Filter>Resource Files\mikktspace</Filter>
+    </ClCompile>
+    <ClCompile Include="csm.cpp">
+      <Filter>Source Files\rendering\shadow</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -143,6 +149,9 @@
     <ClInclude Include="tangentHelper.h">
       <Filter>Source Files\rendering\gltfutils</Filter>
     </ClInclude>
+    <ClInclude Include="csm.h">
+      <Filter>Source Files\rendering\shadow</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\shader.vert">
@@ -151,5 +160,10 @@
     <Text Include="shaders\shader.frag">
       <Filter>Source Files\rendering\shaders</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\shadow.vert">
+      <Filter>Source Files\rendering\shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

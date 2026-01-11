@@ -64,7 +64,7 @@ VulkanImage vkimageutils::createImage(DeviceContext& ctx, VkExtent3D size, VkFor
 	VK_CHECK(vmaCreateImage(*ctx.allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.imageAllocation, nullptr));
 
 	VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
-	if (format == VK_FORMAT_D32_SFLOAT) {
+	if (format == VK_FORMAT_D16_UNORM) {
 		aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
 	}
 
@@ -86,7 +86,7 @@ void vkimageutils::transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImage
 	imageBarrier.oldLayout = currentLayout;
 	imageBarrier.newLayout = newLayout;
 
-	VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+	VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL || newLayout == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	VkImageSubresourceRange subImage{};
 	subImage.aspectMask = aspectMask;
 	subImage.baseMipLevel = 0;

@@ -10,6 +10,7 @@ void VulkanPipelineBuilder::reset() {
     m_depthStencil = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
     m_renderInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
 	m_viewportState = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+    m_vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 
     m_pipeline = {};
     m_shaderStages.clear();
@@ -41,19 +42,25 @@ void VulkanPipelineBuilder::buildPipeline(VkDevice& dev) {
     colorBlending.pAttachments = &m_colorBlendAttachment;
 
     auto bindings = Vertex::getBindingDescription();
-    auto attributes = Vertex::getAttributeDescriptions();
+    auto attributesNormal = Vertex::getAttributeDescriptions();
+    auto attributesPosOnly = Vertex::getPositionAttributeDescription();
 
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.pVertexBindingDescriptions = &bindings;
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size());
-	vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
+    m_vertexInputInfo.vertexBindingDescriptionCount = 1;
+    m_vertexInputInfo.pVertexBindingDescriptions = &bindings;
+    if (depthPass) {
+        m_vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributesPosOnly.size());
+        m_vertexInputInfo.pVertexAttributeDescriptions = attributesPosOnly.data();
+    }
+    else {
+        m_vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributesNormal.size());
+        m_vertexInputInfo.pVertexAttributeDescriptions = attributesNormal.data();
+    }
 
     VkGraphicsPipelineCreateInfo pipelineInfo = { .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
     pipelineInfo.pNext = &m_renderInfo;
     pipelineInfo.stageCount = (uint32_t)m_shaderStages.size();
     pipelineInfo.pStages = m_shaderStages.data();
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pVertexInputState = &m_vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &m_inputAssembly;
     pipelineInfo.pViewportState = &m_viewportState;
     pipelineInfo.pRasterizationState = &m_rasterizer;
@@ -137,4 +144,12 @@ void VulkanPipelineBuilder::enableDepthTest(bool depthWrite, VkCompareOp op) {
     m_depthStencil.back = {};
     m_depthStencil.minDepthBounds = 0.f;
     m_depthStencil.maxDepthBounds = 1.f;
+}
+
+void VulkanPipelineBuilder::setDefaultAttributes() {
+    depthPass = false;
+}
+
+void VulkanPipelineBuilder::setPositionAttribute() {
+    depthPass = true;
 }

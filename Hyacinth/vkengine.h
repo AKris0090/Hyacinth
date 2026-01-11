@@ -14,6 +14,8 @@
 #include "vkmeshutils.h"
 #include "gltfutils.h"
 
+#include "csm.h"
+#include "time.h"
 #include "fpcam.h"
 
 #include "vk_mem_alloc.h"
@@ -36,6 +38,8 @@ struct UBO {
 	glm::mat4 proj;
 	glm::vec4 viewPos;
 	glm::vec4 lightPos;
+	glm::vec4 cascadeSplits;
+	glm::mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
 };
 
 class HyacinthEngine {
@@ -95,6 +99,7 @@ private:
 	SceneGraph						m_scene					{};
 	DescriptorAllocator				m_descriptorAllocator	{};
 	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
+	shadowHelper					m_shadowHelper;
 
 	void createInstance();
 	void createSwapchain();
@@ -106,6 +111,7 @@ private:
 	void loadScene();
 	void update();
 	void setupDraw();
+	void drawShadowMaps(VkCommandBuffer& cmd);
 	void endDraw();
 
 	inline perFrame& getCurrentFrame() {

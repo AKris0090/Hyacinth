@@ -141,6 +141,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="csm.cpp" />
     <ClCompile Include="ecshelpers.h" />
     <ClCompile Include="gltfutils.cpp" />
     <ClCompile Include="input.cpp" />
@@ -157,6 +158,7 @@
     <ClCompile Include="vkengine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="csm.h" />
     <ClInclude Include="fpcam.h" />
     <ClInclude Include="gltfutils.h" />
     <ClInclude Include="input.h" />
@@ -175,6 +177,9 @@
   <ItemGroup>
     <Text Include="shaders\shader.frag" />
     <Text Include="shaders\shader.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\shadow.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

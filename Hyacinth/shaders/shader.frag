@@ -1,27 +1,40 @@
 #version 460
 #extension GL_EXT_nonuniform_qualifier : require
 
+#define SHADOW_MAP_CASCADE_COUNT 3
+
 layout	(location = 0) flat in int colorSamplerIndex;
 layout	(location = 1) flat in int normalSamplerIndex;
 layout	(location = 2) flat in int metalRoughSamplerIndex;
-layout  (location = 3) in vec4 inNormal;
-layout	(location = 4) in vec4 fragPos;
-layout	(location = 5) in mat3 TBNMatrix;
-layout	(location = 8) in vec2 inUV;
+layout  (location = 3) in vec4 viewPos;
+layout  (location = 4) in vec4 inNormal;
+layout	(location = 5) in vec4 fragPos;
+layout	(location = 6) in mat3 TBNMatrix;
+layout	(location = 9) in vec2 inUV;
+layout (set = 0, binding = 2) uniform sampler2DArray shadowDepthMap;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
 	vec4 viewPos;
 	vec4 lightPos;
+    vec4 cascadeSplits;
+    mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
+
+const mat4 biasMat = mat4( 
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 1.0, 0.0,
+	0.5, 0.5, 0.0, 1.0 
+);
 
 layout(set = 0, binding = 1) uniform sampler2D globalTextures2D[];
 
 layout(location = 0) out vec4 outColor;
 
 const float PI = 3.14159265359;
-const float ambientStrength = 0.7;
+const float ambientStrength = 0.1;
 const vec3 lightColor = vec3(5.0);
 
 float DistributionGGX(vec3 N, vec3 H, float roughness)
@@ -77,9 +90,7 @@ void main() {
         vec3 L = normalize(ubo.lightPos.xyz - fragPos.xyz);
         vec3 H = normalize(V + L);
 
-        float distance = length(ubo.lightPos.xyz - fragPos.xyz);
-        float attenuation = 1.0 / (distance * distance);
-        vec3 radiance = attenuation * lightColor;
+        vec3 radiance = lightColor;
 
         vec3 F0 = vec3(0.04); 
         F0      = mix(F0, sampledColor.rgb, metalRough.b);
@@ -95,12 +106,19 @@ void main() {
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metalRough.b;
 
-        float NdotL = max(dot(N, L), 0.0); 
+        float NdotL = max(dot(N, L), 0.0);
         Lo += (kD * sampledColor.rgb / PI + specular) * radiance * NdotL;
     }
 
     vec3 ambient = vec3(ambientStrength) * sampledColor.rgb; // * ambient occlusion;
     vec3 color = ambient + Lo;
+
+    uint cascadeIndex = 0;
+	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
+		if(viewPos.z < ubo.cascadeSplits[i]) {
+			cascadeIndex = i + 1;
+		}
+	}
 
     outColor = vec4(color, 1.0f);
 }

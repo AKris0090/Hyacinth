@@ -10,11 +10,14 @@ constexpr float PI = 3.14159265359f;
 
 struct FPSCam {
 	float pitch = 0.f, yaw = 0.f, moveSpeed = 3.5f, lookSpeed = 70.f;
-	float aspectRatio;
-	float FOV;
+	float aspectRatio, FOV, nearClip = 0.1f, farClip = 40.0f;
 
     transform transform;
     glm::vec3 forward, right, up = { 0.f, 1.f, 0.f };
+
+    std::vector<glm::vec4> frustumCorners;
+    glm::mat4 proj;
+    glm::mat4 view;
 
 	glm::mat4 getViewMatrix() const {
 		glm::vec3 front;
@@ -26,7 +29,7 @@ struct FPSCam {
 	}
 
 	glm::mat4 getProjectionMatrix() const {
-		glm::mat4 proj = glm::perspective(glm::radians(90.0f), aspectRatio, 0.1f, 1000.0f);
+		glm::mat4 proj = glm::perspective(glm::radians(90.0f), aspectRatio, nearClip, farClip);
 		proj[1][1] *= -1;
 		return proj;
 	}
@@ -57,5 +60,8 @@ struct FPSCam {
         if (glm::length(localDisplacement) > 0) {
             transform.position += glm::normalize(localDisplacement) * moveSpeed * deltaTime;
         }
+
+        proj = getProjectionMatrix();
+        view = getViewMatrix();
     }
 };
