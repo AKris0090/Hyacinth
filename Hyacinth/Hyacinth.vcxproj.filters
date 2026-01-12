@@ -61,6 +61,9 @@
     <Filter Include="Resource Files\imgui">
       <UniqueIdentifier>{0d2186a3-7ea5-4fd3-9983-e6f6c7a6cce1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\rendering\raytracing">
+      <UniqueIdentifier>{b7f6f889-dc48-4203-9dcc-8a1013c87585}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -128,6 +131,9 @@
     </ClCompile>
     <ClCompile Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_vulkan.cpp">
       <Filter>Resource Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="raytracing.cpp">
+      <Filter>Source Files\rendering\raytracing</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -202,6 +208,9 @@
     </ClInclude>
     <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_vulkan.h">
       <Filter>Resource Files\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="raytracing.h">
+      <Filter>Source Files\rendering\raytracing</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

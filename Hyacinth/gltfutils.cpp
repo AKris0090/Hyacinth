@@ -282,7 +282,37 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
 	return object;
 }
 
-void SceneGraph::buildSceneGraph() {
+void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
+    // for building acceleration structures
+    VkDeviceSize vertexBufferSize = node->vertices.size() * sizeof(glm::vec3);
+    VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
+    node->nodeVertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    node->nodeIndexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+
+    VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+
+    memcpy(staging.info.pMappedData, vertices.data(), vertexBufferSize);
+    memcpy((char*)staging.info.pMappedData + vertexBufferSize, indices.data(), indexBufferSize);
+
+    VkBufferCopy vertexCopyRegion{};
+    vertexCopyRegion.srcOffset = 0;
+    vertexCopyRegion.dstOffset = 0;
+    vertexCopyRegion.size = vertexBufferSize;
+
+    VkBufferCopy indexCopyRegion{};
+    indexCopyRegion.srcOffset = vertexBufferSize;
+    indexCopyRegion.dstOffset = 0;
+    indexCopyRegion.size = indexBufferSize;
+
+    vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
+        vkCmdCopyBuffer(cmd, staging.buffer, node->nodeVertexBuffer.buffer, 1, &vertexCopyRegion);
+        vkCmdCopyBuffer(cmd, staging.buffer, node->nodeIndexBuffer.buffer, 1, &indexCopyRegion);
+        });
+
+    vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
+}
+
+void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
     uint32_t materialOffset = 0;
     uint32_t textureOffset = 0;
     uint32_t drawID = 0;
@@ -292,15 +322,17 @@ void SceneGraph::buildSceneGraph() {
 
         for (const auto& node: obj.nodes) {
             transformMatrices.push_back(node.get()->worldTransform);
+            uint32_t nodeIndexOffset = 0;
             for (const auto& prim : node.get()->primitives) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
 
-                VkDrawIndexedIndirectCommand drawCmd{};
+                gltfDrawCommand drawCmd{};
 				drawCmd.firstIndex = firstIndex;
                 drawCmd.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
                 drawCmd.instanceCount = 1;
                 drawCmd.firstInstance = drawID;
+                drawCmd.vertexCount = prim.get()->vertices.size();
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);
@@ -317,8 +349,20 @@ void SceneGraph::buildSceneGraph() {
                 drawData.push_back(primDrawData);
 
                 drawID++;
+
+                // acceleration structure-specific
+                for (const auto& v : prim.get()->vertices) {
+                    node.get()->vertices.push_back(glm::vec3(v.pos));
+                }
+                for (const auto& i : prim.get()->indices) {
+                    node.get()->indices.push_back(i + nodeIndexOffset);
+                }
+                nodeIndexOffset += prim.get()->indices.size();
             }
             matrixID++;
+
+            // for acceleration structures
+            buildNodeBuffers(ctx, node.get());
 		}
         
         for (const auto& mat : obj.materials) {
@@ -334,7 +378,16 @@ void SceneGraph::buildSceneGraph() {
 
     numTextures = textureOffset + 1;
     for (const auto& [key, value] : sortedDrawCalls) {
-        drawCommands.insert(drawCommands.end(), value.begin(), value.end());
+        for (const auto& gltfDraw : value) {
+            VkDrawIndexedIndirectCommand drawCmd{};
+            drawCmd.firstIndex = gltfDraw.firstIndex;
+            drawCmd.indexCount = gltfDraw.indexCount;
+            drawCmd.instanceCount = gltfDraw.instanceCount;
+            drawCmd.firstInstance = gltfDraw.firstInstance;
+
+            drawCommands.push_back(drawCmd);
+            vertexCounts.push_back(gltfDraw.vertexCount);
+        }
     }
 }
 

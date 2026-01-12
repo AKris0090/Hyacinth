@@ -131,6 +131,11 @@ void HyacinthEngine::createInstance()
     vkGetDeviceQueue(m_device, m_qfIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
     vkGetDeviceQueue(m_device, m_qfIndices.presentFamily.value(), 0, &m_presentQueue);
 
+    VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+    m_rtHelper.m_rtProperties.pNext = &m_rtHelper.m_asProperties;
+    prop2.pNext = &m_rtHelper.m_rtProperties;
+    vkGetPhysicalDeviceProperties2(m_physicalDevice, &prop2);
+
     VkFormatProperties formatProperties;
     vkGetPhysicalDeviceFormatProperties(m_physicalDevice, VK_FORMAT_R8G8B8A8_SRGB, &formatProperties);
     vkimageutils::setLinear(formatProperties.optimalTilingFeatures);
@@ -228,15 +233,15 @@ void HyacinthEngine::createCommandBuffers()
         VK_CHECK(vkAllocateCommandBuffers(m_device, &CBAllocateInfo, &m_frameData[i].commandBuffer));
     }
 
-    VK_CHECK(vkCreateCommandPool(m_device, &commandPoolCInfo, nullptr, &uploadFrame.commandPool));
+    VK_CHECK(vkCreateCommandPool(m_device, &commandPoolCInfo, nullptr, &m_uploadFrame.commandPool));
 
     VkCommandBufferAllocateInfo CBAllocateInfo{};
     CBAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    CBAllocateInfo.commandPool = uploadFrame.commandPool;
+    CBAllocateInfo.commandPool = m_uploadFrame.commandPool;
     CBAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     CBAllocateInfo.commandBufferCount = 1;
 
-    VK_CHECK(vkAllocateCommandBuffers(m_device, &CBAllocateInfo, &uploadFrame.commandBuffer));
+    VK_CHECK(vkAllocateCommandBuffers(m_device, &CBAllocateInfo, &m_uploadFrame.commandBuffer));
 }
 
 void HyacinthEngine::createSyncObjects()
@@ -324,7 +329,7 @@ void HyacinthEngine::loadScene() {
 
     m_scene.objects.push_back(gltfutils::loadFromFile(path.string(), m_devContext));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
-    m_scene.buildSceneGraph();
+    m_scene.buildSceneGraph(m_devContext);
     m_meshBuffers = vkmeshutils::uploadMesh(m_devContext, m_scene.indices, m_scene.vertices);
     m_scene.createDummyTextures(m_devContext);
 }
@@ -466,7 +471,7 @@ void HyacinthEngine::init()
     m_devContext.device = &m_device;
     m_devContext.allocator = &m_allocator;
     m_devContext.graphicsQueue = &m_graphicsQueue;
-    m_devContext.commandBuffer = &uploadFrame.commandBuffer;
+    m_devContext.commandBuffer = &m_uploadFrame.commandBuffer;
 	m_devContext.uploadFence = &m_uploadFence;
     m_camera.aspectRatio = (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height;
 
@@ -496,6 +501,8 @@ void HyacinthEngine::init()
     createGraphicsPipeline();
 
     setupImGUI();
+
+    m_rtHelper.setup(m_devContext, m_scene);
 
     m_initialized = true;
 }
@@ -798,7 +805,7 @@ void HyacinthEngine::cleanup()
 
     vmaDestroyAllocator(m_allocator);
 
-	vkDestroyCommandPool(m_device, uploadFrame.commandPool, nullptr);
+	vkDestroyCommandPool(m_device, m_uploadFrame.commandPool, nullptr);
 
     for (VulkanImage& img : m_swapChainImages) {
         vkDestroyImageView(m_device, img.imageView, nullptr);

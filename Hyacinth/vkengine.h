@@ -16,6 +16,7 @@
 #include "vkdescriptorutils.h"
 #include "vkmeshutils.h"
 #include "gltfutils.h"
+#include "raytracing.h"
 
 #include "csm.h"
 #include "time.h"
@@ -98,11 +99,12 @@ private:
 	VulkanBuffer 					m_worldMatrixBuffer		{};
 	VulkanBuffer					m_drawDataBuffer		{};
 	VulkanBuffer					m_materialBuffer		{};
-	perFrame						uploadFrame				{};
+	perFrame						m_uploadFrame			{};
 	SceneGraph						m_scene					{};
 	DescriptorAllocator				m_descriptorAllocator	{};
 	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
+	rtHelper						m_rtHelper;
 
 	void createInstance();
 	void createSwapchain();

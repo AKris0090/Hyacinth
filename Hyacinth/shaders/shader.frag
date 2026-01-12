@@ -94,7 +94,7 @@ float textureProj(vec4 shadowCoord, vec2 offset, uint cascadeIndex)
 	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
 		float dist = texture(shadowDepthMap, vec3(shadowCoord.st + offset, cascadeIndex)).r;
 		if (shadowCoord.w > 0 && dist < shadowCoord.z - scaledBias) {
-			shadow = 0.1;
+			shadow = 0.0;
 		}
 	}
 	return shadow;
