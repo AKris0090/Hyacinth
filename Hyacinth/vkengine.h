@@ -17,6 +17,7 @@
 #include "vkmeshutils.h"
 #include "gltfutils.h"
 #include "raytracing.h"
+#include "owDDGI.h"
 
 #include "csm.h"
 #include "time.h"
@@ -35,7 +36,6 @@ const bool enableValLayers = true;
 #endif
 
 const VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-constexpr int MAX_FRAMES_IN_FLIGHT = 3;
 
 struct UBO {
 	glm::mat4 view;
@@ -105,6 +105,7 @@ private:
 	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
+	owDDGI							m_owDDGIHelper;
 
 	void createInstance();
 	void createSwapchain();

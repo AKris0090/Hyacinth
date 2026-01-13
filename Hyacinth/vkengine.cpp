@@ -508,6 +508,8 @@ void HyacinthEngine::init()
 
     m_rtHelper.setup(m_devContext, m_scene);
 
+    m_owDDGIHelper.setup(m_devContext, &m_rtHelper);
+
     m_initialized = true;
 }
 

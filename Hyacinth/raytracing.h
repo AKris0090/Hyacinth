@@ -27,7 +27,6 @@ namespace rt {
 class rtHelper {
 private:
 	std::vector<AccelerationStructure>	m_blAccelStructures;
-	AccelerationStructure				m_tlAccelStrucutre;
 
 	void createAccelerationStructure(DeviceContext& ctx,
 		VkAccelerationStructureTypeKHR asType,
@@ -40,6 +39,8 @@ private:
 	void createTopLevelAS(DeviceContext& ctx, SceneGraph& scene);
 
 public:
+	AccelerationStructure				m_tlAccelStrucutre;
+
 	void setup(DeviceContext& ctx, SceneGraph& scene);
 
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };

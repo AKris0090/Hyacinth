@@ -64,6 +64,9 @@
     <Filter Include="Source Files\rendering\raytracing">
       <UniqueIdentifier>{b7f6f889-dc48-4203-9dcc-8a1013c87585}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\rendering\raytracing\DDGI">
+      <UniqueIdentifier>{3956cfe2-1e1f-4d13-bfcb-c60a49382163}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -134,6 +137,9 @@
     </ClCompile>
     <ClCompile Include="raytracing.cpp">
       <Filter>Source Files\rendering\raytracing</Filter>
+    </ClCompile>
+    <ClCompile Include="owDDGI.cpp">
+      <Filter>Source Files\rendering\raytracing\DDGI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -211,6 +217,9 @@
     </ClInclude>
     <ClInclude Include="raytracing.h">
       <Filter>Source Files\rendering\raytracing</Filter>
+    </ClInclude>
+    <ClInclude Include="owDDGI.h">
+      <Filter>Source Files\rendering\raytracing\DDGI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
