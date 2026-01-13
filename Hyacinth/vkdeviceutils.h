@@ -51,6 +51,17 @@ namespace vkdeviceutils {
         VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
     }
 
+    static void beginSingleTimeCommandBuffer(DeviceContext* ctx) {
+        VK_CHECK(vkWaitForFences(*ctx->device, 1, ctx->uploadFence, true, 9999999999));
+        VK_CHECK(vkResetFences(*ctx->device, 1, ctx->uploadFence));
+        VK_CHECK(vkResetCommandBuffer(*ctx->commandBuffer, 0));
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        beginInfo.pInheritanceInfo = nullptr;
+        VK_CHECK(vkBeginCommandBuffer(*ctx->commandBuffer, &beginInfo));
+    }
+
     static void endSubmitCommandBuffer(DeviceContext* ctx) {
         VK_CHECK(vkEndCommandBuffer(*ctx->commandBuffer));
 
@@ -66,14 +77,12 @@ namespace vkdeviceutils {
         submitInfo.pSignalSemaphores = nullptr;
 
         VK_CHECK(vkQueueSubmit(*ctx->graphicsQueue, 1, &submitInfo, *ctx->uploadFence));
-        vkWaitForFences(*ctx->device, 1, ctx->uploadFence, true, 9999999999);
-        vkResetFences(*ctx->device, 1, ctx->uploadFence);
+        VK_CHECK(vkWaitForFences(*ctx->device, 1, ctx->uploadFence, true, 9999999999));
 	}
 
     template<typename Func>
     void executeSingleTimeCommands(DeviceContext& ctx, Func&& f) {
-        vkResetCommandBuffer(*ctx.commandBuffer, 0);
-        beginCommandBuffer(*ctx.commandBuffer);
+        beginSingleTimeCommandBuffer(&ctx);
         f(*ctx.commandBuffer);
         endSubmitCommandBuffer(&ctx);
     }
@@ -195,7 +204,7 @@ namespace vkdeviceutils {
         return renderingInfo;
 	}
 
-    static VulkanBuffer createBuffer(VkDevice& device, VmaAllocator& allocator, size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags) {
+    static VulkanBuffer createBuffer(VkDevice& device, VmaAllocator& allocator, size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, VkDeviceSize alignment = 0) {
 		VkBufferCreateInfo bufferInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         bufferInfo.size = size;
         bufferInfo.usage = usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
@@ -206,7 +215,7 @@ namespace vkdeviceutils {
 
         VulkanBuffer buffer{};
 
-        VK_CHECK(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &buffer.buffer, &buffer.allocation, &buffer.info));
+        VK_CHECK(vmaCreateBufferWithAlignment(allocator, &bufferInfo, &allocInfo, alignment, &buffer.buffer, &buffer.allocation, &buffer.info));
 
         VkBufferDeviceAddressInfo addressInfo{};
         addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;

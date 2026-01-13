@@ -19,6 +19,7 @@ namespace rt {
 	extern PFN_vkCreateAccelerationStructureKHR CreateAS;
 	extern PFN_vkCmdBuildAccelerationStructuresKHR BuildAS;
 	extern PFN_vkGetAccelerationStructureBuildSizesKHR GetBuildSizes;
+	extern PFN_vkGetAccelerationStructureDeviceAddressKHR GetASAddress;
 
 	void initAccelerationStructureFunctions(VkDevice& device);
 }
@@ -35,8 +36,8 @@ private:
 		VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo,
 		VkBuildAccelerationStructureFlagsKHR flags);
 
-	void createBottomLevelAS(SceneGraph& scene);
-	void createTopLevelAS(SceneGraph& scene);
+	void createBottomLevelAS(DeviceContext& ctx, SceneGraph& scene);
+	void createTopLevelAS(DeviceContext& ctx, SceneGraph& scene);
 
 public:
 	void setup(DeviceContext& ctx, SceneGraph& scene);

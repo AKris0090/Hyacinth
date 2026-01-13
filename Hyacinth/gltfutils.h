@@ -70,13 +70,13 @@ struct SceneGraph {
     std::vector<uint32_t> indices;
     std::vector<VulkanImage> dummyTextures;
     uint32_t numTextures;
+    uint32_t numNodes = 0;
 
     std::vector<VkSampler> imageSamplers;
 
     std::vector<MaterialInstance> materials;
     std::unordered_map<int32_t, std::vector<gltfDrawCommand>> sortedDrawCalls;
     std::vector<VkDrawIndexedIndirectCommand> drawCommands;
-    std::vector<uint32_t> vertexCounts; // for acceleration structure building
 
     std::vector<DrawData> drawData;
     std::vector<GPUMaterialIndices> materialObjects;

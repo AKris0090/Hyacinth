@@ -291,8 +291,8 @@ void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
 
     VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-    memcpy(staging.info.pMappedData, vertices.data(), vertexBufferSize);
-    memcpy((char*)staging.info.pMappedData + vertexBufferSize, indices.data(), indexBufferSize);
+    memcpy(staging.info.pMappedData, node->vertices.data(), vertexBufferSize);
+    memcpy((char*)staging.info.pMappedData + vertexBufferSize, node->indices.data(), indexBufferSize);
 
     VkBufferCopy vertexCopyRegion{};
     vertexCopyRegion.srcOffset = 0;
@@ -322,7 +322,6 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
 
         for (const auto& node: obj.nodes) {
             transformMatrices.push_back(node.get()->worldTransform);
-            uint32_t nodeIndexOffset = 0;
             for (const auto& prim : node.get()->primitives) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
@@ -351,13 +350,13 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
                 drawID++;
 
                 // acceleration structure-specific
+                uint32_t nodeVertOffset = node.get()->vertices.size();
                 for (const auto& v : prim.get()->vertices) {
                     node.get()->vertices.push_back(glm::vec3(v.pos));
                 }
                 for (const auto& i : prim.get()->indices) {
-                    node.get()->indices.push_back(i + nodeIndexOffset);
+                    node.get()->indices.push_back(i + nodeVertOffset);
                 }
-                nodeIndexOffset += prim.get()->indices.size();
             }
             matrixID++;
 
@@ -374,6 +373,7 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
         }
         materialOffset += obj.materials.size();
         textureOffset += obj.textures.size();
+        numNodes++;
     }
 
     numTextures = textureOffset + 1;
@@ -386,7 +386,6 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
             drawCmd.firstInstance = gltfDraw.firstInstance;
 
             drawCommands.push_back(drawCmd);
-            vertexCounts.push_back(gltfDraw.vertexCount);
         }
     }
 }

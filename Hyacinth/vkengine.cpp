@@ -102,8 +102,13 @@ void HyacinthEngine::createInstance()
     deviceFeatures.samplerAnisotropy = true;
     deviceFeatures.depthClamp = true;
 
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature{};
+    accelFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    accelFeature.accelerationStructure = true;
+
     VkPhysicalDeviceVulkan12Features dev12Features{};
     dev12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    dev12Features.pNext = &accelFeature;
     dev12Features.bufferDeviceAddress = true;
     dev12Features.descriptorIndexing = true;
     dev12Features.runtimeDescriptorArray = true;
@@ -264,7 +269,6 @@ void HyacinthEngine::createSyncObjects()
         VK_CHECK(vkCreateSemaphore(m_device, &semaInfo, nullptr, &m_imageFinishedSemas[i]));
     }
 
-	fenceInfo.flags = 0;
     VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_uploadFence));
 }
 

@@ -12,6 +12,7 @@
     do {                                                                \
         VkResult err = (x);                                             \
         if (err != VK_SUCCESS) {                                        \
+            std::cout << "[VK_ERR] " + x << std::endl;                  \
             throw std::runtime_error("Vulkan error: " #x);              \
         }                                                               \
     } while (0)
