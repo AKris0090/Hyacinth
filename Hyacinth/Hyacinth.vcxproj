@@ -199,6 +199,9 @@
     <Text Include="shaders\shader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="closehit.rchit" />
+    <None Include="miss.rmiss" />
+    <None Include="shaders\raygen.rgen" />
     <None Include="shaders\shadow.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

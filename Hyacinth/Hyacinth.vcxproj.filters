@@ -67,6 +67,9 @@
     <Filter Include="Source Files\rendering\raytracing\DDGI">
       <UniqueIdentifier>{3956cfe2-1e1f-4d13-bfcb-c60a49382163}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\rendering\shaders\rt shaders">
+      <UniqueIdentifier>{b53e54dc-849a-4cda-af5d-72aada45973d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -233,6 +236,15 @@
   <ItemGroup>
     <None Include="shaders\shadow.vert">
       <Filter>Source Files\rendering\shaders</Filter>
+    </None>
+    <None Include="shaders\raygen.rgen">
+      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+    </None>
+    <None Include="closehit.rchit">
+      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+    </None>
+    <None Include="miss.rmiss">
+      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
     </None>
   </ItemGroup>
 </Project>
