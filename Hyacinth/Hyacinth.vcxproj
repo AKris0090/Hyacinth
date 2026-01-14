@@ -199,8 +199,8 @@
     <Text Include="shaders\shader.vert" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="closehit.rchit" />
-    <None Include="miss.rmiss" />
+    <None Include="shaders\closehit.rchit" />
+    <None Include="shaders\miss.rmiss" />
     <None Include="shaders\raygen.rgen" />
     <None Include="shaders\shadow.vert" />
   </ItemGroup>

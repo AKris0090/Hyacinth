@@ -73,7 +73,7 @@ VulkanImage vkimageutils::createImage(DeviceContext& ctx, VkExtent3D size, VkFor
 	return newImage;
 }
 
-void vkimageutils::transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout)
+void vkimageutils::transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask)
 {
 	VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
 	imageBarrier.pNext = nullptr;
@@ -86,7 +86,6 @@ void vkimageutils::transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImage
 	imageBarrier.oldLayout = currentLayout;
 	imageBarrier.newLayout = newLayout;
 
-	VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL || newLayout == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	VkImageSubresourceRange subImage{};
 	subImage.aspectMask = aspectMask;
 	subImage.baseMipLevel = 0;
@@ -113,7 +112,7 @@ VulkanImage vkimageutils::createImage(DeviceContext& ctx, void* data, VkExtent3D
 	VulkanImage newImage = vkimageutils::createImage(ctx, size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, mipped);
 
 	vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
-		vkimageutils::transitionImage(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		vkimageutils::transitionImage(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 		VkBufferImageCopy copyRegion = {};
 		copyRegion.bufferOffset = 0;

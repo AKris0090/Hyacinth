@@ -79,7 +79,9 @@ namespace vkdeviceutils {
         submitInfo.pSignalSemaphores = nullptr;
 
         VK_CHECK(vkQueueSubmit(*ctx->graphicsQueue, 1, &submitInfo, *ctx->uploadFence));
-        VK_CHECK(vkWaitForFences(*ctx->device, 1, ctx->uploadFence, true, 9999999999));
+        VkResult res = vkWaitForFences(*ctx->device, 1, ctx->uploadFence, true, 9999999999);
+        std::cout << res << std::endl;
+        VK_CHECK(res);
 	}
 
     template<typename Func>

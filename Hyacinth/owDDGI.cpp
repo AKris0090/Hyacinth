@@ -5,6 +5,7 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 	{
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1.f }, // accelstructure
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2.f }, // out images
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f } // vertex and index buffer
 	};
 
 	m_descriptorAllocator.initPool(*ctx.device, 1, sizes);
@@ -14,6 +15,8 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_ALL);
 		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL); // radiance image
 		layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL); // visibility image
+		layoutBuilder.addBinding(3, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL); // vertex buffer
+		layoutBuilder.addBinding(4, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL); // index buffer
 		m_descriptorLayout = layoutBuilder.buildLayout(*ctx.device, nullptr, 0);
 	}
 
@@ -32,6 +35,8 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 	descriptorWrite.descriptorCount = 1;
 
 	vkUpdateDescriptorSets(*ctx.device, 1, &descriptorWrite, 0, nullptr);
+
+	VkDescriptorBufferInfo vertexBufferInfo{};
 
 	VkDescriptorImageInfo radianceImageInfo{};
 	radianceImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -63,8 +68,48 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 
 void owDDGI::createShaderBindingTable(DeviceContext& ctx, VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo)
 {
-	size_t bufferSize = 1024;
+	uint32_t handleSize = m_rtHelper->m_rtProperties.shaderGroupHandleSize;
+	uint32_t handleAlignment = m_rtHelper->m_rtProperties.shaderGroupHandleAlignment;
+	uint32_t baseAlignment = m_rtHelper->m_rtProperties.shaderGroupBaseAlignment;
+	uint32_t groupCount = rtPipelineInfo.groupCount;
+
+	size_t dataSize = handleSize * groupCount;
+	m_shaderHandles.resize(dataSize);
+	VK_CHECK(rt::GetHandles(*ctx.device, m_rtPipeline, 0, groupCount, dataSize, m_shaderHandles.data()));
+
+	auto     alignUp = [](uint32_t size, uint32_t alignment) { return (size + alignment - 1) & ~(alignment - 1); };
+	uint32_t raygenSize = alignUp(handleSize, handleAlignment);
+	uint32_t missSize = alignUp(handleSize, handleAlignment);
+	uint32_t hitSize = alignUp(handleSize, handleAlignment);
+	uint32_t callableSize = 0;
+
+	uint32_t raygenOffset = 0;
+	uint32_t missOffset = alignUp(raygenSize, baseAlignment);
+	uint32_t hitOffset = alignUp(missOffset + missSize, baseAlignment);
+	uint32_t callableOffset = alignUp(hitOffset + hitSize, baseAlignment);
+
+	size_t bufferSize = callableOffset + callableSize;
 	m_sbtBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, bufferSize, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT);
+	uint8_t* pData = static_cast<uint8_t*>(m_sbtBuffer.info.pMappedData);
+
+	memcpy(pData + raygenOffset, m_shaderHandles.data() + 0 * handleSize, handleSize);
+	m_raygenRegion.deviceAddress = m_sbtBuffer.gpuAddress + raygenOffset;
+	m_raygenRegion.stride = raygenSize;
+	m_raygenRegion.size = raygenSize;
+
+	memcpy(pData + missOffset, m_shaderHandles.data() + 1 * handleSize, handleSize);
+	m_missRegion.deviceAddress = m_sbtBuffer.gpuAddress + missOffset;
+	m_missRegion.stride = missSize;
+	m_missRegion.size = missSize;
+
+	memcpy(pData + hitOffset, m_shaderHandles.data() + 2 * handleSize, handleSize);
+	m_hitRegion.deviceAddress = m_sbtBuffer.gpuAddress + hitOffset;
+	m_hitRegion.stride = hitSize;
+	m_hitRegion.size = hitSize;
+
+	m_callableRegion.deviceAddress = 0;
+	m_callableRegion.stride = 0;
+	m_callableRegion.size = 0;
 }
 
 void owDDGI::createRaytracePipeline(DeviceContext& ctx)
@@ -80,6 +125,11 @@ void owDDGI::createRaytracePipeline(DeviceContext& ctx)
 	for (auto& s : stages) {
 		s.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	}
+
+	stages[eRaygen] = createShader(*ctx.device, "shaders/raygen.spv", VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+	stages[eMiss] = createShader(*ctx.device, "shaders/rmiss.spv", VK_SHADER_STAGE_MISS_BIT_KHR);
+	stages[eClosestHit] = createShader(*ctx.device, "shaders/rchit.spv", VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+
 	VkRayTracingShaderGroupCreateInfoKHR group{ VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR };
 	group.anyHitShader = VK_SHADER_UNUSED_KHR;
 	group.closestHitShader = VK_SHADER_UNUSED_KHR;
@@ -114,6 +164,13 @@ void owDDGI::createRaytracePipeline(DeviceContext& ctx)
 	vkCreatePipelineLayout(*ctx.device, &pipeline_layout_create_info, nullptr, &m_rtPipelineLayout);
 
 	VkRayTracingPipelineCreateInfoKHR rtPipelineInfo{ .sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR };
+	rtPipelineInfo.stageCount = static_cast<uint32_t>(stages.size());
+	rtPipelineInfo.pStages = stages.data();
+	rtPipelineInfo.groupCount = static_cast<uint32_t>(shader_groups.size());
+	rtPipelineInfo.pGroups = shader_groups.data();
+	rtPipelineInfo.maxPipelineRayRecursionDepth = std::max(3U, m_rtHelper->m_rtProperties.maxRayRecursionDepth);
+	rtPipelineInfo.layout = m_rtPipelineLayout;
+	rt::createPipeline(*ctx.device, {}, {}, 1, & rtPipelineInfo, nullptr, & m_rtPipeline);
 
 	createShaderBindingTable(ctx, rtPipelineInfo);
 }
@@ -142,15 +199,27 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 		m_probeVolume.probes.push_back(probePlane);
 	}
 
+	std::vector<glm::vec3> probePositions;
+	for (int i = 0; i < PROBE_DENSITY_HEIGHT; i++) {
+		for (int j = 0; j < PROBE_DENSITY_WIDTH; j++) {
+			for (int k = 0; k < PROBE_DENSITY_DEPTH; k++) {
+				probePositions.push_back(glm::vec3(xSpace * j, ySpace * k, zSpace * i));
+			}
+		}
+	}
+	VkDeviceSize probeBufferSize = probePositions.size() * sizeof(glm::vec3);
+	m_probeVolume.probePositionBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, probeBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+	vkdeviceutils::uploadToBuffer(ctx, m_probeVolume.probePositionBuffer, probeBufferSize, probePositions.data());
+
 	// set up textures for volume
 	VkExtent3D irradianceExtent{
-		.width = IRRADIANCE_PIXEL_COUNT * numProbes,
-		.height = IRRADIANCE_PIXEL_COUNT * numProbes,
+		.width = IRRADIANCE_PIXEL_COUNT * PROBE_DENSITY_WIDTH,
+		.height = IRRADIANCE_PIXEL_COUNT * PROBE_DENSITY_DEPTH,
 		.depth = 1
 	};
 	VkImageCreateInfo imgInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-	imgInfo.format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-	imgInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	imgInfo.format = m_irradFormat;
+	imgInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	imgInfo.extent = irradianceExtent;
 	imgInfo.imageType = VK_IMAGE_TYPE_2D;
 	imgInfo.arrayLayers = PROBE_DENSITY_HEIGHT;
@@ -166,8 +235,8 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 	VK_CHECK(vmaCreateImage(*ctx.allocator, &imgInfo, &allocInfo, &m_probeVolume.irradianceImage.image, &m_probeVolume.irradianceImage.imageAllocation, nullptr));
 
 	VkExtent3D visibilityExtent{
-		.width = VISIBILITY_PIXEL_COUNT * numProbes,
-		.height = VISIBILITY_PIXEL_COUNT * numProbes,
+		.width = VISIBILITY_PIXEL_COUNT * PROBE_DENSITY_WIDTH,
+		.height = VISIBILITY_PIXEL_COUNT * PROBE_DENSITY_DEPTH,
 		.depth = 1
 	};
 	imgInfo.format = VK_FORMAT_D16_UNORM;
@@ -186,7 +255,7 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 	completeViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	completeViewInfo.image = m_probeVolume.irradianceImage.image;
 	completeViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-	completeViewInfo.format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+	completeViewInfo.format = m_irradFormat;
 	completeViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	completeViewInfo.subresourceRange.baseMipLevel = 0;
 	completeViewInfo.subresourceRange.levelCount = 1;
@@ -220,6 +289,71 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 	createRaytracePipeline(ctx);
 }
 
-void owDDGI::bakeDDGI() {
+void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene) {
+	std::cout << "baking DDGI" << std::endl;
 
+	gltfNode* node = m_scene.objects[0].nodes[0].get();
+
+	std::vector<DDGIVertex> vertices;
+	for (const auto& v : node->vertices) {
+		DDGIVertex vD{
+			.pos = v.pos,
+			.normal = v.normal
+		};
+		vertices.push_back(vD);
+	}
+
+	VkDeviceSize vertexBufferSize = vertices.size() * sizeof(DDGIVertex);
+	VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
+	m_rtHelper->vertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+	m_rtHelper->indexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+
+	VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+
+	memcpy(staging.info.pMappedData, vertices.data(), vertexBufferSize);
+	memcpy((char*)staging.info.pMappedData + vertexBufferSize, node->indices.data(), indexBufferSize);
+
+	VkBufferCopy vertexCopyRegion{};
+	vertexCopyRegion.srcOffset = 0;
+	vertexCopyRegion.dstOffset = 0;
+	vertexCopyRegion.size = vertexBufferSize;
+
+	VkBufferCopy indexCopyRegion{};
+	indexCopyRegion.srcOffset = vertexBufferSize;
+	indexCopyRegion.dstOffset = 0;
+	indexCopyRegion.size = indexBufferSize;
+
+	vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
+		vkCmdCopyBuffer(cmd, staging.buffer, m_rtHelper->vertexBuffer.buffer, 1, &vertexCopyRegion);
+		vkCmdCopyBuffer(cmd, staging.buffer, m_rtHelper->indexBuffer.buffer, 1, &indexCopyRegion);
+		});
+
+	vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
+
+	VkClearValue clearValues[1]{};
+	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
+
+	VkImageSubresourceRange subResourceRange = {};
+	subResourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	subResourceRange.baseMipLevel = 0;
+	subResourceRange.levelCount = 1;
+	subResourceRange.baseArrayLayer = 0;
+	subResourceRange.layerCount = PROBE_DENSITY_HEIGHT;
+
+	vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
+		vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+		vkCmdClearColorImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescriptorSet, 0, nullptr);
+
+		DDGIPushConstant pc{
+			.probePositionBufferAddress = m_probeVolume.probePositionBuffer.gpuAddress,
+			.vertexAddress = m_rtHelper->vertexBuffer.gpuAddress,
+			.indexAddress = m_rtHelper->indexBuffer.gpuAddress,
+		};
+		vkCmdPushConstants(cmd, m_rtPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(DDGIPushConstant), &pc);
+
+		rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, RAYS_PER_PROBE, numProbes * PROBE_DENSITY_HEIGHT, 1);
+	});
 }

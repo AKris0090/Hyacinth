@@ -5,6 +5,9 @@ namespace rt {
     PFN_vkCmdBuildAccelerationStructuresKHR BuildAS = nullptr;
     PFN_vkGetAccelerationStructureBuildSizesKHR GetBuildSizes = nullptr;
     PFN_vkGetAccelerationStructureDeviceAddressKHR GetASAddress = nullptr;
+    PFN_vkCreateRayTracingPipelinesKHR createPipeline = nullptr;
+    PFN_vkCmdTraceRaysKHR Trace = nullptr;
+    PFN_vkGetRayTracingShaderGroupHandlesKHR GetHandles = nullptr;
 }
 
 void rt::initAccelerationStructureFunctions(VkDevice& device) {
@@ -23,6 +26,18 @@ void rt::initAccelerationStructureFunctions(VkDevice& device) {
     rt::GetASAddress = (PFN_vkGetAccelerationStructureDeviceAddressKHR)
         vkGetDeviceProcAddr(device, "vkGetAccelerationStructureDeviceAddressKHR");
     if (!rt::GetASAddress) throw std::runtime_error("Failed to load vkGetAccelerationStructureDeviceAddressKHR");
+
+    rt::createPipeline = (PFN_vkCreateRayTracingPipelinesKHR)
+        vkGetDeviceProcAddr(device, "vkCreateRayTracingPipelinesKHR");
+    if (!rt::createPipeline) throw std::runtime_error("Failed to load vkCreateRayTracingPipelinesKHR");
+
+    rt::Trace = (PFN_vkCmdTraceRaysKHR)
+        vkGetDeviceProcAddr(device, "vkCmdTraceRaysKHR");
+    if (!rt::Trace) throw std::runtime_error("Failed to load vkCmdTraceRaysKHR");
+
+    rt::GetHandles = (PFN_vkGetRayTracingShaderGroupHandlesKHR)
+        vkGetDeviceProcAddr(device, "vkGetRayTracingShaderGroupHandlesKHR");
+    if (!rt::GetHandles) throw std::runtime_error("Failed to load vkGetRayTracingShaderGroupHandlesKHR");
 }
 
 // this should translate a gltfNode to a geometry structure

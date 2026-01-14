@@ -106,9 +106,14 @@ void HyacinthEngine::createInstance()
     accelFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
     accelFeature.accelerationStructure = true;
 
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtFeature{};
+    rtFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    rtFeature.pNext = &accelFeature;
+    rtFeature.rayTracingPipeline = true;
+
     VkPhysicalDeviceVulkan12Features dev12Features{};
     dev12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    dev12Features.pNext = &accelFeature;
+    dev12Features.pNext = &rtFeature;
     dev12Features.bufferDeviceAddress = true;
     dev12Features.descriptorIndexing = true;
     dev12Features.runtimeDescriptorArray = true;
@@ -509,6 +514,7 @@ void HyacinthEngine::init()
     m_rtHelper.setup(m_devContext, m_scene);
 
     m_owDDGIHelper.setup(m_devContext, &m_rtHelper);
+    m_owDDGIHelper.bakeDDGI(m_devContext, m_scene);
 
     m_initialized = true;
 }
@@ -546,10 +552,10 @@ void HyacinthEngine::setupDraw()
     VK_CHECK(vkResetCommandBuffer(cmd, 0));
     vkdeviceutils::beginCommandBuffer(cmd);
 
-    vkimageutils::transitionImage(cmd, m_colorImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	vkimageutils::transitionImage(cmd, m_depthImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-    vkimageutils::transitionImage(cmd, m_depthResolveImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+    vkimageutils::transitionImage(cmd, m_colorImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	vkimageutils::transitionImage(cmd, m_depthImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+    vkimageutils::transitionImage(cmd, m_depthResolveImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(cmd, 0, 1, &m_meshBuffers.vertexBuffer.buffer, offsets);
@@ -559,7 +565,7 @@ void HyacinthEngine::setupDraw()
 void HyacinthEngine::drawShadowMaps(VkCommandBuffer& cmd) {
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowHelper.m_shadowPipelineUtil.m_pipeline.pipeline);
 
-    vkimageutils::transitionImage(cmd, m_shadowHelper.shadowImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+    vkimageutils::transitionImage(cmd, m_shadowHelper.shadowImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
     VkRenderingInfo renderingInfo{};
     renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -608,7 +614,7 @@ void HyacinthEngine::drawShadowMaps(VkCommandBuffer& cmd) {
         vkCmdEndRendering(cmd);
     }
 
-    vkimageutils::transitionImage(cmd, m_shadowHelper.shadowImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+    vkimageutils::transitionImage(cmd, m_shadowHelper.shadowImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void HyacinthEngine::drawImGui() {
@@ -690,7 +696,7 @@ void HyacinthEngine::endDraw()
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
     vkCmdEndRendering(cmd);
-    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
 
     VK_CHECK(vkEndCommandBuffer(cmd));
 

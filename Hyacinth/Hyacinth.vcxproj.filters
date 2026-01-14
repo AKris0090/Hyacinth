@@ -240,10 +240,10 @@
     <None Include="shaders\raygen.rgen">
       <Filter>Source Files\rendering\shaders\rt shaders</Filter>
     </None>
-    <None Include="closehit.rchit">
+    <None Include="shaders\closehit.rchit">
       <Filter>Source Files\rendering\shaders\rt shaders</Filter>
     </None>
-    <None Include="miss.rmiss">
+    <None Include="shaders\miss.rmiss">
       <Filter>Source Files\rendering\shaders\rt shaders</Filter>
     </None>
   </ItemGroup>

@@ -26,7 +26,7 @@ namespace vkimageutils {
 
 	void createImageView(VkDevice& device, VulkanImage& image, VkImageAspectFlags aspectFlags);
 	VulkanImage createImage(DeviceContext& ctx, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits numSamples, bool mipped);
-	void transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout);
+	void transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
 	VulkanImage createImage(DeviceContext& ctx, void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped);
 	void createImageSampler(VkDevice& device, VulkanImage& image);
 	VkRenderingAttachmentInfo createColorAttachmentInfo(VkImageView& msaaColorView, VkImageView& resolveImageView, const VkClearValue& clearColor, VkImageLayout imageLayout);

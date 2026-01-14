@@ -7,17 +7,25 @@ layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 layout(set = 0, binding = 1) uniform writeonly image2DArray irradianceImage;
 layout(set = 0, binding = 2) uniform writeonly image2DArray visibilityImage;
 
-layout(location = 0) rayPayloadEXT vec3 hitValue;
+layout(location = 0) rayPayloadEXT vec4 hitValue;
 
 layout(buffer_reference, std430) readonly buffer ProbePositionBuffer{
 	vec3 positions[];
 };
 
+layout(buffer_reference, std430) readonly buffer VertexBuffer {
+	vec3 vertices[];
+};
+
+layout(buffer_reference, std430) readonly buffer IndexBuffer {
+	uvec3 trianges[];
+};
+
 layout( push_constant ) uniform constants
 {
 	ProbePositionBuffer probePosAddress;
-	vec4 probeDensities;
-	uint probeCount;
+	VertexBuffer vertexBufferAddress;
+	IndexBuffer indexBufferAddress;
 } pc;
 
 // has to be 36 rays per probe (1 ray per texel), per probe is 6x6 pixels
@@ -29,11 +37,25 @@ ivec3 mapToTexel(uint rayIndex, uint probeIndex, int raysPerProbe) {
 	probeIndex3D.y = remainder / 10;
 	probeIndex3D.x = remainder % 10;
 
+	int rx = int(rayIndex) % raysPerProbe;
+    int ry = int(rayIndex) / raysPerProbe;
+
 	ivec3 pixelIndex;
 	pixelIndex.z = probeIndex3D.z;
-	pixelIndex.y = probeIndex3D.y * raysPerProbe + int(rayIndex) / raysPerProbe;
-	pixelIndex.x = probeIndex3D.x * raysPerProbe + int(rayIndex) / raysPerProbe;
+	pixelIndex.x = probeIndex3D.x * (raysPerProbe + 2) + rx + 1;
+	pixelIndex.y = probeIndex3D.y * (raysPerProbe + 2) + ry + 1;
 	return pixelIndex;
+}
+
+vec3 uvToDirectionOct(uvec2 uv) {
+	vec3 n;
+	n.xy = uv * 2.0 - 1.0;
+	n.z = 1.0 - abs(n.x) - abs(n.y);
+
+	if(n.z < 0.0) {
+		n.xy = (1.0 - abs(n.yx)) * sign(n.xy);
+	}
+	return normalize(n);
 }
 
 // launchidext x has raysPerProbe, y has probeCount
@@ -43,8 +65,18 @@ void main()
 	uint probeIndex = gl_LaunchIDEXT.y;
 
 	ivec3 texelIrrad = mapToTexel(rayIndex, probeIndex, 6);
-	ivec3 texelVis = mapToTexel(rayIndex, probeIndex, 14);
 
-	imageStore(irradianceImage, texelIrrad, vec4(1.0, 0.0, 0.0, 1.0));
-	imageStore(visibilityImage, texelVis, vec4(1.0, 0.0, 1.0, 1.0));
+	uint rayFlags = gl_RayFlagsOpaqueEXT;
+	uint cullMask = 0xff;
+	float tmin = 0.001;
+	float tmax = 1000.0;
+
+	vec3 origin = pc.probePosAddress.positions[probeIndex];
+
+	uvec2 uv = uvec2(rayIndex / 6, rayIndex % 6);
+	vec3 direction = uvToDirectionOct(uv);
+
+	traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin, tmin, direction.xyz, tmax, 0);
+
+	imageStore(irradianceImage, texelIrrad, hitValue);
 }

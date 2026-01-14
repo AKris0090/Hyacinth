@@ -41,7 +41,7 @@ struct gltfNode {
     std::vector<uint32_t> childrenIndices;
     int32_t parentIndex = -1;
 
-    std::vector<glm::vec3> vertices;
+    std::vector<Vertex> vertices;
     VulkanBuffer nodeVertexBuffer;
     std::vector<uint32_t> indices;
     VulkanBuffer nodeIndexBuffer;

@@ -284,14 +284,18 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
 
 void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
     // for building acceleration structures
-    VkDeviceSize vertexBufferSize = node->vertices.size() * sizeof(glm::vec3);
+    std::vector<glm::vec3> positions;
+    for (const auto& v : node->vertices) {
+        positions.push_back(v.pos);
+    }
+    VkDeviceSize vertexBufferSize = positions.size() * sizeof(glm::vec3);
     VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
     node->nodeVertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
     node->nodeIndexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
 
     VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-    memcpy(staging.info.pMappedData, node->vertices.data(), vertexBufferSize);
+    memcpy(staging.info.pMappedData, positions.data(), vertexBufferSize);
     memcpy((char*)staging.info.pMappedData + vertexBufferSize, node->indices.data(), indexBufferSize);
 
     VkBufferCopy vertexCopyRegion{};
@@ -352,7 +356,7 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
                 // acceleration structure-specific
                 uint32_t nodeVertOffset = node.get()->vertices.size();
                 for (const auto& v : prim.get()->vertices) {
-                    node.get()->vertices.push_back(glm::vec3(v.pos));
+                    node.get()->vertices.push_back(v);
                 }
                 for (const auto& i : prim.get()->indices) {
                     node.get()->indices.push_back(i + nodeVertOffset);

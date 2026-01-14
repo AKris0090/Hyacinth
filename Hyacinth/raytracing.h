@@ -20,6 +20,9 @@ namespace rt {
 	extern PFN_vkCmdBuildAccelerationStructuresKHR BuildAS;
 	extern PFN_vkGetAccelerationStructureBuildSizesKHR GetBuildSizes;
 	extern PFN_vkGetAccelerationStructureDeviceAddressKHR GetASAddress;
+	extern PFN_vkCreateRayTracingPipelinesKHR createPipeline;
+	extern PFN_vkCmdTraceRaysKHR Trace;
+	extern PFN_vkGetRayTracingShaderGroupHandlesKHR GetHandles;
 
 	void initAccelerationStructureFunctions(VkDevice& device);
 }
@@ -40,6 +43,8 @@ private:
 
 public:
 	AccelerationStructure				m_tlAccelStrucutre;
+	VulkanBuffer vertexBuffer;
+	VulkanBuffer indexBuffer;
 
 	void setup(DeviceContext& ctx, SceneGraph& scene);
 

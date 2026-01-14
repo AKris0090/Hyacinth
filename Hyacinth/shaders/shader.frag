@@ -35,7 +35,7 @@ layout(location = 0) out vec4 outColor;
 
 const float PI = 3.14159265359;
 const float ambientStrength = 0.1;
-const vec3 lightColor = vec3(5.0);
+const vec3 lightColor = vec3(1.0, 0.875, 0.5);
 
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
@@ -151,11 +151,11 @@ void main() {
         kD *= 1.0 - metalRough.b;
 
         float NdotL = max(dot(N, L), 0.0);
-        Lo += (kD * sampledColor.rgb / PI + specular) * radiance * NdotL;
+        Lo += radiance * NdotL; // (kD * sampledColor.rgb / PI + specular) * radiance * NdotL;
     }
 
-    vec3 ambient = vec3(ambientStrength) * sampledColor.rgb; // * ambient occlusion;
-    vec3 color = ambient + Lo;
+    // vec3 ambient = vec3(ambientStrength) * sampledColor.rgb; // * ambient occlusion;
+    vec3 color = Lo;
 
     uint cascadeIndex = 0;
 	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {

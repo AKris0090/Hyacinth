@@ -41,6 +41,20 @@ static VkShaderModule createShaderModule(VkDevice& device, const std::vector<cha
     return shaderModule;
 }
 
+static VkPipelineShaderStageCreateInfo createShader(VkDevice& device, std::string shaderFile, VkShaderStageFlagBits stage) {
+    auto shaderCode = readFile(shaderFile);
+
+    VkShaderModule shaderModule = createShaderModule(device, shaderCode);
+
+    VkPipelineShaderStageCreateInfo shaderStageInfo{};
+    shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStageInfo.stage = stage;
+    shaderStageInfo.module = shaderModule;
+    shaderStageInfo.pName = "main";
+
+    return shaderStageInfo;
+}
+
 class VulkanPipelineBuilder {
 public:
     VulkanPipeline                                  m_pipeline;
