@@ -201,6 +201,8 @@
   <ItemGroup>
     <None Include="shaders\closehit.rchit" />
     <None Include="shaders\miss.rmiss" />
+    <None Include="shaders\probeVis.frag" />
+    <None Include="shaders\probeVis.vert" />
     <None Include="shaders\raygen.rgen" />
     <None Include="shaders\shadow.vert" />
   </ItemGroup>

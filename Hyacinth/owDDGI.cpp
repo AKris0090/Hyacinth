@@ -5,7 +5,7 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 	{
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1.f }, // accelstructure
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2.f }, // out images
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f } // vertex and index buffer
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f }, // vertex and index buffer
 	};
 
 	m_descriptorAllocator.initPool(*ctx.device, 1, sizes);
@@ -180,34 +180,36 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 	numProbes = PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH;
 
 	// test volume for sponza
-	m_probeVolume.transform.position = glm::vec3(0.f, 0.38f, 5.15f);
-	m_probeVolume.transform.scale = glm::vec3(15.f, 8.84f, 6.6f);
+	m_probeVolume.transform.position = glm::vec3(-0.5f, 2.0f, 0.3f);
+	m_probeVolume.transform.scale = glm::vec3(10.2f, 3.1, 4.3f);
 
-	// evenly disperse probes
-	float xSpace = m_probeVolume.transform.scale.x / PROBE_DENSITY_WIDTH;
-	float ySpace = m_probeVolume.transform.scale.y / PROBE_DENSITY_HEIGHT;
-	float zSpace = m_probeVolume.transform.scale.z / PROBE_DENSITY_DEPTH;
+	// evenly disperse probes TODO: figure out why volume isn't matching up with blender
+	float xSpace = m_probeVolume.transform.scale.x * 2 / PROBE_DENSITY_WIDTH;
+	float ySpace = m_probeVolume.transform.scale.y * 2 / PROBE_DENSITY_HEIGHT;
+	float zSpace = m_probeVolume.transform.scale.z * 2 / PROBE_DENSITY_DEPTH;
 	for (int i = 0; i < PROBE_DENSITY_HEIGHT; i++) {
 		std::vector<std::vector<glm::vec3>> probePlane;
 		for (int j = 0; j < PROBE_DENSITY_WIDTH; j++) {
 			std::vector<glm::vec3> probeRow;
 			for (int k = 0; k < PROBE_DENSITY_DEPTH; k++) {
-				probeRow.push_back(glm::vec3(xSpace * j, ySpace * k, zSpace * i));
+				probeRow.push_back(glm::vec3(xSpace * j, ySpace * i, zSpace * k));
 			}
 			probePlane.push_back(probeRow);
 		}
 		m_probeVolume.probes.push_back(probePlane);
 	}
 
-	std::vector<glm::vec3> probePositions;
+	glm::vec3 posCorrection = m_probeVolume.transform.position;
+	posCorrection -= m_probeVolume.transform.scale / 2.f;
+	std::vector<glm::vec4> probePositions;
 	for (int i = 0; i < PROBE_DENSITY_HEIGHT; i++) {
 		for (int j = 0; j < PROBE_DENSITY_WIDTH; j++) {
 			for (int k = 0; k < PROBE_DENSITY_DEPTH; k++) {
-				probePositions.push_back(glm::vec3(xSpace * j, ySpace * k, zSpace * i));
+				probePositions.push_back(glm::vec4(m_probeVolume.probes[i][j][k] + posCorrection, 1.0f));
 			}
 		}
 	}
-	VkDeviceSize probeBufferSize = probePositions.size() * sizeof(glm::vec3);
+	VkDeviceSize probeBufferSize = probePositions.size() * sizeof(glm::vec4);
 	m_probeVolume.probePositionBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, probeBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
 	vkdeviceutils::uploadToBuffer(ctx, m_probeVolume.probePositionBuffer, probeBufferSize, probePositions.data());
 
@@ -270,8 +272,8 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 	VK_CHECK(vkCreateImageView(*ctx.device, &completeViewInfo, nullptr, &m_probeVolume.visibilityImage.imageView));
 
 	VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.magFilter = VK_FILTER_NEAREST;
+	samplerInfo.minFilter = VK_FILTER_NEAREST;
 	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	samplerInfo.addressModeV = samplerInfo.addressModeU;
@@ -355,5 +357,151 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene) {
 		vkCmdPushConstants(cmd, m_rtPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(DDGIPushConstant), &pc);
 
 		rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, RAYS_PER_PROBE, numProbes * PROBE_DENSITY_HEIGHT, 1);
+
+		vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 	});
+}
+
+// PROBE VISUALIZATION STUFF
+
+void owDDGI::createProbeVisualizationStructures(DeviceContext& ctx, VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples) {
+	auto spherePath = vkdebugutils::getExeDir() / "objects" / "sphere.glb";
+	m_probeVis.sphereObject = gltfutils::loadFromFile(spherePath.string(), ctx);
+	gltfNode* node = m_probeVis.sphereObject.nodes[0].get();
+	for (const auto& p : node->primitives) {
+		for (const auto& v : p.get()->vertices) {
+			node->vertices.push_back(v);
+		}
+		for (const auto& index : p.get()->indices) {
+			node->indices.push_back(index);
+		}
+	}
+	m_probeVis.indexCount = node->indices.size();
+	
+	VkDeviceSize vertexBufferSize = node->vertices.size() * sizeof(Vertex);
+	VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
+	m_probeVis.vertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+	m_probeVis.indexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+
+	VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+
+	memcpy(staging.info.pMappedData, node->vertices.data(), vertexBufferSize);
+	memcpy((char*)staging.info.pMappedData + vertexBufferSize, node->indices.data(), indexBufferSize);
+
+	VkBufferCopy vertexCopyRegion{};
+	vertexCopyRegion.srcOffset = 0;
+	vertexCopyRegion.dstOffset = 0;
+	vertexCopyRegion.size = vertexBufferSize;
+
+	VkBufferCopy indexCopyRegion{};
+	indexCopyRegion.srcOffset = vertexBufferSize;
+	indexCopyRegion.dstOffset = 0;
+	indexCopyRegion.size = indexBufferSize;
+
+	vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
+		vkCmdCopyBuffer(cmd, staging.buffer, m_probeVis.vertexBuffer.buffer, 1, &vertexCopyRegion);
+		vkCmdCopyBuffer(cmd, staging.buffer, m_probeVis.indexBuffer.buffer, 1, &indexCopyRegion);
+		});
+
+	vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
+
+
+	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
+	{
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f }
+	};
+	{
+		DescriptorLayoutBuilder layoutBuilder;
+		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
+		m_probeVis.visSetLayout = layoutBuilder.buildLayout(*ctx.device, nullptr, 0);
+	}
+	m_probeVis.visDescriptorAllocator.initPool(*ctx.device, 1, sizes);
+	m_probeVis.visSet = m_probeVis.visDescriptorAllocator.allocate(*ctx.device, m_probeVis.visSetLayout);
+	VkDescriptorImageInfo irradianceSamplerInfo{};
+	irradianceSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	irradianceSamplerInfo.imageView = m_probeVolume.irradianceImage.imageView;
+	irradianceSamplerInfo.sampler = m_probeVolume.irradianceImage.imageSampler;
+
+	VkWriteDescriptorSet irradianceSamplerWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	irradianceSamplerWrite.dstSet = m_probeVis.visSet;
+	irradianceSamplerWrite.dstBinding = 0;
+	irradianceSamplerWrite.dstArrayElement = 0;
+	irradianceSamplerWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	irradianceSamplerWrite.descriptorCount = 1;
+	irradianceSamplerWrite.pImageInfo = &irradianceSamplerInfo;
+
+	vkUpdateDescriptorSets(*ctx.device, 1, &irradianceSamplerWrite, 0, nullptr);
+
+
+	// create probe vis pipeline
+	m_probeVis.pipelineUtil.addShader(*ctx.device, "shaders/probeVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	m_probeVis.pipelineUtil.addShader(*ctx.device, "shaders/probeFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
+	m_probeVis.pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	m_probeVis.pipelineUtil.setDefaultAttributes();
+	m_probeVis.pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
+	m_probeVis.pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	m_probeVis.pipelineUtil.setColorAttachmentFormat(SWImageFormat.format);
+	m_probeVis.pipelineUtil.setMultisampling(msaaSamples);
+	m_probeVis.pipelineUtil.disableBlending();
+
+	m_probeVis.pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
+	m_probeVis.pipelineUtil.setDepthAttachmentFormat(depthFormat);
+
+	VkViewport viewport{};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = (float)SWImageFormat.extent.width;
+	viewport.height = (float)SWImageFormat.extent.height;
+	viewport.minDepth = 1.0f;
+	viewport.maxDepth = 0.0f;
+
+	VkRect2D scissor{};
+	scissor.offset = { 0, 0 };
+	scissor.extent = SWImageFormat.extent;
+
+	VkPipelineViewportStateCreateInfo viewportState{};
+	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportState.viewportCount = 1;
+	viewportState.pViewports = &viewport;
+	viewportState.scissorCount = 1;
+	viewportState.pScissors = &scissor;
+
+	m_probeVis.pipelineUtil.m_viewportState.pViewports = &viewport;
+	m_probeVis.pipelineUtil.m_viewportState.pScissors = &scissor;
+
+	VkPushConstantRange bufferRange{};
+	bufferRange.offset = 0;
+	bufferRange.size = sizeof(probeVisObjects::probeVisPushContant);
+	bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	std::array<VkDescriptorSetLayout, 2> setLayouts = { descSetLayout, m_probeVis.visSetLayout };
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+	pipelineLayoutCInfo.pushConstantRangeCount = 1;
+	pipelineLayoutCInfo.pPushConstantRanges = &bufferRange;
+	pipelineLayoutCInfo.setLayoutCount = 2;
+	pipelineLayoutCInfo.pSetLayouts = setLayouts.data();
+
+	VK_CHECK(vkCreatePipelineLayout(*ctx.device, &pipelineLayoutCInfo, nullptr, &m_probeVis.pipelineUtil.m_pipeline.layout));
+
+	m_probeVis.pipelineUtil.buildPipeline(*ctx.device);
+}
+
+void owDDGI::drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& descSet) {
+	VkDeviceSize offsets[] = { 0 };
+	vkCmdBindVertexBuffers(cmd, 0, 1, &m_probeVis.vertexBuffer.buffer, offsets);
+	vkCmdBindIndexBuffer(cmd, m_probeVis.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_probeVis.pipelineUtil.m_pipeline.pipeline);
+
+	std::array<VkDescriptorSet, 2> sets = { descSet, m_probeVis.visSet };
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_probeVis.pipelineUtil.m_pipeline.layout, 0, 2, sets.data(), 0, nullptr);
+
+	probeVisObjects::probeVisPushContant pc{};
+	pc.probePositionAddress = m_probeVolume.probePositionBuffer.gpuAddress;
+
+	vkCmdPushConstants(cmd, m_probeVis.pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(probeVisObjects::probeVisPushContant), &pc);
+
+	vkCmdDrawIndexed(cmd, m_probeVis.indexCount, numProbes * PROBE_DENSITY_HEIGHT, 0, 0, 0);
 }

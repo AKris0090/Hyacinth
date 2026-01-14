@@ -35,6 +35,24 @@ struct DDGIVertex {
 	glm::vec4 normal;
 };
 
+struct probeVisObjects {
+	VulkanPipelineBuilder pipelineUtil;
+	uint32_t indexCount;
+
+	VulkanBuffer vertexBuffer;
+	VulkanBuffer indexBuffer;
+	gltfObject sphereObject;
+
+	VkDescriptorSetLayout visSetLayout;
+	VkDescriptorSet visSet;
+	DescriptorLayoutBuilder			visLayoutBuilder{};
+	DescriptorAllocator				visDescriptorAllocator{};
+
+	struct probeVisPushContant {
+		VkDeviceAddress probePositionAddress;
+	};
+};
+
 class owDDGI {
 private:
 	rtHelper* m_rtHelper;
@@ -52,12 +70,13 @@ private:
 	VkStridedDeviceAddressRegionKHR m_hitRegion{};
 	VkStridedDeviceAddressRegionKHR m_callableRegion{};
 
-	DescriptorLayoutBuilder			m_layoutBuilder{};
 	DescriptorAllocator				m_descriptorAllocator{};
 	VkDescriptorSetLayout			m_descriptorLayout{};
 	VkDescriptorSet					m_rtDescriptorSet{};
 	VkPipelineLayout				m_rtPipelineLayout{};
 	VkPipeline						m_rtPipeline{};
+
+	probeVisObjects					m_probeVis{};
 
 	void createRaytraceDescriptors(DeviceContext& ctx);
 	void createRaytracePipeline(DeviceContext& ctx);
@@ -66,4 +85,9 @@ private:
 public:
 	void setup(DeviceContext& ctx, rtHelper* rtHelper);
 	void bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene);
+
+
+	// probe visualization stuff
+	void createProbeVisualizationStructures(DeviceContext& ctx, VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
+	void drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& descSet);
 };

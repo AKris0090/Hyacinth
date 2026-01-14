@@ -255,7 +255,6 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
         object.textureIndices[i] = model->textures[i].source;
     }
 
-    // + 1 for dummy textures TODO: update when all added
     object.materials.resize(model->materials.size());
     for (size_t i = 0; i < model->materials.size(); i++) {
         tinygltf::Material gltfMat = model->materials[i];

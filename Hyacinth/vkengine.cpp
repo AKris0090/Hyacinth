@@ -368,8 +368,6 @@ void HyacinthEngine::createBuffers() {
 
 void HyacinthEngine::createDescriptorSets()
 {
-    // all +1 are for dummyTextures
-    // TODO: update when adding rest of dummies
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
     {
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.f },
@@ -515,6 +513,9 @@ void HyacinthEngine::init()
 
     m_owDDGIHelper.setup(m_devContext, &m_rtHelper);
     m_owDDGIHelper.bakeDDGI(m_devContext, m_scene);
+    std::cout << "baked imge ///////////////////////////////////////////" << std::endl;
+
+    m_owDDGIHelper.createProbeVisualizationStructures(m_devContext, m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
 
     m_initialized = true;
 }
@@ -684,6 +685,8 @@ void HyacinthEngine::draw()
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 	vkCmdDrawIndexedIndirect(cmd, m_indirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+
+    m_owDDGIHelper.drawProbes(cmd, m_frameData[m_frameIndex].descriptorSet);
 
     endDraw();
 }

@@ -246,5 +246,11 @@
     <None Include="shaders\miss.rmiss">
       <Filter>Source Files\rendering\shaders\rt shaders</Filter>
     </None>
+    <None Include="shaders\probeVis.vert">
+      <Filter>Source Files\rendering\shaders</Filter>
+    </None>
+    <None Include="shaders\probeVis.frag">
+      <Filter>Source Files\rendering\shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
