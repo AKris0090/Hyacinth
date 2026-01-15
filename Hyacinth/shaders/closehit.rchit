@@ -3,7 +3,11 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_buffer_reference : enable
 
+layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
+
 layout(location = 0) rayPayloadInEXT vec4 hitValue;
+layout(location = 2) rayPayloadEXT bool shadowed;
+
 hitAttributeEXT vec2 attribs;
 
 layout(buffer_reference, std430) readonly buffer ProbePositionBuffer{
@@ -30,7 +34,7 @@ layout( push_constant ) uniform constants
 	IndexBuffer indexBufferAddress;
 } pc;
 
-const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
+const vec3 lightPos = vec3(-2.0, 30.0, -6.0);
 const vec3 lightColor = vec3(1.0, 0.875, 0.5);
 
 void main()
@@ -53,9 +57,17 @@ void main()
 	vec3 normalWS = normalize(mat3(gl_ObjectToWorldEXT) * normal);
 	vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
 
-	vec3 lightVector = normalize(lightPos - worldPos);
-	float ndotL = max(dot(lightVector, normalWS), 0.0);
+	vec3 lightVector = normalize(lightPos);
+	hitValue = vec4(lightColor, 1.0);
 
-	// irrad.x, irrad.y, irrad.z, localPos.z
-	hitValue = vec4(1.0, 0.0, 1.0, 1.0); // vec4((lightColor * ndotL), worldPos.z);
+	uint rayFlags = gl_RayFlagsOpaqueEXT | gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+	uint cullMask = 0xff;
+	float tmin = 0.01;
+	float tmax = 1000.0;
+
+	shadowed = true;
+	traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 1, worldPos, tmin, lightVector, tmax, 2);
+	if (shadowed) {
+		hitValue *= 0.2;
+	}
 }

@@ -79,7 +79,7 @@ void owDDGI::createShaderBindingTable(DeviceContext& ctx, VkRayTracingPipelineCr
 
 	auto     alignUp = [](uint32_t size, uint32_t alignment) { return (size + alignment - 1) & ~(alignment - 1); };
 	uint32_t raygenSize = alignUp(handleSize, handleAlignment);
-	uint32_t missSize = alignUp(handleSize, handleAlignment);
+	uint32_t missSize = alignUp(handleSize * 2, handleAlignment);
 	uint32_t hitSize = alignUp(handleSize, handleAlignment);
 	uint32_t callableSize = 0;
 
@@ -98,11 +98,12 @@ void owDDGI::createShaderBindingTable(DeviceContext& ctx, VkRayTracingPipelineCr
 	m_raygenRegion.size = raygenSize;
 
 	memcpy(pData + missOffset, m_shaderHandles.data() + 1 * handleSize, handleSize);
+	memcpy(pData + missOffset, m_shaderHandles.data() + 2 * handleSize, handleSize);
 	m_missRegion.deviceAddress = m_sbtBuffer.gpuAddress + missOffset;
-	m_missRegion.stride = missSize;
+	m_missRegion.stride = handleSize;
 	m_missRegion.size = missSize;
 
-	memcpy(pData + hitOffset, m_shaderHandles.data() + 2 * handleSize, handleSize);
+	memcpy(pData + hitOffset, m_shaderHandles.data() + 3 * handleSize, handleSize);
 	m_hitRegion.deviceAddress = m_sbtBuffer.gpuAddress + hitOffset;
 	m_hitRegion.stride = hitSize;
 	m_hitRegion.size = hitSize;
@@ -118,6 +119,7 @@ void owDDGI::createRaytracePipeline(DeviceContext& ctx)
 	{
 		eRaygen,
 		eMiss,
+		eProbeMiss,
 		eClosestHit,
 		eShaderGroupCount
 	};
@@ -128,6 +130,7 @@ void owDDGI::createRaytracePipeline(DeviceContext& ctx)
 
 	stages[eRaygen] = createShader(*ctx.device, "shaders/raygen.spv", VK_SHADER_STAGE_RAYGEN_BIT_KHR);
 	stages[eMiss] = createShader(*ctx.device, "shaders/rmiss.spv", VK_SHADER_STAGE_MISS_BIT_KHR);
+	stages[eProbeMiss] = createShader(*ctx.device, "shaders/probeMiss.spv", VK_SHADER_STAGE_MISS_BIT_KHR);
 	stages[eClosestHit] = createShader(*ctx.device, "shaders/rchit.spv", VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
 
 	VkRayTracingShaderGroupCreateInfoKHR group{ VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR };
@@ -143,6 +146,10 @@ void owDDGI::createRaytracePipeline(DeviceContext& ctx)
 
 	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
 	group.generalShader = eMiss;
+	shader_groups.push_back(group);
+
+	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+	group.generalShader = eProbeMiss;
 	shader_groups.push_back(group);
 
 	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
@@ -180,7 +187,7 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 	numProbes = PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH;
 
 	// test volume for sponza
-	m_probeVolume.transform.position = glm::vec3(-0.5f, 2.0f, 0.3f);
+	m_probeVolume.transform.position = glm::vec3(-4.f, 2.0f, -2.0f);
 	m_probeVolume.transform.scale = glm::vec3(10.2f, 3.1, 4.3f);
 
 	// evenly disperse probes TODO: figure out why volume isn't matching up with blender
