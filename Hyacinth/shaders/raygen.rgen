@@ -48,5 +48,5 @@ void main()
 
 	traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin, tmin, dir, tmax, 0);
 
-	imageStore(rayDataImage, rayDataCoords, hitValue);
+	imageStore(rayDataImage, rayDataCoords, vec4(dir, 1.0));
 }

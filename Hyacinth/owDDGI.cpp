@@ -374,7 +374,7 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene) {
 	vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
 
 	VkClearValue clearValues[1]{};
-	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 0.0f } };
+	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 
 	VkImageSubresourceRange subResourceRange = {};
 	subResourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
