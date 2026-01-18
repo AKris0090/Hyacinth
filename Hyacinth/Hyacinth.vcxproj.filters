@@ -255,5 +255,11 @@
     <None Include="shaders\probeMiss.rmiss">
       <Filter>Source Files\rendering\shaders\rt shaders</Filter>
     </None>
+    <None Include="shaders\probeCommon.glsl">
+      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+    </None>
+    <None Include="shaders\irradianceBuild.comp">
+      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -3,9 +3,10 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_buffer_reference : enable
 
+#include "probeCommon.glsl"
+
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
-layout(set = 0, binding = 1) uniform writeonly image2DArray irradianceImage;
-layout(set = 0, binding = 2) uniform writeonly image2DArray visibilityImage;
+layout(set = 0, binding = 1) uniform writeonly image2DArray rayDataImage;
 
 layout(location = 0) rayPayloadEXT vec4 hitValue;
 
@@ -28,67 +29,24 @@ layout( push_constant ) uniform constants
 	IndexBuffer indexBufferAddress;
 } pc;
 
-vec3 uvToDirOct(vec2 uv) {
-	vec3 proj = vec3((uv * 2.0 - 1.0), 0.0);
-	float aX = abs(proj.x);
-	float aY = abs(proj.y);
-
-	proj.z = 1.0 - aX - aY;
-
-	if (proj.z < 0.0) {
-		proj.x = (proj.x < 0.0 ? -1.0 : 1.0) * (1.0 - aY);
-		proj.y = (proj.y < 0.0 ? -1.0 : 1.0) * (1.0 - aX);
-	}
-
-	return normalize(proj);
-}
-
-const int PROBE_RES    = 6;
-const int PROBE_BORDER = 1;
-const int PROBE_TILE  = PROBE_RES + 2 * PROBE_BORDER;
-
-ivec3 getAtlasPosition(uint probeIndex)
-{
-    const int PROBES_X = 10; // probes per row
-
-    ivec3 p;
-    p.z = int(probeIndex / (PROBES_X * PROBES_X));
-    int rem = int(probeIndex % (PROBES_X * PROBES_X));
-
-    int px = rem % PROBES_X;
-    int py = rem / PROBES_X;
-
-    p.x = px * PROBE_TILE + PROBE_BORDER;
-    p.y = py * PROBE_TILE + PROBE_BORDER;
-
-    return p;
-}
-
-const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-
-// launchidext x has raysPerProbe, y has probeCount
 void main() 
 {
 	uint rayIndex = gl_LaunchIDEXT.x;
-	uint probeIndex = gl_LaunchIDEXT.y;
-	uint x = rayIndex % 6;
-	uint y = rayIndex / 6;
+	uint probeIndexRow = gl_LaunchIDEXT.y;
+	uint probeLayer = gl_LaunchIDEXT.z;
+
+	uint probeIndex = (probeLayer * PROBES_PER_PLANE) + probeIndexRow;
+	ivec3 rayDataCoords = getRayDataTexelCoords(rayIndex, probeIndex);
+
+	vec3 origin = pc.probePosAddress.positions[probeIndex].xyz;
+	vec3 dir = DDGISphericalFibonacci(rayIndex, RAYS_PER_PROBE);
 
 	uint rayFlags = gl_RayFlagsOpaqueEXT;
 	uint cullMask = 0xff;
 	float tmin = 0.01;
 	float tmax = 1000.0;
 
-	vec3 origin = pc.probePosAddress.positions[probeIndex].xyz;
-	vec2 uv = (vec2(x, y) + 0.5) / 6.0;
-	vec3 dir = uvToDirOct(uv);
+	traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin, tmin, dir, tmax, 0);
 
-	vec3 lightDir = normalize(lightPos - origin);
-
-	traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin, tmin, lightDir, tmax, 0);
-
-	ivec3 texelIrrad = getAtlasPosition(probeIndex);
-	texelIrrad.xy += ivec2(x, y);
-
-	imageStore(irradianceImage, texelIrrad, hitValue);
+	imageStore(rayDataImage, rayDataCoords, hitValue);
 }

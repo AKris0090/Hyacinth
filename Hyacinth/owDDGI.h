@@ -10,7 +10,7 @@ constexpr int PROBE_DENSITY_WIDTH = 10;  // x
 constexpr int PROBE_DENSITY_HEIGHT = 10;  // y
 constexpr int PROBE_DENSITY_DEPTH = 10;  // z
 
-constexpr int RAYS_PER_PROBE = 36;
+constexpr int RAYS_PER_PROBE = 250;
 
 constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;
@@ -20,6 +20,7 @@ struct DDGIVolume {
 	std::vector<std::vector<std::vector<glm::vec3>>> probes;
 	VulkanBuffer probePositionBuffer;
 
+	VulkanImage rayDataImage;
 	VulkanImage irradianceImage;
 	VulkanImage visibilityImage;
 };
@@ -75,12 +76,18 @@ private:
 	VkDescriptorSet					m_rtDescriptorSet{};
 	VkPipelineLayout				m_rtPipelineLayout{};
 	VkPipeline						m_rtPipeline{};
+	
+	VkPipelineLayout				m_irradianceComputePipelineLayout{};
+	VkPipeline						m_irradianceComputePipeline{};
+	VkDescriptorSetLayout			m_computeDescriptorLayout{};
+	VkDescriptorSet					m_computeDescriptorSet{};
 
 	probeVisObjects					m_probeVis{};
 
 	void createRaytraceDescriptors(DeviceContext& ctx);
 	void createRaytracePipeline(DeviceContext& ctx);
 	void createShaderBindingTable(DeviceContext& ctx, VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
+	void createComputeResources(DeviceContext& ctx);
 
 public:
 	void setup(DeviceContext& ctx, rtHelper* rtHelper);

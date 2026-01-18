@@ -200,7 +200,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\closehit.rchit" />
+    <None Include="shaders\irradianceBuild.comp" />
     <None Include="shaders\miss.rmiss" />
+    <None Include="shaders\probeCommon.glsl" />
     <None Include="shaders\probeMiss.rmiss" />
     <None Include="shaders\probeVis.frag" />
     <None Include="shaders\probeVis.vert" />

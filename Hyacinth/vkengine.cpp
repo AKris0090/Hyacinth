@@ -512,10 +512,10 @@ void HyacinthEngine::init()
     m_rtHelper.setup(m_devContext, m_scene);
 
     m_owDDGIHelper.setup(m_devContext, &m_rtHelper);
+    m_owDDGIHelper.createProbeVisualizationStructures(m_devContext, m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
+
     m_owDDGIHelper.bakeDDGI(m_devContext, m_scene);
     std::cout << "baked imge ///////////////////////////////////////////" << std::endl;
-
-    m_owDDGIHelper.createProbeVisualizationStructures(m_devContext, m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
 
     m_initialized = true;
 }
