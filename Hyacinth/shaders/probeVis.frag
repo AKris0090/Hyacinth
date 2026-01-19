@@ -12,14 +12,12 @@ void main() {
     ivec3 textureSize = textureSize(texArray, 0);
     vec3 dir = normalize(probeDir.xyz);
 
-    vec2 uv = oct_encode(dir) * 0.5 + 0.5;
-    vec2 texel = clamp(uv * float(PROBE_INNER_RES),
-                              vec2(0.0),
-                              vec2(PROBE_INNER_RES - 1));
+    vec2 probeUV = oct_encode(dir) * 0.5 + 0.5;
+    ivec3 base = getAtlasPosition(probeIndex); // texel-space origin of inner tile
 
-    vec3 atlasPos = vec3(getAtlasPosition(probeIndex));
-    atlasPos.xy += texel;
-    atlasPos = vec3(atlasPos.xy / vec2(textureSize.xy), atlasPos.z);
+    vec2 atlasUV;
+    atlasUV.x = (float(base.x) + probeUV.x * float(PROBE_INNER_RES)) / float(textureSize.x);
+    atlasUV.y = (float(base.y) + probeUV.y * float(PROBE_INNER_RES)) / float(textureSize.y);
 
-    outColor = texture(texArray, atlasPos, 0);
+    outColor = texture(texArray, vec3(atlasUV, base.z), 0);
 }

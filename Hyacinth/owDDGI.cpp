@@ -230,19 +230,19 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 	numProbes = PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH;
 
 	// test volume for sponza
-	m_probeVolume.transform.position = glm::vec3(-4.f, 2.0f, -2.0f);
-	m_probeVolume.transform.scale = glm::vec3(10.2f, 3.1, 4.3f);
+	m_probeVolume.transform.position = glm::vec3(-.3f, 6.4f, 0.0f);
+	m_probeVolume.transform.scale = glm::vec3(21.0f, 13.7, 9.4f);
 
 	// evenly disperse probes TODO: figure out why volume isn't matching up with blender
-	float xSpace = m_probeVolume.transform.scale.x * 2 / PROBE_DENSITY_WIDTH;
-	float ySpace = m_probeVolume.transform.scale.y * 2 / PROBE_DENSITY_HEIGHT;
-	float zSpace = m_probeVolume.transform.scale.z * 2 / PROBE_DENSITY_DEPTH;
+	float xSpace = m_probeVolume.transform.scale.x / PROBE_DENSITY_WIDTH;
+	float ySpace = m_probeVolume.transform.scale.y / PROBE_DENSITY_HEIGHT;
+	float zSpace = m_probeVolume.transform.scale.z / PROBE_DENSITY_DEPTH;
 	for (int i = 0; i < PROBE_DENSITY_HEIGHT; i++) {
 		std::vector<std::vector<glm::vec3>> probePlane;
 		for (int j = 0; j < PROBE_DENSITY_DEPTH; j++) {
 			std::vector<glm::vec3> probeRow;
 			for (int k = 0; k < PROBE_DENSITY_WIDTH; k++) {
-				probeRow.push_back(glm::vec3(xSpace * k, ySpace * j, zSpace * i));
+				probeRow.push_back(glm::vec3(xSpace * k, ySpace * i, zSpace * j));
 			}
 			probePlane.push_back(probeRow);
 		}

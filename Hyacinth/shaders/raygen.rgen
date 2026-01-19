@@ -39,7 +39,7 @@ void main()
 	ivec3 rayDataCoords = getRayDataTexelCoords(rayIndex, probeIndex);
 
 	vec3 origin = pc.probePosAddress.positions[probeIndex].xyz;
-	vec3 dir = DDGISphericalFibonacci(rayIndex, RAYS_PER_PROBE);
+	vec3 dir = normalize(DDGISphericalFibonacci(rayIndex, RAYS_PER_PROBE));
 
 	uint rayFlags = gl_RayFlagsOpaqueEXT;
 	uint cullMask = 0xff;
@@ -48,5 +48,5 @@ void main()
 
 	traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin, tmin, dir, tmax, 0);
 
-	imageStore(rayDataImage, rayDataCoords, vec4(dir, 1.0));
+	imageStore(rayDataImage, rayDataCoords, hitValue);
 }

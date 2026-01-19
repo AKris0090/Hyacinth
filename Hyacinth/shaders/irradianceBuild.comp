@@ -32,7 +32,7 @@ void main() {
 		vec3 dir = DDGISphericalFibonacci(float(i), float(RAYS_PER_PROBE));
 
 		// get a UV from the normalized direction, uv -> (-1, 1)
-		vec2 uv = oct_encode(dir);
+		vec2 uv = oct_encode(normalize(dir));
 
 		// scale the UV for a 6x6 texel patch
 		uv = (uv * 0.5 + 0.5) * 6.0;
@@ -50,5 +50,22 @@ void main() {
 
 		// store back in the irradiance map
 		imageStore(irradianceMap, irradianceTexel, blended);
+	}
+
+	storeBorder(ivec2(0, 0), ivec2(7, 7), probeAtlasPosition);
+	storeBorder(ivec2(5, 0), ivec2(0, 7), probeAtlasPosition);
+	storeBorder(ivec2(0, 5), ivec2(7, 0), probeAtlasPosition);
+	storeBorder(ivec2(5, 5), ivec2(0, 0), probeAtlasPosition);
+
+	// rows
+	for(int i = 0; i < 6; i++) {
+		storeBorder(ivec2(i, 0), ivec2(6 - i, 0), probeAtlasPosition); // top row
+		storeBorder(ivec2(i, 5), ivec2(6 - i, 7), probeAtlasPosition); // bottom row
+	}
+
+	// columns
+	for(int i = 0; i < 6; i++) {
+		storeBorder(ivec2(0, i), ivec2(0, 6 - i), probeAtlasPosition); // left column
+		storeBorder(ivec2(5, i), ivec2(7, 6 - i), probeAtlasPosition); // right column
 	}
 }

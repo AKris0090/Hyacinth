@@ -6,9 +6,9 @@
 #include "vkpipelineutils.h"
 #include <array>
 
-constexpr int PROBE_DENSITY_WIDTH = 10;  // x
-constexpr int PROBE_DENSITY_HEIGHT = 10;  // y
-constexpr int PROBE_DENSITY_DEPTH = 10;  // z
+constexpr int PROBE_DENSITY_WIDTH = 20;  // x
+constexpr int PROBE_DENSITY_HEIGHT = 14;  // y
+constexpr int PROBE_DENSITY_DEPTH = 20;  // z
 
 constexpr int RAYS_PER_PROBE = 250;
 
