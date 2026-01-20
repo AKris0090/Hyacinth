@@ -188,7 +188,7 @@ void vkimageutils::storeTexture(VkDevice& dev, VkDescriptorSet& set, const Vulka
 
 	VkWriteDescriptorSet writeImage{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	writeImage.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	writeImage.dstBinding = 1;
+	writeImage.dstBinding = 0;
 	writeImage.dstSet = set;
 	writeImage.descriptorCount = 1;
 	writeImage.dstArrayElement = arrayIndex;

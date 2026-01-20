@@ -45,6 +45,8 @@ struct gltfNode {
     VulkanBuffer nodeVertexBuffer;
     std::vector<uint32_t> indices;
     VulkanBuffer nodeIndexBuffer;
+    std::vector<uint32_t> materialIndex;
+    VulkanBuffer materialBuffer;
 };
 
 struct gltfObject {

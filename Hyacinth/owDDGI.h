@@ -4,13 +4,14 @@
 #include "ecshelpers.h"
 #include "vkdescriptorutils.h"
 #include "vkpipelineutils.h"
+#include "glm/gtx/string_cast.hpp"
 #include <array>
 
 constexpr int PROBE_DENSITY_WIDTH = 20;  // x
 constexpr int PROBE_DENSITY_HEIGHT = 14;  // y
 constexpr int PROBE_DENSITY_DEPTH = 20;  // z
 
-constexpr int RAYS_PER_PROBE = 250;
+constexpr int RAYS_PER_PROBE = 100;
 
 constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;
@@ -23,12 +24,15 @@ struct DDGIVolume {
 	VulkanImage rayDataImage;
 	VulkanImage irradianceImage;
 	VulkanImage visibilityImage;
+
+	VkDeviceAddress materialIndexAddress;
 };
 
-struct DDGIPushConstant {
+struct ddgiPushConstant {
 	VkDeviceAddress probePositionBufferAddress;
 	VkDeviceAddress vertexAddress;
 	VkDeviceAddress indexAddress;
+	VkDeviceAddress materialIndexAddress;
 };
 
 struct DDGIVertex {
@@ -57,7 +61,6 @@ struct probeVisObjects {
 class owDDGI {
 private:
 	rtHelper* m_rtHelper;
-	DDGIVolume m_probeVolume;
 
 	VkFormat m_irradFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	VkFormat m_depthFormat = VK_FORMAT_R16_UNORM;
@@ -82,17 +85,17 @@ private:
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
 	VkDescriptorSet					m_computeDescriptorSet{};
 
-	probeVisObjects					m_probeVis{};
-
 	void createRaytraceDescriptors(DeviceContext& ctx);
-	void createRaytracePipeline(DeviceContext& ctx);
+	void createRaytracePipeline(DeviceContext& ctx, VkDescriptorSetLayout& textureLayout);
 	void createShaderBindingTable(DeviceContext& ctx, VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
 	void createComputeResources(DeviceContext& ctx);
 
 public:
-	void setup(DeviceContext& ctx, rtHelper* rtHelper);
-	void bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene);
+	DDGIVolume m_probeVolume;
+	probeVisObjects	m_probeVis{};
 
+	void setup(DeviceContext& ctx, rtHelper* rtHelper, VkDescriptorSetLayout& textureLayout);
+	void bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene, VkDescriptorSet& textureSet);
 
 	// probe visualization stuff
 	void createProbeVisualizationStructures(DeviceContext& ctx, VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);

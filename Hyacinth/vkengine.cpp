@@ -318,13 +318,15 @@ void HyacinthEngine::createGraphicsPipeline()
     VkPushConstantRange bufferRange{};
     bufferRange.offset = 0;
     bufferRange.size = sizeof(GPUDrawPushConstants);
-    bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayout, 3> sets = { m_descriptorSetLayout, m_textureSetLayout, m_owDDGIHelper.m_probeVis.visSetLayout };
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCInfo { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pipelineLayoutCInfo.pushConstantRangeCount = 1;
     pipelineLayoutCInfo.pPushConstantRanges = &bufferRange;
-	pipelineLayoutCInfo.setLayoutCount = 1;
-	pipelineLayoutCInfo.pSetLayouts = &m_descriptorSetLayout;
+	pipelineLayoutCInfo.setLayoutCount = 3;
+	pipelineLayoutCInfo.pSetLayouts = sets.data();
 
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
 
@@ -375,23 +377,34 @@ void HyacinthEngine::createDescriptorSets()
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float) (1.f / MAX_FRAMES_IN_FLIGHT) } // for shadows, only 1 (not 3)
     };
 
-    m_descriptorAllocator.initPool(m_device, MAX_FRAMES_IN_FLIGHT, sizes);
+    m_descriptorAllocator.initPool(m_device, MAX_FRAMES_IN_FLIGHT * 2, sizes);
 
     {
 		DescriptorLayoutBuilder layoutBuilder;
         layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-        layoutBuilder.addBinding(1, m_scene.numTextures + 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-        layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // shadow map
+        layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // shadow map
 		m_descriptorSetLayout = layoutBuilder.buildLayout(m_device, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
+    }
+
+    {
+        DescriptorLayoutBuilder layoutBuilder;
+        layoutBuilder.addBinding(0, m_scene.numTextures + 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+        m_textureSetLayout = layoutBuilder.buildLayout(m_device, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
     }
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         m_frameData[i].descriptorSet = m_descriptorAllocator.allocate(m_device, m_descriptorSetLayout);
+        m_frameData[i].textureSet = m_descriptorAllocator.allocate(m_device, m_textureSetLayout);
 
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = m_frameData[i].uniformBuffer.buffer;
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(UBO);
+
+        VkDescriptorImageInfo depthImageInfo{};
+        depthImageInfo.imageView = m_shadowHelper.completeView;
+        depthImageInfo.sampler = m_shadowHelper.sampler;
+        depthImageInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
 
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -402,24 +415,19 @@ void HyacinthEngine::createDescriptorSets()
         descriptorWrite.descriptorCount = 1;
         descriptorWrite.pBufferInfo = &bufferInfo;
 
-		vkUpdateDescriptorSets(m_device, 1, &descriptorWrite, 0, nullptr);
-
-        m_scene.uploadTextures(m_device, m_frameData[i].descriptorSet);
-
-        VkDescriptorImageInfo depthImageInfo{};
-        depthImageInfo.imageView = m_shadowHelper.completeView;
-        depthImageInfo.sampler = m_shadowHelper.sampler;
-        depthImageInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
-
         VkWriteDescriptorSet descriptorShadowWrite{};
         descriptorShadowWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorShadowWrite.dstSet = m_frameData[i].descriptorSet;
-        descriptorShadowWrite.dstBinding = 2;
+        descriptorShadowWrite.dstBinding = 1;
         descriptorShadowWrite.dstArrayElement = 0;
         descriptorShadowWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorShadowWrite.descriptorCount = 1;
         descriptorShadowWrite.pImageInfo = &depthImageInfo;
-        vkUpdateDescriptorSets(m_device, 1, &descriptorShadowWrite, 0, nullptr);
+
+        std::array< VkWriteDescriptorSet, 2> descriptorWrites = { descriptorWrite, descriptorShadowWrite };
+        vkUpdateDescriptorSets(m_device, 2, descriptorWrites.data(), 0, nullptr);
+
+        m_scene.uploadTextures(m_device, m_frameData[i].textureSet);
     }
 }
 
@@ -505,16 +513,16 @@ void HyacinthEngine::init()
 
     createDescriptorSets();
 
+    m_rtHelper.setup(m_devContext, m_scene);
+
+    m_owDDGIHelper.setup(m_devContext, &m_rtHelper, m_textureSetLayout);
+    m_owDDGIHelper.createProbeVisualizationStructures(m_devContext, m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
+
     createGraphicsPipeline();
 
     setupImGUI();
 
-    m_rtHelper.setup(m_devContext, m_scene);
-
-    m_owDDGIHelper.setup(m_devContext, &m_rtHelper);
-    m_owDDGIHelper.createProbeVisualizationStructures(m_devContext, m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
-
-    m_owDDGIHelper.bakeDDGI(m_devContext, m_scene);
+    m_owDDGIHelper.bakeDDGI(m_devContext, m_scene, m_frameData[0].textureSet);
     std::cout << "baked imge ///////////////////////////////////////////" << std::endl;
 
     m_initialized = true;
@@ -652,13 +660,15 @@ void HyacinthEngine::draw()
 	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
+    std::array<VkDescriptorSet, 3> sets = { m_frameData[m_frameIndex].descriptorSet, m_frameData[m_frameIndex].textureSet, m_owDDGIHelper.m_probeVis.visSet };
+
     vkCmdBindDescriptorSets(
         cmd,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         m_pipelineUtil.m_pipeline.layout,
         0,
-        1,
-        &m_frameData[m_frameIndex].descriptorSet,
+        3,
+        sets.data(),
         0,
         nullptr
     );
@@ -667,8 +677,9 @@ void HyacinthEngine::draw()
     pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
     pushConstants.materialAddress = m_materialBuffer.gpuAddress;
     pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
+    pushConstants.probePositionAddress = m_owDDGIHelper.m_probeVolume.probePositionBuffer.gpuAddress;
 
-    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
     VkViewport viewport{};
     viewport.x = 0.0f;

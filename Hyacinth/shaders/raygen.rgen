@@ -4,42 +4,30 @@
 #extension GL_EXT_buffer_reference : enable
 
 #include "probeCommon.glsl"
+#include "bufferInfo.glsl"
 
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 layout(set = 0, binding = 1) uniform writeonly image2DArray rayDataImage;
-
 layout(location = 0) rayPayloadEXT vec4 hitValue;
-
-layout(buffer_reference, std430) readonly buffer ProbePositionBuffer{
-	vec4 positions[];
-};
-
-layout(buffer_reference, std430) readonly buffer VertexBuffer {
-	vec3 vertices[];
-};
-
-layout(buffer_reference, std430) readonly buffer IndexBuffer {
-	uvec3 trianges[];
-};
 
 layout( push_constant ) uniform constants
 {
 	ProbePositionBuffer probePosAddress;
 	VertexBuffer vertexBufferAddress;
 	IndexBuffer indexBufferAddress;
+	MaterialIntBuffer materialBuffer;
 } pc;
 
 void main() 
 {
-	uint rayIndex = gl_LaunchIDEXT.x;
-	uint probeIndexRow = gl_LaunchIDEXT.y;
-	uint probeLayer = gl_LaunchIDEXT.z;
-
-	uint probeIndex = (probeLayer * PROBES_PER_PLANE) + probeIndexRow;
-	ivec3 rayDataCoords = getRayDataTexelCoords(rayIndex, probeIndex);
+	uint probeIndex = (gl_LaunchIDEXT.z * PROBES_PER_PLANE) + gl_LaunchIDEXT.y; // x should be num rays, y should be num probes per layer, z should be num probes vertically
+	ivec3 rayDataCoords;
+	rayDataCoords.x = int(gl_LaunchIDEXT.x);
+	rayDataCoords.y = int(probeIndex % PROBES_PER_PLANE);
+	rayDataCoords.z = int(probeIndex / PROBES_PER_PLANE);
 
 	vec3 origin = pc.probePosAddress.positions[probeIndex].xyz;
-	vec3 dir = normalize(DDGISphericalFibonacci(rayIndex, RAYS_PER_PROBE));
+	vec3 dir = DDGISphericalFibonacci(float(gl_LaunchIDEXT.x), float(RAYS_PER_PROBE));
 
 	uint rayFlags = gl_RayFlagsOpaqueEXT;
 	uint cullMask = 0xff;

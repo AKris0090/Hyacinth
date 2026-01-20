@@ -46,7 +46,7 @@ void main() {
 		vec4 irradianceSample = imageLoad(irradianceMap, irradianceTexel);
 
 		// blend them with equal weight (rolling average)
-		vec4 blended = mix(irradianceSample, rayContribution, 0.5);
+		vec4 blended = mix(irradianceSample, vec4(rayContribution.xyz, 1.0), 0.5);
 
 		// store back in the irradiance map
 		imageStore(irradianceMap, irradianceTexel, blended);

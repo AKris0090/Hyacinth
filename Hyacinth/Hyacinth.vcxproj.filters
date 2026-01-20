@@ -261,5 +261,8 @@
     <None Include="shaders\irradianceBuild.comp">
       <Filter>Source Files\rendering\shaders\rt shaders</Filter>
     </None>
+    <None Include="shaders\bufferInfo.glsl">
+      <Filter>Source Files\rendering\shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

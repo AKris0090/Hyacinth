@@ -313,6 +313,9 @@ void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
         });
 
     vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
+
+    node->materialBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, node->materialIndex.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    vkdeviceutils::uploadToBuffer(ctx, node->materialBuffer, node->materialIndex.size() * sizeof(uint32_t), node->materialIndex.data());
 }
 
 void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
@@ -359,6 +362,10 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
                 }
                 for (const auto& i : prim.get()->indices) {
                     node.get()->indices.push_back(i + nodeVertOffset);
+                }
+
+                for (int i = 0; i < node.get()->indices.size() / 3; i++) {
+                    node.get()->materialIndex.push_back(obj.materials[primDrawData.materialIndex].baseColorIndex);
                 }
             }
             matrixID++;

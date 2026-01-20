@@ -1,6 +1,9 @@
 #version 460
 #extension GL_EXT_buffer_reference : require
 
+#include "probeCommon.glsl"
+#include "bufferInfo.glsl"
+
 #define SHADOW_MAP_CASCADE_COUNT 3
 
 layout	(location = 0) in vec4 inPosition;
@@ -25,34 +28,12 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
-layout(buffer_reference, std430) readonly buffer TransformBuffer{ 
-	mat4 model[];
-};
-
-struct Material {
-	int baseColorIndex;
-	int normalIndex;
-	int metalRoughIndex;
-};
-
-struct DrawData {
-	int transformIndex;
-	int materialIndex;
-};
-
-layout(buffer_reference, std430) readonly buffer MaterialBuffer{ 
-	Material mats[];
-};
-
-layout(buffer_reference, std430) readonly buffer DrawDataBuffer{
-	DrawData draws[];
-};
-
 layout( push_constant ) uniform constants
 {
 	TransformBuffer transformBuffer;
 	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
+	ProbePositionBuffer probePosBuffer;
 } PushConstants;
 
 void main() 

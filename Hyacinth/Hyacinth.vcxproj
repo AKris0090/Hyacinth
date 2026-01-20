@@ -199,6 +199,7 @@
     <Text Include="shaders\shader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\bufferInfo.glsl" />
     <None Include="shaders\closehit.rchit" />
     <None Include="shaders\irradianceBuild.comp" />
     <None Include="shaders\miss.rmiss" />

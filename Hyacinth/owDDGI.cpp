@@ -127,7 +127,7 @@ void owDDGI::createShaderBindingTable(DeviceContext& ctx, VkRayTracingPipelineCr
 	m_callableRegion.size = 0;
 }
 
-void owDDGI::createRaytracePipeline(DeviceContext& ctx)
+void owDDGI::createRaytracePipeline(DeviceContext& ctx, VkDescriptorSetLayout& textureLayout)
 {
 	enum StageIndices
 	{
@@ -171,17 +171,19 @@ void owDDGI::createRaytracePipeline(DeviceContext& ctx)
 	group.closestHitShader = eClosestHit;
 	shader_groups.push_back(group);
 
-	VkPushConstantRange pcRange{
-		.stageFlags = VK_SHADER_STAGE_ALL,
+	VkPushConstantRange ddgiPCRange{
+		.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR,
 		.offset = 0,
-		.size = sizeof(DDGIPushConstant)
+		.size = sizeof(ddgiPushConstant)
 	};
+
+	std::array<VkDescriptorSetLayout, 2> setLayouts = { m_descriptorLayout, textureLayout };
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	pipeline_layout_create_info.pushConstantRangeCount = 1;
-	pipeline_layout_create_info.pPushConstantRanges = &pcRange;
-	pipeline_layout_create_info.setLayoutCount = 1;
-	pipeline_layout_create_info.pSetLayouts = &m_descriptorLayout;
+	pipeline_layout_create_info.pPushConstantRanges = &ddgiPCRange;
+	pipeline_layout_create_info.setLayoutCount = 2;
+	pipeline_layout_create_info.pSetLayouts = setLayouts.data();
 	vkCreatePipelineLayout(*ctx.device, &pipeline_layout_create_info, nullptr, &m_rtPipelineLayout);
 
 	VkRayTracingPipelineCreateInfoKHR rtPipelineInfo{ .sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR };
@@ -225,18 +227,22 @@ void owDDGI::createComputeResources(DeviceContext& ctx) {
 	vkCreateComputePipelines(*ctx.device, VK_NULL_HANDLE, 1, &computePipelineCInfo, nullptr, &m_irradianceComputePipeline);
 }
 
-void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
+void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper, VkDescriptorSetLayout& textureLayout) {
 	m_rtHelper = rtHelper;
 	numProbes = PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH;
 
 	// test volume for sponza
-	m_probeVolume.transform.position = glm::vec3(-.3f, 6.4f, 0.0f);
-	m_probeVolume.transform.scale = glm::vec3(21.0f, 13.7, 9.4f);
+	m_probeVolume.transform.position = glm::vec3(-16.044f, -1.4202f, -9.08f);
+	m_probeVolume.transform.scale = glm::vec3(31.855, 13.78, 18.87);
 
 	// evenly disperse probes TODO: figure out why volume isn't matching up with blender
 	float xSpace = m_probeVolume.transform.scale.x / PROBE_DENSITY_WIDTH;
 	float ySpace = m_probeVolume.transform.scale.y / PROBE_DENSITY_HEIGHT;
 	float zSpace = m_probeVolume.transform.scale.z / PROBE_DENSITY_DEPTH;
+
+	glm::vec3 probeSpacing = glm::vec3(xSpace, ySpace, zSpace);
+	std::cout << glm::to_string(probeSpacing) << std::endl;
+
 	for (int i = 0; i < PROBE_DENSITY_HEIGHT; i++) {
 		std::vector<std::vector<glm::vec3>> probePlane;
 		for (int j = 0; j < PROBE_DENSITY_DEPTH; j++) {
@@ -249,15 +255,13 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 		m_probeVolume.probes.push_back(probePlane);
 	}
 
-	glm::vec3 posCorrection = m_probeVolume.transform.position;
-	posCorrection -= m_probeVolume.transform.scale / 2.f;
 	std::vector<glm::vec4> probePositions;
 	for (int i = 0; i < PROBE_DENSITY_HEIGHT; i++) {
 		for (int j = 0; j < PROBE_DENSITY_DEPTH; j++) {
 			for (int k = 0; k < PROBE_DENSITY_WIDTH; k++) {
 				// i controls y
 				// j controls z
-				probePositions.push_back(glm::vec4(m_probeVolume.probes[i][j][k] + posCorrection, 1.0f));
+				probePositions.push_back(glm::vec4(m_probeVolume.probes[i][j][k] + m_probeVolume.transform.position, 1.0f));
 			}
 		}
 	}
@@ -328,11 +332,11 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper) {
 
 	// create other RT resources
 	createRaytraceDescriptors(ctx);
-	createRaytracePipeline(ctx);
+	createRaytracePipeline(ctx, textureLayout);
 	createComputeResources(ctx);
 }
 
-void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene) {
+void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene, VkDescriptorSet& textureSet) {
 	std::cout << "baking DDGI" << std::endl;
 
 	gltfNode* node = m_scene.objects[0].nodes[0].get();
@@ -345,6 +349,7 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene) {
 		};
 		vertices.push_back(vD);
 	}
+	m_probeVolume.materialIndexAddress = node->materialBuffer.gpuAddress;
 
 	VkDeviceSize vertexBufferSize = vertices.size() * sizeof(DDGIVertex);
 	VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
@@ -387,15 +392,20 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene) {
 		vkimageutils::transitionImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		vkCmdClearColorImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
 		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescriptorSet, 0, nullptr);
 
-		DDGIPushConstant pc{
+		std::array<VkDescriptorSet, 2> sets = { m_rtDescriptorSet, textureSet };
+
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 2, sets.data(), 0, nullptr);
+
+		ddgiPushConstant ddgiPC{
 			.probePositionBufferAddress = m_probeVolume.probePositionBuffer.gpuAddress,
 			.vertexAddress = m_rtHelper->vertexBuffer.gpuAddress,
 			.indexAddress = m_rtHelper->indexBuffer.gpuAddress,
+			.materialIndexAddress = m_probeVolume.materialIndexAddress
 		};
-		vkCmdPushConstants(cmd, m_rtPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(DDGIPushConstant), &pc);
+		vkCmdPushConstants(cmd, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);
 
+		// x should be num rays, y should be num probes per layer, z should be num probes vertically
 		rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, RAYS_PER_PROBE, PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
 
 		vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
