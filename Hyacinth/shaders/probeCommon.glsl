@@ -10,7 +10,7 @@ const int PROBE_TILE_WIDTH = 8;
 const int PROBE_TILE_HEIGHT = 8;
 const int PROBE_BORDER = 1;
 
-const int RAYS_PER_PROBE = 100;
+const int RAYS_PER_PROBE = 500;
 
 const float PI = 3.141592653;
 
@@ -87,36 +87,24 @@ layout(buffer_reference, std430) readonly buffer ProbePositionBuffer {
     vec3 positions[];
 };
 
-const vec3 volumePos = vec3(-0.3, 6.4, 0.0);
-const vec3 probeSpacing = vec3(1.05, 0.9786, 0.97);
-const ivec3 probeCounts = ivec3(PROBE_DENSITY_WIDTH, PROBE_DENSITY_HEIGHT, PROBE_DENSITY_WIDTH);
+const vec3 volumePos = vec3(-16.044f, -1.4202f, -9.08f);
+const vec3 probeSpacing = vec3(1.592750, 0.984286, 0.943500);
+const vec3 invProbeSpacing = vec3(1.0 / 1.592750, 1.0 / 0.984286, 1.0 / 0.943500);
+const ivec3 probeCounts = ivec3(PROBE_DENSITY_WIDTH, PROBE_DENSITY_HEIGHT, PROBE_DENSITY_DEPTH);
 
-int ProbeCoordsToIndex(ivec3 probeCoords)
+int ProbeCoordsToIndex(ivec3 p)
 {
-    return probeCoords.x
-        + probeCoords.y * probeCounts.x
-        + probeCoords.z * probeCounts.x * probeCounts.y;
+    return p.x
+        + p.z * probeCounts.x
+        + p.y * probeCounts.x * probeCounts.z;
 }
 
 ivec3 getBaseProbeCoords(vec3 worldPos) {
-    // vector from volume origin to world pos
-    vec3 position = worldPos - volumePos;
-
-    // Shift from [-n/2, n/2] to [0, n] (grid space)
-    position += (probeSpacing * (probeCounts - 1)) * 0.5;
-
-    // Quantize the position to grid space
-    ivec3 probeCoords = ivec3(position / probeSpacing);
-
-    // Clamp to [0, probeCounts - 1]
-    // Snaps positions outside of grid to the grid edge
-    probeCoords = clamp(probeCoords, ivec3(0, 0, 0), (probeCounts - ivec3(1, 1, 1)));
-
-    return probeCoords;
+    return clamp(ivec3((worldPos - volumePos) * invProbeSpacing), ivec3(0), probeCounts - ivec3(1));
 }
 
 vec3 getProbeWorldPos(ivec3 baseCoords) {
-    return volumePos + baseCoords * probeSpacing;
+    return baseCoords * probeSpacing + volumePos;
 }
 
 vec3 getSurfaceBias(vec3 normal, vec3 camDir) {

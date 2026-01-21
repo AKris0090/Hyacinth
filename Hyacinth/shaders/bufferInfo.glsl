@@ -37,5 +37,5 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer {
 };
 
 layout(buffer_reference, std430) readonly buffer IndexBuffer {
-	uvec3 triangles[];
+	uint indices[];
 };

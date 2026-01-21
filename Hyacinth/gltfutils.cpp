@@ -289,8 +289,8 @@ void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
     }
     VkDeviceSize vertexBufferSize = positions.size() * sizeof(glm::vec3);
     VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
-    node->nodeVertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
-    node->nodeIndexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    node->accelStructureVertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    node->accelStructureIndexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
 
     VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
@@ -308,8 +308,8 @@ void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
     indexCopyRegion.size = indexBufferSize;
 
     vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
-        vkCmdCopyBuffer(cmd, staging.buffer, node->nodeVertexBuffer.buffer, 1, &vertexCopyRegion);
-        vkCmdCopyBuffer(cmd, staging.buffer, node->nodeIndexBuffer.buffer, 1, &indexCopyRegion);
+        vkCmdCopyBuffer(cmd, staging.buffer, node->accelStructureVertexBuffer.buffer, 1, &vertexCopyRegion);
+        vkCmdCopyBuffer(cmd, staging.buffer, node->accelStructureIndexBuffer.buffer, 1, &indexCopyRegion);
         });
 
     vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
@@ -364,7 +364,7 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
                     node.get()->indices.push_back(i + nodeVertOffset);
                 }
 
-                for (int i = 0; i < node.get()->indices.size() / 3; i++) {
+                for (int i = 0; i < prim.get()->indices.size() / 3; i++) {
                     node.get()->materialIndex.push_back(obj.materials[primDrawData.materialIndex].baseColorIndex);
                 }
             }

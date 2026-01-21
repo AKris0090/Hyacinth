@@ -43,8 +43,6 @@ private:
 
 public:
 	AccelerationStructure				m_tlAccelStrucutre;
-	VulkanBuffer vertexBuffer;
-	VulkanBuffer indexBuffer;
 
 	void setup(DeviceContext& ctx, SceneGraph& scene);
 

@@ -11,7 +11,7 @@ constexpr int PROBE_DENSITY_WIDTH = 20;  // x
 constexpr int PROBE_DENSITY_HEIGHT = 14;  // y
 constexpr int PROBE_DENSITY_DEPTH = 20;  // z
 
-constexpr int RAYS_PER_PROBE = 100;
+constexpr int RAYS_PER_PROBE = 500;
 
 constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;
@@ -84,6 +84,9 @@ private:
 	VkPipeline						m_irradianceComputePipeline{};
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
 	VkDescriptorSet					m_computeDescriptorSet{};
+
+	VulkanBuffer closestHitVertexBuffer;
+	VulkanBuffer closestHitIndexBuffer;
 
 	void createRaytraceDescriptors(DeviceContext& ctx);
 	void createRaytracePipeline(DeviceContext& ctx, VkDescriptorSetLayout& textureLayout);

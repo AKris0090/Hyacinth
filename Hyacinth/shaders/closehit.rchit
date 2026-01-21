@@ -22,25 +22,7 @@ layout( push_constant ) uniform constants
 } pc;
 
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float lightIntensity = 8.0;
-
-Vertex unpack(uint index)
-{
-	// Unpack the vertices from the SSBO using the glTF vertex structure
-	// The multiplier is the size of the vertex divided by four float components (=16 bytes)
-	const int m = ubo.vertexSize / 16;
-
-	vec4 d0 = vertices.v[m * index + 0];
-	vec4 d1 = vertices.v[m * index + 1];
-	vec4 d2 = vertices.v[m * index + 2];
-
-	Vertex v;
-	v.pos = d0.xyz;
-	v.normal = vec3(d0.w, d1.x, d1.y);
-	v.color = vec4(d2.x, d2.y, d2.z, 1.0);
-
-	return v;
-}
+const float lightIntensity = 2.0;	
 
 void main()
 {
@@ -49,14 +31,15 @@ void main()
 	if (gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT) {
 		distance = gl_RayTminEXT + gl_HitTEXT;
 	} else {
+		ivec3 index = ivec3(pc.indexBufferAddress.indices[3 * gl_PrimitiveID], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 1], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 2]);
 		float b = barycentricWeights.x;
         float c = barycentricWeights.y;
         float a = 1 - b - c;
 
-		uvec3 tri = pc.indexBufferAddress.triangles[gl_PrimitiveID];
-		Vertex v0 = pc.vertexBufferAddress.vertices[tri.x];
-		Vertex v1 = pc.vertexBufferAddress.vertices[tri.y];
-		Vertex v2 = pc.vertexBufferAddress.vertices[tri.z];
+		Vertex v0 = pc.vertexBufferAddress.vertices[index.x];
+		Vertex v1 = pc.vertexBufferAddress.vertices[index.y];
+		Vertex v2 = pc.vertexBufferAddress.vertices[index.z];
+
 		vec3 normal = normalize(a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz);
 
 		vec2 uv0 = vec2(v0.position.w, v0.normal.w);
@@ -83,11 +66,11 @@ void main()
 
 		vec3 intensity = vec3(0.0);
 		if(nDotL > 0.001 && !shadowed) {
-			//intensity += lightIntensity * nDotL;
+			intensity += lightIntensity * nDotL;
 		}
-		vec3 diffuse = albedo;
+		vec3 diffuse = albedo * intensity;
 
-		radiance = normal.xyz;
+		radiance = diffuse.xyz;
 		distance = gl_RayTminEXT + gl_HitTEXT;
 	}
 	hitValue = vec4(radiance, distance);

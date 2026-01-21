@@ -353,8 +353,8 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene, VkDescriptorSet& 
 
 	VkDeviceSize vertexBufferSize = vertices.size() * sizeof(DDGIVertex);
 	VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
-	m_rtHelper->vertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
-	m_rtHelper->indexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+	closestHitVertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+	closestHitIndexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
 
 	VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
@@ -372,8 +372,8 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene, VkDescriptorSet& 
 	indexCopyRegion.size = indexBufferSize;
 
 	vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
-		vkCmdCopyBuffer(cmd, staging.buffer, m_rtHelper->vertexBuffer.buffer, 1, &vertexCopyRegion);
-		vkCmdCopyBuffer(cmd, staging.buffer, m_rtHelper->indexBuffer.buffer, 1, &indexCopyRegion);
+		vkCmdCopyBuffer(cmd, staging.buffer, closestHitVertexBuffer.buffer, 1, &vertexCopyRegion);
+		vkCmdCopyBuffer(cmd, staging.buffer, closestHitIndexBuffer.buffer, 1, &indexCopyRegion);
 		});
 
 	vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
@@ -399,8 +399,8 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene, VkDescriptorSet& 
 
 		ddgiPushConstant ddgiPC{
 			.probePositionBufferAddress = m_probeVolume.probePositionBuffer.gpuAddress,
-			.vertexAddress = m_rtHelper->vertexBuffer.gpuAddress,
-			.indexAddress = m_rtHelper->indexBuffer.gpuAddress,
+			.vertexAddress = closestHitVertexBuffer.gpuAddress,
+			.indexAddress = closestHitIndexBuffer.gpuAddress,
 			.materialIndexAddress = m_probeVolume.materialIndexAddress
 		};
 		vkCmdPushConstants(cmd, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);

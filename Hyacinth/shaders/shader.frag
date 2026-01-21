@@ -107,7 +107,7 @@ float textureProj(vec4 shadowCoord, vec2 offset, uint cascadeIndex)
 	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
 		float dist = texture(shadowDepthMap, vec3(shadowCoord.st + offset, cascadeIndex)).r;
 		if (shadowCoord.w > 0 && dist < shadowCoord.z - scaledBias) {
-			shadow = 0.0;
+			shadow = 0.1;
 		}
 	}
 	return shadow;
@@ -133,13 +133,10 @@ float filterPCF(vec4 sc, uint cascadeIndex)
 	return shadowFactor / count;
 }
 
-vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos, ProbePositionBuffer probeBuff) {
+vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
     const vec3 Wo = normalize(cameraPos.xyz - worldPosition);
-    const float minimum_distance_between_probes = 1.0f;
-    vec3 surfaceBias = (normal * 0.2f + Wo * 0.8f) * (0.75f * minimum_distance_between_probes) * 0.05; // last is self-shadow bias
-
-    vec3 irradiance = vec3(0.0);
-    float accumulatedWeights = 0.0;
+    const float minimum_distance_between_probes = 0.9435000;
+    vec3 surfaceBias = (normal * 0.2f + Wo * 0.8f) * (0.75f * minimum_distance_between_probes) * 0.3; // last is self-shadow bias
 
     ivec3 textureSize = textureSize(irradianceTex, 0);
     vec3 biasedWorldPos = (worldPosition + surfaceBias);
@@ -148,6 +145,9 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos, ProbePos
     vec3 baseProbeWorldPosition = getProbeWorldPos(baseProbeCoords);
 
     vec3 alpha = clamp((biasedWorldPos - baseProbeWorldPosition) / probeSpacing, vec3(0.0), vec3(1.0));
+
+    vec3 sumIrradiance = vec3(0.0);
+    float accumulatedWeights = 0.0;
 
     for (int probeIndex = 0; probeIndex < 8; ++probeIndex) {
         ivec3 offset = ivec3(probeIndex, probeIndex >> 1, probeIndex >> 2) & ivec3(1, 1, 1);
@@ -172,7 +172,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos, ProbePos
             weight *= (weight * weight) * (1.f / (crushThreshold * crushThreshold));
         }
 
-        vec2 probeUV = oct_encode(probeToBiasedPoint) * 0.5 + 0.5;
+        vec2 probeUV = oct_encode(-probeToBiasedPoint) * 0.5 + 0.5;
 
         int altProbeIndex = ProbeCoordsToIndex(adjacentProbeCoords);
         ivec3 base = getAtlasPosition(altProbeIndex);
@@ -185,16 +185,14 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos, ProbePos
 
         weight *= trilinear.x * trilinear.y * trilinear.z + 0.001f;
 
-        irradiance += (weight * probeIrradiance);
+        sumIrradiance += (weight * probeIrradiance);
         accumulatedWeights += weight;
     }
 
-    vec3 net_irradiance = irradiance / accumulatedWeights;
+    vec3 netIrradiance = sumIrradiance / accumulatedWeights;
 
-    vec3 retIrr = 0.5f * PI * net_irradiance * 0.95f;
-    //return retIrr;
-
-    return normalize(baseProbeWorldPosition);
+    vec3 irradiance = 0.5f * PI * netIrradiance * 0.95f;
+    return irradiance;
 }
 
 void main() {
@@ -210,7 +208,7 @@ void main() {
         vec3 L = normalize(ubo.lightPos.xyz - fragPos.xyz);
         vec3 H = normalize(V + L);
 
-        vec3 radiance = lightColor * vec3(9.0);
+        vec3 radiance = lightColor * vec3(6.0);
 
         vec3 F0 = vec3(0.04); 
         F0      = mix(F0, sampledColor.rgb, metalRough.b);
@@ -230,7 +228,7 @@ void main() {
         Lo += (kD * sampledColor.rgb / PI + specular) * radiance * NdotL;
     }
 
-    vec3 ambient = DDGIGetIrradiance(fragPos.xyz, inNormal.xyz, ubo.viewPos.xyz, pc.probePosBuffer);
+    vec3 ambient = DDGIGetIrradiance(fragPos.xyz, inNormal.xyz, ubo.viewPos.xyz);
 
     uint cascadeIndex = 0;
 	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
@@ -242,9 +240,9 @@ void main() {
     vec4 shadowCoord = (biasMat * ubo.cascadeViewProj[cascadeIndex]) * vec4(fragPos.xyz, 1.0);	 
 	float shadow = filterPCF(shadowCoord / shadowCoord.w, cascadeIndex);
 
-    vec3 color = ambient;// + (Lo * shadow);
+    vec3 color = ambient + (Lo * shadow);
 
-    outColor = vec4(inNormal.xyz, 1.0f);
+    outColor = vec4(color, 1.0f);
 
     if (ubo.viewPos.w == 0.0) {
 		switch(cascadeIndex) {

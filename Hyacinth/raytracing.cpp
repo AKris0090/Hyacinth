@@ -48,11 +48,11 @@ static void primitiveToGeometry(gltfNode* node, VkAccelerationStructureGeometryK
     VkAccelerationStructureGeometryTrianglesDataKHR triangles{
         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
         .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
-        .vertexData = {.deviceAddress = node->nodeVertexBuffer.gpuAddress },
+        .vertexData = {.deviceAddress = node->accelStructureVertexBuffer.gpuAddress },
         .vertexStride = sizeof(glm::vec3),
         .maxVertex = static_cast<uint32_t>(node->vertices.size()) - 1,
         .indexType = VK_INDEX_TYPE_UINT32,
-        .indexData = {.deviceAddress = node->nodeIndexBuffer.gpuAddress },
+        .indexData = {.deviceAddress = node->accelStructureIndexBuffer.gpuAddress },
     };
 
     geometry = VkAccelerationStructureGeometryKHR{

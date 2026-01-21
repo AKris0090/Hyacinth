@@ -57,7 +57,7 @@ void main()
 	metalRoughSamplerIndex = mat.metalRoughIndex;
 
 	viewPos = (ubo.view * vec4(fragPos.xyz, 1.0));
-	outNormal = vec4(mat3(transpose(inverse(model))) * inNormal.xyz, 1.0);
+	outNormal = inNormal;
 
 	outUV.x		= inPosition.w;
 	outUV.y		= inNormal.w;
