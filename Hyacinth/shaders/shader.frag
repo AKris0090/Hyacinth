@@ -135,7 +135,7 @@ float filterPCF(vec4 sc, uint cascadeIndex)
 
 vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
     const vec3 Wo = normalize(cameraPos.xyz - worldPosition);
-    const float minimum_distance_between_probes = 0.9435000;
+    const float minimum_distance_between_probes = 1.0;
     vec3 surfaceBias = (normal * 0.2f + Wo * 0.8f) * (0.75f * minimum_distance_between_probes) * 0.3; // last is self-shadow bias
 
     ivec3 textureSize = textureSize(irradianceTex, 0);
@@ -155,24 +155,26 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
 
         vec3  adjacentProbeWorldPos = getProbeWorldPos(adjacentProbeCoords);
 
-        vec3 trilinear = mix(1.0 - alpha, alpha, offset);
-        float  weight = 1.0;
+        vec3 worldToAdjProbe = normalize(adjacentProbeWorldPos - worldPosition);
+        vec3 biasedToAdjProbe = normalize(adjacentProbeWorldPos - biasedWorldPos);
+        float biasedPosToAdjProbeDist = length(adjacentProbeWorldPos - biasedWorldPos);
 
-        vec3 dirToProbe = normalize(adjacentProbeWorldPos - worldPosition);
-        const float directionDotN = (dot(dirToProbe, normal) + 1.0) * 0.5f;
-        weight *= (directionDotN * directionDotN) + 0.2;
+        vec3 trilinear = max(vec3(0.001f), mix(1.f - alpha, alpha, offset));
+        float trilinearWeight = (trilinear.x * trilinear.y * trilinear.z);
+        float weight = 1.0;
 
-        vec3 probeToBiasedPoint = biasedWorldPos - adjacentProbeWorldPos;
-        float distToBiasedPos = length(probeToBiasedPoint);
-        probeToBiasedPoint *= 1.0 / distToBiasedPos;
+        float wrapShading = (dot(worldToAdjProbe, normal) + 1.0) * 0.5;
+        weight *= (wrapShading * wrapShading) + 0.2;
 
         weight = max(0.000001f, weight);
         const float crushThreshold = 0.2f;
-        if (weight < crushThreshold) {
+        if (weight < crushThreshold)
+        {
             weight *= (weight * weight) * (1.f / (crushThreshold * crushThreshold));
         }
+        weight *= trilinearWeight;
 
-        vec2 probeUV = oct_encode(-probeToBiasedPoint) * 0.5 + 0.5;
+        vec2 probeUV = oct_encode(-biasedToAdjProbe) * 0.5 + 0.5;
 
         int altProbeIndex = ProbeCoordsToIndex(adjacentProbeCoords);
         ivec3 base = getAtlasPosition(altProbeIndex);
@@ -181,9 +183,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         atlasUV.x = (float(base.x) + probeUV.x * float(PROBE_INNER_RES)) / float(textureSize.x);
         atlasUV.y = (float(base.y) + probeUV.y * float(PROBE_INNER_RES)) / float(textureSize.y);
 
-        vec3 probeIrradiance = texture(irradianceTex, vec3(atlasUV, base.z), 0).xyz;
-
-        weight *= trilinear.x * trilinear.y * trilinear.z + 0.001f;
+        vec3 probeIrradiance = texture(irradianceTex, vec3(atlasUV, base.z)).xyz;
 
         sumIrradiance += (weight * probeIrradiance);
         accumulatedWeights += weight;
@@ -204,31 +204,29 @@ void main() {
     vec3 V    = normalize(ubo.viewPos.xyz - fragPos.xyz);
 
     vec3 Lo = vec3(0.0);
-    for (int i = 0; i < 1; i++) {
-        vec3 L = normalize(ubo.lightPos.xyz - fragPos.xyz);
-        vec3 H = normalize(V + L);
+    vec3 L = normalize(ubo.lightPos.xyz - fragPos.xyz);
+    vec3 H = normalize(V + L);
 
-        vec3 radiance = vec3(6.0);
+    vec3 radiance = vec3(6.0);
 
-        vec3 F0 = vec3(0.04); 
-        F0      = mix(F0, sampledColor.rgb, metalRough.b);
-        vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    vec3 F0 = vec3(0.04); 
+    F0      = mix(F0, sampledColor.rgb, metalRough.b);
+    vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
-        float NDF = DistributionGGX(N, H, metalRough.g);
-        float G   = GeometrySmith(N, V, L, metalRough.g);  
-        vec3 numerator = NDF * G * F;
-        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = numerator / denominator;
+    float NDF = DistributionGGX(N, H, metalRough.g);
+    float G   = GeometrySmith(N, V, L, metalRough.g);  
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
 
-        vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metalRough.b;
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metalRough.b;
 
-        float NdotL = max(dot(N, L), 0.0);
-        Lo += (kD * sampledColor.rgb / PI + specular) * radiance * NdotL;
-    }
+    float NdotL = max(dot(N, L), 0.0);
+    Lo += (kD * sampledColor.rgb / PI + specular) * radiance * NdotL;
 
-    vec3 ambient = DDGIGetIrradiance(fragPos.xyz, inNormal.xyz, ubo.viewPos.xyz);
+    vec3 ambient = DDGIGetIrradiance(fragPos.xyz, N, ubo.viewPos.xyz) * kD;
 
     uint cascadeIndex = 0;
 	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
@@ -240,21 +238,7 @@ void main() {
     vec4 shadowCoord = (biasMat * ubo.cascadeViewProj[cascadeIndex]) * vec4(fragPos.xyz, 1.0);	 
 	float shadow = filterPCF(shadowCoord / shadowCoord.w, cascadeIndex);
 
-    vec3 color = (ambient * (1.0 - shadow)) + (Lo * shadow);
+    vec3 color = ambient + Lo * shadow;
 
     outColor = vec4(color, 1.0f);
-
-    if (ubo.viewPos.w == 0.0) {
-		switch(cascadeIndex) {
-			case 0 : 
-				outColor.rgb *= vec3(1.0f, 0.25f, 0.25f);
-				break;
-			case 1 : 
-				outColor.rgb *= vec3(0.25f, 1.0f, 0.25f);
-				break;
-			case 2 : 
-				outColor.rgb *= vec3(0.25f, 0.25f, 1.0f);
-				break;
-		}
-	}
 }
