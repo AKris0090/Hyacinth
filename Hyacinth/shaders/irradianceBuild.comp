@@ -1,10 +1,11 @@
 #version 460
 #include "probeCommon.glsl"
+#define EPSILON 0.0001f
 
-layout(set = 0, binding = 0, rgba16f) uniform readonly image2DArray rayData;
+layout(set = 0, binding = 0) uniform sampler2DArray rayData;
 layout(set = 0, binding = 1, rgba16f) uniform image2DArray irradianceMap;
 
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 // source is local to the inner box, 0 indexed
 // so is dest
@@ -20,52 +21,87 @@ void storeBorder(ivec2 source, ivec2 dest, ivec3 probeAtlasPosition) {
 	imageStore(irradianceMap, samplePos, sampleCol);
 }
 
+int k_read_table[6] = {5, 3, 1, -1, -3, -5};
+
 void main() {
-	uvec3 probeCoord = gl_GlobalInvocationID;
-	int probeIndex = ((int(probeCoord.z) * PROBES_PER_PLANE) + (int(probeCoord.y) * PROBE_DENSITY_WIDTH) + int(probeCoord.x));
+	ivec3 coords = ivec3(gl_GlobalInvocationID.xyz);
 
-	ivec3 probeAtlasPosition = getAtlasPosition(probeIndex);
+	const uint probeWithBorder = PROBE_INNER_RES + 2;
+    const uint probeLastPixel = PROBE_INNER_RES + 1;
 
-	// for each ray (RAYS_PER_PROBE), I want to:
-	for(int i = 0; i < RAYS_PER_PROBE; i++) {
-		// get the ray direction
-		vec3 dir = DDGISphericalFibonacci(float(i), float(RAYS_PER_PROBE));
+	int probeIndex = probeIndexFromPixel(coords, probeWithBorder);
 
-		// get a UV from the normalized direction, uv -> (-1, 1)
-		vec2 uv = oct_encode(normalize(dir));
+	bool borderPixel = ((gl_GlobalInvocationID.x % probeWithBorder) == 0) || ((gl_GlobalInvocationID.x % probeWithBorder ) == probeLastPixel );
+    borderPixel = borderPixel || ((gl_GlobalInvocationID.y % probeWithBorder) == 0) || ((gl_GlobalInvocationID.y % probeWithBorder ) == probeLastPixel);
 
-		// scale the UV for a 6x6 texel patch
-		uv = (uv * 0.5 + 0.5) * 6.0;
-		ivec3 irradianceTexel = probeAtlasPosition;
-		irradianceTexel.xy += ivec2(uv);
-	
-		// sample from irradiance map and add the new position to it
-		ivec3 rayDataPos = getRayDataTexelCoords(i, probeIndex);
-		vec4 rayContribution = imageLoad(rayData, rayDataPos);
+	if (!borderPixel) {
+		vec4 result = vec4(0);
+		const float energyConservation = 0.95;
 
-		vec4 irradianceSample = imageLoad(irradianceMap, irradianceTexel);
+		uint backfaces = 0;
+		uint max_backfaces = uint(RAYS_PER_PROBE * 0.1f);
 
-		// blend them with equal weight (rolling average)
-		vec4 blended = mix(irradianceSample, vec4(rayContribution.xyz, 1.0), 0.5);
+		for(int rayIndex = 0; rayIndex < RAYS_PER_PROBE; rayIndex++) {
+			ivec3 samplePos = getRayDataTexelCoords(rayIndex, probeIndex);
 
-		// store back in the irradiance map
-		imageStore(irradianceMap, irradianceTexel, blended);
+			vec3 rayDir = DDGISphericalFibonacci(rayIndex, RAYS_PER_PROBE);
+
+			vec3 texelDirection = oct_decode(normalized_oct_coord(coords.xy, PROBE_INNER_RES));
+
+			float weight = max(0.0, dot(texelDirection, rayDir));
+
+			float distance2 = texelFetch(rayData, samplePos, 0).w;
+            if ( distance2 < 0.0f) {
+                ++backfaces;
+
+                // Early out: only blend ray radiance into the probe if the backface threshold hasn't been exceeded
+                if (backfaces >= max_backfaces)
+                    return;
+
+                continue;
+            }
+
+			if (weight >= EPSILON) {
+                vec3 radiance = texelFetch(rayData, samplePos, 0).rgb;
+                radiance.rgb *= energyConservation;
+
+                // Storing the sum of the weights in alpha temporarily
+                result += vec4(radiance * weight, weight);
+            }
+		}
+
+		if (result.w > EPSILON) {
+            result.xyz /= result.w;
+            result.w = 1.0f;
+        }
+
+		imageStore(irradianceMap, coords, result);
+		return;
 	}
 
-	storeBorder(ivec2(0, 0), ivec2(7, 7), probeAtlasPosition);
-	storeBorder(ivec2(5, 0), ivec2(0, 7), probeAtlasPosition);
-	storeBorder(ivec2(0, 5), ivec2(7, 0), probeAtlasPosition);
-	storeBorder(ivec2(5, 5), ivec2(0, 0), probeAtlasPosition);
+	groupMemoryBarrier();
+	barrier();
 
-	// rows
-	for(int i = 0; i < 6; i++) {
-		storeBorder(ivec2(i, 0), ivec2(6 - i, 0), probeAtlasPosition); // top row
-		storeBorder(ivec2(i, 5), ivec2(6 - i, 7), probeAtlasPosition); // bottom row
-	}
+	const uint probe_pixel_x = gl_GlobalInvocationID.x % probeWithBorder;
+	const uint probe_pixel_y = gl_GlobalInvocationID.y % probeWithBorder;
+	bool corner_pixel = (probe_pixel_x == 0 || probe_pixel_x == probeLastPixel) &&
+                        (probe_pixel_y == 0 || probe_pixel_y == probeLastPixel);
+	bool row_pixel = (probe_pixel_x > 0 && probe_pixel_x < probeLastPixel);
+	ivec3 source_pixel_coordinate = coords;
+    
+	if ( corner_pixel ) {
+        source_pixel_coordinate.x += probe_pixel_x == 0 ? PROBE_INNER_RES : -PROBE_INNER_RES;
+        source_pixel_coordinate.y += probe_pixel_y == 0 ? PROBE_INNER_RES : -PROBE_INNER_RES;
+    }
+    else if ( row_pixel ) {
+        source_pixel_coordinate.x += k_read_table[probe_pixel_x - 1];
+        source_pixel_coordinate.y += (probe_pixel_y > 0) ? -1 : 1;
+    }
+    else {
+        source_pixel_coordinate.x += (probe_pixel_x > 0) ? -1 : 1;
+        source_pixel_coordinate.y += k_read_table[probe_pixel_y - 1];
+    }
 
-	// columns
-	for(int i = 0; i < 6; i++) {
-		storeBorder(ivec2(0, i), ivec2(0, 6 - i), probeAtlasPosition); // left column
-		storeBorder(ivec2(5, i), ivec2(7, 6 - i), probeAtlasPosition); // right column
-	}
+    vec4 copied_data = imageLoad( irradianceMap, source_pixel_coordinate);
+	imageStore( irradianceMap, coords, copied_data );
 }

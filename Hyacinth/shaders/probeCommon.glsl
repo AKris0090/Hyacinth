@@ -22,6 +22,20 @@ ivec3 getRayDataTexelCoords(uint rayIndex, uint probeIndex) {
     return coords;
 }
 
+int probeIndexFromPixel(ivec3 pixelCoord, uint probeWithBorder) {
+    int probeX = pixelCoord.x / int(probeWithBorder);
+    int probeZ = pixelCoord.y / int(probeWithBorder);
+    int layer = pixelCoord.z;
+
+    // Number of probes laid out per row (width) and per column (depth)
+    const int probesPerRow = PROBE_DENSITY_WIDTH;
+    const int probesPerSlice = PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH;
+
+    return probeX
+        + probeZ * probesPerRow
+        + layer * probesPerSlice;
+}
+
 float saturate(float inp) {
     return clamp(inp, 0.0, 1.0);
 }
@@ -50,6 +64,18 @@ ivec3 getAtlasPosition(int probeIndex)
     p.y = py * PROBE_TILE_HEIGHT + PROBE_BORDER;
 
     return p;
+}
+
+vec2 normalized_oct_coord(ivec2 fragCoord, int probe_side_length) {
+
+    int probe_with_border_side = probe_side_length + 2;
+    vec2 octahedral_texel_coordinates = ivec2((fragCoord.x - 1) % probe_with_border_side, (fragCoord.y - 1) % probe_with_border_side);
+
+    octahedral_texel_coordinates += vec2(0.5f);
+    octahedral_texel_coordinates *= (2.0f / float(probe_side_length));
+    octahedral_texel_coordinates -= vec2(1.0f);
+
+    return octahedral_texel_coordinates;
 }
 
 

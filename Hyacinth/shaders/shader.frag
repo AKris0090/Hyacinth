@@ -107,7 +107,7 @@ float textureProj(vec4 shadowCoord, vec2 offset, uint cascadeIndex)
 	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
 		float dist = texture(shadowDepthMap, vec3(shadowCoord.st + offset, cascadeIndex)).r;
 		if (shadowCoord.w > 0 && dist < shadowCoord.z - scaledBias) {
-			shadow = 0.1;
+			shadow = 0.0;
 		}
 	}
 	return shadow;
@@ -208,7 +208,7 @@ void main() {
         vec3 L = normalize(ubo.lightPos.xyz - fragPos.xyz);
         vec3 H = normalize(V + L);
 
-        vec3 radiance = lightColor * vec3(6.0);
+        vec3 radiance = vec3(6.0);
 
         vec3 F0 = vec3(0.04); 
         F0      = mix(F0, sampledColor.rgb, metalRough.b);
@@ -240,7 +240,7 @@ void main() {
     vec4 shadowCoord = (biasMat * ubo.cascadeViewProj[cascadeIndex]) * vec4(fragPos.xyz, 1.0);	 
 	float shadow = filterPCF(shadowCoord / shadowCoord.w, cascadeIndex);
 
-    vec3 color = ambient + (Lo * shadow);
+    vec3 color = (ambient * (1.0 - shadow)) + (Lo * shadow);
 
     outColor = vec4(color, 1.0f);
 

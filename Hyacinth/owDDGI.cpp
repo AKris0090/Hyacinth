@@ -4,7 +4,8 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
 	{
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1.f }, // accelstructure
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4.f }, // out images (2 for rayData/irradiancce, 2 for compute version)
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3.f }, // out images (2 for rayData/irradiancce, 2 for compute version)
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f },
 		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f }, // vertex and index buffer
 	};
 
@@ -21,7 +22,7 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 
 	{
 		DescriptorLayoutBuilder layoutBuilder;
-		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL); // rayData image
+		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_ALL); // rayData image
 		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL); // irradiance image
 		m_computeDescriptorLayout = layoutBuilder.buildLayout(*ctx.device, nullptr, 0);
 	}
@@ -61,8 +62,10 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 	vkUpdateDescriptorSets(*ctx.device, 1, writes.data(), 0, nullptr);
 
 
+	rayDataImageInfo.sampler = m_probeVolume.rayDataImage.imageSampler;
 	rayDataWrite.dstBinding = 0;
 	rayDataWrite.dstSet = m_computeDescriptorSet;
+	rayDataWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
 	VkDescriptorImageInfo irradianceImageInfo{};
 	irradianceImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -329,6 +332,7 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper, VkDescriptorSetLayout
 	samplerInfo.maxLod = 1.0f;
 	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 	VK_CHECK(vkCreateSampler(*ctx.device, &samplerInfo, nullptr, &m_probeVolume.irradianceImage.imageSampler));
+	VK_CHECK(vkCreateSampler(*ctx.device, &samplerInfo, nullptr, &m_probeVolume.rayDataImage.imageSampler));
 
 	// create other RT resources
 	createRaytraceDescriptors(ctx);
