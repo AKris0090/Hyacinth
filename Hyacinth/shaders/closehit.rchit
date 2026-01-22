@@ -22,7 +22,7 @@ layout( push_constant ) uniform constants
 } pc;
 
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float lightIntensity = 6.0;	
+const float lightIntensity = 25.0;	
 
 void main()
 {
