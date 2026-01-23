@@ -7,11 +7,11 @@
 #include "glm/gtx/string_cast.hpp"
 #include <array>
 
-constexpr int PROBE_DENSITY_WIDTH = 20;  // x
+constexpr int PROBE_DENSITY_WIDTH = 30;  // x
 constexpr int PROBE_DENSITY_HEIGHT = 14;  // y
 constexpr int PROBE_DENSITY_DEPTH = 20;  // z
 
-constexpr int RAYS_PER_PROBE = 500;
+constexpr int RAYS_PER_PROBE = 250;
 
 constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;
@@ -63,7 +63,7 @@ private:
 	rtHelper* m_rtHelper;
 
 	VkFormat m_irradFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
-	VkFormat m_depthFormat = VK_FORMAT_R16_UNORM;
+	VkFormat m_depthFormat = VK_FORMAT_R16G16_SFLOAT;
 
 	uint32_t numProbes;
 
@@ -82,6 +82,8 @@ private:
 	
 	VkPipelineLayout				m_irradianceComputePipelineLayout{};
 	VkPipeline						m_irradianceComputePipeline{};
+	VkPipelineLayout				m_visibilityComputePipelineLayout{};
+	VkPipeline						m_visibilityComputePipeline{};
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
 	VkDescriptorSet					m_computeDescriptorSet{};
 

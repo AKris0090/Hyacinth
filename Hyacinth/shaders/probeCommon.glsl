@@ -1,16 +1,22 @@
 #extension GL_EXT_buffer_reference : require
 
-const int PROBE_DENSITY_WIDTH = 20;
+const int PROBE_DENSITY_WIDTH = 30;
 const int PROBE_DENSITY_DEPTH = 20;
 const int PROBE_DENSITY_HEIGHT = 14;
 const int PROBES_PER_PLANE = PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH;
 
-const int PROBE_INNER_RES = 6;
-const int PROBE_TILE_WIDTH = 8;
-const int PROBE_TILE_HEIGHT = 8;
+const int IRRADIANCE_INNER_RES = 6;
+const int IRRADIANCE_TILE_WIDTH = 8;
+
+const int VISIBILITY_INNER_RES = 14;
+const int VISIBILITY_TILE_WIDTH = 16;
+
+const int VISIBIILITY_INNER_RES = 14;
+const int VISIBIILITY_TILE_WIDTH = 16;
+
 const int PROBE_BORDER = 1;
 
-const int RAYS_PER_PROBE = 500;
+const int RAYS_PER_PROBE = 250;
 
 const float PI = 3.141592653;
 
@@ -51,7 +57,7 @@ vec3 DDGISphericalFibonacci(float index, float numSamples)
     return normalize(vec3((cos(phi) * sinTheta), (sin(phi) * sinTheta), cosTheta));
 }
 
-ivec3 getAtlasPosition(int probeIndex)
+ivec3 getAtlasPosition(int probeIndex, int tileWidth)
 {
     ivec3 p;
     p.z = probeIndex / (PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH);
@@ -60,8 +66,8 @@ ivec3 getAtlasPosition(int probeIndex)
     int px = rem % PROBE_DENSITY_WIDTH;
     int py = rem / PROBE_DENSITY_WIDTH;
 
-    p.x = px * PROBE_TILE_WIDTH + PROBE_BORDER;
-    p.y = py * PROBE_TILE_HEIGHT + PROBE_BORDER;
+    p.x = px * tileWidth + PROBE_BORDER;
+    p.y = py * tileWidth + PROBE_BORDER;
 
     return p;
 }
@@ -114,8 +120,8 @@ layout(buffer_reference, std430) readonly buffer ProbePositionBuffer {
 };
 
 const vec3 volumePos = vec3(-16.044f, -1.4202f, -9.08f);
-const vec3 probeSpacing = vec3(1.592750, 0.984286, 0.943500);
-const vec3 invProbeSpacing = vec3(1.0 / 1.592750, 1.0 / 0.984286, 1.0 / 0.943500);
+const vec3 probeSpacing = vec3(1.061833, 0.984286, 0.943500);
+const vec3 invProbeSpacing = vec3(1.0 / 1.061833, 1.0 / 0.984286, 1.0 / 0.943500);
 const ivec3 probeCounts = ivec3(PROBE_DENSITY_WIDTH, PROBE_DENSITY_HEIGHT, PROBE_DENSITY_DEPTH);
 
 int ProbeCoordsToIndex(ivec3 p)

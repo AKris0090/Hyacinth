@@ -22,14 +22,15 @@ layout( push_constant ) uniform constants
 } pc;
 
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float lightIntensity = 25.0;	
+const float lightIntensity = 13.0;	
 
 void main()
 {
 	vec3 radiance = vec3(0.0);
 	float distance = 0.0;
+	distance = gl_RayTminEXT + gl_HitTEXT;
 	if (gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT) {
-		distance = gl_RayTminEXT + gl_HitTEXT;
+		distance *= -0.2;
 	} else {
 		ivec3 index = ivec3(pc.indexBufferAddress.indices[3 * gl_PrimitiveID], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 1], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 2]);
 		float b = barycentricWeights.x;
@@ -48,12 +49,10 @@ void main()
 		vec2 uv = a * uv0 + b * uv1 + c * uv2;
 
 		vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
-		distance = gl_RayTminEXT + gl_HitTEXT;
 
 		vec3 albedo = texture(globalTextures2D[pc.materialBuffer.mats[gl_PrimitiveID]], uv).rgb;
 
 		vec3 lightVector = normalize(lightPos); // directional light
-
 		const float nDotL = clamp(dot(normal, lightVector), 0.0, 1.0);
 
 		uint rayFlags = gl_RayFlagsOpaqueEXT | gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT;
@@ -61,17 +60,21 @@ void main()
 		float tmin = 0.01;
 		float tmax = 1000.0;
 
+		vec3 intensity = vec3(0.0);
+		if(nDotL > 0.001) {
+			intensity += lightIntensity * nDotL;
+		}
+
 		shadowed = true;
 		traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 1, worldPos, tmin, lightVector, tmax, 2);
 
-		vec3 intensity = vec3(0.0);
-		if(nDotL > 0.001 && !shadowed) {
-			intensity += lightIntensity * nDotL;
+		if(shadowed) {
+			intensity *= 0.0;
 		}
-		vec3 diffuse = albedo * intensity;
 
-		radiance = diffuse.xyz;
-		distance = gl_RayTminEXT + gl_HitTEXT;
+		vec3 diffuse = intensity;
+
+		radiance = albedo * diffuse.xyz;
 	}
 	hitValue = vec4(radiance, distance);
 }

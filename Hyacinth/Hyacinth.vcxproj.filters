@@ -264,5 +264,8 @@
     <None Include="shaders\bufferInfo.glsl">
       <Filter>Source Files\rendering\shaders</Filter>
     </None>
+    <None Include="shaders\visibilityBuild.comp">
+      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
