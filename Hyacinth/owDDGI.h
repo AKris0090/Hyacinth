@@ -99,8 +99,8 @@ public:
 	DDGIVolume m_probeVolume;
 	probeVisObjects	m_probeVis{};
 
-	void setup(DeviceContext& ctx, rtHelper* rtHelper, VkDescriptorSetLayout& textureLayout);
-	void bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene, VkDescriptorSet& textureSet);
+	void setup(DeviceContext& ctx, rtHelper* rtHelper, SceneGraph& m_scene, VkDescriptorSetLayout& textureLayout);
+	void bakeDDGI(DeviceContext& ctx, VkCommandBuffer& cmd, VkDescriptorSet& textureSet);
 
 	// probe visualization stuff
 	void createProbeVisualizationStructures(DeviceContext& ctx, VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);

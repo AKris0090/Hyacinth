@@ -515,14 +515,13 @@ void HyacinthEngine::init()
 
     m_rtHelper.setup(m_devContext, m_scene);
 
-    m_owDDGIHelper.setup(m_devContext, &m_rtHelper, m_textureSetLayout);
+    m_owDDGIHelper.setup(m_devContext, &m_rtHelper, m_scene, m_textureSetLayout);
     m_owDDGIHelper.createProbeVisualizationStructures(m_devContext, m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
 
     setupImGUI();
 
-    m_owDDGIHelper.bakeDDGI(m_devContext, m_scene, m_frameData[0].textureSet);
     std::cout << "baked imge ///////////////////////////////////////////" << std::endl;
 
     m_initialized = true;
@@ -650,6 +649,8 @@ void HyacinthEngine::draw()
 
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
+
+    m_owDDGIHelper.bakeDDGI(m_devContext, cmd, m_frameData[0].textureSet);
 
     // shadows
     drawShadowMaps(cmd);

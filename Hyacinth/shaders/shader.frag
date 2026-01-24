@@ -177,13 +177,12 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         visAtlasUV.y = (float(visBase.y) + probeUV.y * float(VISIBILITY_INNER_RES)) / float(visibilityTextureSize.y);
 
         vec2 filteredDistance = texture(visibilityTex, vec3(visAtlasUV, visBase.z)).rg;
-        float meanDistanceToSurface = filteredDistance.x;
         float variance = abs((filteredDistance.x * filteredDistance.x) - filteredDistance.y);
 
         float chebyshevWeight = 1.f;
-        if (biasedPosToAdjProbeDist > meanDistanceToSurface)
+        if (biasedPosToAdjProbeDist > filteredDistance.x)
         {
-            float v = biasedPosToAdjProbeDist - meanDistanceToSurface;
+            float v = biasedPosToAdjProbeDist - filteredDistance.x;
             chebyshevWeight = variance / (variance + (v * v));
 
             chebyshevWeight = max((chebyshevWeight * chebyshevWeight * chebyshevWeight), 0.f);

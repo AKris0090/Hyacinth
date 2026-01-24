@@ -5,8 +5,7 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 	{
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1.f }, // accelstructure
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4.f }, // out images (2 for rayData/irradiancce, 2 for compute version)
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2.f }, // vertex and index buffer
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3.f },
 	};
 
 	m_descriptorAllocator.initPool(*ctx.device, 2, sizes);
@@ -15,8 +14,8 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 		DescriptorLayoutBuilder layoutBuilder;
 		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_ALL);
 		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL); // rayData image
-		layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL); // vertex buffer
-		layoutBuilder.addBinding(3, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_ALL); // index buffer
+		layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR); // irradiance sampler
+		layoutBuilder.addBinding(3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR); // visibility sampler
 		m_descriptorLayout = layoutBuilder.buildLayout(*ctx.device, nullptr, 0);
 	}
 
@@ -43,10 +42,6 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 	descriptorWrite.descriptorCount = 1;
 
-	vkUpdateDescriptorSets(*ctx.device, 1, &descriptorWrite, 0, nullptr);
-
-	VkDescriptorBufferInfo vertexBufferInfo{};
-
 	VkDescriptorImageInfo rayDataImageInfo{};
 	rayDataImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 	rayDataImageInfo.imageView = m_probeVolume.rayDataImage.imageView;
@@ -59,9 +54,34 @@ void owDDGI::createRaytraceDescriptors(DeviceContext& ctx) {
 	rayDataWrite.descriptorCount = 1;
 	rayDataWrite.pImageInfo = &rayDataImageInfo;
 
-	std::array<VkWriteDescriptorSet, 1> writes = { rayDataWrite, };
-	vkUpdateDescriptorSets(*ctx.device, 1, writes.data(), 0, nullptr);
+	VkDescriptorImageInfo chIrradiance{};
+	chIrradiance.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	chIrradiance.imageView = m_probeVolume.irradianceImage.imageView;
+	chIrradiance.sampler = m_probeVolume.irradianceImage.imageSampler;
 
+	VkWriteDescriptorSet chIrradianceWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	chIrradianceWrite.dstSet = m_rtDescriptorSet;
+	chIrradianceWrite.dstBinding = 2;
+	chIrradianceWrite.dstArrayElement = 0;
+	chIrradianceWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	chIrradianceWrite.descriptorCount = 1;
+	chIrradianceWrite.pImageInfo = &chIrradiance;
+
+	VkDescriptorImageInfo chVisImage{};
+	chVisImage.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	chVisImage.imageView = m_probeVolume.visibilityImage.imageView;
+	chVisImage.sampler = m_probeVolume.visibilityImage.imageSampler;
+
+	VkWriteDescriptorSet chVisWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	chVisWrite.dstSet = m_rtDescriptorSet;
+	chVisWrite.dstBinding = 3;
+	chVisWrite.dstArrayElement = 0;
+	chVisWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	chVisWrite.descriptorCount = 1;
+	chVisWrite.pImageInfo = &chVisImage;
+
+	std::array<VkWriteDescriptorSet, 4> writes = { descriptorWrite, rayDataWrite, chIrradianceWrite, chVisWrite };
+	vkUpdateDescriptorSets(*ctx.device, 4, writes.data(), 0, nullptr);
 
 	rayDataImageInfo.sampler = m_probeVolume.rayDataImage.imageSampler;
 	rayDataImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -265,7 +285,7 @@ void owDDGI::createComputeResources(DeviceContext& ctx) {
 	vkCreateComputePipelines(*ctx.device, VK_NULL_HANDLE, 1, &computeVisPipelineCInfo, nullptr, &m_visibilityComputePipeline);
 }
 
-void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper, VkDescriptorSetLayout& textureLayout) {
+void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper, SceneGraph& m_scene, VkDescriptorSetLayout& textureLayout) {
 	m_rtHelper = rtHelper;
 	numProbes = PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH;
 
@@ -377,7 +397,6 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper, VkDescriptorSetLayout
 	samplerInfo.maxAnisotropy = 1.0f;
 	samplerInfo.minLod = 0.0f;
 	samplerInfo.maxLod = 1.0f;
-	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 	VK_CHECK(vkCreateSampler(*ctx.device, &samplerInfo, nullptr, &m_probeVolume.visibilityImage.imageSampler));
 	VK_CHECK(vkCreateSampler(*ctx.device, &samplerInfo, nullptr, &m_probeVolume.irradianceImage.imageSampler));
 	VK_CHECK(vkCreateSampler(*ctx.device, &samplerInfo, nullptr, &m_probeVolume.rayDataImage.imageSampler));
@@ -386,10 +405,7 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper, VkDescriptorSetLayout
 	createRaytraceDescriptors(ctx);
 	createRaytracePipeline(ctx, textureLayout);
 	createComputeResources(ctx);
-}
 
-void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene, VkDescriptorSet& textureSet) {
-	std::cout << "baking DDGI" << std::endl;
 
 	gltfNode* node = m_scene.objects[0].nodes[0].get();
 
@@ -429,7 +445,9 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene, VkDescriptorSet& 
 		});
 
 	vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
+}
 
+void owDDGI::bakeDDGI(DeviceContext& ctx, VkCommandBuffer& cmd, VkDescriptorSet& textureSet) {
 	VkClearValue clearValues[1]{};
 	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 
@@ -440,63 +458,61 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, SceneGraph& m_scene, VkDescriptorSet& 
 	subResourceRange.baseArrayLayer = 0;
 	subResourceRange.layerCount = PROBE_DENSITY_HEIGHT;
 
-	vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
-		vkimageutils::transitionImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-		vkCmdClearColorImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
+	vkimageutils::transitionImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	vkCmdClearColorImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
+	
+	std::array<VkDescriptorSet, 2> sets = { m_rtDescriptorSet, textureSet };
+	
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 2, sets.data(), 0, nullptr);
+	
+	ddgiPushConstant ddgiPC{
+		.probePositionBufferAddress = m_probeVolume.probePositionBuffer.gpuAddress,
+		.vertexAddress = closestHitVertexBuffer.gpuAddress,
+		.indexAddress = closestHitIndexBuffer.gpuAddress,
+		.materialIndexAddress = m_probeVolume.materialIndexAddress
+	};
+	vkCmdPushConstants(cmd, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);
 
-		std::array<VkDescriptorSet, 2> sets = { m_rtDescriptorSet, textureSet };
+	vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	vkCmdClearColorImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
 
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 2, sets.data(), 0, nullptr);
-
-		ddgiPushConstant ddgiPC{
-			.probePositionBufferAddress = m_probeVolume.probePositionBuffer.gpuAddress,
-			.vertexAddress = closestHitVertexBuffer.gpuAddress,
-			.indexAddress = closestHitIndexBuffer.gpuAddress,
-			.materialIndexAddress = m_probeVolume.materialIndexAddress
-		};
-		vkCmdPushConstants(cmd, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);
-
-		// x should be num rays, y should be num probes per layer, z should be num probes vertically
-		rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, RAYS_PER_PROBE, PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
-		vkimageutils::transitionImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-		// radiance
-		vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-		vkCmdClearColorImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
-
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline);
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipelineLayout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
-
-		vkCmdDispatch(cmd, PROBE_DENSITY_WIDTH, PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
-
-		VkMemoryBarrier barrier{};
-		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-		barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-
-		vkCmdPipelineBarrier(
-			cmd,
-			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-			0,
-			1, &barrier,
-			0, nullptr,
-			0, nullptr
-		);
-
-		// vis
-		vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-		vkCmdClearColorImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
-
-		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline);
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipelineLayout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
-
-		vkCmdDispatch(cmd, PROBE_DENSITY_WIDTH, PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
-
-		vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-		vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-	});
+	vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	vkCmdClearColorImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+	
+	// x should be num rays, y should be num probes per layer, z should be num probes vertically
+	rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, RAYS_PER_PROBE, PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
+	vkimageutils::transitionImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	
+	// radiance
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipelineLayout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
+	
+	vkCmdDispatch(cmd, PROBE_DENSITY_WIDTH, PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
+	
+	VkMemoryBarrier barrier{};
+	barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+	
+	vkCmdPipelineBarrier(
+		cmd,
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+		0,
+		1, &barrier,
+		0, nullptr,
+		0, nullptr
+	);
+	
+	// vis
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipelineLayout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
+	
+	vkCmdDispatch(cmd, PROBE_DENSITY_WIDTH, PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
+	
+	vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 // PROBE VISUALIZATION STUFF

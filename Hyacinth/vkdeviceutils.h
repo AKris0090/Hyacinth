@@ -80,7 +80,6 @@ namespace vkdeviceutils {
 
         VK_CHECK(vkQueueSubmit(*ctx->graphicsQueue, 1, &submitInfo, *ctx->uploadFence));
         VkResult res = vkWaitForFences(*ctx->device, 1, ctx->uploadFence, true, 9999999999);
-        std::cout << res << std::endl;
         VK_CHECK(res);
 	}
 
