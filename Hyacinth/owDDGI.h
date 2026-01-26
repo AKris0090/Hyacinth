@@ -98,6 +98,7 @@ private:
 public:
 	DDGIVolume m_probeVolume;
 	probeVisObjects	m_probeVis{};
+	bool showProbes = false;
 
 	void setup(DeviceContext& ctx, rtHelper* rtHelper, SceneGraph& m_scene, VkDescriptorSetLayout& textureLayout);
 	void bakeDDGI(DeviceContext& ctx, VkDescriptorSet& textureSet);

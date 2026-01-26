@@ -642,6 +642,7 @@ void HyacinthEngine::drawImGui() {
     ImGui::DragFloat("light position x", &m_shadowHelper.transform.position.x, 0.1f );
     ImGui::DragFloat("light position y", &m_shadowHelper.transform.position.y, 0.1f);
     ImGui::DragFloat("light position z", &m_shadowHelper.transform.position.z, 0.1f);
+    ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
     ImGui::End();
 }
 
@@ -698,7 +699,9 @@ void HyacinthEngine::draw()
 
 	vkCmdDrawIndexedIndirect(cmd, m_indirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
-    m_owDDGIHelper.drawProbes(cmd, m_frameData[m_frameIndex].descriptorSet);
+    if (m_owDDGIHelper.showProbes) {
+        m_owDDGIHelper.drawProbes(cmd, m_frameData[m_frameIndex].descriptorSet);
+    }
 
     endDraw();
 }
