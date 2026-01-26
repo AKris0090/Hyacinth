@@ -31,9 +31,6 @@
     <Filter Include="Source Files\rendering\vkutils\mesh">
       <UniqueIdentifier>{a34500b4-a288-42d7-bbdf-412e3a67c312}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\rendering\shaders">
-      <UniqueIdentifier>{1985ba56-382c-44ca-b675-3e60bbaa9c85}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\rendering\gltfutils">
       <UniqueIdentifier>{af396933-eef6-42c5-bf4b-1b2c3b236b7f}</UniqueIdentifier>
     </Filter>
@@ -67,7 +64,10 @@
     <Filter Include="Source Files\rendering\raytracing\DDGI">
       <UniqueIdentifier>{3956cfe2-1e1f-4d13-bfcb-c60a49382163}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\rendering\shaders\rt shaders">
+    <Filter Include="Source Files\shaders">
+      <UniqueIdentifier>{1985ba56-382c-44ca-b675-3e60bbaa9c85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\rt shaders">
       <UniqueIdentifier>{b53e54dc-849a-4cda-af5d-72aada45973d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -75,7 +75,7 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vkengine.cpp">
+    <ClCompile Include="hyacinthengine.cpp">
       <Filter>Source Files\rendering</Filter>
     </ClCompile>
     <ClCompile Include="sdlwindow.cpp">
@@ -149,7 +149,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="vkengine.h">
+    <ClInclude Include="hyacinthengine.h">
       <Filter>Source Files\rendering</Filter>
     </ClInclude>
     <ClInclude Include="sdlwindow.h">
@@ -230,45 +230,45 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\shader.vert">
-      <Filter>Source Files\rendering\shaders</Filter>
+      <Filter>Source Files\shaders</Filter>
     </Text>
     <Text Include="shaders\shader.frag">
-      <Filter>Source Files\rendering\shaders</Filter>
+      <Filter>Source Files\shaders</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\shadow.vert">
-      <Filter>Source Files\rendering\shaders</Filter>
+      <Filter>Source Files\shaders</Filter>
     </None>
     <None Include="shaders\raygen.rgen">
-      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+      <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
     <None Include="shaders\closehit.rchit">
-      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+      <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
     <None Include="shaders\miss.rmiss">
-      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+      <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
     <None Include="shaders\probeVis.vert">
-      <Filter>Source Files\rendering\shaders</Filter>
+      <Filter>Source Files\shaders</Filter>
     </None>
     <None Include="shaders\probeVis.frag">
-      <Filter>Source Files\rendering\shaders</Filter>
+      <Filter>Source Files\shaders</Filter>
     </None>
     <None Include="shaders\probeMiss.rmiss">
-      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+      <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
     <None Include="shaders\probeCommon.glsl">
-      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+      <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
     <None Include="shaders\irradianceBuild.comp">
-      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+      <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
     <None Include="shaders\bufferInfo.glsl">
-      <Filter>Source Files\rendering\shaders</Filter>
+      <Filter>Source Files\shaders</Filter>
     </None>
     <None Include="shaders\visibilityBuild.comp">
-      <Filter>Source Files\rendering\shaders\rt shaders</Filter>
+      <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

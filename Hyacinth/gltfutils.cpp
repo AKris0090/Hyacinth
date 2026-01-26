@@ -324,7 +324,6 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
     uint32_t drawID = 0;
     uint32_t matrixID = 0;
 
-    // std::unordered_map<std::pair<uint32_t, uint32_t>, gltfDrawCommand> indexPairMap;
     for (const auto& obj : objects) {
         uint32_t currentNumMatrices = static_cast<uint32_t>(transformMatrices.size());
 
@@ -334,18 +333,12 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
 
-                // std::pair<uint32_t, uint32_t> indexPair = { firstIndex, static_cast<uint32_t>(prim.get()->indices.size()) };
-                // if (indexPairMap.find(indexPair) != indexPairMap.end()) {
-                //     indexPairMap[indexPair].instanceCount++;
-                //     continue;
-                // }
-
-                gltfDrawCommand drawCmd{};
-				drawCmd.firstIndex = firstIndex;
-                drawCmd.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
-                drawCmd.instanceCount = 1;
-                drawCmd.firstInstance = drawID;
-                drawCmd.vertexCount = prim.get()->vertices.size();
+                gltfDrawCommand draw{};
+                draw.firstIndex = firstIndex;
+                draw.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
+                draw.instanceCount = 1;
+                draw.firstInstance = drawID;
+                draw.vertexCount = prim.get()->vertices.size();
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);
@@ -354,14 +347,10 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
                     indices.push_back(index + firstVertex);
 				}
 
-                sortedDrawCalls[prim.get()->materialIndex + materialOffset].push_back(drawCmd);
-
                 DrawData primDrawData{};
                 primDrawData.materialIndex = prim.get()->materialIndex + materialOffset;
                 primDrawData.transformIndex = matrixID;
                 drawData.push_back(primDrawData);
-
-                drawID++;
 
                 // acceleration structure-specific
                 uint32_t nodeVertOffset = node.get()->vertices.size();
@@ -375,6 +364,10 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
                 for (int i = 0; i < prim.get()->indices.size() / 3; i++) {
                     node.get()->materialIndex.push_back(obj.materials[primDrawData.materialIndex].baseColorIndex);
                 }
+
+                sortedDrawCalls[prim.get()->materialIndex + materialOffset].push_back(draw);
+
+                drawID++;
             }
             matrixID++;
 

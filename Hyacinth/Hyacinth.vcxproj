@@ -165,7 +165,7 @@
     <ClCompile Include="vkmeshutils.cpp" />
     <ClCompile Include="vkpipelineutils.cpp" />
     <ClCompile Include="vkswapchainutils.cpp" />
-    <ClCompile Include="vkengine.cpp" />
+    <ClCompile Include="hyacinthengine.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.h" />
@@ -189,7 +189,7 @@
     <ClInclude Include="time.h" />
     <ClInclude Include="vkdescriptorutils.h" />
     <ClInclude Include="vkdeviceutils.h" />
-    <ClInclude Include="vkengine.h" />
+    <ClInclude Include="hyacinthengine.h" />
     <ClInclude Include="vkimageutils.h" />
     <ClInclude Include="vkmeshutils.h" />
     <ClInclude Include="vkpipelineutils.h" />

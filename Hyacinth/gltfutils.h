@@ -19,6 +19,10 @@ static std::string getFilePathExtension(const std::string& FileName) {
     return "";
 }
 
+struct AABB {
+    glm::vec3 min, max;
+};
+
 struct gltfDrawCommand {
     uint32_t    indexCount;
     uint32_t    instanceCount;

@@ -8,7 +8,7 @@
     printf("[VMA-LEAK] " format "\n", __VA_ARGS__)
 #endif
 
-#include "vkengine.h"
+#include "hyacinthengine.h"
 #include "vk_mem_alloc.h"
 
 void HyacinthEngine::createInstance()

@@ -1,5 +1,5 @@
 #include "sdlwindow.h"
-#include "vkengine.h"
+#include "hyacinthengine.h"
 #include "input.h"
 #include "time.h"
 
