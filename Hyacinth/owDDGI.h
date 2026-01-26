@@ -100,7 +100,7 @@ public:
 	probeVisObjects	m_probeVis{};
 
 	void setup(DeviceContext& ctx, rtHelper* rtHelper, SceneGraph& m_scene, VkDescriptorSetLayout& textureLayout);
-	void bakeDDGI(DeviceContext& ctx, VkCommandBuffer& cmd, VkDescriptorSet& textureSet);
+	void bakeDDGI(DeviceContext& ctx, VkDescriptorSet& textureSet);
 
 	// probe visualization stuff
 	void createProbeVisualizationStructures(DeviceContext& ctx, VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);

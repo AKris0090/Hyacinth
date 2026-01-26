@@ -25,7 +25,7 @@ layout( push_constant ) uniform constants
 } pc;
 
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float directLightIntensity = 25.0;	
+const float directLightIntensity = 10.0;	
 
 vec3 DDGIGetSurfaceBias(vec3 surfaceNormal, vec3 cameraDirection)
 {
@@ -95,6 +95,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 rayDir) {
         }
         weight *= trilinearWeight;
 
+        probeUV = oct_encode(normal) * 0.5 + 0.5;
         ivec3 base = getAtlasPosition(altProbeIndex, IRRADIANCE_TILE_WIDTH);
         vec2 atlasUV;
         atlasUV.x = (float(base.x) + probeUV.x * float(IRRADIANCE_INNER_RES)) / float(irradianceTextureSize.x);

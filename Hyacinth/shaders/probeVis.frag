@@ -15,16 +15,9 @@ void main() {
 
     vec2 oct = oct_encode(dir);
     vec2 probeUV = oct * 0.5 + 0.5;
-    vec2 texel = probeUV * float(IRRADIANCE_INNER_RES - 1) + 0.5;
+    vec2 texel = probeUV * float(IRRADIANCE_INNER_RES);
     ivec3 base = getAtlasPosition(probeIndex, IRRADIANCE_TILE_WIDTH);
     vec2 atlasUV = (vec2(base.xy) + texel) / vec2(textureSize.xy);
 
-    // outColor = texture(irradianceArray, vec3(atlasUV, base.z), 0);
-
-    outColor = textureGrad(
-        irradianceArray,
-        vec3(atlasUV, base.z),
-        vec2(0.0),
-        vec2(0.0)
-    );
+    outColor = texture(irradianceArray, vec3(atlasUV, base.z), 0);
 }

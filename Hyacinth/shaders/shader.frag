@@ -199,6 +199,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         }
         weight *= trilinearWeight;
 
+        probeUV = oct_encode(normal) * 0.5 + 0.5;
         ivec3 base = getAtlasPosition(altProbeIndex, IRRADIANCE_TILE_WIDTH);
         vec2 atlasUV;
         atlasUV.x = (float(base.x) + probeUV.x * float(IRRADIANCE_INNER_RES)) / float(irradianceTextureSize.x);

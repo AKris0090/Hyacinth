@@ -447,7 +447,7 @@ void owDDGI::setup(DeviceContext& ctx, rtHelper* rtHelper, SceneGraph& m_scene, 
 	vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
 }
 
-void owDDGI::bakeDDGI(DeviceContext& ctx, VkCommandBuffer& cmd, VkDescriptorSet& textureSet) {
+void owDDGI::bakeDDGI(DeviceContext& ctx, VkDescriptorSet& textureSet) {
 	VkClearValue clearValues[1]{};
 	clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 
@@ -458,61 +458,63 @@ void owDDGI::bakeDDGI(DeviceContext& ctx, VkCommandBuffer& cmd, VkDescriptorSet&
 	subResourceRange.baseArrayLayer = 0;
 	subResourceRange.layerCount = PROBE_DENSITY_HEIGHT;
 
-	vkimageutils::transitionImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-	vkCmdClearColorImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
-	
-	std::array<VkDescriptorSet, 2> sets = { m_rtDescriptorSet, textureSet };
-	
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 2, sets.data(), 0, nullptr);
-	
-	ddgiPushConstant ddgiPC{
-		.probePositionBufferAddress = m_probeVolume.probePositionBuffer.gpuAddress,
-		.vertexAddress = closestHitVertexBuffer.gpuAddress,
-		.indexAddress = closestHitIndexBuffer.gpuAddress,
-		.materialIndexAddress = m_probeVolume.materialIndexAddress
-	};
-	vkCmdPushConstants(cmd, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);
+	vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
+		vkimageutils::transitionImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		vkCmdClearColorImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
 
-	vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-	vkCmdClearColorImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+		std::array<VkDescriptorSet, 2> sets = { m_rtDescriptorSet, textureSet };
 
-	vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-	vkCmdClearColorImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
-	
-	// x should be num rays, y should be num probes per layer, z should be num probes vertically
-	rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, RAYS_PER_PROBE, PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
-	vkimageutils::transitionImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-	
-	// radiance
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline);
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipelineLayout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
-	
-	vkCmdDispatch(cmd, PROBE_DENSITY_WIDTH, PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
-	
-	VkMemoryBarrier barrier{};
-	barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-	barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-	
-	vkCmdPipelineBarrier(
-		cmd,
-		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-		0,
-		1, &barrier,
-		0, nullptr,
-		0, nullptr
-	);
-	
-	// vis
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline);
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipelineLayout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
-	
-	vkCmdDispatch(cmd, PROBE_DENSITY_WIDTH, PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
-	
-	vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-	vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 2, sets.data(), 0, nullptr);
+
+		ddgiPushConstant ddgiPC{
+			.probePositionBufferAddress = m_probeVolume.probePositionBuffer.gpuAddress,
+			.vertexAddress = closestHitVertexBuffer.gpuAddress,
+			.indexAddress = closestHitIndexBuffer.gpuAddress,
+			.materialIndexAddress = m_probeVolume.materialIndexAddress
+		};
+		vkCmdPushConstants(cmd, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);
+
+		vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		vkCmdClearColorImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+
+		vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		vkCmdClearColorImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+
+		// x should be num rays, y should be num probes per layer, z should be num probes vertically
+		rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, RAYS_PER_PROBE, PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
+		vkimageutils::transitionImage(cmd, m_probeVolume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+		// radiance
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipelineLayout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
+
+		vkCmdDispatch(cmd, PROBE_DENSITY_WIDTH, PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
+
+		VkMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+
+		vkCmdPipelineBarrier(
+			cmd,
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+			0,
+			1, &barrier,
+			0, nullptr,
+			0, nullptr
+		);
+
+		// vis
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipelineLayout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
+
+		vkCmdDispatch(cmd, PROBE_DENSITY_WIDTH, PROBE_DENSITY_DEPTH, PROBE_DENSITY_HEIGHT);
+
+		vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	});
 }
 
 // PROBE VISUALIZATION STUFF

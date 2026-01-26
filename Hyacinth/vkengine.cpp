@@ -522,6 +522,8 @@ void HyacinthEngine::init()
 
     setupImGUI();
 
+    m_owDDGIHelper.bakeDDGI(m_devContext, m_frameData[0].textureSet);
+
     std::cout << "baked imge ///////////////////////////////////////////" << std::endl;
 
     m_initialized = true;
@@ -649,8 +651,6 @@ void HyacinthEngine::draw()
 
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
-
-    m_owDDGIHelper.bakeDDGI(m_devContext, cmd, m_frameData[0].textureSet);
 
     // shadows
     drawShadowMaps(cmd);
