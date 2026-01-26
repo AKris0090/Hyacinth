@@ -228,7 +228,7 @@ void main() {
     vec3 L = normalize(ubo.lightPos.xyz - fragPos.xyz);
     vec3 H = normalize(V + L);
 
-    vec3 radiance = vec3(6.0);
+    vec3 radiance = lightColor * vec3(6.0);
 
     vec3 F0 = vec3(0.04); 
     F0      = mix(F0, sampledColor.rgb, metalRough.b);
