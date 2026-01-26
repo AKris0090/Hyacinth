@@ -323,6 +323,8 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
     uint32_t textureOffset = 0;
     uint32_t drawID = 0;
     uint32_t matrixID = 0;
+
+    // std::unordered_map<std::pair<uint32_t, uint32_t>, gltfDrawCommand> indexPairMap;
     for (const auto& obj : objects) {
         uint32_t currentNumMatrices = static_cast<uint32_t>(transformMatrices.size());
 
@@ -331,6 +333,12 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
             for (const auto& prim : node.get()->primitives) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
+
+                // std::pair<uint32_t, uint32_t> indexPair = { firstIndex, static_cast<uint32_t>(prim.get()->indices.size()) };
+                // if (indexPairMap.find(indexPair) != indexPairMap.end()) {
+                //     indexPairMap[indexPair].instanceCount++;
+                //     continue;
+                // }
 
                 gltfDrawCommand drawCmd{};
 				drawCmd.firstIndex = firstIndex;

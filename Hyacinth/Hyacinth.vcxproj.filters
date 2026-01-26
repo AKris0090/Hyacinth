@@ -144,6 +144,9 @@
     <ClCompile Include="owDDGI.cpp">
       <Filter>Source Files\rendering\raytracing\DDGI</Filter>
     </ClCompile>
+    <ClCompile Include="fpcam.cpp">
+      <Filter>Source Files\rendering\camera</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vkengine.h">

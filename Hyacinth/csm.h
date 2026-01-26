@@ -43,7 +43,7 @@ private:
 	void updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view);
 
 public:
-	transform transform;
+	Transform transform;
 	std::vector<Cascade> m_cascades;
 	VkExtent2D extent;
 	VkImage shadowImage;
@@ -56,6 +56,6 @@ public:
 	VkDescriptorSetLayout m_descriptorSetLayout{ VK_NULL_HANDLE };
 
 	void setup(DeviceContext& ctx, int maxFramesInFlight);
-	void update(FPSCam cam, int currentFrame);
+	void update(FPSCam::CameraProps& cam, int currentFrame);
 	VkRenderingAttachmentInfo getAttachmentInfo(int cascadeIndex) const;
 };

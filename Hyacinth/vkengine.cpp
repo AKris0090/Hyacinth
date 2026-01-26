@@ -155,6 +155,13 @@ void HyacinthEngine::createInstance()
     vkimageutils::setMaxAnisotropy(properties.limits.maxSamplerAnisotropy);
 
     m_msaaSamples = vkdeviceutils::getMaxUsableSampleCount(m_physicalDevice);
+
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    allocatorInfo.physicalDevice = m_physicalDevice;
+    allocatorInfo.device = m_device;
+    allocatorInfo.instance = m_instance;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    vmaCreateAllocator(&allocatorInfo, &m_allocator);
 }
 
 void HyacinthEngine::createSwapchain()
@@ -215,9 +222,7 @@ void HyacinthEngine::createSwapchain()
         vkimageutils::createImageView(m_device, m_swapChainImages[i], VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
-    VmaAllocationCreateInfo rimg_allocinfo = {};
-    rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    rimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    m_swImageFormat.aspectRatio = (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height;
 }
 
 void HyacinthEngine::createCommandBuffers()
@@ -275,6 +280,12 @@ void HyacinthEngine::createSyncObjects()
     }
 
     VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_uploadFence));
+
+    m_devContext.device = &m_device;
+    m_devContext.allocator = &m_allocator;
+    m_devContext.graphicsQueue = &m_graphicsQueue;
+    m_devContext.commandBuffer = &m_uploadFrame.commandBuffer;
+    m_devContext.uploadFence = &m_uploadFence;
 }
 
 void HyacinthEngine::createGraphicsPipeline()
@@ -470,25 +481,13 @@ void HyacinthEngine::init()
 {
 	createInstance();
 
-    VmaAllocatorCreateInfo allocatorInfo = {};
-    allocatorInfo.physicalDevice = m_physicalDevice;
-    allocatorInfo.device = m_device;
-    allocatorInfo.instance = m_instance;
-    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-    vmaCreateAllocator(&allocatorInfo, &m_allocator);
-
 	createSwapchain();
 
 	createCommandBuffers();
 
-	createSyncObjects();
+	createSyncObjects(); // also creates device context
 
-    m_devContext.device = &m_device;
-    m_devContext.allocator = &m_allocator;
-    m_devContext.graphicsQueue = &m_graphicsQueue;
-    m_devContext.commandBuffer = &m_uploadFrame.commandBuffer;
-	m_devContext.uploadFence = &m_uploadFence;
-    m_camera.aspectRatio = (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height;
+    m_camera = FPSCam(m_swImageFormat.aspectRatio, 90.f, 0.01f, 40.f);
 
     VkExtent3D extent{
         .width = m_swImageFormat.extent.width,
@@ -530,14 +529,14 @@ void HyacinthEngine::init()
 }
 
 void HyacinthEngine::update() {
-    m_shadowHelper.update(m_camera, m_frameIndex);
+    m_shadowHelper.update(m_camera.m_props, m_frameIndex);
 
     UBO newuniform{};
-    newuniform.proj = m_camera.proj;
-    newuniform.view = m_camera.view;
+    newuniform.proj = m_camera.m_props.proj;
+    newuniform.view = m_camera.m_props.view;
     newuniform.viewPos = glm::vec4(m_camera.transform.position, Input::mouseDown() ? 0.f : 1.f);
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 1.f);
-    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_camera.farClip);
+    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_camera.m_props.farClip);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeViewProj[i] = m_shadowHelper.m_cascades[i].viewProj;
     }

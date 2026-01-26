@@ -5,63 +5,62 @@
 #include "SDL3/SDL.h"
 #include "ecshelpers.h"
 #include "input.h"
+#include <iostream>
 
 constexpr float PI = 3.14159265359f;
 
-struct FPSCam {
-	float pitch = 0.f, yaw = 0.f, moveSpeed = 3.5f, lookSpeed = 70.f;
-	float aspectRatio, FOV, nearClip = 0.1f, farClip = 40.0f;
+constexpr float BASE_MOVE_SPEED = 3.5f;
+constexpr float BASE_LOOK_SPEED = 70.f;
 
-    transform transform;
-    glm::vec3 forward, right, up = { 0.f, 1.f, 0.f };
+class FPSCam {
+private:
+	float moveSpeed = 3.5f, lookSpeed = 70.f;
 
     std::vector<glm::vec4> frustumCorners;
-    glm::mat4 proj;
-    glm::mat4 view;
 
-	glm::mat4 getViewMatrix() const {
-		glm::vec3 front;
-		front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-		front.y = sin(glm::radians(pitch));
-		front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-		front = glm::normalize(front);
-		return glm::lookAt(transform.position, transform.position + front, glm::vec3(0.0f, 1.0f, 0.0f));
-	}
+public:
+    Transform transform;
 
-	glm::mat4 getProjectionMatrix() const {
-		glm::mat4 proj = glm::perspective(glm::radians(90.0f), aspectRatio, nearClip, farClip);
-		proj[1][1] *= -1;
-		return proj;
-	}
+    struct CameraProps {
+        float aspectRatio = 16.f / 9.f;
+        float FOV = 90.f;
+        float nearClip = 0.1f;
+        float farClip = 40.0f;
 
-    void update(float deltaTime) {
-        std::pair<float, float> mouseMotion = Input::getMouseMotion();
-        yaw += mouseMotion.first * lookSpeed * deltaTime;
-        pitch -= mouseMotion.second * lookSpeed * deltaTime;
+        glm::vec3 forward;
+        glm::vec3 right;
+        glm::vec3 up = { 0.f, 1.f, 0.f };
 
-        pitch = glm::clamp(pitch, -89.9f, 89.9f);
+        float yaw = 0.f, pitch = 0.f;
 
-        forward = glm::normalize(glm::vec3(
-            cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
-            sin(glm::radians(pitch)),
-            sin(glm::radians(yaw)) * cos(glm::radians(pitch))
-		));
-		right = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)));
-		up = glm::normalize(glm::cross(right, forward));
+        glm::mat4 proj;
+        glm::mat4 view;
+    } m_props;
 
-        glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
-        if (Input::forwardKeyDown())    localDisplacement += forward;
-        if (Input::backwardKeyDown())   localDisplacement -= forward;
-        if (Input::rightKeyDown())      localDisplacement += right;
-        if (Input::leftKeyDown())       localDisplacement -= right;
-        if (Input::upKeyDown())         localDisplacement += up;
-        if (Input::downKeyDown())       localDisplacement -= up;
+    bool dirtyProj;
+    bool dirtyView;
 
-        if (glm::length(localDisplacement) > 0) {
-            transform.position += glm::normalize(localDisplacement) * moveSpeed * deltaTime;
-        }
+	void update(float deltaTime);
 
-        proj = getProjectionMatrix();
-        view = getViewMatrix();
+    FPSCam() {
+        moveSpeed = BASE_MOVE_SPEED;
+        lookSpeed = BASE_LOOK_SPEED;
+        m_props.aspectRatio = 16.f / 9.f;
+        m_props.FOV = 90.f;
+        m_props.nearClip = 0.01f;
+        m_props.farClip = 100.f;
+
+        update(0.f);
+    };
+
+    FPSCam(float aspect, float fov, float nearC, float farC) {
+        moveSpeed = BASE_MOVE_SPEED;
+        lookSpeed = BASE_LOOK_SPEED;
+        m_props.aspectRatio = aspect;
+        m_props.FOV = fov;
+        m_props.nearClip = nearC;
+        m_props.farClip = farC;
+
+        update(0.f);
     }
 };

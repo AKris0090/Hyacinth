@@ -164,7 +164,7 @@ void shadowHelper::setup(DeviceContext& ctx, int maxFramesInFlight) {
 	m_shadowPipelineUtil.buildPipeline(*ctx.device);
 }
 
-void shadowHelper::update(FPSCam cam, int currentFrame) {
+void shadowHelper::update(FPSCam::CameraProps& cam, int currentFrame) {
 	updateFrustumCorners(cam.nearClip, cam.farClip, cam.proj, cam.view);
 
 	std::vector<glm::mat4> cascadeViewProjMatrices(SHADOW_MAP_CASCADE_COUNT);

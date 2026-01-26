@@ -17,7 +17,7 @@ constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;
 
 struct DDGIVolume {
-	transform transform;
+	Transform transform;
 	std::vector<std::vector<std::vector<glm::vec3>>> probes;
 	VulkanBuffer probePositionBuffer;
 

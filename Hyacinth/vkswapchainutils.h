@@ -17,4 +17,5 @@ struct SWChainSuppDetails {
 struct SWChainImageFormat {
     VkFormat format;
 	VkExtent2D extent;
+    float aspectRatio;
 };

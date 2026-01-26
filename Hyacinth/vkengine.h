@@ -109,7 +109,7 @@ private:
 	rtHelper						m_rtHelper;
 	owDDGI							m_owDDGIHelper;
 
-	void createInstance();
+	void createInstance(); // also creates vma allocator
 	void createSwapchain();
 	void createCommandBuffers();
 	void createSyncObjects();
