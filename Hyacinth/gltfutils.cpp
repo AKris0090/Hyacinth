@@ -48,6 +48,16 @@ static void generateTangents(gltfPrimitive* p, SMikkTSpaceContext& mikktContext)
     p->vertices.resize(postTVertexCount);
 }
 
+AABB getBoundingBox(std::vector<Vertex>& vertices) {
+    AABB bounds;
+    bounds.min = vertices[0].pos;
+    bounds.max = vertices[0].pos;
+    for (const auto& v : vertices) {
+        bounds.grow(v);
+    }
+    return bounds;
+}
+
 static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
     SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
 
@@ -339,6 +349,8 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
                 draw.instanceCount = 1;
                 draw.firstInstance = drawID;
                 draw.vertexCount = prim.get()->vertices.size();
+
+                boundingBoxes.push_back(getBoundingBox(prim.get()->vertices));
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);

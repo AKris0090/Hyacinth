@@ -15,11 +15,15 @@ constexpr float BASE_LOOK_SPEED = 70.f;
 class FPSCam {
 private:
 	float moveSpeed = 3.5f, lookSpeed = 70.f;
-
+    std::vector<glm::vec4> untransformedPlanes;
     std::vector<glm::vec4> frustumCorners;
 
 public:
     Transform transform;
+
+    struct UniformPlanes {
+        glm::vec4 planes[6];
+    } m_frustumPlanes;
 
     struct CameraProps {
         float aspectRatio = 16.f / 9.f;
@@ -49,6 +53,7 @@ public:
         m_props.FOV = 90.f;
         m_props.nearClip = 0.01f;
         m_props.farClip = 100.f;
+        dirtyProj = true;
 
         update(0.f);
     };
@@ -60,6 +65,7 @@ public:
         m_props.FOV = fov;
         m_props.nearClip = nearC;
         m_props.farClip = farC;
+        dirtyProj = true;
 
         update(0.f);
     }

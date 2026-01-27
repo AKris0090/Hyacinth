@@ -5,6 +5,8 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./shadow.vert -o shadow.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./probeVis.vert -o probeVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./probeVis.frag -o probeFrag.spv
 
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./frustumCull.comp -o frustumCull.spv
+
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./irradianceBuild.comp -o irradianceComp.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./visibilityBuild.comp -o visibilityComp.spv
 

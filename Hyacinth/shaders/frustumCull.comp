@@ -1,0 +1,63 @@
+#version 460
+#extension GL_EXT_buffer_reference : require
+
+#include "bufferInfo.glsl"
+
+layout(set = 0, binding = 0) uniform UBO 
+{
+	vec4 frustumPlanes[6];
+} ubo;	
+
+layout(push_constant) uniform pushConstant
+{
+    OutputIndirectDraws drawBufferAddress;
+	BoundingBoxes bbAddress;
+	TransformBuffer matrixAddress;
+	DrawDataBuffer drawDataAddress;
+	int numDraws;
+} pc;
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+bool frustumCheck(vec4 min, vec4 max)
+{
+	for (int i = 0; i < 6; i++) {
+		int num = 0;
+		num += ((dot(ubo.frustumPlanes[i], vec4(min.x, min.y, min.z, 1.0f)) < 0.0) ? 1 : 0);
+		num += ((dot(ubo.frustumPlanes[i], vec4(max.x, min.y, min.z, 1.0f)) < 0.0) ? 1 : 0);
+		num += ((dot(ubo.frustumPlanes[i], vec4(min.x, max.y, min.z, 1.0f)) < 0.0) ? 1 : 0);
+		num += ((dot(ubo.frustumPlanes[i], vec4(max.x, max.y, min.z, 1.0f)) < 0.0) ? 1 : 0);
+		num += ((dot(ubo.frustumPlanes[i], vec4(min.x, min.y, max.z, 1.0f)) < 0.0) ? 1 : 0);
+		num += ((dot(ubo.frustumPlanes[i], vec4(max.x, min.y, max.z, 1.0f)) < 0.0) ? 1 : 0);
+		num += ((dot(ubo.frustumPlanes[i], vec4(min.x, max.y, max.z, 1.0f)) < 0.0) ? 1 : 0);
+		num += ((dot(ubo.frustumPlanes[i], vec4(max.x, max.y, max.z, 1.0f)) < 0.0) ? 1 : 0);
+		if (num == 8) return false;
+    }
+
+	// TODO: add frustum points for true culling
+
+	return true;
+}
+
+void main()
+{
+   	uint idx = gl_GlobalInvocationID.x;
+
+	if (idx >= pc.numDraws) {
+		return;
+    }
+
+	DrawData d = pc.drawDataAddress.draws[idx];
+	mat4 modelMatrix = pc.matrixAddress.model[d.transformIndex];
+
+	vec4 currentMin = modelMatrix * pc.bbAddress.boxes[idx].min;
+	vec4 currentMax = modelMatrix * pc.bbAddress.boxes[idx].max;
+
+   	if (frustumCheck(currentMin, currentMax)) 
+	{
+		pc.drawBufferAddress.indirectDrawsOut[idx].instanceCount = 1; // if visible, set the draw instance count to 1
+	}
+	else{
+		pc.drawBufferAddress.indirectDrawsOut[idx].instanceCount = 0; // if not visible, set the draw instance count to 0
+	}
+}

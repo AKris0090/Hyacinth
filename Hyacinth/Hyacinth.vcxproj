@@ -151,6 +151,7 @@
     <ClCompile Include="csm.cpp" />
     <ClCompile Include="ecshelpers.h" />
     <ClCompile Include="fpcam.cpp" />
+    <ClCompile Include="frustumcull.cpp" />
     <ClCompile Include="gltfutils.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
@@ -178,6 +179,7 @@
     <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_truetype.h" />
     <ClInclude Include="csm.h" />
     <ClInclude Include="fpcam.h" />
+    <ClInclude Include="frustumcull.h" />
     <ClInclude Include="gltfutils.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="mikktspace\mikktspace.h" />
@@ -202,6 +204,7 @@
   <ItemGroup>
     <None Include="shaders\bufferInfo.glsl" />
     <None Include="shaders\closehit.rchit" />
+    <None Include="shaders\frustumCull.comp" />
     <None Include="shaders\irradianceBuild.comp" />
     <None Include="shaders\miss.rmiss" />
     <None Include="shaders\probeCommon.glsl" />

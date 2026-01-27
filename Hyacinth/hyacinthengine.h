@@ -19,6 +19,8 @@
 #include "raytracing.h"
 #include "owDDGI.h"
 
+#include "frustumcull.h"
+
 #include "csm.h"
 #include "time.h"
 #include "fpcam.h"
@@ -97,6 +99,7 @@ private:
 	VulkanPipelineBuilder 			m_pipelineUtil;
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
+	VulkanBuffer 					m_indirectShadowBuffer  {};
 	VulkanBuffer 					m_worldMatrixBuffer		{};
 	VulkanBuffer					m_drawDataBuffer		{};
 	VulkanBuffer					m_materialBuffer		{};
@@ -108,6 +111,7 @@ private:
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
 	owDDGI							m_owDDGIHelper;
+	FrustumCullHelper				m_frustumCullHelper;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();
@@ -116,6 +120,7 @@ private:
 	void createGraphicsPipeline();
 	void createBuffers();
 	void createDescriptorSets();
+	void setupFrustumCull();
 	void setupImGUI();
 	void drawImGui();
 	void loadScene();

@@ -70,6 +70,9 @@
     <Filter Include="Source Files\shaders\rt shaders">
       <UniqueIdentifier>{b53e54dc-849a-4cda-af5d-72aada45973d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\rendering\culling">
+      <UniqueIdentifier>{04355807-30f6-45be-b85f-d978c409fb14}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -146,6 +149,9 @@
     </ClCompile>
     <ClCompile Include="fpcam.cpp">
       <Filter>Source Files\rendering\camera</Filter>
+    </ClCompile>
+    <ClCompile Include="frustumcull.cpp">
+      <Filter>Source Files\rendering\culling</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -227,6 +233,9 @@
     <ClInclude Include="owDDGI.h">
       <Filter>Source Files\rendering\raytracing\DDGI</Filter>
     </ClInclude>
+    <ClInclude Include="frustumcull.h">
+      <Filter>Source Files\rendering\culling</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\shader.vert">
@@ -269,6 +278,9 @@
     </None>
     <None Include="shaders\visibilityBuild.comp">
       <Filter>Source Files\shaders\rt shaders</Filter>
+    </None>
+    <None Include="shaders\frustumCull.comp">
+      <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

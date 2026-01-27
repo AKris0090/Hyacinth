@@ -1,5 +1,28 @@
 #include "fpcam.h"
 
+std::vector<glm::vec4> getFrustumPlanes(FPSCam::CameraProps& props) {
+    std::vector<glm::vec4> planes;
+    float frus[24];
+
+    float an = props.FOV * (3.141592653589f / 180.0f);
+    float si = sinf(an);
+    float co = cosf(an);
+
+    frus[0] = 0.0f;     frus[1] = -co;      frus[2] = si;                       frus[3] = 0.0f;
+    frus[4] = 0.0f;     frus[5] = co;       frus[6] = si;                       frus[7] = 0.0f;
+    frus[8] = co;       frus[9] = 0.0f;     frus[10] = si * props.aspectRatio;  frus[11] = 0.0f;
+    frus[12] = -co;     frus[13] = 0.0f;    frus[14] = si * props.aspectRatio;  frus[15] = 0.0f;
+    frus[16] = 0.0f;    frus[17] = 0.0f;    frus[18] = 1.0f;                    frus[19] = props.farClip;
+    frus[20] = 0.0f;    frus[21] = 0.0f;    frus[22] = -1.0f;                   frus[23] = -props.nearClip;
+
+    for (int i = 0; i < 6; i++) {
+        int index = i * 4;
+        planes.push_back(glm::vec4(frus[index], frus[index + 1], frus[index + 2], frus[index + 3]));
+    }
+    
+    return planes;
+}
+
 glm::mat4 getViewMatrix(FPSCam::CameraProps& props, Transform& t) {
     return glm::lookAt(t.position, t.position + props.forward, props.up);
 }
@@ -54,10 +77,16 @@ void FPSCam::update(float deltaTime) {
 
     if (dirtyProj) {
         m_props.proj = getProjectionMatrix(m_props);
+        untransformedPlanes = getFrustumPlanes(m_props);
         dirtyProj = false;
     }
     if (dirtyView) {
         m_props.view = getViewMatrix(m_props, transform);
+
+        for (int i = 0; i < 6; i++) {
+            m_frustumPlanes.planes[i] = glm::normalize(m_props.view * untransformedPlanes[i]);
+        }
+
         dirtyView = false;
     }
 }

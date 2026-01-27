@@ -19,10 +19,6 @@ static std::string getFilePathExtension(const std::string& FileName) {
     return "";
 }
 
-struct AABB {
-    glm::vec3 min, max;
-};
-
 struct gltfDrawCommand {
     uint32_t    indexCount;
     uint32_t    instanceCount;
@@ -86,6 +82,9 @@ struct SceneGraph {
 
     std::vector<DrawData> drawData;
     std::vector<GPUMaterialIndices> materialObjects;
+
+    std::vector<AABB> boundingBoxes;
+    VulkanBuffer boundingBuffer;
     
     void buildNodeBuffers(DeviceContext& ctx, gltfNode* node);
     void buildSceneGraph(DeviceContext& ctx);

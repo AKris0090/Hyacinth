@@ -1,7 +1,6 @@
 #include "vkmeshutils.h"
 
-GPUMeshBuffers vkmeshutils::uploadMesh(DeviceContext& ctx, std::vector<uint32_t>& indices, std::vector<Vertex>& vertices) {
-	GPUMeshBuffers meshBuffers{};
+GPUMeshBuffers vkmeshutils::uploadMesh(DeviceContext& ctx, std::vector<uint32_t>& indices, std::vector<Vertex>& vertices, std::vector<AABB>& boundingBoxes) {
 	VkDeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
 	VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
 
@@ -31,6 +30,9 @@ GPUMeshBuffers vkmeshutils::uploadMesh(DeviceContext& ctx, std::vector<uint32_t>
 		});
 
 	vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
+
+	gpuMesh.aabbBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, boundingBoxes.size() * sizeof(AABB), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+	vkdeviceutils::uploadToBuffer(ctx, gpuMesh.aabbBuffer, boundingBoxes.size() * sizeof(AABB), boundingBoxes.data());
 
 	return gpuMesh;
 }
