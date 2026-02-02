@@ -16,53 +16,17 @@
     <Filter Include="Source Files\sdl_helper">
       <UniqueIdentifier>{3bcd2035-1d0c-491e-b673-d095e506d7b5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\rendering">
-      <UniqueIdentifier>{eba2f2e7-08f8-4ec0-8d71-e13493a3ac32}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\rendering\vkutils">
-      <UniqueIdentifier>{6d6fdde9-c1a2-41b2-8132-af7fc8ac5bc2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\rendering\vkutils\swapchain">
-      <UniqueIdentifier>{822191b5-9152-45b4-84a9-e488dc4249d7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\rendering\vkutils\pipeline">
-      <UniqueIdentifier>{c6959573-451a-4de4-9ece-bceaa6d26fb7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\rendering\vkutils\mesh">
-      <UniqueIdentifier>{a34500b4-a288-42d7-bbdf-412e3a67c312}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\rendering\gltfutils">
-      <UniqueIdentifier>{af396933-eef6-42c5-bf4b-1b2c3b236b7f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\rendering\camera">
-      <UniqueIdentifier>{9e408cb8-5fdf-4497-965f-1e9c79b6c068}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\rendering\vkutils\descriptor">
-      <UniqueIdentifier>{b43b5751-5b81-479e-b6a3-e2cb4208b1ef}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\input">
       <UniqueIdentifier>{f25ec508-37e2-41f9-ad07-a3a2f13df47d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\time">
       <UniqueIdentifier>{938847ef-989a-48a3-be34-df5e0b89a124}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\rendering\vkutils\image">
-      <UniqueIdentifier>{c58cb432-42a8-4d55-b466-455af9ae2e4d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\mikktspace">
       <UniqueIdentifier>{28cdfd25-0448-43d4-b39c-261578067c74}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\rendering\shadow">
-      <UniqueIdentifier>{4e44b4a4-6950-4df9-86a2-e85730c57ac3}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\imgui">
       <UniqueIdentifier>{0d2186a3-7ea5-4fd3-9983-e6f6c7a6cce1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\rendering\raytracing">
-      <UniqueIdentifier>{b7f6f889-dc48-4203-9dcc-8a1013c87585}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\rendering\raytracing\DDGI">
-      <UniqueIdentifier>{3956cfe2-1e1f-4d13-bfcb-c60a49382163}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\shaders">
       <UniqueIdentifier>{1985ba56-382c-44ca-b675-3e60bbaa9c85}</UniqueIdentifier>
@@ -70,40 +34,79 @@
     <Filter Include="Source Files\shaders\rt shaders">
       <UniqueIdentifier>{b53e54dc-849a-4cda-af5d-72aada45973d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\rendering\culling">
+    <Filter Include="Source Files\renderer">
+      <UniqueIdentifier>{eba2f2e7-08f8-4ec0-8d71-e13493a3ac32}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core">
+      <UniqueIdentifier>{3b8ccaa0-cc1e-460c-8e19-585b9ac83421}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\camera">
+      <UniqueIdentifier>{9e408cb8-5fdf-4497-965f-1e9c79b6c068}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\culling">
       <UniqueIdentifier>{04355807-30f6-45be-b85f-d978c409fb14}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\raytracing">
+      <UniqueIdentifier>{b7f6f889-dc48-4203-9dcc-8a1013c87585}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\raytracing\DDGI">
+      <UniqueIdentifier>{3956cfe2-1e1f-4d13-bfcb-c60a49382163}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\shadow">
+      <UniqueIdentifier>{4e44b4a4-6950-4df9-86a2-e85730c57ac3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils">
+      <UniqueIdentifier>{47b7e0cf-7464-4883-9740-31971c307686}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\gltfutils">
+      <UniqueIdentifier>{af396933-eef6-42c5-bf4b-1b2c3b236b7f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\vkutils">
+      <UniqueIdentifier>{6d6fdde9-c1a2-41b2-8132-af7fc8ac5bc2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\vkutils\swapchain">
+      <UniqueIdentifier>{822191b5-9152-45b4-84a9-e488dc4249d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\vkutils\pipeline">
+      <UniqueIdentifier>{c6959573-451a-4de4-9ece-bceaa6d26fb7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\vkutils\mesh">
+      <UniqueIdentifier>{a34500b4-a288-42d7-bbdf-412e3a67c312}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\vkutils\descriptor">
+      <UniqueIdentifier>{b43b5751-5b81-479e-b6a3-e2cb4208b1ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\vkutils\image">
+      <UniqueIdentifier>{c58cb432-42a8-4d55-b466-455af9ae2e4d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="hyacinthengine.cpp">
-      <Filter>Source Files\rendering</Filter>
-    </ClCompile>
     <ClCompile Include="sdlwindow.cpp">
       <Filter>Source Files\sdl_helper</Filter>
     </ClCompile>
     <ClCompile Include="vkdebugutils.h">
-      <Filter>Source Files\rendering\vkutils</Filter>
+      <Filter>Source Files\renderer\utils\vkutils</Filter>
     </ClCompile>
     <ClCompile Include="vkswapchainutils.cpp">
-      <Filter>Source Files\rendering\vkutils\swapchain</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\swapchain</Filter>
     </ClCompile>
     <ClCompile Include="vkpipelineutils.cpp">
-      <Filter>Source Files\rendering\vkutils\pipeline</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\pipeline</Filter>
     </ClCompile>
     <ClCompile Include="vkmeshutils.cpp">
-      <Filter>Source Files\rendering\vkutils\mesh</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\mesh</Filter>
     </ClCompile>
     <ClCompile Include="gltfutils.cpp">
-      <Filter>Source Files\rendering\gltfutils</Filter>
+      <Filter>Source Files\renderer\utils\gltfutils</Filter>
     </ClCompile>
     <ClCompile Include="ecshelpers.h">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="vkdescriptorutils.cpp">
-      <Filter>Source Files\rendering\vkutils\descriptor</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\descriptor</Filter>
     </ClCompile>
     <ClCompile Include="input.cpp">
       <Filter>Source Files\input</Filter>
@@ -112,13 +115,13 @@
       <Filter>Source Files\time</Filter>
     </ClCompile>
     <ClCompile Include="vkimageutils.cpp">
-      <Filter>Source Files\rendering\vkutils\image</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\image</Filter>
     </ClCompile>
     <ClCompile Include="mikktspace\mikktspace.cpp">
       <Filter>Resource Files\mikktspace</Filter>
     </ClCompile>
     <ClCompile Include="csm.cpp">
-      <Filter>Source Files\rendering\shadow</Filter>
+      <Filter>Source Files\renderer\core\shadow</Filter>
     </ClCompile>
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui.cpp">
       <Filter>Resource Files\imgui</Filter>
@@ -142,45 +145,45 @@
       <Filter>Resource Files\imgui</Filter>
     </ClCompile>
     <ClCompile Include="raytracing.cpp">
-      <Filter>Source Files\rendering\raytracing</Filter>
+      <Filter>Source Files\renderer\core\raytracing</Filter>
     </ClCompile>
     <ClCompile Include="owDDGI.cpp">
-      <Filter>Source Files\rendering\raytracing\DDGI</Filter>
+      <Filter>Source Files\renderer\core\raytracing\DDGI</Filter>
     </ClCompile>
     <ClCompile Include="fpcam.cpp">
-      <Filter>Source Files\rendering\camera</Filter>
+      <Filter>Source Files\renderer\core\camera</Filter>
     </ClCompile>
     <ClCompile Include="frustumcull.cpp">
-      <Filter>Source Files\rendering\culling</Filter>
+      <Filter>Source Files\renderer\core\culling</Filter>
+    </ClCompile>
+    <ClCompile Include="hyacinthengine.cpp">
+      <Filter>Source Files\renderer\core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="hyacinthengine.h">
-      <Filter>Source Files\rendering</Filter>
-    </ClInclude>
     <ClInclude Include="sdlwindow.h">
       <Filter>Source Files\sdl_helper</Filter>
     </ClInclude>
     <ClInclude Include="vkdeviceutils.h">
-      <Filter>Source Files\rendering\vkutils</Filter>
+      <Filter>Source Files\renderer\utils\vkutils</Filter>
     </ClInclude>
     <ClInclude Include="vkswapchainutils.h">
-      <Filter>Source Files\rendering\vkutils\swapchain</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\swapchain</Filter>
     </ClInclude>
     <ClInclude Include="vkpipelineutils.h">
-      <Filter>Source Files\rendering\vkutils\pipeline</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\pipeline</Filter>
     </ClInclude>
     <ClInclude Include="vkmeshutils.h">
-      <Filter>Source Files\rendering\vkutils\mesh</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\mesh</Filter>
     </ClInclude>
     <ClInclude Include="gltfutils.h">
-      <Filter>Source Files\rendering\gltfutils</Filter>
+      <Filter>Source Files\renderer\utils\gltfutils</Filter>
     </ClInclude>
     <ClInclude Include="fpcam.h">
-      <Filter>Source Files\rendering\camera</Filter>
+      <Filter>Source Files\renderer\core\camera</Filter>
     </ClInclude>
     <ClInclude Include="vkdescriptorutils.h">
-      <Filter>Source Files\rendering\vkutils\descriptor</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\descriptor</Filter>
     </ClInclude>
     <ClInclude Include="input.h">
       <Filter>Source Files\input</Filter>
@@ -189,16 +192,16 @@
       <Filter>Source Files\time</Filter>
     </ClInclude>
     <ClInclude Include="vkimageutils.h">
-      <Filter>Source Files\rendering\vkutils\image</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\image</Filter>
     </ClInclude>
     <ClInclude Include="mikktspace\mikktspace.h">
       <Filter>Resource Files\mikktspace</Filter>
     </ClInclude>
     <ClInclude Include="tangentHelper.h">
-      <Filter>Source Files\rendering\gltfutils</Filter>
+      <Filter>Source Files\renderer\utils\gltfutils</Filter>
     </ClInclude>
     <ClInclude Include="csm.h">
-      <Filter>Source Files\rendering\shadow</Filter>
+      <Filter>Source Files\renderer\core\shadow</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
@@ -228,13 +231,16 @@
       <Filter>Resource Files\imgui</Filter>
     </ClInclude>
     <ClInclude Include="raytracing.h">
-      <Filter>Source Files\rendering\raytracing</Filter>
+      <Filter>Source Files\renderer\core\raytracing</Filter>
     </ClInclude>
     <ClInclude Include="owDDGI.h">
-      <Filter>Source Files\rendering\raytracing\DDGI</Filter>
+      <Filter>Source Files\renderer\core\raytracing\DDGI</Filter>
     </ClInclude>
     <ClInclude Include="frustumcull.h">
-      <Filter>Source Files\rendering\culling</Filter>
+      <Filter>Source Files\renderer\core\culling</Filter>
+    </ClInclude>
+    <ClInclude Include="hyacinthengine.h">
+      <Filter>Source Files\renderer\core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

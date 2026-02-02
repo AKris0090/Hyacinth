@@ -50,8 +50,8 @@ static void generateTangents(gltfPrimitive* p, SMikkTSpaceContext& mikktContext)
 
 AABB getBoundingBox(std::vector<Vertex>& vertices) {
     AABB bounds;
-    bounds.min = vertices[0].pos;
-    bounds.max = vertices[0].pos;
+    bounds.min = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
+    bounds.max = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
     for (const auto& v : vertices) {
         bounds.grow(v);
     }
@@ -223,7 +223,7 @@ void gltfutils::loadTexture(DeviceContext& ctx, gltfObject& object, tinygltf::Mo
     imageExtents.width = curImage.width;
     imageExtents.height = curImage.height;
     imageExtents.depth = 1;
-    texImage = vkimageutils::createImage(ctx, rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+    texImage = vkimageutils::createImageandView(ctx, rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
     vkimageutils::createImageSampler(*ctx.device, texImage);
     object.textures.push_back(texImage);
     std::cout << "created image: " << curImage.name << std::endl;
@@ -349,8 +349,7 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
                 draw.instanceCount = 1;
                 draw.firstInstance = drawID;
                 draw.vertexCount = prim.get()->vertices.size();
-
-                boundingBoxes.push_back(getBoundingBox(prim.get()->vertices));
+                draw.boundingBox = getBoundingBox(prim.get()->vertices);
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);
@@ -409,6 +408,7 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
             drawCmd.firstInstance = gltfDraw.firstInstance;
 
             drawCommands.push_back(drawCmd);
+			boundingBoxes.push_back(gltfDraw.boundingBox);
         }
     }
 }
@@ -430,7 +430,7 @@ void SceneGraph::createDummyTextures(DeviceContext& ctx) {
         imageExtents.width = texImage.extent.width;
         imageExtents.height = texImage.extent.height;
         imageExtents.depth = 1;
-        texImage = vkimageutils::createImage(ctx, (void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        texImage = vkimageutils::createImageandView(ctx, (void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
         vkimageutils::createImageSampler(*ctx.device, texImage);
         dummyTextures.push_back(texImage);
     }

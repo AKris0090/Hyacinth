@@ -501,9 +501,9 @@ void HyacinthEngine::init()
     m_colorImages.resize(numImages);
     m_depthResolveImages.resize(numImages);
     for (uint32_t i = 0; i < numImages; i++) {
-        m_depthImages[i] = vkimageutils::createImage(m_devContext, extent, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false);
-        m_depthResolveImages[i] = vkimageutils::createImage(m_devContext, extent, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, false);
-        m_colorImages[i] = vkimageutils::createImage(m_devContext, extent, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, m_msaaSamples, false);
+        m_depthImages[i] = vkimageutils::createImageandView(m_devContext, extent, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false);
+        m_depthResolveImages[i] = vkimageutils::createImageandView(m_devContext, extent, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, false);
+        m_colorImages[i] = vkimageutils::createImageandView(m_devContext, extent, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, m_msaaSamples, false);
     }
 
     loadScene();

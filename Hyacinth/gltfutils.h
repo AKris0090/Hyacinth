@@ -26,6 +26,7 @@ struct gltfDrawCommand {
     int32_t     vertexOffset;
     uint32_t    firstInstance;
     uint32_t    vertexCount;
+    AABB        boundingBox;
 };
 
 struct gltfPrimitive {

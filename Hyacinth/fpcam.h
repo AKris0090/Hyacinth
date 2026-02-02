@@ -31,7 +31,7 @@ public:
         float nearClip = 0.1f;
         float farClip = 40.0f;
 
-        glm::vec3 forward;
+        glm::vec3 forward = { 0.f, 0.f, -1.f };
         glm::vec3 right;
         glm::vec3 up = { 0.f, 1.f, 0.f };
 
@@ -45,6 +45,7 @@ public:
     bool dirtyView;
 
 	void update(float deltaTime);
+    void getFrustumPlanes();
 
     FPSCam() {
         moveSpeed = BASE_MOVE_SPEED;
@@ -54,6 +55,7 @@ public:
         m_props.nearClip = 0.01f;
         m_props.farClip = 100.f;
         dirtyProj = true;
+        dirtyView = true;
 
         update(0.f);
     };
@@ -66,6 +68,7 @@ public:
         m_props.nearClip = nearC;
         m_props.farClip = farC;
         dirtyProj = true;
+        dirtyView = true;
 
         update(0.f);
     }

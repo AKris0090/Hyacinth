@@ -36,7 +36,7 @@ void vkimageutils::createImageView(VkDevice& device, VulkanImage& image, VkImage
 	VK_CHECK(vkCreateImageView(device, &viewInfo, nullptr, &image.imageView));
 }
 
-VulkanImage vkimageutils::createImage(DeviceContext& ctx, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits numSamples, bool mipped) {
+VulkanImage vkimageutils::createImageandView(DeviceContext& ctx, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits numSamples, bool mipped) {
 	VulkanImage newImage{};
 	newImage.imageFormat = format;
 	newImage.extent = size;
@@ -105,11 +105,11 @@ void vkimageutils::transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImage
 	vkCmdPipelineBarrier2(cmd, &depInfo);
 }
 
-VulkanImage vkimageutils::createImage(DeviceContext& ctx, void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped) {
+VulkanImage vkimageutils::createImageandView(DeviceContext& ctx, void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped) {
 	size_t dataSize = size.depth * size.width * size.height * 4;
 	VulkanBuffer uploadBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 	memcpy(uploadBuffer.info.pMappedData, data, dataSize);
-	VulkanImage newImage = vkimageutils::createImage(ctx, size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, mipped);
+	VulkanImage newImage = vkimageutils::createImageandView(ctx, size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, mipped);
 
 	vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
 		vkimageutils::transitionImage(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);

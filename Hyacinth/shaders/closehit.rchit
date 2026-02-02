@@ -25,7 +25,7 @@ layout( push_constant ) uniform constants
 } pc;
 
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float directLightIntensity = 10.0;	
+const float directLightIntensity = 15.0;	
 
 vec3 DDGIGetSurfaceBias(vec3 surfaceNormal, vec3 cameraDirection)
 {
