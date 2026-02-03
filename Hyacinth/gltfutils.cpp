@@ -438,14 +438,15 @@ void SceneGraph::createDummyTextures(DeviceContext& ctx) {
 
 void SceneGraph::uploadTextures(VkDevice& dev, VkDescriptorSet& descriptor) {
     uint32_t textureOffset = 0;
-    for (const auto& tex : dummyTextures) {
-        vkimageutils::storeTexture(dev, descriptor, tex, textureOffset);
+    for (auto& tex : dummyTextures) {
+        vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         textureOffset++;
     }
-    for (const auto& obj : objects) {
-        for (const auto& tex : obj.textures) {
-            vkimageutils::storeTexture(dev, descriptor, tex, textureOffset);
+    for (auto& obj : objects) {
+        for (auto& tex : obj.textures) {
+            vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             textureOffset++;
         }
     }
+	vkdescriptorutils::flushDescriptorWrites(dev);
 }

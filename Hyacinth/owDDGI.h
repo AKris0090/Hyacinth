@@ -91,7 +91,6 @@ private:
 	void createRaytraceDescriptors(DeviceContext& ctx);
 	void createRaytracePipeline(DeviceContext& ctx, VkDescriptorSetLayout& textureLayout);
 	void createShaderBindingTable(DeviceContext& ctx, VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
-	void createComputeResources(DeviceContext& ctx);
 
 public:
 	DDGIVolume m_probeVolume;

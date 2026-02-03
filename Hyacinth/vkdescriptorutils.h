@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 #include <vector>
+#include "vkimageutils.h"
 
 struct DescriptorLayoutBuilder {
 	std::vector<VkDescriptorSetLayoutBinding> bindings;
@@ -26,3 +27,14 @@ struct DescriptorAllocator {
 
     VkDescriptorSet allocate(VkDevice& device, VkDescriptorSetLayout layout);
 };
+
+namespace vkdescriptorutils {
+	extern std::vector<VkWriteDescriptorSet> queuedWrites;
+    extern std::vector<VkDescriptorImageInfo*> imageInfos;
+    extern std::vector<VkDescriptorBufferInfo*> bufferInfos;
+
+	void queueWriteImage(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout);
+    void queueWriteBuffer(VkDescriptorSet& descriptorSet, uint32_t binding, size_t size, VkDescriptorType type, VulkanBuffer& buffer);
+
+	void flushDescriptorWrites(VkDevice& device);
+}

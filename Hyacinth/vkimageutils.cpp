@@ -62,6 +62,7 @@ VulkanImage vkimageutils::createImageandView(DeviceContext& ctx, VkExtent3D size
 	allocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	VK_CHECK(vmaCreateImage(*ctx.allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.imageAllocation, nullptr));
+	vmaSetAllocationName(*ctx.allocator, newImage.imageAllocation, "image");
 
 	VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
 	if (format == VK_FORMAT_D32_SFLOAT) {
@@ -178,23 +179,6 @@ VkRenderingAttachmentInfo vkimageutils::createDepthAttachmentInfo(VkImageView& m
 	attachmentInfo.resolveMode = VK_RESOLVE_MODE_MIN_BIT;
 	attachmentInfo.clearValue.depthStencil.depth = 1.f;
 	return attachmentInfo;
-}
-
-void vkimageutils::storeTexture(VkDevice& dev, VkDescriptorSet& set, const VulkanImage& image, uint32_t arrayIndex) {
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = image.imageView;
-	imageInfo.sampler = image.imageSampler;
-
-	VkWriteDescriptorSet writeImage{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeImage.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	writeImage.dstBinding = 0;
-	writeImage.dstSet = set;
-	writeImage.descriptorCount = 1;
-	writeImage.dstArrayElement = arrayIndex;
-	writeImage.pImageInfo = &imageInfo;
-
-	vkUpdateDescriptorSets(dev, 1, &writeImage, 0, nullptr);
 }
 
 void vkimageutils::generateMipmaps(VkCommandBuffer& commandBuffer, VulkanImage& image) {

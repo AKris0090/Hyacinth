@@ -73,3 +73,60 @@ VkDescriptorSet DescriptorAllocator::allocate(VkDevice& device, VkDescriptorSetL
 
     return set;
 }
+
+namespace vkdescriptorutils {
+    std::vector<VkWriteDescriptorSet> queuedWrites;
+    std::vector<VkDescriptorImageInfo*> imageInfos;
+    std::vector<VkDescriptorBufferInfo*> bufferInfos;
+}
+
+void vkdescriptorutils::queueWriteImage(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout) {
+    VkDescriptorImageInfo* imageInfo = new VkDescriptorImageInfo{};
+    imageInfo->imageLayout = layout;
+    imageInfo->imageView = image.imageView;
+    if (type != VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
+        imageInfo->sampler = image.imageSampler;
+    }
+	imageInfos.push_back(imageInfo);
+
+    VkWriteDescriptorSet imageWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    imageWrite.dstSet = descriptorSet;
+    imageWrite.dstBinding = binding;
+    imageWrite.dstArrayElement = arrayLayer;
+    imageWrite.descriptorType = type;
+    imageWrite.descriptorCount = 1;
+    imageWrite.pImageInfo = imageInfo;
+
+	queuedWrites.push_back(imageWrite);
+}
+
+void vkdescriptorutils::queueWriteBuffer(VkDescriptorSet& descriptorSet, uint32_t binding, size_t size, VkDescriptorType type, VulkanBuffer& buffer) {
+    VkDescriptorBufferInfo* bufferInfo = new VkDescriptorBufferInfo{};
+    bufferInfo->buffer = buffer.buffer;
+    bufferInfo->offset = 0;
+    bufferInfo->range = size;
+
+    VkWriteDescriptorSet bufferWrite{};
+    bufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    bufferWrite.dstSet = descriptorSet;
+    bufferWrite.dstBinding = binding;
+    bufferWrite.dstArrayElement = 0;
+    bufferWrite.descriptorType = type;
+    bufferWrite.descriptorCount = 1;
+    bufferWrite.pBufferInfo = bufferInfo;
+
+    queuedWrites.push_back(bufferWrite);
+}
+
+void vkdescriptorutils::flushDescriptorWrites(VkDevice& device) {
+    vkUpdateDescriptorSets(device, (uint32_t)vkdescriptorutils::queuedWrites.size(), vkdescriptorutils::queuedWrites.data(), 0, nullptr);
+    vkdescriptorutils::queuedWrites.clear();
+    for (auto* info : imageInfos) {
+        delete info;
+	}
+    for (auto* info : bufferInfos) {
+        delete info;
+    }
+	bufferInfos.clear();
+	imageInfos.clear();
+}

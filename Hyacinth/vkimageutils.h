@@ -31,7 +31,6 @@ namespace vkimageutils {
 	void createImageSampler(VkDevice& device, VulkanImage& image);
 	VkRenderingAttachmentInfo createColorAttachmentInfo(VkImageView& msaaColorView, VkImageView& resolveImageView, const VkClearValue& clearColor, VkImageLayout imageLayout);
 	VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView& msaaDepthView, VkImageView& resolvedDepthView);
-	void storeTexture(VkDevice& dev, VkDescriptorSet& set, const VulkanImage& image, uint32_t arrayIndex);
 	void generateMipmaps(VkCommandBuffer& commandBuffer, VulkanImage& image);
 
 	void destroyImage(DeviceContext& ctx, VulkanImage& image);

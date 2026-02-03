@@ -3,6 +3,7 @@
 #include "tiny_gltf.h"
 #include "vkmeshutils.h"
 #include "vkimageutils.h"
+#include "vkdescriptorutils.h"
 #include <unordered_set>
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;

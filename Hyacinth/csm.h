@@ -46,10 +46,7 @@ public:
 	Transform transform;
 	std::vector<Cascade> m_cascades;
 	VkExtent2D extent;
-	VkImage shadowImage;
-	VmaAllocation shadowAllocation;
-	VkImageView completeView;
-	VkSampler sampler;
+	VulkanImage m_shadowImage;
 	std::vector<VulkanBuffer> m_uniformBuffers;
 	VulkanPipelineBuilder m_shadowPipelineUtil;
 	DescriptorAllocator	m_descriptorAllocator{};

@@ -24,56 +24,16 @@ void FrustumCullHelper::setup(DeviceContext& ctx) {
 
         m_computeSets[i] = m_computeDescAlloc.allocate(*ctx.device, m_computeLayout);
 
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = m_uniformPlaneBuffers[i].buffer;
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(FPSCam::UniformPlanes);
-
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = m_computeSets[i];
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.dstArrayElement = 0;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.pBufferInfo = &bufferInfo;
-
-        vkUpdateDescriptorSets(*ctx.device, 1, &descriptorWrite, 0, nullptr);
+		vkdescriptorutils::queueWriteBuffer(m_computeSets[i], 0, sizeof(FPSCam::UniformPlanes), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_uniformPlaneBuffers[i]);
     }
+	vkdescriptorutils::flushDescriptorWrites(*ctx.device);
 
     VkPushConstantRange cullPCRange{};
     cullPCRange.offset = 0;
     cullPCRange.size = sizeof(ComputeCullPushConstant);
     cullPCRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    VkPipelineLayoutCreateInfo pipeLineLayoutCInfo{};
-    pipeLineLayoutCInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeLineLayoutCInfo.setLayoutCount = 1;
-    pipeLineLayoutCInfo.pSetLayouts = &m_computeLayout;
-    pipeLineLayoutCInfo.pushConstantRangeCount = 1;
-    pipeLineLayoutCInfo.pPushConstantRanges = &cullPCRange;
-
-    if (vkCreatePipelineLayout(*ctx.device, &pipeLineLayoutCInfo, nullptr, &m_computeCullPipeline.layout) != VK_SUCCESS) {
-        std::cout << "nah you buggin on dis compute shit" << std::endl;
-        throw std::runtime_error("Failed to create brdfLUT pipeline layout!");
-    }
-
-    VkPipelineShaderStageCreateInfo compute = createShader(*ctx.device, "shaders/frustumCull.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-
-    VkPipelineShaderStageCreateInfo computeStageCInfo{};
-    computeStageCInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    computeStageCInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    computeStageCInfo.module = compute.module;
-    computeStageCInfo.pName = "main";
-
-    VkComputePipelineCreateInfo computePipelineCInfo{};
-    computePipelineCInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    computePipelineCInfo.stage = computeStageCInfo;
-
-    computePipelineCInfo.layout = m_computeCullPipeline.layout;
-
-    vkCreateComputePipelines(*ctx.device, VK_NULL_HANDLE, 1, &computePipelineCInfo, nullptr, &m_computeCullPipeline.pipeline);
-	vkDestroyShaderModule(*ctx.device, compute.module, nullptr);
+    m_computeCullPipeline = vkpipelineutils::createComputePipeline(*ctx.device, &m_computeLayout, 1, &cullPCRange, 1, "shaders/frustumCull.spv");
 }
 
 void FrustumCullHelper::update(FPSCam::UniformPlanes& planes, int index) {

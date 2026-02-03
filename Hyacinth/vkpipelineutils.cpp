@@ -2,6 +2,36 @@
 #include "vkdebugutils.h"
 #include "vkmeshutils.h"
 
+static std::vector<char> readFile(const std::string& filename) {
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open file!");
+    }
+
+    size_t fileSize = (size_t)file.tellg();
+    std::vector<char> buffer(fileSize);
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+    file.close();
+
+    return buffer;
+}
+
+static VkShaderModule createShaderModule(VkDevice& device, const std::vector<char>& code) {
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create shader module!");
+    }
+
+    return shaderModule;
+}
+
 void VulkanPipelineBuilder::reset() {
     m_inputAssembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
     m_rasterizer = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
@@ -156,4 +186,43 @@ void VulkanPipelineBuilder::setPositionAttribute() {
 
 void VulkanPipelineBuilder::destroyPipeline(DeviceContext& ctx) {
     m_pipeline.destroy(*ctx.device);
+}
+
+VkPipelineShaderStageCreateInfo vkpipelineutils::createShader(VkDevice& device, std::string shaderFile, VkShaderStageFlagBits stage) {
+    auto shaderCode = readFile(shaderFile);
+
+    VkShaderModule shaderModule = createShaderModule(device, shaderCode);
+
+    VkPipelineShaderStageCreateInfo shaderStageInfo{};
+    shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStageInfo.stage = stage;
+    shaderStageInfo.module = shaderModule;
+    shaderStageInfo.pName = "main";
+
+    return shaderStageInfo;
+}
+
+VulkanPipeline vkpipelineutils::createComputePipeline(VkDevice& device, VkDescriptorSetLayout* layouts, int numLayouts, VkPushConstantRange* pcRanges, int numPcRanges, std::string shaderFile) {
+    VulkanPipeline pipeline{};
+
+    VkPipelineLayoutCreateInfo pipeLineLayoutCInfo{};
+    pipeLineLayoutCInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipeLineLayoutCInfo.setLayoutCount = numLayouts;
+    pipeLineLayoutCInfo.pSetLayouts = layouts;
+    pipeLineLayoutCInfo.pushConstantRangeCount = numPcRanges;
+    pipeLineLayoutCInfo.pPushConstantRanges = pcRanges;
+
+    VK_CHECK(vkCreatePipelineLayout(device, &pipeLineLayoutCInfo, nullptr, &pipeline.layout));
+
+    VkPipelineShaderStageCreateInfo computeShader = createShader(device, shaderFile, VK_SHADER_STAGE_COMPUTE_BIT);
+
+    VkComputePipelineCreateInfo computePipelineCInfo{};
+    computePipelineCInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCInfo.stage = computeShader;
+
+    computePipelineCInfo.layout = pipeline.layout;
+
+    VK_CHECK(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computePipelineCInfo, nullptr, &pipeline.pipeline));
+    vkDestroyShaderModule(device, computeShader.module, nullptr);
+    return pipeline;
 }

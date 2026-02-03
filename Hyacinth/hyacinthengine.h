@@ -67,7 +67,6 @@ private:
 		VulkanBuffer	uniformBuffer;
 		void*			mappedUniformBuffer;
 		VkDescriptorSet descriptorSet;
-		VkDescriptorSet textureSet;
 	};
 
 	bool m_initialized = false;
@@ -108,6 +107,7 @@ private:
 	DescriptorAllocator				m_descriptorAllocator	{};
 	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_textureSetLayout		{ VK_NULL_HANDLE };
+	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
 	owDDGI							m_owDDGIHelper;
