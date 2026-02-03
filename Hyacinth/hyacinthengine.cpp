@@ -799,9 +799,9 @@ void HyacinthEngine::cleanup()
 
     vkDestroyDevice(m_device, nullptr);
     
-    if (m_debugMessenger) {
-        vkdebugutils::DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
-    }
+#ifndef NDEBUG
+    vkdebugutils::DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+#endif
 
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     

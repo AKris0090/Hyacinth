@@ -226,6 +226,9 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
     texImage = vkimageutils::createTextureImage(rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
     vkimageutils::createImageSampler(texImage);
     object.textures.push_back(texImage);
+    if (curImage.name.empty()) {
+        curImage.name = "image_" + curImage.uri;
+    }
     std::cout << "created image: " << curImage.name << std::endl;
 }
 
