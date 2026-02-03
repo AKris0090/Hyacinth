@@ -15,7 +15,7 @@ public:
 
 	static int MikkTGetNumFaces(const SMikkTSpaceContext* context) {
 		const auto data = reinterpret_cast<const MikkTContext*>(context->m_pUserData);
-		return data->mesh->vertices.size() / 3;
+		return static_cast<int>(data->mesh->vertices.size() / 3);
 	}
 
 	static int MikkTGetNumVerticesOfFace(const SMikkTSpaceContext* context, const int face) {
@@ -42,7 +42,7 @@ public:
 		const auto data = reinterpret_cast<const MikkTContext*>(context->m_pUserData);
 		glm::vec2 uv = glm::vec2(data->mesh->vertices[face * 3 + vert].pos.w, data->mesh->vertices[face * 3 + vert].normal.w);
 		fvTexcOut[0] = uv.x;
-		fvTexcOut[1] = 1.0 - uv.y;
+		fvTexcOut[1] = 1.f - uv.y;
 	}
 
 	static void MikkTSetTSpaceBasic(

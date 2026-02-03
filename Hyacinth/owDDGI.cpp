@@ -4,7 +4,7 @@ void owDDGI::createRaytraceDescriptors() {
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
 	{
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1.f }, // accelstructure
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4.f }, // out images (2 for rayData/irradiancce, 2 for compute version)
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4.f },				// out images (2 for rayData/irradiancce, 2 for compute version)
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3.f },
 	};
 
@@ -13,7 +13,7 @@ void owDDGI::createRaytraceDescriptors() {
 	{
 		DescriptorLayoutBuilder layoutBuilder;
 		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_ALL);
-		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL); // rayData image
+		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL);							// rayData image
 		layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR); // irradiance sampler
 		layoutBuilder.addBinding(3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR); // visibility sampler
 		m_descriptorLayout = layoutBuilder.buildLayout(nullptr, 0);
@@ -22,28 +22,15 @@ void owDDGI::createRaytraceDescriptors() {
 	{
 		DescriptorLayoutBuilder layoutBuilder;
 		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_ALL); // rayData image
-		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL); // irradiance image
-		layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL); // visibility image
+		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL);			// irradiance image
+		layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL);			// visibility image
 		m_computeDescriptorLayout = layoutBuilder.buildLayout(nullptr, 0);
 	}
 
 	m_rtDescriptorSet = m_descriptorAllocator.allocate(m_descriptorLayout);
 	m_computeDescriptorSet = m_descriptorAllocator.allocate(m_computeDescriptorLayout);
 
-	VkWriteDescriptorSetAccelerationStructureKHR asInfo{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
-	asInfo.accelerationStructureCount = 1;
-	asInfo.pAccelerationStructures = &m_rtHelper->m_tlAccelStrucutre.accel;
-
-	VkWriteDescriptorSet descriptorWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	descriptorWrite.pNext = &asInfo;
-	descriptorWrite.dstSet = m_rtDescriptorSet;
-	descriptorWrite.dstBinding = 0;
-	descriptorWrite.dstArrayElement = 0;
-	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-	descriptorWrite.descriptorCount = 1;
-
-	vkUpdateDescriptorSets(vkdeviceutils::device, 1, &descriptorWrite, 0, nullptr);
-
+	vkdescriptorutils::queueWriteAccelStructure(m_rtDescriptorSet, 0, 1, &m_rtHelper->m_tlAccelStrucutre.accel);
 	vkdescriptorutils::queueWriteImage(m_rtDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolume.rayDataImage, VK_IMAGE_LAYOUT_GENERAL);
 	vkdescriptorutils::queueWriteImage(m_rtDescriptorSet, 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_probeVolume.irradianceImage, VK_IMAGE_LAYOUT_GENERAL);
 	vkdescriptorutils::queueWriteImage(m_rtDescriptorSet, 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_probeVolume.visibilityImage, VK_IMAGE_LAYOUT_GENERAL);
@@ -168,7 +155,7 @@ void owDDGI::createRaytracePipeline(VkDescriptorSetLayout& textureLayout)
 	rtPipelineInfo.pGroups = shader_groups.data();
 	rtPipelineInfo.maxPipelineRayRecursionDepth = std::max(3U, m_rtHelper->m_rtProperties.maxRayRecursionDepth);
 	rtPipelineInfo.layout = m_rtPipeline.layout;
-	rt::createPipeline(vkdeviceutils::device, {}, {}, 1, & rtPipelineInfo, nullptr, &m_rtPipeline.pipeline);
+	rt::CreatePipeline(vkdeviceutils::device, {}, {}, 1, & rtPipelineInfo, nullptr, &m_rtPipeline.pipeline);
 
 	createShaderBindingTable(rtPipelineInfo);
 
@@ -388,7 +375,7 @@ void owDDGI::createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLa
 			node->indices.push_back(index);
 		}
 	}
-	m_probeVis.indexCount = node->indices.size();
+	m_probeVis.indexCount = static_cast<uint32_t>(node->indices.size());
 	
 	VkDeviceSize vertexBufferSize = node->vertices.size() * sizeof(Vertex);
 	VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);

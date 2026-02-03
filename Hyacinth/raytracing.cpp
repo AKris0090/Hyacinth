@@ -1,14 +1,14 @@
 #include "raytracing.h"
 
 namespace rt {
-    PFN_vkCreateAccelerationStructureKHR CreateAS = nullptr;
-    PFN_vkCmdBuildAccelerationStructuresKHR BuildAS = nullptr;
-    PFN_vkGetAccelerationStructureBuildSizesKHR GetBuildSizes = nullptr;
-    PFN_vkGetAccelerationStructureDeviceAddressKHR GetASAddress = nullptr;
-    PFN_vkCreateRayTracingPipelinesKHR createPipeline = nullptr;
-    PFN_vkCmdTraceRaysKHR Trace = nullptr;
-    PFN_vkGetRayTracingShaderGroupHandlesKHR GetHandles = nullptr;
-	PFN_vkDestroyAccelerationStructureKHR DestroyAS = nullptr;
+    PFN_vkCreateAccelerationStructureKHR            CreateAS = nullptr;
+    PFN_vkCmdBuildAccelerationStructuresKHR         BuildAS = nullptr;
+    PFN_vkGetAccelerationStructureBuildSizesKHR     GetBuildSizes = nullptr;
+    PFN_vkGetAccelerationStructureDeviceAddressKHR  GetASAddress = nullptr;
+    PFN_vkCreateRayTracingPipelinesKHR              CreatePipeline = nullptr;
+    PFN_vkCmdTraceRaysKHR                           Trace = nullptr;
+    PFN_vkGetRayTracingShaderGroupHandlesKHR        GetHandles = nullptr;
+	PFN_vkDestroyAccelerationStructureKHR           DestroyAS = nullptr;
 }
 
 void rt::initAccelerationStructureFunctions(VkDevice& device) {
@@ -28,9 +28,9 @@ void rt::initAccelerationStructureFunctions(VkDevice& device) {
         vkGetDeviceProcAddr(device, "vkGetAccelerationStructureDeviceAddressKHR");
     if (!rt::GetASAddress) throw std::runtime_error("Failed to load vkGetAccelerationStructureDeviceAddressKHR");
 
-    rt::createPipeline = (PFN_vkCreateRayTracingPipelinesKHR)
+    rt::CreatePipeline = (PFN_vkCreateRayTracingPipelinesKHR)
         vkGetDeviceProcAddr(device, "vkCreateRayTracingPipelinesKHR");
-    if (!rt::createPipeline) throw std::runtime_error("Failed to load vkCreateRayTracingPipelinesKHR");
+    if (!rt::CreatePipeline) throw std::runtime_error("Failed to load vkCreateRayTracingPipelinesKHR");
 
     rt::Trace = (PFN_vkCmdTraceRaysKHR)
         vkGetDeviceProcAddr(device, "vkCmdTraceRaysKHR");

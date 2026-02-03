@@ -435,8 +435,8 @@ void HyacinthEngine::setupImGUI()
     init_info.Queue = m_graphicsQueue;
     init_info.UseDynamicRendering = true;
     init_info.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE;
-    init_info.MinImageCount = m_swapChainImages.size();
-    init_info.ImageCount = m_swapChainImages.size();
+    init_info.MinImageCount = static_cast<uint32_t>(m_swapChainImages.size());
+    init_info.ImageCount = static_cast<uint32_t>(m_swapChainImages.size());
     init_info.Allocator = nullptr;
     ImGui_ImplVulkan_Init(&init_info);
 }
@@ -458,11 +458,11 @@ void HyacinthEngine::init()
         .height = m_swImageFormat.extent.height,
         .depth = 1
     };
-    int numImages = m_swapChainImages.size();
+    int numImages = static_cast<int>(m_swapChainImages.size());
     m_depthImages.resize(numImages);
     m_colorImages.resize(numImages);
     m_depthResolveImages.resize(numImages);
-    for (uint32_t i = 0; i < numImages; i++) {
+    for (int i = 0; i < numImages; i++) {
         m_depthImages[i] = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "depth_image");
         m_depthResolveImages[i] = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, false, "depth_resolve");
         m_colorImages[i] = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, m_msaaSamples, false, "color_image");
@@ -620,7 +620,7 @@ void HyacinthEngine::draw()
     // shadows
     drawShadowMaps(cmd);
 
-    m_frustumCullHelper.executeCull(cmd, m_indirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, m_frameIndex, m_scene.drawCommands.size());
+    m_frustumCullHelper.executeCull(cmd, m_indirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, m_frameIndex, static_cast<uint32_t>(m_scene.drawCommands.size()));
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
     VkRenderingAttachmentInfo colorAttachment = vkimageutils::createColorAttachmentInfo(m_colorImages[m_swImageIndex].imageView, m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);

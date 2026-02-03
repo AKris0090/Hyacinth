@@ -78,6 +78,24 @@ namespace vkdescriptorutils {
     std::vector<VkWriteDescriptorSet> queuedWrites;
     std::vector<VkDescriptorImageInfo*> imageInfos;
     std::vector<VkDescriptorBufferInfo*> bufferInfos;
+	std::vector<VkWriteDescriptorSetAccelerationStructureKHR*> accelStructureInfos;
+}
+
+void vkdescriptorutils::queueWriteAccelStructure(VkDescriptorSet& descriptorSet, uint32_t binding, int numStructures, VkAccelerationStructureKHR* pAccelStructures) {
+    VkWriteDescriptorSetAccelerationStructureKHR* asInfo = new VkWriteDescriptorSetAccelerationStructureKHR{};
+    asInfo->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+    asInfo->accelerationStructureCount = numStructures;
+    asInfo->pAccelerationStructures = pAccelStructures;
+
+    VkWriteDescriptorSet accelWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    accelWrite.pNext = asInfo;
+    accelWrite.dstSet = descriptorSet;
+    accelWrite.dstBinding = 0;
+    accelWrite.dstArrayElement = 0;
+    accelWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+    accelWrite.descriptorCount = 1;
+
+    queuedWrites.push_back(accelWrite);
 }
 
 void vkdescriptorutils::queueWriteImage(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout) {
@@ -127,6 +145,10 @@ void vkdescriptorutils::flushDescriptorWrites() {
     for (auto* info : bufferInfos) {
         delete info;
     }
+    for (auto* info : accelStructureInfos) {
+        delete info;
+	}
 	bufferInfos.clear();
 	imageInfos.clear();
+	accelStructureInfos.clear();
 }

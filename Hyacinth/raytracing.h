@@ -16,21 +16,21 @@ struct AccelerationStructure
 };
 
 namespace rt {
-	extern PFN_vkCreateAccelerationStructureKHR CreateAS;
-	extern PFN_vkCmdBuildAccelerationStructuresKHR BuildAS;
-	extern PFN_vkGetAccelerationStructureBuildSizesKHR GetBuildSizes;
-	extern PFN_vkGetAccelerationStructureDeviceAddressKHR GetASAddress;
-	extern PFN_vkCreateRayTracingPipelinesKHR createPipeline;
-	extern PFN_vkCmdTraceRaysKHR Trace;
-	extern PFN_vkGetRayTracingShaderGroupHandlesKHR GetHandles;
-	extern PFN_vkDestroyAccelerationStructureKHR DestroyAS;
+	extern PFN_vkCreateAccelerationStructureKHR				CreateAS;
+	extern PFN_vkCmdBuildAccelerationStructuresKHR			BuildAS;
+	extern PFN_vkGetAccelerationStructureBuildSizesKHR		GetBuildSizes;
+	extern PFN_vkGetAccelerationStructureDeviceAddressKHR	GetASAddress;
+	extern PFN_vkCreateRayTracingPipelinesKHR				CreatePipeline;
+	extern PFN_vkCmdTraceRaysKHR							Trace;
+	extern PFN_vkGetRayTracingShaderGroupHandlesKHR			GetHandles;
+	extern PFN_vkDestroyAccelerationStructureKHR			DestroyAS;
 
 	void initAccelerationStructureFunctions(VkDevice& device);
 }
 
 class rtHelper {
 private:
-	std::vector<AccelerationStructure>	m_blAccelStructures;
+	std::vector<AccelerationStructure> m_blAccelStructures;
 
 	void createAccelerationStructure( VkAccelerationStructureTypeKHR asType,
 		AccelerationStructure& accelStruct,
@@ -42,7 +42,7 @@ private:
 	void createTopLevelAS(SceneGraph& scene);
 
 public:
-	AccelerationStructure				m_tlAccelStrucutre;
+	AccelerationStructure m_tlAccelStrucutre;
 
 	void setup(SceneGraph& scene);
 	void shutdown();

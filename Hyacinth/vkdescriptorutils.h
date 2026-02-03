@@ -33,6 +33,7 @@ namespace vkdescriptorutils {
     extern std::vector<VkDescriptorImageInfo*> imageInfos;
     extern std::vector<VkDescriptorBufferInfo*> bufferInfos;
 
+	void queueWriteAccelStructure(VkDescriptorSet& descriptorSet, uint32_t binding, int numStructures, VkAccelerationStructureKHR* pAccelStructures);
 	void queueWriteImage(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout);
     void queueWriteBuffer(VkDescriptorSet& descriptorSet, uint32_t binding, size_t size, VkDescriptorType type, VulkanBuffer& buffer);
 
