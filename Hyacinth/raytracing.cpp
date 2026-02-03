@@ -8,6 +8,7 @@ namespace rt {
     PFN_vkCreateRayTracingPipelinesKHR createPipeline = nullptr;
     PFN_vkCmdTraceRaysKHR Trace = nullptr;
     PFN_vkGetRayTracingShaderGroupHandlesKHR GetHandles = nullptr;
+	PFN_vkDestroyAccelerationStructureKHR DestroyAS = nullptr;
 }
 
 void rt::initAccelerationStructureFunctions(VkDevice& device) {
@@ -38,6 +39,10 @@ void rt::initAccelerationStructureFunctions(VkDevice& device) {
     rt::GetHandles = (PFN_vkGetRayTracingShaderGroupHandlesKHR)
         vkGetDeviceProcAddr(device, "vkGetRayTracingShaderGroupHandlesKHR");
     if (!rt::GetHandles) throw std::runtime_error("Failed to load vkGetRayTracingShaderGroupHandlesKHR");
+
+    rt::DestroyAS = (PFN_vkDestroyAccelerationStructureKHR)
+        vkGetDeviceProcAddr(device, "vkDestroyAccelerationStructureKHR");
+    if (!rt::DestroyAS) throw std::runtime_error("Failed to load vkDestroyAccelerationStructureKHR");
 }
 
 // this should translate a gltfNode to a geometry structure
@@ -89,14 +94,14 @@ void rtHelper::createAccelerationStructure(DeviceContext & ctx,
         maxPrimCount.data(), &asBuildSize);
 
     VkDeviceSize scratchSize = alignUp(asBuildSize.buildScratchSize, m_asProperties.minAccelerationStructureScratchOffsetAlignment);
-    VulkanBuffer scratchBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, scratchSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, m_asProperties.minAccelerationStructureScratchOffsetAlignment);
+    VulkanBuffer scratchBuffer = vkdeviceutils::createBufferWithAlignment(ctx, scratchSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, m_asProperties.minAccelerationStructureScratchOffsetAlignment, "accel_scratch_buffer");
 
     VkAccelerationStructureCreateInfoKHR createInfo{
         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
         .size = asBuildSize.accelerationStructureSize,
         .type = asType
     };
-    accelStruct.buffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, createInfo.size, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    accelStruct.buffer = vkdeviceutils::createBuffer(ctx, createInfo.size, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_struct_buffer");
     createInfo.buffer = accelStruct.buffer.buffer;
     VK_CHECK(rt::CreateAS(*ctx.device, &createInfo, nullptr, &accelStruct.accel));
     VkAccelerationStructureDeviceAddressInfoKHR info{ .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR };
@@ -160,7 +165,7 @@ void rtHelper::createTopLevelAS(DeviceContext& ctx, SceneGraph& scene) {
 
     std::cout << "building top-level accel structures" << std::endl;
 
-    VulkanBuffer tlasInstanceBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, tlasInstances.size() * sizeof(VkAccelerationStructureInstanceKHR), VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    VulkanBuffer tlasInstanceBuffer = vkdeviceutils::createBuffer(ctx, tlasInstances.size() * sizeof(VkAccelerationStructureInstanceKHR), VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "tlas_instance_buffer");
     vkdeviceutils::uploadToBuffer(ctx, tlasInstanceBuffer, tlasInstances.size() * sizeof(VkAccelerationStructureInstanceKHR), tlasInstances.data());
     {
         VkAccelerationStructureGeometryKHR       asGeometry{};
@@ -183,4 +188,13 @@ void rtHelper::setup(DeviceContext& ctx, SceneGraph& scene) {
     rt::initAccelerationStructureFunctions(*ctx.device);
     createBottomLevelAS(ctx, scene);
     createTopLevelAS(ctx, scene);
+}
+
+void rtHelper::shutdown(DeviceContext& ctx) {
+    for (auto& blas : m_blAccelStructures) {
+        rt::DestroyAS(*ctx.device, blas.accel, nullptr);
+        vkdeviceutils::destroyBuffer(*ctx.allocator, blas.buffer);
+    }
+    rt::DestroyAS(*ctx.device, m_tlAccelStrucutre.accel, nullptr);
+	vkdeviceutils::destroyBuffer(*ctx.allocator, m_tlAccelStrucutre.buffer);
 }

@@ -358,25 +358,25 @@ void HyacinthEngine::loadScene() {
 
 void HyacinthEngine::createBuffers() {
     size_t drawDataBufferSize = sizeof(DrawData) * m_scene.drawData.size();
-    m_drawDataBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, drawDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    m_drawDataBuffer = vkdeviceutils::createBuffer(m_devContext, drawDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "draw_data_ssbo");
     vkdeviceutils::uploadToBuffer(m_devContext, m_drawDataBuffer, drawDataBufferSize, m_scene.drawData.data());
 
     size_t materialDataBufferSize = sizeof(GPUMaterialIndices) * m_scene.materialObjects.size();
-    m_materialBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, materialDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    m_materialBuffer = vkdeviceutils::createBuffer(m_devContext, materialDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "material_ssbo");
     vkdeviceutils::uploadToBuffer(m_devContext, m_materialBuffer, materialDataBufferSize, m_scene.materialObjects.data());
 
 	size_t drawCmdBufferSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.drawCommands.size();
-    m_indirectDrawBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    m_indirectDrawBuffer = vkdeviceutils::createBuffer(m_devContext, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_ssbo");
 	vkdeviceutils::uploadToBuffer(m_devContext, m_indirectDrawBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
-    m_indirectShadowBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    m_indirectShadowBuffer = vkdeviceutils::createBuffer(m_devContext, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_shadow_ssbo");
     vkdeviceutils::uploadToBuffer(m_devContext, m_indirectShadowBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
 
 	size_t matrixBuffSize = sizeof(glm::mat4) * m_scene.transformMatrices.size();
-    m_worldMatrixBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    m_worldMatrixBuffer = vkdeviceutils::createBuffer(m_devContext, matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "world_mat_ssbo");
 	vkdeviceutils::uploadToBuffer(m_devContext, m_worldMatrixBuffer, matrixBuffSize, m_scene.transformMatrices.data());
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        m_frameData[i].uniformBuffer = vkdeviceutils::createBuffer(m_device, m_allocator, sizeof(UBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        m_frameData[i].uniformBuffer = vkdeviceutils::createBuffer(m_devContext, sizeof(UBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frame_uniform");
         m_frameData[i].mappedUniformBuffer = m_frameData[i].uniformBuffer.info.pMappedData;
     }
 }
@@ -444,15 +444,6 @@ void HyacinthEngine::createDescriptorSets()
     }
 }
 
-static void imgui_check_vk_result(VkResult err)
-{
-    if (err == VK_SUCCESS)
-        return;
-    fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
-    if (err < 0)
-        abort();
-}
-
 void HyacinthEngine::setupImGUI() 
 {
     IMGUI_CHECKVERSION();
@@ -474,7 +465,6 @@ void HyacinthEngine::setupImGUI()
     init_info.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE;
     init_info.MinImageCount = m_swapChainImages.size();
     init_info.ImageCount = m_swapChainImages.size();
-    init_info.CheckVkResultFn = imgui_check_vk_result;
     init_info.Allocator = nullptr;
     ImGui_ImplVulkan_Init(&init_info);
 }
@@ -526,8 +516,6 @@ void HyacinthEngine::init()
     setupImGUI();
 
     m_owDDGIHelper.bakeDDGI(m_devContext, m_frameData[0].textureSet);
-
-    std::cout << "baked imge ///////////////////////////////////////////" << std::endl;
 
     m_initialized = true;
 }
@@ -771,9 +759,15 @@ void HyacinthEngine::cleanup()
 
 	vkDeviceWaitIdle(m_device);
 
+    m_frustumCullHelper.shutdown(m_devContext);
+	m_shadowHelper.destroy(m_devContext);
+	m_owDDGIHelper.shutdown(m_devContext);
+
 	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.indexBuffer);
 	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.vertexBuffer);
+	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.aabbBuffer);
 	vkdeviceutils::destroyBuffer(m_allocator, m_indirectDrawBuffer);
+	vkdeviceutils::destroyBuffer(m_allocator, m_indirectShadowBuffer);
 	vkdeviceutils::destroyBuffer(m_allocator, m_worldMatrixBuffer);
     vkdeviceutils::destroyBuffer(m_allocator, m_drawDataBuffer);
     vkdeviceutils::destroyBuffer(m_allocator, m_materialBuffer);
@@ -784,8 +778,7 @@ void HyacinthEngine::cleanup()
 
 	vkDestroyFence(m_device, m_uploadFence, nullptr);
 
-	vkDestroyPipeline(m_device, m_pipelineUtil.m_pipeline.pipeline, nullptr);
-    vkDestroyPipelineLayout(m_device, m_pipelineUtil.m_pipeline.layout, nullptr);
+    m_pipelineUtil.destroyPipeline(m_devContext);
 
     for (auto& tex : m_scene.dummyTextures) {
         vkDestroySampler(m_device, tex.imageSampler, nullptr);
@@ -793,6 +786,11 @@ void HyacinthEngine::cleanup()
         vmaDestroyImage(m_allocator, tex.image, tex.imageAllocation);
     }
     for (auto& obj : m_scene.objects) {
+        for (auto& node : obj.nodes) {
+            vkdeviceutils::destroyBuffer(m_allocator, node.get()->accelStructureIndexBuffer);
+            vkdeviceutils::destroyBuffer(m_allocator, node.get()->accelStructureVertexBuffer);
+            vkdeviceutils::destroyBuffer(m_allocator, node.get()->materialBuffer);
+        }
         for (auto& tex : obj.textures) {
             vkDestroySampler(m_device, tex.imageSampler, nullptr);
             vkDestroyImageView(m_device, tex.imageView, nullptr);
@@ -807,8 +805,6 @@ void HyacinthEngine::cleanup()
         vkDestroyImageView(m_device, m_shadowHelper.m_cascades[i].cascadeImageView, nullptr);
     }
     vmaDestroyImage(m_allocator, m_shadowHelper.shadowImage, m_shadowHelper.shadowAllocation);
-    vkDestroyPipelineLayout(m_device, m_shadowHelper.m_shadowPipelineUtil.m_pipeline.layout, nullptr);
-    vkDestroyPipeline(m_device, m_shadowHelper.m_shadowPipelineUtil.m_pipeline.pipeline, nullptr);
 
     for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(m_device, m_imageAcquiredSemas[i], nullptr);
@@ -835,9 +831,7 @@ void HyacinthEngine::cleanup()
 
 	m_descriptorAllocator.destroyPool(m_device);
 	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
-
-    m_shadowHelper.m_descriptorAllocator.destroyPool(m_device);
-    vkDestroyDescriptorSetLayout(m_device, m_shadowHelper.m_descriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_device, m_textureSetLayout, nullptr);
 
     vmaDestroyAllocator(m_allocator);
 

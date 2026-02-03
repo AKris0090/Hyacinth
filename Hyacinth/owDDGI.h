@@ -77,13 +77,11 @@ private:
 	DescriptorAllocator				m_descriptorAllocator{};
 	VkDescriptorSetLayout			m_descriptorLayout{};
 	VkDescriptorSet					m_rtDescriptorSet{};
-	VkPipelineLayout				m_rtPipelineLayout{};
-	VkPipeline						m_rtPipeline{};
-	
-	VkPipelineLayout				m_irradianceComputePipelineLayout{};
-	VkPipeline						m_irradianceComputePipeline{};
-	VkPipelineLayout				m_visibilityComputePipelineLayout{};
-	VkPipeline						m_visibilityComputePipeline{};
+
+	VulkanPipeline					m_rtPipeline				{};
+	VulkanPipeline					m_irradianceComputePipeline	{};
+	VulkanPipeline					m_visibilityComputePipeline	{};
+
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
 	VkDescriptorSet					m_computeDescriptorSet{};
 
@@ -102,6 +100,7 @@ public:
 
 	void setup(DeviceContext& ctx, rtHelper* rtHelper, SceneGraph& m_scene, VkDescriptorSetLayout& textureLayout);
 	void bakeDDGI(DeviceContext& ctx, VkDescriptorSet& textureSet);
+	void shutdown(DeviceContext& ctx);
 
 	// probe visualization stuff
 	void createProbeVisualizationStructures(DeviceContext& ctx, VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);

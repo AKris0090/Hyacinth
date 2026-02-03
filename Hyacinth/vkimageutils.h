@@ -33,4 +33,6 @@ namespace vkimageutils {
 	VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView& msaaDepthView, VkImageView& resolvedDepthView);
 	void storeTexture(VkDevice& dev, VkDescriptorSet& set, const VulkanImage& image, uint32_t arrayIndex);
 	void generateMipmaps(VkCommandBuffer& commandBuffer, VulkanImage& image);
+
+	void destroyImage(DeviceContext& ctx, VulkanImage& image);
 }

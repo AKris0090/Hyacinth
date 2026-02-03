@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include "vkdeviceutils.h"
 #include <vector>
 #include <string>
 #include <fstream>
@@ -9,6 +10,11 @@
 struct VulkanPipeline {
     VkPipelineLayout    layout;
 	VkPipeline          pipeline;
+
+    void destroy(VkDevice& device) {
+        vkDestroyPipeline(device, pipeline, nullptr);
+        vkDestroyPipelineLayout(device, layout, nullptr);
+	}
 };
 
 static std::vector<char> readFile(const std::string& filename) {
@@ -86,6 +92,7 @@ public:
 	void enableDepthTest(bool depthWrite, VkCompareOp op);
     void setDefaultAttributes();
     void setPositionAttribute();
+    void destroyPipeline(DeviceContext& ctx);
 
 private:
     bool depthPass;

@@ -89,7 +89,7 @@ void shadowHelper::setup(DeviceContext& ctx, int maxFramesInFlight) {
 	}
 	for (int i = 0; i < maxFramesInFlight; i++) {
 		// create uniform buffers
-		m_uniformBuffers[i] = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, sizeof(shadowUniform), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+		m_uniformBuffers[i] = vkdeviceutils::createBuffer(ctx, sizeof(shadowUniform), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "csm_uniform");
 		m_mappedUniformBuffers[i] = m_uniformBuffers[i].info.pMappedData;
 
 		m_cascades[i].uniformDescriptorSet = m_descriptorAllocator.allocate(*ctx.device, m_descriptorSetLayout);
@@ -277,4 +277,11 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 
 		lastSplitDist = cascadeSplits[i];
 	}
+}
+
+void shadowHelper::destroy(DeviceContext& ctx) {
+	m_descriptorAllocator.destroyPool(*ctx.device);
+	vkDestroyDescriptorSetLayout(*ctx.device, m_descriptorSetLayout, nullptr);
+
+	m_shadowPipelineUtil.destroyPipeline(ctx);
 }

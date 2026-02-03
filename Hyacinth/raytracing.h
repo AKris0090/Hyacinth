@@ -23,6 +23,7 @@ namespace rt {
 	extern PFN_vkCreateRayTracingPipelinesKHR createPipeline;
 	extern PFN_vkCmdTraceRaysKHR Trace;
 	extern PFN_vkGetRayTracingShaderGroupHandlesKHR GetHandles;
+	extern PFN_vkDestroyAccelerationStructureKHR DestroyAS;
 
 	void initAccelerationStructureFunctions(VkDevice& device);
 }
@@ -45,6 +46,7 @@ public:
 	AccelerationStructure				m_tlAccelStrucutre;
 
 	void setup(DeviceContext& ctx, SceneGraph& scene);
+	void shutdown(DeviceContext& ctx);
 
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
 	VkPhysicalDeviceAccelerationStructurePropertiesKHR m_asProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR };

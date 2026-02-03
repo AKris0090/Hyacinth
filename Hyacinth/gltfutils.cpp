@@ -299,10 +299,10 @@ void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
     }
     VkDeviceSize vertexBufferSize = positions.size() * sizeof(glm::vec3);
     VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
-    node->accelStructureVertexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
-    node->accelStructureIndexBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    node->accelStructureVertexBuffer = vkdeviceutils::createBuffer(ctx, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_vertex");
+    node->accelStructureIndexBuffer = vkdeviceutils::createBuffer(ctx, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_index");
 
-    VulkanBuffer staging = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+    VulkanBuffer staging = vkdeviceutils::createBuffer(ctx, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
     memcpy(staging.info.pMappedData, positions.data(), vertexBufferSize);
     memcpy((char*)staging.info.pMappedData + vertexBufferSize, node->indices.data(), indexBufferSize);
@@ -324,7 +324,7 @@ void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
 
     vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
 
-    node->materialBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, node->materialIndex.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0);
+    node->materialBuffer = vkdeviceutils::createBuffer(ctx, node->materialIndex.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "node_material");
     vkdeviceutils::uploadToBuffer(ctx, node->materialBuffer, node->materialIndex.size() * sizeof(uint32_t), node->materialIndex.data());
 }
 

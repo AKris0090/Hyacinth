@@ -19,7 +19,7 @@ void FrustumCullHelper::setup(DeviceContext& ctx) {
     }
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        m_uniformPlaneBuffers[i] = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, sizeof(FPSCam::UniformPlanes), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        m_uniformPlaneBuffers[i] = vkdeviceutils::createBuffer(ctx, sizeof(FPSCam::UniformPlanes), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frustum_uniform");
         m_mappedUniformPlaneBuffers[i] = m_uniformPlaneBuffers[i].info.pMappedData;
 
         m_computeSets[i] = m_computeDescAlloc.allocate(*ctx.device, m_computeLayout);
@@ -73,6 +73,7 @@ void FrustumCullHelper::setup(DeviceContext& ctx) {
     computePipelineCInfo.layout = m_computeCullPipeline.layout;
 
     vkCreateComputePipelines(*ctx.device, VK_NULL_HANDLE, 1, &computePipelineCInfo, nullptr, &m_computeCullPipeline.pipeline);
+	vkDestroyShaderModule(*ctx.device, compute.module, nullptr);
 }
 
 void FrustumCullHelper::update(FPSCam::UniformPlanes& planes, int index) {
@@ -94,4 +95,15 @@ void FrustumCullHelper::executeCull(VkCommandBuffer& cmd, VkDeviceAddress& drawB
 
     uint32_t groupCount = (numDraws + 255) / 256;
     vkCmdDispatch(cmd, groupCount, 1, 1);
+}
+
+void FrustumCullHelper::shutdown(DeviceContext& ctx) {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkdeviceutils::destroyBuffer(*ctx.allocator, m_uniformPlaneBuffers[i]);
+    }
+    vkDestroyPipelineLayout(*ctx.device, m_computeCullPipeline.layout, nullptr);
+    vkDestroyPipeline(*ctx.device, m_computeCullPipeline.pipeline, nullptr);
+
+    m_computeDescAlloc.destroyPool(*ctx.device);
+    vkDestroyDescriptorSetLayout(*ctx.device, m_computeLayout, nullptr);
 }

@@ -107,7 +107,7 @@ void vkimageutils::transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImage
 
 VulkanImage vkimageutils::createImageandView(DeviceContext& ctx, void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped) {
 	size_t dataSize = size.depth * size.width * size.height * 4;
-	VulkanBuffer uploadBuffer = vkdeviceutils::createBuffer(*ctx.device, *ctx.allocator, dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+	VulkanBuffer uploadBuffer = vkdeviceutils::createBuffer(ctx, dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 	memcpy(uploadBuffer.info.pMappedData, data, dataSize);
 	VulkanImage newImage = vkimageutils::createImageandView(ctx, size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, mipped);
 
@@ -274,4 +274,10 @@ void vkimageutils::generateMipmaps(VkCommandBuffer& commandBuffer, VulkanImage& 
 		0, nullptr,
 		0, nullptr,
 		1, &barrier);
+}
+
+void vkimageutils::destroyImage(DeviceContext& ctx, VulkanImage& image) {
+	vkDestroySampler(*ctx.device, image.imageSampler, nullptr);
+	vkDestroyImageView(*ctx.device, image.imageView, nullptr);
+	vmaDestroyImage(*ctx.allocator, image.image, image.imageAllocation);
 }

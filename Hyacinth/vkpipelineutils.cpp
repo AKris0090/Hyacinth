@@ -153,3 +153,7 @@ void VulkanPipelineBuilder::setDefaultAttributes() {
 void VulkanPipelineBuilder::setPositionAttribute() {
     depthPass = true;
 }
+
+void VulkanPipelineBuilder::destroyPipeline(DeviceContext& ctx) {
+    m_pipeline.destroy(*ctx.device);
+}

@@ -5,8 +5,8 @@
 #include "vkimageutils.h"
 #include <unordered_set>
 
-#define DUMMY_NORMAL_TEX_INDEX 0
-#define DUMMY_METALROUGH_TEX_INDEX 1
+constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
+constexpr int DUMMY_METALROUGH_TEX_INDEX = 1;
 
 const std::vector<std::string> DUMMY_PATHS = {
         "./shaders/dummyNormal.png",

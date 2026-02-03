@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\sdl_helper">
-      <UniqueIdentifier>{3bcd2035-1d0c-491e-b673-d095e506d7b5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\input">
       <UniqueIdentifier>{f25ec508-37e2-41f9-ad07-a3a2f13df47d}</UniqueIdentifier>
     </Filter>
@@ -79,13 +76,16 @@
     <Filter Include="Source Files\renderer\utils\vkutils\image">
       <UniqueIdentifier>{c58cb432-42a8-4d55-b466-455af9ae2e4d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\utils\sdl_helper">
+      <UniqueIdentifier>{3bcd2035-1d0c-491e-b673-d095e506d7b5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="sdlwindow.cpp">
-      <Filter>Source Files\sdl_helper</Filter>
+      <Filter>Source Files\renderer\utils\sdl_helper</Filter>
     </ClCompile>
     <ClCompile Include="vkdebugutils.h">
       <Filter>Source Files\renderer\utils\vkutils</Filter>
@@ -159,10 +159,13 @@
     <ClCompile Include="hyacinthengine.cpp">
       <Filter>Source Files\renderer\core</Filter>
     </ClCompile>
+    <ClCompile Include="vkdeviceutils.cpp">
+      <Filter>Source Files\renderer\utils\vkutils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sdlwindow.h">
-      <Filter>Source Files\sdl_helper</Filter>
+      <Filter>Source Files\renderer\utils\sdl_helper</Filter>
     </ClInclude>
     <ClInclude Include="vkdeviceutils.h">
       <Filter>Source Files\renderer\utils\vkutils</Filter>

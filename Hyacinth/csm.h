@@ -13,7 +13,7 @@
 #include "vkdescriptorutils.h"
 #include "fpcam.h"
 
-#define SHADOW_MAP_CASCADE_COUNT 3
+constexpr int SHADOW_MAP_CASCADE_COUNT = 3;
 constexpr float cascadeSplitLambda = 0.95f;
 constexpr int cascadeImageSize = 4096;
 
@@ -57,5 +57,6 @@ public:
 
 	void setup(DeviceContext& ctx, int maxFramesInFlight);
 	void update(FPSCam::CameraProps& cam, int currentFrame);
+	void destroy(DeviceContext& ctx);
 	VkRenderingAttachmentInfo getAttachmentInfo(int cascadeIndex) const;
 };
