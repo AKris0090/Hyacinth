@@ -32,7 +32,7 @@ void HyacinthEngine::createInstance()
 	requiredExtensions.assign(extensions, extensions + extensionCount);
 
     if (enableValLayers) {
-        if (!vkdebugutils::checkValLayerSupport()) {
+        if (!vkdebugutils::CheckValLayerSupport()) {
             throw std::runtime_error("Validation layers requested, but not available!");
 		}
 
@@ -40,7 +40,7 @@ void HyacinthEngine::createInstance()
 
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 
-        vkdebugutils::populateDebugMessengerCreateInfo(debugCreateInfo);
+        vkdebugutils::PopulateDebugMessengerCreateInfo(debugCreateInfo);
         instanceCInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
 		instanceCInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
 		instanceCInfo.ppEnabledLayerNames = validationLayers.data();
@@ -55,7 +55,7 @@ void HyacinthEngine::createInstance()
     VK_CHECK(vkCreateInstance(&instanceCInfo, nullptr, &m_instance));
 
     if (enableValLayers) {
-        vkdebugutils::setupDebugMessenger(m_instance, m_debugMessenger);
+        vkdebugutils::SetupDebugMessenger(m_instance, m_debugMessenger);
 	}
 
     // create surface and pick physical/logical device
@@ -226,6 +226,23 @@ void HyacinthEngine::createSwapchain()
     }
 
     m_swImageFormat.aspectRatio = (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height;
+}
+
+void HyacinthEngine::createColorImages() {
+    VkExtent3D extent{
+        .width = m_swImageFormat.extent.width,
+        .height = m_swImageFormat.extent.height,
+        .depth = 1
+    };
+    int numImages = static_cast<int>(m_swapChainImages.size());
+    m_depthImages.resize(numImages);
+    m_colorImages.resize(numImages);
+    m_depthResolveImages.resize(numImages);
+    for (int i = 0; i < numImages; i++) {
+        m_depthImages[i] = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "depth_image");
+        m_depthResolveImages[i] = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, false, "depth_resolve");
+        m_colorImages[i] = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, m_msaaSamples, false, "color_image");
+    }
 }
 
 void HyacinthEngine::createCommandBuffers()
@@ -421,7 +438,7 @@ void HyacinthEngine::setupImGUI()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
 
     ImGui_ImplSDL3_InitForVulkan(m_window);
     ImGui_ImplVulkan_InitInfo init_info = {};
@@ -453,20 +470,7 @@ void HyacinthEngine::init()
 
     m_camera = FPSCam(m_swImageFormat.aspectRatio, 90.f, 0.01f, 40.f);
 
-    VkExtent3D extent{
-        .width = m_swImageFormat.extent.width,
-        .height = m_swImageFormat.extent.height,
-        .depth = 1
-    };
-    int numImages = static_cast<int>(m_swapChainImages.size());
-    m_depthImages.resize(numImages);
-    m_colorImages.resize(numImages);
-    m_depthResolveImages.resize(numImages);
-    for (int i = 0; i < numImages; i++) {
-        m_depthImages[i] = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "depth_image");
-        m_depthResolveImages[i] = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, false, "depth_resolve");
-        m_colorImages[i] = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, m_msaaSamples, false, "color_image");
-    }
+    createColorImages();
 
     loadScene();
 
@@ -516,9 +520,6 @@ void HyacinthEngine::setupDraw()
     vkResetFences(m_device, 1, &m_inFlightFences[m_frameIndex]);
 
     VkResult res2 = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_imageAcquiredSemas[m_frameIndex], VK_NULL_HANDLE, &m_swImageIndex);
-    if (res2 == VK_ERROR_OUT_OF_DATE_KHR || res2 == VK_SUBOPTIMAL_KHR) {
-        throw std::runtime_error("Swapchain out of date!");
-    }
 
     update();
 
@@ -596,13 +597,36 @@ void HyacinthEngine::drawImGui() {
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::Begin("FPS MENU");
+    ImGuiID dockspace_id = ImGui::GetID("My Dockspace");
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+    // Create settings
+    if (ImGui::DockBuilderGetNode(dockspace_id) == nullptr)
+    {
+        ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+        ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+        ImGuiID dock_id_left = 0;
+        ImGuiID dock_id_main = dockspace_id;
+        ImGui::DockBuilderSplitNode(dock_id_main, ImGuiDir_Left, 0.20f, &dock_id_left, &dock_id_main);
+        ImGuiID dock_id_left_top = 0;
+        ImGuiID dock_id_left_bottom = 0;
+        ImGui::DockBuilderSplitNode(dock_id_left, ImGuiDir_Up, 0.50f, &dock_id_left_top, &dock_id_left_bottom);
+        ImGui::DockBuilderDockWindow("Viewport", dock_id_main);
+        ImGui::DockBuilderDockWindow("Info", dock_id_left_top);
+        ImGui::DockBuilderDockWindow("Properties", dock_id_left_bottom);
+        ImGui::DockBuilderFinish(dockspace_id);
+    }
+
+    // Submit dockspace
+    ImGui::DockSpaceOverViewport(dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
+
+    ImGui::Begin("Info");
     auto framesPerSecond = 1.0f / Time::getDeltaTime();
     ImGui::Text("rfps: %.0f", framesPerSecond);
     ImGui::Text("ft: %.2f ms", Time::getDeltaTime() * 1000.0f);
     ImGui::End();
 
-    ImGui::Begin("Var Editor");
+    ImGui::Begin("Properties");
     ImGui::DragFloat("light position x", &m_shadowHelper.transform.position.x, 0.1f );
     ImGui::DragFloat("light position y", &m_shadowHelper.transform.position.y, 0.1f);
     ImGui::DragFloat("light position z", &m_shadowHelper.transform.position.z, 0.1f);
@@ -718,9 +742,31 @@ void HyacinthEngine::endDraw()
     presentInfo.pSwapchains = &m_swapChain;
     presentInfo.pImageIndices = &m_swImageIndex;
 
-    VK_CHECK(vkQueuePresentKHR(m_presentQueue, &presentInfo));
+    VkResult res = vkQueuePresentKHR(m_presentQueue, &presentInfo);
+
+    if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+        recreateSwapchain();
+    }
 
     m_frameIndex = (m_frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void HyacinthEngine::recreateSwapchain() {
+    vkDeviceWaitIdle(m_device);
+
+    for (int i = 0; i < m_swapChainImages.size(); i++) {
+        vkimageutils::destroyImage(m_depthImages[i]);
+        vkimageutils::destroyImage(m_depthResolveImages[i]);
+        vkimageutils::destroyImage(m_colorImages[i]);
+    }
+
+    for (VulkanImage& img : m_swapChainImages) {
+        vkDestroyImageView(m_device, img.imageView, nullptr);
+    }
+    vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
+
+	createSwapchain();
+    createColorImages();
 }
 
 void HyacinthEngine::cleanup()

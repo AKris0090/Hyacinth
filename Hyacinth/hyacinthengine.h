@@ -5,9 +5,11 @@
 #include <stdexcept>
 #include <iostream>
 #include <utility>
+
 #include <imgui.h>
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_vulkan.h"
+#include "imgui_internal.h"
 
 #include "vkdeviceutils.h"
 #include "vkdebugutils.h"
@@ -114,12 +116,13 @@ private:
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();
+	void createColorImages();
+	void recreateSwapchain();
 	void createCommandBuffers();
 	void createSyncObjects();
 	void createGraphicsPipeline();
 	void createBuffers();
 	void createDescriptorSets();
-	void setupFrustumCull();
 	void setupImGUI();
 	void drawImGui();
 	void loadScene();
