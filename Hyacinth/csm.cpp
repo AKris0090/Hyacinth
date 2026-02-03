@@ -1,11 +1,10 @@
 #include "csm.h"
 
-void shadowHelper::setup(DeviceContext& ctx, int maxFramesInFlight) {
+void shadowHelper::setup(int maxFramesInFlight) {
 	transform.position = glm::vec3(-2.f, 12.f, -6.f);
 
 	m_cascades.resize(SHADOW_MAP_CASCADE_COUNT);
 	m_uniformBuffers.resize(maxFramesInFlight);
-	m_mappedUniformBuffers.resize(maxFramesInFlight);
 
 	extent.width = cascadeImageSize;
 	extent.height = cascadeImageSize;
@@ -16,50 +15,10 @@ void shadowHelper::setup(DeviceContext& ctx, int maxFramesInFlight) {
 		.depth = 1
 	};
 
-	VkImageCreateInfo imgInfo{ .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-	imgInfo.format = shadowFormat;
-	imgInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-	imgInfo.extent = extent3D;
-	imgInfo.imageType = VK_IMAGE_TYPE_2D;
-	imgInfo.arrayLayers = SHADOW_MAP_CASCADE_COUNT;
-	imgInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imgInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	imgInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	imgInfo.mipLevels = 1;
-
-	VmaAllocationCreateInfo allocInfo = {};
-	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-	allocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	VK_CHECK(vmaCreateImage(*ctx.allocator, &imgInfo, &allocInfo, &m_shadowImage.image, &m_shadowImage.imageAllocation, nullptr));
-	vmaSetAllocationName(*ctx.allocator, m_shadowImage.imageAllocation, "csm_shadow_image");
-
-	VkImageViewCreateInfo completeViewInfo{};
-	completeViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	completeViewInfo.image = m_shadowImage.image;
-	completeViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-	completeViewInfo.format = shadowFormat;
-	completeViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-	completeViewInfo.subresourceRange.baseMipLevel = 0;
-	completeViewInfo.subresourceRange.levelCount = 1;
-	completeViewInfo.subresourceRange.baseArrayLayer = 0;
-	completeViewInfo.subresourceRange.layerCount = SHADOW_MAP_CASCADE_COUNT;
-
-	VK_CHECK(vkCreateImageView(*ctx.device, &completeViewInfo, nullptr, &m_shadowImage.imageView));
+	m_shadowImage = vkimageutils::createImageandView(extent3D, SHADOW_MAP_CASCADE_COUNT, shadowFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, false, "csm_image");
 
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-		VkImageViewCreateInfo viewInfo{};
-		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		viewInfo.image = m_shadowImage.image;
-		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-		viewInfo.format = shadowFormat;
-		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-		viewInfo.subresourceRange.baseMipLevel = 0;
-		viewInfo.subresourceRange.levelCount = 1;
-		viewInfo.subresourceRange.baseArrayLayer = i;
-		viewInfo.subresourceRange.layerCount = 1;
-
-		VK_CHECK(vkCreateImageView(*ctx.device, &viewInfo, nullptr, &m_cascades[i].cascadeImageView));
+		m_cascades[i].cascadeImageView = vkimageutils::createImageView(m_shadowImage, i, 1, VK_IMAGE_ASPECT_DEPTH_BIT);
 	}
 
 	VkSamplerCreateInfo samplerInfo { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -74,7 +33,7 @@ void shadowHelper::setup(DeviceContext& ctx, int maxFramesInFlight) {
 	samplerInfo.minLod = 0.0f;
 	samplerInfo.maxLod = 1.0f;
 	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	VK_CHECK(vkCreateSampler(*ctx.device, &samplerInfo, nullptr, &m_shadowImage.imageSampler));
+	VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerInfo, nullptr, &m_shadowImage.imageSampler));
 
 	// descriptor
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
@@ -82,25 +41,22 @@ void shadowHelper::setup(DeviceContext& ctx, int maxFramesInFlight) {
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
 	};
 
-	m_descriptorAllocator.initPool(*ctx.device, maxFramesInFlight, sizes);
+	m_descriptorAllocator.initPool(maxFramesInFlight, sizes);
 	{
 		DescriptorLayoutBuilder layoutBuilder;
 		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-		m_descriptorSetLayout = layoutBuilder.buildLayout(*ctx.device, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
+		m_descriptorSetLayout = layoutBuilder.buildLayout(nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
 	}
 	for (int i = 0; i < maxFramesInFlight; i++) {
 		// create uniform buffers
-		m_uniformBuffers[i] = vkdeviceutils::createBuffer(ctx, sizeof(shadowUniform), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "csm_uniform");
-		m_mappedUniformBuffers[i] = m_uniformBuffers[i].info.pMappedData;
-
-		m_cascades[i].uniformDescriptorSet = m_descriptorAllocator.allocate(*ctx.device, m_descriptorSetLayout);
-
+		m_uniformBuffers[i] = vkdeviceutils::createBuffer(sizeof(shadowUniform), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "csm_uniform");
+		m_cascades[i].uniformDescriptorSet = m_descriptorAllocator.allocate(m_descriptorSetLayout);
 		vkdescriptorutils::queueWriteBuffer(m_cascades[i].uniformDescriptorSet, 0, sizeof(shadowUniform), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_uniformBuffers[i]);
 	}
-	vkdescriptorutils::flushDescriptorWrites(*ctx.device);
+	vkdescriptorutils::flushDescriptorWrites();
 
 	// pipeline
-	m_shadowPipelineUtil.addShader(*ctx.device, "shaders/shadow.spv", VK_SHADER_STAGE_VERTEX_BIT);
+	m_shadowPipelineUtil.addShader("shaders/shadow.spv", VK_SHADER_STAGE_VERTEX_BIT);
 
 	m_shadowPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	m_shadowPipelineUtil.setPositionAttribute();
@@ -147,9 +103,9 @@ void shadowHelper::setup(DeviceContext& ctx, int maxFramesInFlight) {
 	pipelineLayoutCInfo.setLayoutCount = 1;
 	pipelineLayoutCInfo.pSetLayouts = &m_descriptorSetLayout;
 
-	VK_CHECK(vkCreatePipelineLayout(*ctx.device, &pipelineLayoutCInfo, nullptr, &m_shadowPipelineUtil.m_pipeline.layout));
+	VK_CHECK(vkCreatePipelineLayout(vkdeviceutils::device, &pipelineLayoutCInfo, nullptr, &m_shadowPipelineUtil.m_pipeline.layout));
 
-	m_shadowPipelineUtil.buildPipeline(*ctx.device);
+	m_shadowPipelineUtil.buildPipeline();
 }
 
 void shadowHelper::update(FPSCam::CameraProps& cam, int currentFrame) {
@@ -159,18 +115,7 @@ void shadowHelper::update(FPSCam::CameraProps& cam, int currentFrame) {
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
 		cascadeViewProjMatrices[i] = m_cascades[i].viewProj;
 	}
-	memcpy(m_mappedUniformBuffers[currentFrame], cascadeViewProjMatrices.data(), sizeof(glm::mat4) * SHADOW_MAP_CASCADE_COUNT);
-}
-
-VkRenderingAttachmentInfo shadowHelper::getAttachmentInfo(int cascadeIndex) const
-{
-	VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-	attachmentInfo.imageView = m_cascades[cascadeIndex].cascadeImageView;
-	attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-	attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	attachmentInfo.clearValue.depthStencil.depth = 1.f;
-	return attachmentInfo;
+	memcpy(m_uniformBuffers[currentFrame].info.pMappedData, cascadeViewProjMatrices.data(), sizeof(glm::mat4) * SHADOW_MAP_CASCADE_COUNT);
 }
 
 void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view) {
@@ -267,17 +212,17 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 	}
 }
 
-void shadowHelper::destroy(DeviceContext& ctx) {
+void shadowHelper::destroy() {
 	// shadow stuff
-	vkDestroySampler(*ctx.device, m_shadowImage.imageSampler, nullptr);
-	vkDestroyImageView(*ctx.device, m_shadowImage.imageView, nullptr);
+	vkDestroySampler(vkdeviceutils::device, m_shadowImage.imageSampler, nullptr);
+	vkDestroyImageView(vkdeviceutils::device, m_shadowImage.imageView, nullptr);
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-		vkDestroyImageView(*ctx.device, m_cascades[i].cascadeImageView, nullptr);
+		vkDestroyImageView(vkdeviceutils::device, m_cascades[i].cascadeImageView, nullptr);
 	}
-	vmaDestroyImage(*ctx.allocator, m_shadowImage.image, m_shadowImage.imageAllocation);
+	vmaDestroyImage(vkdeviceutils::allocator, m_shadowImage.image, m_shadowImage.imageAllocation);
 
-	m_descriptorAllocator.destroyPool(*ctx.device);
-	vkDestroyDescriptorSetLayout(*ctx.device, m_descriptorSetLayout, nullptr);
+	m_descriptorAllocator.destroyPool();
+	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_descriptorSetLayout, nullptr);
 
-	m_shadowPipelineUtil.destroyPipeline(ctx);
+	m_shadowPipelineUtil.destroyPipeline();
 }

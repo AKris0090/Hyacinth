@@ -88,20 +88,20 @@ private:
 	VulkanBuffer closestHitVertexBuffer;
 	VulkanBuffer closestHitIndexBuffer;
 
-	void createRaytraceDescriptors(DeviceContext& ctx);
-	void createRaytracePipeline(DeviceContext& ctx, VkDescriptorSetLayout& textureLayout);
-	void createShaderBindingTable(DeviceContext& ctx, VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
+	void createRaytraceDescriptors();
+	void createRaytracePipeline(VkDescriptorSetLayout& textureLayout);
+	void createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
 
 public:
 	DDGIVolume m_probeVolume;
 	probeVisObjects	m_probeVis{};
 	bool showProbes = false;
 
-	void setup(DeviceContext& ctx, rtHelper* rtHelper, SceneGraph& m_scene, VkDescriptorSetLayout& textureLayout);
-	void bakeDDGI(DeviceContext& ctx, VkDescriptorSet& textureSet);
-	void shutdown(DeviceContext& ctx);
+	void setup(rtHelper* rtHelper, SceneGraph& m_scene, VkDescriptorSetLayout& textureLayout);
+	void bakeDDGI(VkDescriptorSet& textureSet);
+	void shutdown();
 
 	// probe visualization stuff
-	void createProbeVisualizationStructures(DeviceContext& ctx, VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
+	void createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
 	void drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& descSet);
 };

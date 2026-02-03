@@ -137,9 +137,11 @@ void HyacinthEngine::createInstance()
     deviceCInfo.ppEnabledExtensionNames = deviceExts.data();
 
     VK_CHECK(vkCreateDevice(m_physicalDevice, &deviceCInfo, nullptr, &m_device));
+    vkdeviceutils::setDevice(m_device);
 
     vkGetDeviceQueue(m_device, m_qfIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
     vkGetDeviceQueue(m_device, m_qfIndices.presentFamily.value(), 0, &m_presentQueue);
+	vkdeviceutils::setGraphicsQueue(m_graphicsQueue);
 
     VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
     m_rtHelper.m_rtProperties.pNext = &m_rtHelper.m_asProperties;
@@ -162,6 +164,7 @@ void HyacinthEngine::createInstance()
     allocatorInfo.instance = m_instance;
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &m_allocator);
+    vkdeviceutils::setAllocator(m_allocator);
 }
 
 void HyacinthEngine::createSwapchain()
@@ -219,7 +222,7 @@ void HyacinthEngine::createSwapchain()
     }
 
     for (uint32_t i = 0; i < numImages; i++) {
-        vkimageutils::createImageView(m_device, m_swapChainImages[i], VK_IMAGE_ASPECT_COLOR_BIT);
+        m_swapChainImages[i].imageView = vkimageutils::createImageView(m_swapChainImages[i], 0, 1, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
     m_swImageFormat.aspectRatio = (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height;
@@ -257,6 +260,7 @@ void HyacinthEngine::createCommandBuffers()
     CBAllocateInfo.commandBufferCount = 1;
 
     VK_CHECK(vkAllocateCommandBuffers(m_device, &CBAllocateInfo, &m_uploadFrame.commandBuffer));
+	vkdeviceutils::setSingleTimeCommandBuffer(m_uploadFrame.commandBuffer);
 }
 
 void HyacinthEngine::createSyncObjects()
@@ -280,18 +284,13 @@ void HyacinthEngine::createSyncObjects()
     }
 
     VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_uploadFence));
-
-    m_devContext.device = &m_device;
-    m_devContext.allocator = &m_allocator;
-    m_devContext.graphicsQueue = &m_graphicsQueue;
-    m_devContext.commandBuffer = &m_uploadFrame.commandBuffer;
-    m_devContext.uploadFence = &m_uploadFence;
+	vkdeviceutils::setSingleTimeUploadFence(m_uploadFence);
 }
 
 void HyacinthEngine::createGraphicsPipeline()
 {
-    m_pipelineUtil.addShader(m_device, "shaders/vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    m_pipelineUtil.addShader(m_device, "shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    m_pipelineUtil.addShader("shaders/vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    m_pipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	m_pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     m_pipelineUtil.setDefaultAttributes();
@@ -341,7 +340,7 @@ void HyacinthEngine::createGraphicsPipeline()
 
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
 
-	m_pipelineUtil.buildPipeline(m_device);
+	m_pipelineUtil.buildPipeline();
 }
 
 void HyacinthEngine::loadScene() {
@@ -349,34 +348,34 @@ void HyacinthEngine::loadScene() {
     // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
 
-    m_scene.objects.push_back(gltfutils::loadFromFile(path.string(), m_devContext));
+    m_scene.objects.push_back(gltfutils::loadFromFile(path.string()));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
-    m_scene.buildSceneGraph(m_devContext);
-    m_meshBuffers = vkmeshutils::uploadMesh(m_devContext, m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
-    m_scene.createDummyTextures(m_devContext);
+    m_scene.buildSceneGraph();
+    m_meshBuffers = vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
+    m_scene.createDummyTextures();
 }
 
 void HyacinthEngine::createBuffers() {
     size_t drawDataBufferSize = sizeof(DrawData) * m_scene.drawData.size();
-    m_drawDataBuffer = vkdeviceutils::createBuffer(m_devContext, drawDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "draw_data_ssbo");
-    vkdeviceutils::uploadToBuffer(m_devContext, m_drawDataBuffer, drawDataBufferSize, m_scene.drawData.data());
+    m_drawDataBuffer = vkdeviceutils::createBuffer(drawDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "draw_data_ssbo");
+    vkdeviceutils::uploadToBuffer(m_drawDataBuffer, drawDataBufferSize, m_scene.drawData.data());
 
     size_t materialDataBufferSize = sizeof(GPUMaterialIndices) * m_scene.materialObjects.size();
-    m_materialBuffer = vkdeviceutils::createBuffer(m_devContext, materialDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "material_ssbo");
-    vkdeviceutils::uploadToBuffer(m_devContext, m_materialBuffer, materialDataBufferSize, m_scene.materialObjects.data());
+    m_materialBuffer = vkdeviceutils::createBuffer(materialDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "material_ssbo");
+    vkdeviceutils::uploadToBuffer(m_materialBuffer, materialDataBufferSize, m_scene.materialObjects.data());
 
 	size_t drawCmdBufferSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.drawCommands.size();
-    m_indirectDrawBuffer = vkdeviceutils::createBuffer(m_devContext, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_ssbo");
-	vkdeviceutils::uploadToBuffer(m_devContext, m_indirectDrawBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
-    m_indirectShadowBuffer = vkdeviceutils::createBuffer(m_devContext, drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_shadow_ssbo");
-    vkdeviceutils::uploadToBuffer(m_devContext, m_indirectShadowBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
+    m_indirectDrawBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_ssbo");
+	vkdeviceutils::uploadToBuffer(m_indirectDrawBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
+    m_indirectShadowBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_shadow_ssbo");
+    vkdeviceutils::uploadToBuffer(m_indirectShadowBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
 
 	size_t matrixBuffSize = sizeof(glm::mat4) * m_scene.transformMatrices.size();
-    m_worldMatrixBuffer = vkdeviceutils::createBuffer(m_devContext, matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "world_mat_ssbo");
-	vkdeviceutils::uploadToBuffer(m_devContext, m_worldMatrixBuffer, matrixBuffSize, m_scene.transformMatrices.data());
+    m_worldMatrixBuffer = vkdeviceutils::createBuffer(matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "world_mat_ssbo");
+	vkdeviceutils::uploadToBuffer(m_worldMatrixBuffer, matrixBuffSize, m_scene.transformMatrices.data());
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        m_frameData[i].uniformBuffer = vkdeviceutils::createBuffer(m_devContext, sizeof(UBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frame_uniform");
+        m_frameData[i].uniformBuffer = vkdeviceutils::createBuffer(sizeof(UBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frame_uniform");
         m_frameData[i].mappedUniformBuffer = m_frameData[i].uniformBuffer.info.pMappedData;
     }
 }
@@ -390,31 +389,31 @@ void HyacinthEngine::createDescriptorSets()
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float) (1.f / MAX_FRAMES_IN_FLIGHT) } // for shadows, only 1 (not 3)
     };
 
-    m_descriptorAllocator.initPool(m_device, MAX_FRAMES_IN_FLIGHT * 2, sizes);
+    m_descriptorAllocator.initPool(MAX_FRAMES_IN_FLIGHT * 2, sizes);
 
     {
 		DescriptorLayoutBuilder layoutBuilder;
         layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // shadow map
-		m_descriptorSetLayout = layoutBuilder.buildLayout(m_device, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
+		m_descriptorSetLayout = layoutBuilder.buildLayout(nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
     }
 
     {
         DescriptorLayoutBuilder layoutBuilder;
         layoutBuilder.addBinding(0, m_scene.numTextures + 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
-        m_textureSetLayout = layoutBuilder.buildLayout(m_device, nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
+        m_textureSetLayout = layoutBuilder.buildLayout(nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
     }
-	m_textureSet = m_descriptorAllocator.allocate(m_device, m_textureSetLayout);
-    m_scene.uploadTextures(m_device, m_textureSet);
+	m_textureSet = m_descriptorAllocator.allocate(m_textureSetLayout);
+    m_scene.uploadTextures(m_textureSet);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        m_frameData[i].descriptorSet = m_descriptorAllocator.allocate(m_device, m_descriptorSetLayout);
+        m_frameData[i].descriptorSet = m_descriptorAllocator.allocate(m_descriptorSetLayout);
 
         vkdescriptorutils::queueWriteBuffer(m_frameData[i].descriptorSet, 0, sizeof(UBO), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_frameData[i].uniformBuffer);
         vkdescriptorutils::queueWriteImage(m_frameData[i].descriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_shadowHelper.m_shadowImage, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
     }
 
-    vkdescriptorutils::flushDescriptorWrites(m_device);
+    vkdescriptorutils::flushDescriptorWrites();
 }
 
 void HyacinthEngine::setupImGUI() 
@@ -464,31 +463,31 @@ void HyacinthEngine::init()
     m_colorImages.resize(numImages);
     m_depthResolveImages.resize(numImages);
     for (uint32_t i = 0; i < numImages; i++) {
-        m_depthImages[i] = vkimageutils::createImageandView(m_devContext, extent, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false);
-        m_depthResolveImages[i] = vkimageutils::createImageandView(m_devContext, extent, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, false);
-        m_colorImages[i] = vkimageutils::createImageandView(m_devContext, extent, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, m_msaaSamples, false);
+        m_depthImages[i] = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "depth_image");
+        m_depthResolveImages[i] = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_SAMPLE_COUNT_1_BIT, false, "depth_resolve");
+        m_colorImages[i] = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, m_msaaSamples, false, "color_image");
     }
 
     loadScene();
 
     createBuffers();
 
-    m_shadowHelper.setup(m_devContext, MAX_FRAMES_IN_FLIGHT);
+    m_shadowHelper.setup(MAX_FRAMES_IN_FLIGHT);
 
     createDescriptorSets();
 
-    m_rtHelper.setup(m_devContext, m_scene);
+    m_rtHelper.setup(m_scene);
 
-    m_owDDGIHelper.setup(m_devContext, &m_rtHelper, m_scene, m_textureSetLayout);
-    m_owDDGIHelper.createProbeVisualizationStructures(m_devContext, m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
+    m_owDDGIHelper.setup(&m_rtHelper, m_scene, m_textureSetLayout);
+    m_owDDGIHelper.createProbeVisualizationStructures(m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
 
-    m_frustumCullHelper.setup(m_devContext);
+    m_frustumCullHelper.setup();
 
     setupImGUI();
 
-    m_owDDGIHelper.bakeDDGI(m_devContext, m_textureSet);
+    m_owDDGIHelper.bakeDDGI(m_textureSet);
 
     m_initialized = true;
 }
@@ -550,8 +549,8 @@ void HyacinthEngine::drawShadowMaps(VkCommandBuffer& cmd) {
     renderingInfo.pStencilAttachment = nullptr;
 
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-        VkRenderingAttachmentInfo depthAttachment = m_shadowHelper.getAttachmentInfo(i);
-        renderingInfo.pDepthAttachment = &depthAttachment;
+        VkRenderingAttachmentInfo shadowAttachment = vkimageutils::createShadowAttachmentInfo(m_shadowHelper.m_cascades[i].cascadeImageView);
+        renderingInfo.pDepthAttachment = &shadowAttachment;
         vkCmdBeginRendering(cmd, &renderingInfo);
 
         vkCmdBindDescriptorSets(
@@ -732,18 +731,18 @@ void HyacinthEngine::cleanup()
 
 	vkDeviceWaitIdle(m_device);
 
-    m_frustumCullHelper.shutdown(m_devContext);
-	m_shadowHelper.destroy(m_devContext);
-	m_owDDGIHelper.shutdown(m_devContext);
+    m_frustumCullHelper.shutdown();
+	m_shadowHelper.destroy();
+	m_owDDGIHelper.shutdown();
 
-	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.indexBuffer);
-	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.vertexBuffer);
-	vkdeviceutils::destroyBuffer(m_allocator, m_meshBuffers.aabbBuffer);
-	vkdeviceutils::destroyBuffer(m_allocator, m_indirectDrawBuffer);
-	vkdeviceutils::destroyBuffer(m_allocator, m_indirectShadowBuffer);
-	vkdeviceutils::destroyBuffer(m_allocator, m_worldMatrixBuffer);
-    vkdeviceutils::destroyBuffer(m_allocator, m_drawDataBuffer);
-    vkdeviceutils::destroyBuffer(m_allocator, m_materialBuffer);
+	vkdeviceutils::destroyBuffer(m_meshBuffers.indexBuffer);
+	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);
+	vkdeviceutils::destroyBuffer(m_meshBuffers.aabbBuffer);
+	vkdeviceutils::destroyBuffer(m_indirectDrawBuffer);
+	vkdeviceutils::destroyBuffer(m_indirectShadowBuffer);
+	vkdeviceutils::destroyBuffer(m_worldMatrixBuffer);
+    vkdeviceutils::destroyBuffer(m_drawDataBuffer);
+    vkdeviceutils::destroyBuffer(m_materialBuffer);
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL3_Shutdown();
@@ -751,23 +750,19 @@ void HyacinthEngine::cleanup()
 
 	vkDestroyFence(m_device, m_uploadFence, nullptr);
 
-    m_pipelineUtil.destroyPipeline(m_devContext);
+    m_pipelineUtil.destroyPipeline();
 
     for (auto& tex : m_scene.dummyTextures) {
-        vkDestroySampler(m_device, tex.imageSampler, nullptr);
-        vkDestroyImageView(m_device, tex.imageView, nullptr);
-        vmaDestroyImage(m_allocator, tex.image, tex.imageAllocation);
+        vkimageutils::destroyImage(tex);
     }
     for (auto& obj : m_scene.objects) {
         for (auto& node : obj.nodes) {
-            vkdeviceutils::destroyBuffer(m_allocator, node.get()->accelStructureIndexBuffer);
-            vkdeviceutils::destroyBuffer(m_allocator, node.get()->accelStructureVertexBuffer);
-            vkdeviceutils::destroyBuffer(m_allocator, node.get()->materialBuffer);
+            vkdeviceutils::destroyBuffer(node.get()->accelStructureIndexBuffer);
+            vkdeviceutils::destroyBuffer(node.get()->accelStructureVertexBuffer);
+            vkdeviceutils::destroyBuffer(node.get()->materialBuffer);
         }
         for (auto& tex : obj.textures) {
-            vkDestroySampler(m_device, tex.imageSampler, nullptr);
-            vkDestroyImageView(m_device, tex.imageView, nullptr);
-            vmaDestroyImage(m_allocator, tex.image, tex.imageAllocation);
+            vkimageutils::destroyImage(tex);
         }
     }
 
@@ -778,23 +773,18 @@ void HyacinthEngine::cleanup()
 
         vkDestroyCommandPool(m_device, m_frameData[i].commandPool, nullptr);
 
-		vkdeviceutils::destroyBuffer(m_allocator, m_frameData[i].uniformBuffer);
+		vkdeviceutils::destroyBuffer(m_frameData[i].uniformBuffer);
 
-        vkdeviceutils::destroyBuffer(m_allocator, m_shadowHelper.m_uniformBuffers[i]);
+        vkdeviceutils::destroyBuffer(m_shadowHelper.m_uniformBuffers[i]);
 	}
 
     for (int i = 0; i < m_swapChainImages.size(); i++) {
-        vkDestroyImageView(m_device, m_depthImages[i].imageView, nullptr);
-        vmaDestroyImage(m_allocator, m_depthImages[i].image, m_depthImages[i].imageAllocation);
-
-        vkDestroyImageView(m_device, m_depthResolveImages[i].imageView, nullptr);
-        vmaDestroyImage(m_allocator, m_depthResolveImages[i].image, m_depthResolveImages[i].imageAllocation);
-
-        vkDestroyImageView(m_device, m_colorImages[i].imageView, nullptr);
-        vmaDestroyImage(m_allocator, m_colorImages[i].image, m_colorImages[i].imageAllocation);
+        vkimageutils::destroyImage(m_depthImages[i]);
+        vkimageutils::destroyImage(m_depthResolveImages[i]);
+        vkimageutils::destroyImage(m_colorImages[i]);
     }
 
-	m_descriptorAllocator.destroyPool(m_device);
+	m_descriptorAllocator.destroyPool();
 	vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(m_device, m_textureSetLayout, nullptr);
 
@@ -807,23 +797,10 @@ void HyacinthEngine::cleanup()
     }
     vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
 
-    if (m_device != VK_NULL_HANDLE) {
-        vkDestroyDevice(m_device, nullptr);
-        m_device = VK_NULL_HANDLE;
-    }
-
-    if (m_debugMessenger != VK_NULL_HANDLE) {
-        vkdebugutils::DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
-        m_debugMessenger = VK_NULL_HANDLE;
-    }
-
-    if (m_surface != VK_NULL_HANDLE) {
-        vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
-        m_surface = VK_NULL_HANDLE;
-    }
-
-    if (m_instance != VK_NULL_HANDLE) {
-        vkDestroyInstance(m_instance, nullptr);
-        m_instance = VK_NULL_HANDLE;
-    }
+    vkDestroyDevice(m_device, nullptr);
+    
+    vkdebugutils::DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+    
+    vkDestroyInstance(m_instance, nullptr);
 }

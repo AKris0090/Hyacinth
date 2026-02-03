@@ -9,7 +9,7 @@ struct DescriptorLayoutBuilder {
 
 	void addBinding(uint32_t binding, uint32_t count, VkDescriptorType type, VkShaderStageFlags stages);
 	void clear();
-	VkDescriptorSetLayout buildLayout(VkDevice& layout, void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);
+	VkDescriptorSetLayout buildLayout(void* pNext = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);
 };
 
 struct DescriptorAllocator {
@@ -21,11 +21,11 @@ struct DescriptorAllocator {
 
     VkDescriptorPool pool;
 
-    void initPool(VkDevice& device, uint32_t maxSets, std::vector<PoolSizeRatio> poolRatios);
-    void clearDescriptors(VkDevice& device);
-    void destroyPool(VkDevice& device);
+    void initPool(uint32_t maxSets, std::vector<PoolSizeRatio> poolRatios);
+    void clearDescriptors();
+    void destroyPool();
 
-    VkDescriptorSet allocate(VkDevice& device, VkDescriptorSetLayout layout);
+    VkDescriptorSet allocate(VkDescriptorSetLayout layout);
 };
 
 namespace vkdescriptorutils {
@@ -36,5 +36,5 @@ namespace vkdescriptorutils {
 	void queueWriteImage(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout);
     void queueWriteBuffer(VkDescriptorSet& descriptorSet, uint32_t binding, size_t size, VkDescriptorType type, VulkanBuffer& buffer);
 
-	void flushDescriptorWrites(VkDevice& device);
+	void flushDescriptorWrites();
 }

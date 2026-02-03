@@ -88,13 +88,13 @@ struct SceneGraph {
     std::vector<AABB> boundingBoxes;
     VulkanBuffer boundingBuffer;
     
-    void buildNodeBuffers(DeviceContext& ctx, gltfNode* node);
-    void buildSceneGraph(DeviceContext& ctx);
-    void createDummyTextures(DeviceContext& ctx);
-    void uploadTextures(VkDevice& dev, VkDescriptorSet& descriptor);
+    void buildNodeBuffers(gltfNode* node);
+    void buildSceneGraph();
+    void createDummyTextures();
+    void uploadTextures(VkDescriptorSet& descriptor);
 };
 
 namespace gltfutils {
-    void loadTexture(DeviceContext& ctx, gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, DeviceContext& ctx);
+    void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
+    gltfObject loadFromFile(const std::string& filename);
 }

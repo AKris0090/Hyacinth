@@ -16,7 +16,7 @@ void DescriptorLayoutBuilder::clear()
     bindings.clear();
 }
 
-VkDescriptorSetLayout DescriptorLayoutBuilder::buildLayout(VkDevice& device, void* pNext, VkDescriptorSetLayoutCreateFlags flags)
+VkDescriptorSetLayout DescriptorLayoutBuilder::buildLayout(void* pNext, VkDescriptorSetLayoutCreateFlags flags)
 {
     VkDescriptorSetLayoutCreateInfo info = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
     info.pNext = pNext;
@@ -26,12 +26,12 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::buildLayout(VkDevice& device, voi
     info.flags = flags;
 
     VkDescriptorSetLayout set;
-    VK_CHECK(vkCreateDescriptorSetLayout(device, &info, nullptr, &set));
+    VK_CHECK(vkCreateDescriptorSetLayout(vkdeviceutils::device, &info, nullptr, &set));
 
     return set;
 }
 
-void DescriptorAllocator::initPool(VkDevice& device, uint32_t maxSets, std::vector<PoolSizeRatio> poolRatios)
+void DescriptorAllocator::initPool(uint32_t maxSets, std::vector<PoolSizeRatio> poolRatios)
 {
     std::vector<VkDescriptorPoolSize> poolSizes;
     for (PoolSizeRatio ratio : poolRatios) {
@@ -47,20 +47,20 @@ void DescriptorAllocator::initPool(VkDevice& device, uint32_t maxSets, std::vect
     poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
     poolInfo.pPoolSizes = poolSizes.data();
 
-    vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool);
+    vkCreateDescriptorPool(vkdeviceutils::device, &poolInfo, nullptr, &pool);
 }
 
-void DescriptorAllocator::clearDescriptors(VkDevice& device)
+void DescriptorAllocator::clearDescriptors()
 {
-    vkResetDescriptorPool(device, pool, 0);
+    vkResetDescriptorPool(vkdeviceutils::device, pool, 0);
 }
 
-void DescriptorAllocator::destroyPool(VkDevice& device)
+void DescriptorAllocator::destroyPool()
 {
-    vkDestroyDescriptorPool(device, pool, nullptr);
+    vkDestroyDescriptorPool(vkdeviceutils::device, pool, nullptr);
 }
 
-VkDescriptorSet DescriptorAllocator::allocate(VkDevice& device, VkDescriptorSetLayout layout)
+VkDescriptorSet DescriptorAllocator::allocate(VkDescriptorSetLayout layout)
 {
     VkDescriptorSetAllocateInfo allocInfo = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
     allocInfo.pNext = nullptr;
@@ -69,7 +69,7 @@ VkDescriptorSet DescriptorAllocator::allocate(VkDevice& device, VkDescriptorSetL
     allocInfo.pSetLayouts = &layout;
 
     VkDescriptorSet set;
-    VK_CHECK(vkAllocateDescriptorSets(device, &allocInfo, &set));
+    VK_CHECK(vkAllocateDescriptorSets(vkdeviceutils::device, &allocInfo, &set));
 
     return set;
 }
@@ -118,8 +118,8 @@ void vkdescriptorutils::queueWriteBuffer(VkDescriptorSet& descriptorSet, uint32_
     queuedWrites.push_back(bufferWrite);
 }
 
-void vkdescriptorutils::flushDescriptorWrites(VkDevice& device) {
-    vkUpdateDescriptorSets(device, (uint32_t)vkdescriptorutils::queuedWrites.size(), vkdescriptorutils::queuedWrites.data(), 0, nullptr);
+void vkdescriptorutils::flushDescriptorWrites() {
+    vkUpdateDescriptorSets(vkdeviceutils::device, (uint32_t)vkdescriptorutils::queuedWrites.size(), vkdescriptorutils::queuedWrites.data(), 0, nullptr);
     vkdescriptorutils::queuedWrites.clear();
     for (auto* info : imageInfos) {
         delete info;

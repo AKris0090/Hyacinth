@@ -79,6 +79,9 @@
     <Filter Include="Source Files\renderer\utils\sdl_helper">
       <UniqueIdentifier>{3bcd2035-1d0c-491e-b673-d095e506d7b5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\utils\vkutils\device">
+      <UniqueIdentifier>{10afcfed-7a1d-4e41-90c2-fd95c0f4eddf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -160,15 +163,12 @@
       <Filter>Source Files\renderer\core</Filter>
     </ClCompile>
     <ClCompile Include="vkdeviceutils.cpp">
-      <Filter>Source Files\renderer\utils\vkutils</Filter>
+      <Filter>Source Files\renderer\utils\vkutils\device</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sdlwindow.h">
       <Filter>Source Files\renderer\utils\sdl_helper</Filter>
-    </ClInclude>
-    <ClInclude Include="vkdeviceutils.h">
-      <Filter>Source Files\renderer\utils\vkutils</Filter>
     </ClInclude>
     <ClInclude Include="vkswapchainutils.h">
       <Filter>Source Files\renderer\utils\vkutils\swapchain</Filter>
@@ -244,6 +244,9 @@
     </ClInclude>
     <ClInclude Include="hyacinthengine.h">
       <Filter>Source Files\renderer\core</Filter>
+    </ClInclude>
+    <ClInclude Include="vkdeviceutils.h">
+      <Filter>Source Files\renderer\utils\vkutils\device</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

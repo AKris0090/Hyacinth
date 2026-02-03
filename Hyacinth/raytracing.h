@@ -32,21 +32,20 @@ class rtHelper {
 private:
 	std::vector<AccelerationStructure>	m_blAccelStructures;
 
-	void createAccelerationStructure(DeviceContext& ctx,
-		VkAccelerationStructureTypeKHR asType,
+	void createAccelerationStructure( VkAccelerationStructureTypeKHR asType,
 		AccelerationStructure& accelStruct,
 		VkAccelerationStructureGeometryKHR& asGeometry,
 		VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo,
 		VkBuildAccelerationStructureFlagsKHR flags);
 
-	void createBottomLevelAS(DeviceContext& ctx, SceneGraph& scene);
-	void createTopLevelAS(DeviceContext& ctx, SceneGraph& scene);
+	void createBottomLevelAS(SceneGraph& scene);
+	void createTopLevelAS(SceneGraph& scene);
 
 public:
 	AccelerationStructure				m_tlAccelStrucutre;
 
-	void setup(DeviceContext& ctx, SceneGraph& scene);
-	void shutdown(DeviceContext& ctx);
+	void setup(SceneGraph& scene);
+	void shutdown();
 
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
 	VkPhysicalDeviceAccelerationStructurePropertiesKHR m_asProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR };

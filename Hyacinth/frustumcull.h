@@ -24,8 +24,8 @@ private:
 	VulkanPipeline m_computeCullPipeline;
 
 public:
-	void shutdown(DeviceContext& ctx);
-	void setup(DeviceContext& ctx);
+	void shutdown();
+	void setup();
 	void update(FPSCam::UniformPlanes& planes, int index);
 	void executeCull(VkCommandBuffer& cmd, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& bbAddress, VkDeviceAddress& matrixAddress, VkDeviceAddress& drawDataAddress, int index, uint32_t numDraws);
 };

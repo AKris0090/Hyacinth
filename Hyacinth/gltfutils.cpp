@@ -185,7 +185,7 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
     }
 }
 
-void gltfutils::loadTexture(DeviceContext& ctx, gltfObject& object, tinygltf::Model* model, VkFormat format, uint32_t imageIndex) {
+void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat format, uint32_t imageIndex) {
     tinygltf::Image& curImage = model->images[imageIndex];
     VulkanImage texImage{};
     std::vector<unsigned char> rgba;
@@ -223,13 +223,13 @@ void gltfutils::loadTexture(DeviceContext& ctx, gltfObject& object, tinygltf::Mo
     imageExtents.width = curImage.width;
     imageExtents.height = curImage.height;
     imageExtents.depth = 1;
-    texImage = vkimageutils::createImageandView(ctx, rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
-    vkimageutils::createImageSampler(*ctx.device, texImage);
+    texImage = vkimageutils::createTextureImage(rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+    vkimageutils::createImageSampler(texImage);
     object.textures.push_back(texImage);
     std::cout << "created image: " << curImage.name << std::endl;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& ctx) {
+gltfObject gltfutils::loadFromFile(const std::string& filename) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
@@ -284,14 +284,14 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, DeviceContext& c
 
     for (uint32_t i = 0; i < model->images.size(); i++) {
         VkFormat format = (object.imageIsSRGB->find(i) == object.imageIsSRGB->end()) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
-        loadTexture(ctx, object, model, format, i);
+        loadTexture(object, model, format, i);
     }
 
 	delete model;
 	return object;
 }
 
-void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
+void SceneGraph::buildNodeBuffers(gltfNode* node) {
     // for building acceleration structures
     std::vector<glm::vec3> positions;
     for (const auto& v : node->vertices) {
@@ -299,10 +299,10 @@ void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
     }
     VkDeviceSize vertexBufferSize = positions.size() * sizeof(glm::vec3);
     VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
-    node->accelStructureVertexBuffer = vkdeviceutils::createBuffer(ctx, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_vertex");
-    node->accelStructureIndexBuffer = vkdeviceutils::createBuffer(ctx, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_index");
+    node->accelStructureVertexBuffer = vkdeviceutils::createBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_vertex");
+    node->accelStructureIndexBuffer = vkdeviceutils::createBuffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_index");
 
-    VulkanBuffer staging = vkdeviceutils::createBuffer(ctx, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+    VulkanBuffer staging = vkdeviceutils::createBuffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
     memcpy(staging.info.pMappedData, positions.data(), vertexBufferSize);
     memcpy((char*)staging.info.pMappedData + vertexBufferSize, node->indices.data(), indexBufferSize);
@@ -317,18 +317,18 @@ void SceneGraph::buildNodeBuffers(DeviceContext& ctx, gltfNode* node) {
     indexCopyRegion.dstOffset = 0;
     indexCopyRegion.size = indexBufferSize;
 
-    vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
+    vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
         vkCmdCopyBuffer(cmd, staging.buffer, node->accelStructureVertexBuffer.buffer, 1, &vertexCopyRegion);
         vkCmdCopyBuffer(cmd, staging.buffer, node->accelStructureIndexBuffer.buffer, 1, &indexCopyRegion);
         });
 
-    vkdeviceutils::destroyBuffer(*ctx.allocator, staging);
+    vkdeviceutils::destroyBuffer(staging);
 
-    node->materialBuffer = vkdeviceutils::createBuffer(ctx, node->materialIndex.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "node_material");
-    vkdeviceutils::uploadToBuffer(ctx, node->materialBuffer, node->materialIndex.size() * sizeof(uint32_t), node->materialIndex.data());
+    node->materialBuffer = vkdeviceutils::createBuffer(node->materialIndex.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "node_material");
+    vkdeviceutils::uploadToBuffer(node->materialBuffer, node->materialIndex.size() * sizeof(uint32_t), node->materialIndex.data());
 }
 
-void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
+void SceneGraph::buildSceneGraph() {
     uint32_t materialOffset = 0;
     uint32_t textureOffset = 0;
     uint32_t drawID = 0;
@@ -383,7 +383,7 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
             matrixID++;
 
             // for acceleration structures
-            buildNodeBuffers(ctx, node.get());
+            buildNodeBuffers(node.get());
 		}
         
         for (const auto& mat : obj.materials) {
@@ -413,7 +413,7 @@ void SceneGraph::buildSceneGraph(DeviceContext& ctx) {
     }
 }
 
-void SceneGraph::createDummyTextures(DeviceContext& ctx) {
+void SceneGraph::createDummyTextures() {
     // add dummy textures
     for (const auto& path : DUMMY_PATHS) {
         VulkanImage texImage{};
@@ -430,13 +430,13 @@ void SceneGraph::createDummyTextures(DeviceContext& ctx) {
         imageExtents.width = texImage.extent.width;
         imageExtents.height = texImage.extent.height;
         imageExtents.depth = 1;
-        texImage = vkimageutils::createImageandView(ctx, (void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
-        vkimageutils::createImageSampler(*ctx.device, texImage);
+        texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        vkimageutils::createImageSampler(texImage);
         dummyTextures.push_back(texImage);
     }
 }
 
-void SceneGraph::uploadTextures(VkDevice& dev, VkDescriptorSet& descriptor) {
+void SceneGraph::uploadTextures(VkDescriptorSet& descriptor) {
     uint32_t textureOffset = 0;
     for (auto& tex : dummyTextures) {
         vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -448,5 +448,5 @@ void SceneGraph::uploadTextures(VkDevice& dev, VkDescriptorSet& descriptor) {
             textureOffset++;
         }
     }
-	vkdescriptorutils::flushDescriptorWrites(dev);
+	vkdescriptorutils::flushDescriptorWrites();
 }

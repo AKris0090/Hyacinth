@@ -37,7 +37,6 @@ struct shadowGPUPushConstant {
 class shadowHelper {
 private:
 	VkFormat shadowFormat = VK_FORMAT_D32_SFLOAT;
-	std::vector<void*> m_mappedUniformBuffers;
 	std::vector<glm::vec4> corners;
 
 	void updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view);
@@ -52,8 +51,7 @@ public:
 	DescriptorAllocator	m_descriptorAllocator{};
 	VkDescriptorSetLayout m_descriptorSetLayout{ VK_NULL_HANDLE };
 
-	void setup(DeviceContext& ctx, int maxFramesInFlight);
+	void setup(int maxFramesInFlight);
 	void update(FPSCam::CameraProps& cam, int currentFrame);
-	void destroy(DeviceContext& ctx);
-	VkRenderingAttachmentInfo getAttachmentInfo(int cascadeIndex) const;
+	void destroy();
 };

@@ -36,24 +36,28 @@ struct VulkanBuffer {
     VmaAllocationInfo info;
 };
 
-struct DeviceContext {
-    VkDevice* device;
-    VmaAllocator* allocator;
-	VkQueue* graphicsQueue;
-    VkCommandBuffer* commandBuffer;
-	VkFence* uploadFence;
-};
-
 namespace vkdeviceutils {
+	extern VkDevice device;
+	extern VmaAllocator allocator;
+    extern VkQueue graphicsQueue;
+	extern VkCommandBuffer commandBuffer;
+	extern VkFence uploadFence;
+
+    void setDevice(VkDevice& dev);
+    void setAllocator(VmaAllocator& alloc);
+    void setGraphicsQueue(VkQueue& queue);
+    void setSingleTimeCommandBuffer(VkCommandBuffer& cmd);
+    void setSingleTimeUploadFence(VkFence& fence);
+
     void beginCommandBuffer(VkCommandBuffer& commandBuffer);
-    void beginSingleTimeCommandBuffer(DeviceContext* ctx);
-    void endSubmitCommandBuffer(DeviceContext* ctx);
+    void beginSingleTimeCommandBuffer();
+    void endSubmitCommandBuffer();
 
     template<typename Func>
-    void executeSingleTimeCommands(DeviceContext& ctx, Func&& f) {
-        beginSingleTimeCommandBuffer(&ctx);
-        f(*ctx.commandBuffer);
-        endSubmitCommandBuffer(&ctx);
+    void executeSingleTimeCommands(Func&& f) {
+        beginSingleTimeCommandBuffer();
+        f(commandBuffer);
+        endSubmitCommandBuffer();
     }
 
     bool checkExtSupport(VkPhysicalDevice physicalDevice);
@@ -62,8 +66,8 @@ namespace vkdeviceutils {
     bool isSuitable(VkPhysicalDevice physicalDevice, VkSurfaceKHR& surface);
     VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDevice& physicalDevice);
     VkRenderingInfo createRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* colorAttachment, VkRenderingAttachmentInfo* depthAttachment);
-    VulkanBuffer createBuffer(DeviceContext& ctx, size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, std::string qual = "", VkDeviceSize alignment = 0);
-    VulkanBuffer createBufferWithAlignment(DeviceContext& ctx, size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, VkDeviceSize alignment = 0, std::string qual = "");
-    void destroyBuffer(VmaAllocator& allocator, VulkanBuffer& buffer);
-    void uploadToBuffer(DeviceContext& ctx, VulkanBuffer& buffer, size_t size, void* data);
+    VulkanBuffer createBuffer(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, std::string qual = "", VkDeviceSize alignment = 0);
+    VulkanBuffer createBufferWithAlignment(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, VkDeviceSize alignment = 0, std::string qual = "");
+    void destroyBuffer(VulkanBuffer& buffer);
+    void uploadToBuffer(VulkanBuffer& buffer, size_t size, void* data);
 }

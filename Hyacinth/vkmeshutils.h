@@ -83,7 +83,7 @@ struct GPUDrawPushConstants {
 };
 
 namespace vkmeshutils {
-	GPUMeshBuffers uploadMesh(DeviceContext& ctx, std::vector<uint32_t>& indices, std::vector<Vertex>& vertices, std::vector<AABB>& boundingBoxes);
+	GPUMeshBuffers uploadMesh(std::vector<uint32_t>& indices, std::vector<Vertex>& vertices, std::vector<AABB>& boundingBoxes);
 }
 
 struct MaterialPipeline {

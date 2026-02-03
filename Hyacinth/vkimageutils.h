@@ -24,14 +24,15 @@ namespace vkimageutils {
 	void setLinear(VkFormatFeatureFlags flag);
 	bool getLinearBlit();
 
-	void createImageView(VkDevice& device, VulkanImage& image, VkImageAspectFlags aspectFlags);
-	VulkanImage createImageandView(DeviceContext& ctx, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits numSamples, bool mipped);
+	void createImageSampler(VulkanImage& image);
+	VkImageView createImageView(VulkanImage& image, uint32_t baseArrayLayer, uint32_t layerCount, VkImageAspectFlags aspectFlags);
+	VulkanImage createImageandView(VkExtent3D size, uint32_t arrayLayers, VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits numSamples, bool mipped, std::string qual = "");
 	void transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
-	VulkanImage createImageandView(DeviceContext& ctx, void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped);
-	void createImageSampler(VkDevice& device, VulkanImage& image);
+	VulkanImage createTextureImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped);
 	VkRenderingAttachmentInfo createColorAttachmentInfo(VkImageView& msaaColorView, VkImageView& resolveImageView, const VkClearValue& clearColor, VkImageLayout imageLayout);
 	VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView& msaaDepthView, VkImageView& resolvedDepthView);
+	VkRenderingAttachmentInfo createShadowAttachmentInfo(VkImageView& view);
 	void generateMipmaps(VkCommandBuffer& commandBuffer, VulkanImage& image);
 
-	void destroyImage(DeviceContext& ctx, VulkanImage& image);
+	void destroyImage(VulkanImage& image);
 }

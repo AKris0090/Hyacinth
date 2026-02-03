@@ -11,9 +11,9 @@ struct VulkanPipeline {
     VkPipelineLayout    layout;
 	VkPipeline          pipeline;
 
-    void destroy(VkDevice& device) {
-        vkDestroyPipeline(device, pipeline, nullptr);
-        vkDestroyPipelineLayout(device, layout, nullptr);
+    void destroy() {
+        vkDestroyPipeline(vkdeviceutils::device, pipeline, nullptr);
+        vkDestroyPipelineLayout(vkdeviceutils::device, layout, nullptr);
 	}
 };
 
@@ -34,8 +34,8 @@ public:
 
     void reset();
     VulkanPipelineBuilder() { reset(); };
-    void buildPipeline(VkDevice& dev);
-	void addShader(VkDevice& device, std::string shaderFile, VkShaderStageFlagBits stage);
+    void buildPipeline();
+	void addShader(std::string shaderFile, VkShaderStageFlagBits stage);
 
     void setInputTopology(VkPrimitiveTopology topology);
 	void setPolygonMode(VkPolygonMode polygonMode);
@@ -48,13 +48,13 @@ public:
 	void enableDepthTest(bool depthWrite, VkCompareOp op);
     void setDefaultAttributes();
     void setPositionAttribute();
-    void destroyPipeline(DeviceContext& ctx);
+    void destroyPipeline();
 
 private:
     bool depthPass;
 };
 
 namespace vkpipelineutils {
-    VkPipelineShaderStageCreateInfo createShader(VkDevice& device, std::string shaderFile, VkShaderStageFlagBits stage);
-	VulkanPipeline createComputePipeline(VkDevice& device, VkDescriptorSetLayout* layouts, int numLayouts, VkPushConstantRange* pcRanges, int numPcRanges, std::string shaderFile);
+    VkPipelineShaderStageCreateInfo createShader(std::string shaderFile, VkShaderStageFlagBits stage);
+	VulkanPipeline createComputePipeline(VkDescriptorSetLayout* layouts, int numLayouts, VkPushConstantRange* pcRanges, int numPcRanges, std::string shaderFile);
 }

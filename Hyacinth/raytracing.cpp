@@ -70,8 +70,7 @@ static void primitiveToGeometry(gltfNode* node, VkAccelerationStructureGeometryK
     rangeInfo = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = triangleCount };
 }
 
-void rtHelper::createAccelerationStructure(DeviceContext & ctx,
-                                           VkAccelerationStructureTypeKHR asType,
+void rtHelper::createAccelerationStructure(VkAccelerationStructureTypeKHR asType,
                                            AccelerationStructure& accelStruct,
                                            VkAccelerationStructureGeometryKHR& asGeometry,
                                            VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo,
@@ -90,25 +89,25 @@ void rtHelper::createAccelerationStructure(DeviceContext & ctx,
     maxPrimCount[0] = asBuildRangeInfo.primitiveCount;
 
     VkAccelerationStructureBuildSizesInfoKHR asBuildSize{ .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
-    rt::GetBuildSizes(*ctx.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &asBuildInfo,
+    rt::GetBuildSizes(vkdeviceutils::device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &asBuildInfo,
         maxPrimCount.data(), &asBuildSize);
 
     VkDeviceSize scratchSize = alignUp(asBuildSize.buildScratchSize, m_asProperties.minAccelerationStructureScratchOffsetAlignment);
-    VulkanBuffer scratchBuffer = vkdeviceutils::createBufferWithAlignment(ctx, scratchSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, m_asProperties.minAccelerationStructureScratchOffsetAlignment, "accel_scratch_buffer");
+    VulkanBuffer scratchBuffer = vkdeviceutils::createBufferWithAlignment(scratchSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, m_asProperties.minAccelerationStructureScratchOffsetAlignment, "accel_scratch_buffer");
 
     VkAccelerationStructureCreateInfoKHR createInfo{
         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
         .size = asBuildSize.accelerationStructureSize,
         .type = asType
     };
-    accelStruct.buffer = vkdeviceutils::createBuffer(ctx, createInfo.size, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_struct_buffer");
+    accelStruct.buffer = vkdeviceutils::createBuffer(createInfo.size, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_struct_buffer");
     createInfo.buffer = accelStruct.buffer.buffer;
-    VK_CHECK(rt::CreateAS(*ctx.device, &createInfo, nullptr, &accelStruct.accel));
+    VK_CHECK(rt::CreateAS(vkdeviceutils::device, &createInfo, nullptr, &accelStruct.accel));
     VkAccelerationStructureDeviceAddressInfoKHR info{ .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR };
     info.accelerationStructure = accelStruct.accel;
-    accelStruct.address = rt::GetASAddress(*ctx.device, &info);
+    accelStruct.address = rt::GetASAddress(vkdeviceutils::device, &info);
 
-    vkdeviceutils::executeSingleTimeCommands(ctx, [&](VkCommandBuffer& cmd) {
+    vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
         asBuildInfo.dstAccelerationStructure = accelStruct.accel;
         asBuildInfo.scratchData.deviceAddress = scratchBuffer.gpuAddress;
 
@@ -116,11 +115,11 @@ void rtHelper::createAccelerationStructure(DeviceContext & ctx,
         rt::BuildAS(cmd, 1, &asBuildInfo, &pBuildRangeInfo);
     });
 
-    vkdeviceutils::destroyBuffer(*ctx.allocator, scratchBuffer);
+    vkdeviceutils::destroyBuffer(scratchBuffer);
 }
 
 // this should loop over all of the nodes in the scenegraph and create their accelerations structures
-void rtHelper::createBottomLevelAS(DeviceContext& ctx, SceneGraph& scene) {
+void rtHelper::createBottomLevelAS(SceneGraph& scene) {
     m_blAccelStructures.resize(scene.numNodes);
     std::cout << "building bottom-level accel structures" << std::endl;
 
@@ -130,14 +129,14 @@ void rtHelper::createBottomLevelAS(DeviceContext& ctx, SceneGraph& scene) {
             VkAccelerationStructureGeometryKHR       asGeometry{};
             VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
             primitiveToGeometry(node.get(), asGeometry, asBuildRangeInfo);
-            createAccelerationStructure(ctx, VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR, m_blAccelStructures[id], asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+            createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR, m_blAccelStructures[id], asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
             id++;
         }
     }
 }
 
 // this creates a single TLAS instance per BLAS (gltfNode). Matrix is also stored in gltfNode
-void rtHelper::createTopLevelAS(DeviceContext& ctx, SceneGraph& scene) {
+void rtHelper::createTopLevelAS(SceneGraph& scene) {
     auto toTransformMatrixKHR = [](const glm::mat4& m) {
         VkTransformMatrixKHR t;
         memcpy(&t, glm::value_ptr(glm::transpose(m)), sizeof(t));
@@ -165,8 +164,8 @@ void rtHelper::createTopLevelAS(DeviceContext& ctx, SceneGraph& scene) {
 
     std::cout << "building top-level accel structures" << std::endl;
 
-    VulkanBuffer tlasInstanceBuffer = vkdeviceutils::createBuffer(ctx, tlasInstances.size() * sizeof(VkAccelerationStructureInstanceKHR), VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "tlas_instance_buffer");
-    vkdeviceutils::uploadToBuffer(ctx, tlasInstanceBuffer, tlasInstances.size() * sizeof(VkAccelerationStructureInstanceKHR), tlasInstances.data());
+    VulkanBuffer tlasInstanceBuffer = vkdeviceutils::createBuffer(tlasInstances.size() * sizeof(VkAccelerationStructureInstanceKHR), VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "tlas_instance_buffer");
+    vkdeviceutils::uploadToBuffer(tlasInstanceBuffer, tlasInstances.size() * sizeof(VkAccelerationStructureInstanceKHR), tlasInstances.data());
     {
         VkAccelerationStructureGeometryKHR       asGeometry{};
         VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
@@ -179,22 +178,22 @@ void rtHelper::createTopLevelAS(DeviceContext& ctx, SceneGraph& scene) {
                             .geometry = {.instances = geometryInstances} };
         asBuildRangeInfo = { .primitiveCount = scene.numNodes };
 
-        createAccelerationStructure(ctx, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, m_tlAccelStrucutre, asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+        createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, m_tlAccelStrucutre, asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
     }
-    vkdeviceutils::destroyBuffer(*ctx.allocator, tlasInstanceBuffer);
+    vkdeviceutils::destroyBuffer(tlasInstanceBuffer);
 }
 
-void rtHelper::setup(DeviceContext& ctx, SceneGraph& scene) {
-    rt::initAccelerationStructureFunctions(*ctx.device);
-    createBottomLevelAS(ctx, scene);
-    createTopLevelAS(ctx, scene);
+void rtHelper::setup(SceneGraph& scene) {
+    rt::initAccelerationStructureFunctions(vkdeviceutils::device);
+    createBottomLevelAS(scene);
+    createTopLevelAS(scene);
 }
 
-void rtHelper::shutdown(DeviceContext& ctx) {
+void rtHelper::shutdown() {
     for (auto& blas : m_blAccelStructures) {
-        rt::DestroyAS(*ctx.device, blas.accel, nullptr);
-        vkdeviceutils::destroyBuffer(*ctx.allocator, blas.buffer);
+        rt::DestroyAS(vkdeviceutils::device, blas.accel, nullptr);
+        vkdeviceutils::destroyBuffer(blas.buffer);
     }
-    rt::DestroyAS(*ctx.device, m_tlAccelStrucutre.accel, nullptr);
-	vkdeviceutils::destroyBuffer(*ctx.allocator, m_tlAccelStrucutre.buffer);
+    rt::DestroyAS(vkdeviceutils::device, m_tlAccelStrucutre.accel, nullptr);
+	vkdeviceutils::destroyBuffer(m_tlAccelStrucutre.buffer);
 }
