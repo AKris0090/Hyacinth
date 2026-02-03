@@ -799,7 +799,10 @@ void HyacinthEngine::cleanup()
 
     vkDestroyDevice(m_device, nullptr);
     
-    vkdebugutils::DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+    if (m_debugMessenger) {
+        vkdebugutils::DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+    }
+
     vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     
     vkDestroyInstance(m_instance, nullptr);
