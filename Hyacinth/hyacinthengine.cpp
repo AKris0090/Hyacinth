@@ -30,6 +30,7 @@ void HyacinthEngine::createInstance()
     std::vector<const char*> requiredExtensions(extensionCount);
     const char* const* extensions = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
 	requiredExtensions.assign(extensions, extensions + extensionCount);
+    requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
     if (enableValLayers) {
         if (!vkdebugutils::CheckValLayerSupport()) {
@@ -165,6 +166,8 @@ void HyacinthEngine::createInstance()
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &m_allocator);
     vkdeviceutils::setAllocator(m_allocator);
+
+    vkdebugutils::initDebugLabelFunctions(m_instance);
 }
 
 void HyacinthEngine::createSwapchain()
@@ -434,10 +437,20 @@ void HyacinthEngine::createBuffers() {
     vkdeviceutils::uploadToBuffer(m_materialBuffer, materialDataBufferSize, m_scene.materialObjects.data());
 
 	size_t drawCmdBufferSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.drawCommands.size();
-    m_indirectDrawBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_ssbo");
+    m_indirectDrawBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_ssbo");
 	vkdeviceutils::uploadToBuffer(m_indirectDrawBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
-    m_indirectShadowBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_shadow_ssbo");
-    vkdeviceutils::uploadToBuffer(m_indirectShadowBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
+    
+    vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer cmd) {
+        for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+            m_shadowHelper.m_cascades[i].cascadeDrawBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_shadow_ssbo");
+
+            VkBufferCopy copyRegion{};
+            copyRegion.srcOffset = 0;
+            copyRegion.dstOffset = 0;
+            copyRegion.size = drawCmdBufferSize;
+			vkCmdCopyBuffer(cmd, m_indirectDrawBuffer.buffer, m_shadowHelper.m_cascades[i].cascadeDrawBuffer.buffer, 1, &copyRegion);
+        }
+    });
 
 	size_t matrixBuffSize = sizeof(glm::mat4) * m_scene.transformMatrices.size();
     m_worldMatrixBuffer = vkdeviceutils::createBuffer(matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "world_mat_ssbo");
@@ -528,9 +541,11 @@ void HyacinthEngine::init()
 
     loadScene();
 
-    createBuffers();
+    m_frustumCullHelper.setup();
 
-    m_shadowHelper.setup(MAX_FRAMES_IN_FLIGHT);
+    m_shadowHelper.setup(MAX_FRAMES_IN_FLIGHT, m_frustumCullHelper.m_computeLayout);
+
+    createBuffers();
 
     createDescriptorSets();
 
@@ -542,8 +557,6 @@ void HyacinthEngine::init()
     createGraphicsPipeline();
 
     createDepthPipeline();
-
-    m_frustumCullHelper.setup();
 
     setupImGUI();
 
@@ -561,7 +574,7 @@ void HyacinthEngine::update() {
     newuniform.proj = m_camera.m_props.proj;
     newuniform.view = m_camera.m_props.view;
     newuniform.viewPos = glm::vec4(m_camera.transform.position, Input::mouseDown() ? 0.f : 1.f);
-    newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 1.f);
+    newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 10.f);
     newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_camera.m_props.farClip);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeViewProj[i] = m_shadowHelper.m_cascades[i].viewProj;
@@ -591,61 +604,6 @@ void HyacinthEngine::setupDraw()
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(cmd, 0, 1, &m_meshBuffers.vertexBuffer.buffer, offsets);
     vkCmdBindIndexBuffer(cmd, m_meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-}
-
-void HyacinthEngine::drawShadowMaps(VkCommandBuffer& cmd) {
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowHelper.m_shadowPipelineUtil.m_pipeline.pipeline);
-
-    vkimageutils::transitionImage(cmd, m_shadowHelper.m_shadowImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-    VkRenderingInfo renderingInfo{};
-    renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    renderingInfo.renderArea = VkRect2D{ VkOffset2D {0, 0}, m_shadowHelper.extent };
-    renderingInfo.layerCount = 1;
-    renderingInfo.colorAttachmentCount = 0;
-    renderingInfo.pStencilAttachment = nullptr;
-
-    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-        VkRenderingAttachmentInfo shadowAttachment = vkimageutils::createShadowAttachmentInfo(m_shadowHelper.m_cascades[i].cascadeImageView);
-        renderingInfo.pDepthAttachment = &shadowAttachment;
-        vkCmdBeginRendering(cmd, &renderingInfo);
-
-        vkCmdBindDescriptorSets(
-            cmd,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            m_shadowHelper.m_shadowPipelineUtil.m_pipeline.layout,
-            0,
-            1,
-            &m_shadowHelper.m_cascades[m_frameIndex].uniformDescriptorSet,
-            0,
-            nullptr
-        );
-
-        shadowGPUPushConstant pushConstants{};
-        pushConstants.cascadeIndex = i;
-        pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
-        pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
-        vkCmdPushConstants(cmd, m_shadowHelper.m_shadowPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(shadowGPUPushConstant), &pushConstants);
-
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(m_shadowHelper.extent.width);
-        viewport.height = static_cast<float>(m_shadowHelper.extent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-        VkRect2D scissor{};
-        scissor.offset = { 0, 0 };
-        scissor.extent = m_shadowHelper.extent;
-        vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-        vkCmdDrawIndexedIndirect(cmd, m_indirectShadowBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
-        vkCmdEndRendering(cmd);
-    }
-
-    vkimageutils::transitionImage(cmd, m_shadowHelper.m_shadowImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void HyacinthEngine::drawImGui() {
@@ -683,7 +641,7 @@ void HyacinthEngine::drawImGui() {
     ImGui::End();
 
     ImGui::Begin("Properties");
-    // ImGui::DragFloat3("light position", &m_shadowHelper.transform.position, 0.1f, );
+    ImGui::DragFloat3("light position", &m_shadowHelper.transform.position.x, 0.1f);
     ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
     ImGui::End();
 }
@@ -708,16 +666,25 @@ void HyacinthEngine::draw()
     scissor.offset = { 0, 0 };
     scissor.extent = m_swImageFormat.extent;
 
+    uint32_t numDraws = static_cast<uint32_t>(m_scene.drawCommands.size());
+
     drawImGui();
 
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
 
+    VK_LABEL(cmd, "Compute Cull");
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
+    m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_indirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
+    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+        m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
+    }
+    VK_LABEL_END(cmd);
+
     // shadows
-    drawShadowMaps(cmd);
+    m_shadowHelper.drawShadowMaps(cmd, numDraws, m_frameIndex, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress);
 
-    m_frustumCullHelper.executeCull(cmd, m_indirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, m_frameIndex, static_cast<uint32_t>(m_scene.drawCommands.size()));
-
+    VK_LABEL(cmd, "Depth Pre-Pass");
     // depth pre-pass
     VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_depthImages[m_swImageIndex].imageView, m_depthResolveImages[m_swImageIndex].imageView);
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipelineUtil.m_pipeline.pipeline);
@@ -729,6 +696,7 @@ void HyacinthEngine::draw()
     vkCmdSetScissor(cmd, 0, 1, &scissor);
     vkCmdDrawIndexedIndirect(cmd, m_indirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
     vkCmdEndRendering(cmd);
+	VK_LABEL_END(cmd);
 
     // main render pass
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
@@ -736,6 +704,7 @@ void HyacinthEngine::draw()
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, &depthAttachment);
+    VK_LABEL(cmd, "Main Render Pass");
     vkCmdBeginRendering(cmd, &renderingInfo);
 
     std::array<VkDescriptorSet, 3> sets = { m_frameData[m_frameIndex].descriptorSet, m_textureSet, m_owDDGIHelper.m_probeVis.visSet };
@@ -768,9 +737,12 @@ void HyacinthEngine::draw()
 void HyacinthEngine::endDraw()
 {
     VkCommandBuffer& cmd = getCurrentFrame().commandBuffer;
+	VK_LABEL_END(cmd);
 
+    VK_LABEL(cmd, "ImGui Pass");
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+    VK_LABEL_END(cmd);
 
     vkCmdEndRendering(cmd);
     vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -854,7 +826,6 @@ void HyacinthEngine::cleanup()
 	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);
 	vkdeviceutils::destroyBuffer(m_meshBuffers.aabbBuffer);
 	vkdeviceutils::destroyBuffer(m_indirectDrawBuffer);
-	vkdeviceutils::destroyBuffer(m_indirectShadowBuffer);
 	vkdeviceutils::destroyBuffer(m_worldMatrixBuffer);
     vkdeviceutils::destroyBuffer(m_drawDataBuffer);
     vkdeviceutils::destroyBuffer(m_materialBuffer);

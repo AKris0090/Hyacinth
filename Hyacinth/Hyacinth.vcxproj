@@ -161,6 +161,7 @@
     <ClCompile Include="raytracing.cpp" />
     <ClCompile Include="sdlwindow.cpp" />
     <ClCompile Include="time.cpp" />
+    <ClCompile Include="vkdebugutils.cpp" />
     <ClCompile Include="vkdebugutils.h" />
     <ClCompile Include="vkdescriptorutils.cpp" />
     <ClCompile Include="vkdeviceutils.cpp" />

@@ -1,10 +1,10 @@
 #include "csm.h"
 
-void shadowHelper::setup(int maxFramesInFlight) {
+void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayout) {
 	transform.position = glm::vec3(-2.f, 12.f, -6.f);
 
-	m_cascades.resize(SHADOW_MAP_CASCADE_COUNT);
 	m_uniformBuffers.resize(maxFramesInFlight);
+	m_uniformDescriptorSets.resize(maxFramesInFlight);
 
 	extent.width = cascadeImageSize;
 	extent.height = cascadeImageSize;
@@ -40,19 +40,27 @@ void shadowHelper::setup(int maxFramesInFlight) {
 	{
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
 	};
+	m_descriptorAllocator.initPool(maxFramesInFlight + (maxFramesInFlight * SHADOW_MAP_CASCADE_COUNT), sizes);
 
-	m_descriptorAllocator.initPool(maxFramesInFlight, sizes);
 	{
 		DescriptorLayoutBuilder layoutBuilder;
 		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
 		m_descriptorSetLayout = layoutBuilder.buildLayout(nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
 	}
+
 	for (int i = 0; i < maxFramesInFlight; i++) {
 		// create uniform buffers
 		m_uniformBuffers[i] = vkdeviceutils::createBuffer(sizeof(shadowUniform), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "csm_uniform");
-		m_cascades[i].uniformDescriptorSet = m_descriptorAllocator.allocate(m_descriptorSetLayout);
-		vkdescriptorutils::queueWriteBuffer(m_cascades[i].uniformDescriptorSet, 0, sizeof(shadowUniform), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_uniformBuffers[i]);
+		m_uniformDescriptorSets[i] = m_descriptorAllocator.allocate(m_descriptorSetLayout);
+		vkdescriptorutils::queueWriteBuffer(m_uniformDescriptorSets[i], 0, sizeof(shadowUniform), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_uniformBuffers[i]);
+
+		for (int j = 0; j < SHADOW_MAP_CASCADE_COUNT; j++) {
+			m_cascades[j].cullUniformBuffers[i] = vkdeviceutils::createBuffer(sizeof(FPSCam::UniformPlanes), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "csm_uniform");
+			m_cascades[j].cascadeCullDescriptorSets[i] = m_descriptorAllocator.allocate(cullLayout);
+			vkdescriptorutils::queueWriteBuffer(m_cascades[j].cascadeCullDescriptorSets[i], 0, sizeof(FPSCam::UniformPlanes), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_cascades[j].cullUniformBuffers[i]);
+		}
 	}
+
 	vkdescriptorutils::flushDescriptorWrites();
 
 	// pipeline
@@ -114,6 +122,10 @@ void shadowHelper::update(FPSCam::CameraProps& cam, int currentFrame) {
 	std::vector<glm::mat4> cascadeViewProjMatrices(SHADOW_MAP_CASCADE_COUNT);
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
 		cascadeViewProjMatrices[i] = m_cascades[i].viewProj;
+		
+		// update cascade frustum planes for culling
+		FPSCam::getFrustumPlanes(m_cascades[i].frustumPlanes, m_cascades[i].viewProj);
+		memcpy(m_cascades[i].cullUniformBuffers[currentFrame].info.pMappedData, m_cascades[i].frustumPlanes, sizeof(FPSCam::UniformPlanes));
 	}
 	memcpy(m_uniformBuffers[currentFrame].info.pMappedData, cascadeViewProjMatrices.data(), sizeof(glm::mat4) * SHADOW_MAP_CASCADE_COUNT);
 }
@@ -212,12 +224,72 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 	}
 }
 
+void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint32_t frameIndex, VkDeviceAddress& matrixBufferAddress, VkDeviceAddress& drawDataBufferAddress) {
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipelineUtil.m_pipeline.pipeline);
+
+	vkimageutils::transitionImage(cmd, m_shadowImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+	VkRenderingInfo renderingInfo{};
+	renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+	renderingInfo.renderArea = VkRect2D{ VkOffset2D {0, 0}, extent };
+	renderingInfo.layerCount = 1;
+	renderingInfo.colorAttachmentCount = 0;
+	renderingInfo.pStencilAttachment = nullptr;
+
+	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+		VkRenderingAttachmentInfo shadowAttachment = vkimageutils::createShadowAttachmentInfo(m_cascades[i].cascadeImageView);
+		renderingInfo.pDepthAttachment = &shadowAttachment;
+
+		VK_LABEL(cmd, "Shadow Pass");
+		vkCmdBeginRendering(cmd, &renderingInfo);
+
+		vkCmdBindDescriptorSets(
+			cmd,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			m_shadowPipelineUtil.m_pipeline.layout,
+			0,
+			1,
+			&m_uniformDescriptorSets[frameIndex],
+			0,
+			nullptr
+		);
+
+		shadowGPUPushConstant pushConstants{};
+		pushConstants.cascadeIndex = i;
+		pushConstants.transformAddress = matrixBufferAddress;
+		pushConstants.drawDataAddress = drawDataBufferAddress;
+		vkCmdPushConstants(cmd, m_shadowPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(shadowGPUPushConstant), &pushConstants);
+
+		VkViewport viewport{};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
+		viewport.width = static_cast<float>(extent.width);
+		viewport.height = static_cast<float>(extent.height);
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor{};
+		scissor.offset = { 0, 0 };
+		scissor.extent = extent;
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numDraws, sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdEndRendering(cmd);
+
+		VK_LABEL_END(cmd);
+	}
+
+	vkimageutils::transitionImage(cmd, m_shadowImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+}
+
 void shadowHelper::destroy() {
 	// shadow stuff
 	vkDestroySampler(vkdeviceutils::device, m_shadowImage.imageSampler, nullptr);
 	vkDestroyImageView(vkdeviceutils::device, m_shadowImage.imageView, nullptr);
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
 		vkDestroyImageView(vkdeviceutils::device, m_cascades[i].cascadeImageView, nullptr);
+		vkdeviceutils::destroyBuffer(m_cascades[i].cascadeDrawBuffer);
 	}
 	vmaDestroyImage(vkdeviceutils::allocator, m_shadowImage.image, m_shadowImage.imageAllocation);
 

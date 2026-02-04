@@ -97,7 +97,6 @@ private:
 	VulkanPipelineBuilder			m_depthPipelineUtil		{};
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
-	VulkanBuffer 					m_indirectShadowBuffer  {};
 	VulkanBuffer 					m_worldMatrixBuffer		{};
 	VulkanBuffer					m_drawDataBuffer		{};
 	VulkanBuffer					m_materialBuffer		{};
@@ -127,7 +126,6 @@ private:
 	void loadScene();
 	void update();
 	void setupDraw();
-	void drawShadowMaps(VkCommandBuffer& cmd);
 	void endDraw();
 
 	inline perFrame& getCurrentFrame() {

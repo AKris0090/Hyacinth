@@ -17,15 +17,15 @@ private:
 
 	std::vector<VulkanBuffer> m_uniformPlaneBuffers;
 	std::vector<void*> m_mappedUniformPlaneBuffers;
-	std::vector<VkDescriptorSet> m_computeSets;
 	DescriptorAllocator m_computeDescAlloc;
 
-	VkDescriptorSetLayout m_computeLayout;
-	VulkanPipeline m_computeCullPipeline;
-
 public:
+	VulkanPipeline m_computeCullPipeline;
+	std::vector<VkDescriptorSet> m_computeSets;
+	VkDescriptorSetLayout m_computeLayout;
+
 	void shutdown();
 	void setup();
 	void update(FPSCam::UniformPlanes& planes, int index);
-	void executeCull(VkCommandBuffer& cmd, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& bbAddress, VkDeviceAddress& matrixAddress, VkDeviceAddress& drawDataAddress, int index, uint32_t numDraws);
+	void executeCull(VkCommandBuffer& cmd, VkDescriptorSet& set, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& bbAddress, VkDeviceAddress& matrixAddress, VkDeviceAddress& drawDataAddress, uint32_t numDraws);
 };

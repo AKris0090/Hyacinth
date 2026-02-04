@@ -58,6 +58,10 @@ layout(buffer_reference, std430) readonly buffer BoundingBoxes {
 	AABB boxes[];
 };
 
+layout(buffer_reference, std430) buffer InputIndirectDraws {
+	IndexedIndirectCommand indirectDrawsIn[];
+};
+
 layout(buffer_reference, std430) buffer OutputIndirectDraws {
 	IndexedIndirectCommand indirectDrawsOut[];
 };

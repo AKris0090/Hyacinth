@@ -82,6 +82,9 @@
     <Filter Include="Source Files\renderer\utils\vkutils\device">
       <UniqueIdentifier>{10afcfed-7a1d-4e41-90c2-fd95c0f4eddf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\utils\vkutils\debug">
+      <UniqueIdentifier>{a485a8ad-8016-4cc6-b187-7a33ab7d3646}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -89,9 +92,6 @@
     </ClCompile>
     <ClCompile Include="sdlwindow.cpp">
       <Filter>Source Files\renderer\utils\sdl_helper</Filter>
-    </ClCompile>
-    <ClCompile Include="vkdebugutils.h">
-      <Filter>Source Files\renderer\utils\vkutils</Filter>
     </ClCompile>
     <ClCompile Include="vkswapchainutils.cpp">
       <Filter>Source Files\renderer\utils\vkutils\swapchain</Filter>
@@ -167,6 +167,12 @@
     </ClCompile>
     <ClCompile Include="imguihelper.cpp">
       <Filter>Source Files\renderer\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="vkdebugutils.h">
+      <Filter>Source Files\renderer\utils\vkutils\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="vkdebugutils.cpp">
+      <Filter>Source Files\renderer\utils\vkutils\debug</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

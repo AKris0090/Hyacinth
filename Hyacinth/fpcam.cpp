@@ -4,16 +4,15 @@
 
 enum side { LEFT = 0, RIGHT = 1, TOP = 2, BOTTOM = 3, BACK = 4, FRONT = 5 };
 
-void FPSCam::getFrustumPlanes() {
-    glm::mat4 matrix = m_props.proj * m_props.view;
+void FPSCam::getFrustumPlanes(glm::vec4* planes, glm::mat4 matrix) {
 	glm::mat4 transposed = glm::transpose(matrix);
 
-    m_frustumPlanes.planes[LEFT]    = glm::normalize(transposed[BOTTOM] + transposed[LEFT]);
-	m_frustumPlanes.planes[RIGHT]   = glm::normalize(transposed[BOTTOM] - transposed[LEFT]);
-    m_frustumPlanes.planes[TOP]     = glm::normalize(transposed[BOTTOM] - transposed[RIGHT]);
-    m_frustumPlanes.planes[BOTTOM]  = glm::normalize(transposed[BOTTOM] + transposed[RIGHT]);
-    m_frustumPlanes.planes[BACK]    = glm::normalize(transposed[BOTTOM] + transposed[TOP]);
-    m_frustumPlanes.planes[FRONT]   = glm::normalize(transposed[BOTTOM] - transposed[TOP]);
+    planes[LEFT]    = glm::normalize(transposed[BOTTOM] + transposed[LEFT]);
+	planes[RIGHT]   = glm::normalize(transposed[BOTTOM] - transposed[LEFT]);
+    planes[TOP]     = glm::normalize(transposed[BOTTOM] - transposed[RIGHT]);
+    planes[BOTTOM]  = glm::normalize(transposed[BOTTOM] + transposed[RIGHT]);
+    planes[BACK]    = glm::normalize(transposed[BOTTOM] + transposed[TOP]);
+    planes[FRONT]   = glm::normalize(transposed[BOTTOM] - transposed[TOP]);
 }
 
 glm::mat4 getViewMatrix(FPSCam::CameraProps& props, Transform& t) {
@@ -74,7 +73,7 @@ void FPSCam::update(float deltaTime) {
     }
     if (dirtyView) {
         m_props.view = getViewMatrix(m_props, transform);
-		getFrustumPlanes();
+		getFrustumPlanes(m_frustumPlanes.planes, m_props.proj * m_props.view);
 
         dirtyView = false;
     }

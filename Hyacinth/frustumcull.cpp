@@ -40,9 +40,8 @@ void FrustumCullHelper::update(FPSCam::UniformPlanes& planes, int index) {
     memcpy(m_mappedUniformPlaneBuffers[index], &planes, sizeof(FPSCam::UniformPlanes));
 }
 
-void FrustumCullHelper::executeCull(VkCommandBuffer& cmd, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& bbAddress, VkDeviceAddress& matrixAddress, VkDeviceAddress& drawDataAddress, int index, uint32_t numDraws) {
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computeCullPipeline.pipeline);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computeCullPipeline.layout, 0, 1, &m_computeSets[index], 0, nullptr);
+void FrustumCullHelper::executeCull(VkCommandBuffer& cmd, VkDescriptorSet& set, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& bbAddress, VkDeviceAddress& matrixAddress, VkDeviceAddress& drawDataAddress, uint32_t numDraws) {
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computeCullPipeline.layout, 0, 1, &set, 0, nullptr);
 
     ComputeCullPushConstant pc{};
     pc.drawBufferAddress = drawBufferAddress;

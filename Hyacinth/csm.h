@@ -24,8 +24,11 @@ struct shadowUniform {
 struct Cascade {
 	VkImageView cascadeImageView;
 	float splitDepth;
-	VkDescriptorSet uniformDescriptorSet;
 	glm::mat4 viewProj;
+	VulkanBuffer cascadeDrawBuffer;
+	glm::vec4 frustumPlanes[6];
+	VulkanBuffer cullUniformBuffers[MAX_FRAMES_IN_FLIGHT];
+	VkDescriptorSet cascadeCullDescriptorSets[MAX_FRAMES_IN_FLIGHT];
 };
 
 struct shadowGPUPushConstant {
@@ -43,15 +46,17 @@ private:
 
 public:
 	Transform transform;
-	std::vector<Cascade> m_cascades;
+	Cascade m_cascades[SHADOW_MAP_CASCADE_COUNT];
 	VkExtent2D extent;
 	VulkanImage m_shadowImage;
+	std::vector<VkDescriptorSet> m_uniformDescriptorSets;
 	std::vector<VulkanBuffer> m_uniformBuffers;
 	VulkanPipelineBuilder m_shadowPipelineUtil;
 	DescriptorAllocator	m_descriptorAllocator{};
 	VkDescriptorSetLayout m_descriptorSetLayout{ VK_NULL_HANDLE };
 
-	void setup(int maxFramesInFlight);
+	void setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayout);
 	void update(FPSCam::CameraProps& cam, int currentFrame);
+	void drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint32_t frameIndex, VkDeviceAddress& matrixBufferAddress, VkDeviceAddress& drawDataBufferAddress);
 	void destroy();
 };

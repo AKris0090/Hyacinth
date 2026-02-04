@@ -19,6 +19,7 @@ private:
     std::vector<glm::vec4> frustumCorners;
 
 public:
+
     Transform transform;
 
     struct UniformPlanes {
@@ -45,7 +46,7 @@ public:
     bool dirtyView;
 
 	void update(float deltaTime);
-    void getFrustumPlanes();
+    static void getFrustumPlanes(glm::vec4* planes, glm::mat4 matrix);
 
     FPSCam() {
         moveSpeed = BASE_MOVE_SPEED;
