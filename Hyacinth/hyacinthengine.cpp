@@ -317,7 +317,7 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.setMultisampling(m_msaaSamples);
 	m_pipelineUtil.disableBlending();
 
-    m_pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
+    m_pipelineUtil.enableDepthTest(false, VK_COMPARE_OP_LESS_OR_EQUAL);
     m_pipelineUtil.setDepthAttachmentFormat(m_depthImages[0].imageFormat);
 
     VkViewport viewport{};
@@ -358,6 +358,58 @@ void HyacinthEngine::createGraphicsPipeline()
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
 
 	m_pipelineUtil.buildPipeline();
+}
+
+void HyacinthEngine::createDepthPipeline()
+{
+    m_depthPipelineUtil.addShader("shaders/depth.spv", VK_SHADER_STAGE_VERTEX_BIT);
+
+    m_depthPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    m_depthPipelineUtil.setPositionAttribute();
+    m_depthPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
+    m_depthPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    m_depthPipelineUtil.setMultisampling(m_msaaSamples);
+    m_depthPipelineUtil.disableBlending();
+
+    m_depthPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
+    m_depthPipelineUtil.setDepthAttachmentFormat(m_depthImages[0].imageFormat);
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)m_swImageFormat.extent.width;
+    viewport.height = (float)m_swImageFormat.extent.height;
+    viewport.minDepth = 1.0f;
+    viewport.maxDepth = 0.0f;
+
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = m_swImageFormat.extent;
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    m_depthPipelineUtil.m_viewportState.pViewports = &viewport;
+    m_depthPipelineUtil.m_viewportState.pScissors = &scissor;
+
+    VkPushConstantRange bufferRange{};
+    bufferRange.offset = 0;
+    bufferRange.size = sizeof(GPUDrawPushConstants);
+    bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    pipelineLayoutCInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCInfo.pPushConstantRanges = &bufferRange;
+    pipelineLayoutCInfo.setLayoutCount = 1;
+    pipelineLayoutCInfo.pSetLayouts = &m_descriptorSetLayout;
+
+    VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_depthPipelineUtil.m_pipeline.layout));
+
+    m_depthPipelineUtil.buildPipeline();
 }
 
 void HyacinthEngine::loadScene() {
@@ -440,6 +492,8 @@ void HyacinthEngine::setupImGUI()
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
 
+    imguihelper::ApplyDarkModeStyle();
+
     ImGui_ImplSDL3_InitForVulkan(m_window);
     ImGui_ImplVulkan_InitInfo init_info = {};
     init_info.ApiVersion = VK_API_VERSION_1_3;
@@ -486,6 +540,8 @@ void HyacinthEngine::init()
     m_owDDGIHelper.createProbeVisualizationStructures(m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
+
+    createDepthPipeline();
 
     m_frustumCullHelper.setup();
 
@@ -610,7 +666,7 @@ void HyacinthEngine::drawImGui() {
         ImGui::DockBuilderSplitNode(dock_id_main, ImGuiDir_Left, 0.20f, &dock_id_left, &dock_id_main);
         ImGuiID dock_id_left_top = 0;
         ImGuiID dock_id_left_bottom = 0;
-        ImGui::DockBuilderSplitNode(dock_id_left, ImGuiDir_Up, 0.50f, &dock_id_left_top, &dock_id_left_bottom);
+        ImGui::DockBuilderSplitNode(dock_id_left, ImGuiDir_Up, 0.25f, &dock_id_left_top, &dock_id_left_bottom);
         ImGui::DockBuilderDockWindow("Viewport", dock_id_main);
         ImGui::DockBuilderDockWindow("Info", dock_id_left_top);
         ImGui::DockBuilderDockWindow("Properties", dock_id_left_bottom);
@@ -627,15 +683,31 @@ void HyacinthEngine::drawImGui() {
     ImGui::End();
 
     ImGui::Begin("Properties");
-    ImGui::DragFloat("light position x", &m_shadowHelper.transform.position.x, 0.1f );
-    ImGui::DragFloat("light position y", &m_shadowHelper.transform.position.y, 0.1f);
-    ImGui::DragFloat("light position z", &m_shadowHelper.transform.position.z, 0.1f);
+    // ImGui::DragFloat3("light position", &m_shadowHelper.transform.position, 0.1f, );
     ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
     ImGui::End();
 }
 
 void HyacinthEngine::draw()
 {
+    GPUDrawPushConstants pushConstants{};
+    pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
+    pushConstants.materialAddress = m_materialBuffer.gpuAddress;
+    pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
+    pushConstants.probePositionAddress = m_owDDGIHelper.m_probeVolume.probePositionBuffer.gpuAddress;
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(m_swImageFormat.extent.width);
+    viewport.height = static_cast<float>(m_swImageFormat.extent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = m_swImageFormat.extent;
+
     drawImGui();
 
     setupDraw();
@@ -646,9 +718,23 @@ void HyacinthEngine::draw()
 
     m_frustumCullHelper.executeCull(cmd, m_indirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, m_frameIndex, static_cast<uint32_t>(m_scene.drawCommands.size()));
 
+    // depth pre-pass
+    VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_depthImages[m_swImageIndex].imageView, m_depthResolveImages[m_swImageIndex].imageView);
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipelineUtil.m_pipeline.pipeline);
+    VkRenderingInfo depthRenderingInfo = vkdeviceutils::createDepthRenderingInfo(m_swImageFormat.extent, &depthAttachment);
+    vkCmdBeginRendering(cmd, &depthRenderingInfo);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipelineUtil.m_pipeline.layout, 0, 1, &m_frameData[m_frameIndex].descriptorSet, 0, nullptr);
+    vkCmdPushConstants(cmd, m_depthPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    vkCmdDrawIndexedIndirect(cmd, m_indirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+    vkCmdEndRendering(cmd);
+
+    // main render pass
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
     VkRenderingAttachmentInfo colorAttachment = vkimageutils::createColorAttachmentInfo(m_colorImages[m_swImageIndex].imageView, m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_depthImages[m_swImageIndex].imageView, m_depthResolveImages[m_swImageIndex].imageView);
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(cmd, &renderingInfo);
 
@@ -665,26 +751,9 @@ void HyacinthEngine::draw()
         nullptr
     );
 
-    GPUDrawPushConstants pushConstants{};
-    pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
-    pushConstants.materialAddress = m_materialBuffer.gpuAddress;
-    pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
-    pushConstants.probePositionAddress = m_owDDGIHelper.m_probeVolume.probePositionBuffer.gpuAddress;
-
     vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_swImageFormat.extent.width);
-    viewport.height = static_cast<float>(m_swImageFormat.extent.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
     vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.offset = { 0, 0 };
-    scissor.extent = m_swImageFormat.extent;
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 	vkCmdDrawIndexedIndirect(cmd, m_indirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
@@ -797,6 +866,7 @@ void HyacinthEngine::cleanup()
 	vkDestroyFence(m_device, m_uploadFence, nullptr);
 
     m_pipelineUtil.destroyPipeline();
+    m_depthPipelineUtil.destroyPipeline();
 
     for (auto& tex : m_scene.dummyTextures) {
         vkimageutils::destroyImage(tex);

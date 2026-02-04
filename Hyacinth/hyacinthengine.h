@@ -6,11 +6,6 @@
 #include <iostream>
 #include <utility>
 
-#include <imgui.h>
-#include "backends/imgui_impl_sdl3.h"
-#include "backends/imgui_impl_vulkan.h"
-#include "imgui_internal.h"
-
 #include "vkdeviceutils.h"
 #include "vkdebugutils.h"
 #include "vkimageutils.h"
@@ -26,6 +21,8 @@
 #include "csm.h"
 #include "time.h"
 #include "fpcam.h"
+
+#include "imguihelper.h"
 
 #include "vk_mem_alloc.h"
 
@@ -96,7 +93,8 @@ private:
 	std::vector<VulkanImage>		m_depthImages			{};
 	std::vector<VulkanImage>		m_depthResolveImages	{};
 	SWChainImageFormat				m_swImageFormat			{};
-	VulkanPipelineBuilder 			m_pipelineUtil;
+	VulkanPipelineBuilder 			m_pipelineUtil			{};
+	VulkanPipelineBuilder			m_depthPipelineUtil		{};
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
 	VulkanBuffer 					m_indirectShadowBuffer  {};
@@ -121,6 +119,7 @@ private:
 	void createCommandBuffers();
 	void createSyncObjects();
 	void createGraphicsPipeline();
+	void createDepthPipeline();
 	void createBuffers();
 	void createDescriptorSets();
 	void setupImGUI();

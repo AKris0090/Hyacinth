@@ -155,6 +155,18 @@ namespace vkdeviceutils {
         return VK_SAMPLE_COUNT_1_BIT;
     }
 
+    VkRenderingInfo createDepthRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* depthAttachment) {
+        VkRenderingInfo renderingInfo{};
+        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        renderingInfo.renderArea = VkRect2D{ VkOffset2D {0, 0}, renderArea };
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = 0;
+        renderingInfo.pDepthAttachment = depthAttachment;
+        renderingInfo.pStencilAttachment = nullptr;
+
+        return renderingInfo;
+    }
+
     VkRenderingInfo createRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* colorAttachment, VkRenderingAttachmentInfo* depthAttachment) {
         VkRenderingInfo renderingInfo{};
         renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;

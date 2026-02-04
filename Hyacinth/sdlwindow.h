@@ -2,6 +2,8 @@
 
 #include <SDL3/SDL.h>
 #include <iostream>
+#include <windows.h>
+#include <dwmapi.h>
 
 class SDLWindow {
 public:

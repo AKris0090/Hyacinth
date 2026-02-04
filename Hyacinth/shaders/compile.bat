@@ -1,6 +1,7 @@
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./shader.vert -o vert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./shader.frag -o frag.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./shadow.vert -o shadow.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./depth.vert -o depth.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./probeVis.vert -o probeVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./probeVis.frag -o probeFrag.spv

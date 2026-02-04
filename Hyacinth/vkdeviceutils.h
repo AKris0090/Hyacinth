@@ -65,6 +65,7 @@ namespace vkdeviceutils {
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice& physicalDevice, VkSurfaceKHR& surface);
     bool isSuitable(VkPhysicalDevice physicalDevice, VkSurfaceKHR& surface);
     VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDevice& physicalDevice);
+    VkRenderingInfo createDepthRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* depthAttachment);
     VkRenderingInfo createRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* colorAttachment, VkRenderingAttachmentInfo* depthAttachment);
     VulkanBuffer createBuffer(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, std::string qual = "", VkDeviceSize alignment = 0);
     VulkanBuffer createBufferWithAlignment(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, VkDeviceSize alignment = 0, std::string qual = "");
