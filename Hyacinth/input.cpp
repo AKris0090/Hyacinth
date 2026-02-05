@@ -6,6 +6,7 @@ namespace Input {
 	bool up, down;
 	float xrel, yrel;
 	bool mouseLeft;
+	bool tabKey;
 
 	void handleSDLInput(SDL_Event& e) {
 		if (e.type == SDL_EVENT_KEY_DOWN) {
@@ -34,6 +35,13 @@ namespace Input {
 			if (e.key.scancode == SDL_SCANCODE_E) { up = false; }
 
 			if (e.key.scancode == SDL_SCANCODE_Q) { down = false; }
+
+			if (e.key.scancode == SDL_SCANCODE_TAB) { tabKey = false; }
+		}
+
+		if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat)
+		{
+			if (e.key.scancode == SDL_SCANCODE_TAB) { tabKey = true; }
 		}
 
 		if (e.type == SDL_EVENT_MOUSE_MOTION) {
@@ -76,6 +84,10 @@ namespace Input {
 
 	bool mouseDown() {
 		return mouseLeft;
+	}
+
+	bool tabKeyDown() {
+		return tabKey;
 	}
 
 	std::pair<float, float> getMouseMotion() {

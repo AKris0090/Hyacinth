@@ -359,6 +359,8 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 		vkimageutils::transitionImage(cmd, m_probeVolume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		vkimageutils::transitionImage(cmd, m_probeVolume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 	});
+
+	vkimageutils::destroyImage(m_probeVolume.rayDataImage);
 }
 
 // PROBE VISUALIZATION STUFF
@@ -507,7 +509,6 @@ void owDDGI::shutdown() {
 
 	vkimageutils::destroyImage(m_probeVolume.irradianceImage);
 	vkimageutils::destroyImage(m_probeVolume.visibilityImage);
-	vkimageutils::destroyImage(m_probeVolume.rayDataImage);
 
 	m_irradianceComputePipeline.destroy();
 	m_visibilityComputePipeline.destroy();
