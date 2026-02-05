@@ -16,7 +16,7 @@ const int VISIBIILITY_TILE_WIDTH = 16;
 
 const int PROBE_BORDER = 1;
 
-const int RAYS_PER_PROBE = 250;
+const int RAYS_PER_PROBE = 2500;
 
 const float PI = 3.141592653;
 

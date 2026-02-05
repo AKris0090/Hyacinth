@@ -11,7 +11,7 @@ constexpr int PROBE_DENSITY_WIDTH = 30;  // x
 constexpr int PROBE_DENSITY_HEIGHT = 14;  // y
 constexpr int PROBE_DENSITY_DEPTH = 20;  // z
 
-constexpr int RAYS_PER_PROBE = 250;
+constexpr int RAYS_PER_PROBE = 2500;
 
 constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;

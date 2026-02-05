@@ -24,9 +24,6 @@ layout( push_constant ) uniform constants
 	MaterialIntBuffer materialBuffer;
 } pc;
 
-const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float directLightIntensity = 15.0;	
-
 vec3 DDGIGetSurfaceBias(vec3 surfaceNormal, vec3 cameraDirection)
 {
     return (surfaceNormal * 0.1) + (-cameraDirection * 0.3);
@@ -112,6 +109,8 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 rayDir) {
     return irradiance;
 }
 
+const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
+const float directLightIntensity = 3.0;
 
 void main()
 {
@@ -153,11 +152,14 @@ void main()
 
 		vec3 intensity = vec3(directLightIntensity);
 
+        float NdotL = max(dot(normal, lightVector), 0.0);
+        float halfLambert = (NdotL * 0.5) + 0.5;
+
 		if(shadowed) {
-			intensity = vec3(0.0);
+		    intensity *= vec3(0.1);
 		}
 
-		vec3 directDiffuse = (albedo / PI) * intensity;
+		vec3 directDiffuse = halfLambert * intensity;
 
         float maxAlbedo = 0.9f;
 

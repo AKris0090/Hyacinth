@@ -503,6 +503,7 @@ void HyacinthEngine::setupImGUI()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
 
     imguihelper::ApplyDarkModeStyle();
@@ -566,6 +567,10 @@ void HyacinthEngine::init()
 }
 
 void HyacinthEngine::update() {
+    if (Input::tabKeyDown()) {
+		m_showImGui = !m_showImGui;
+    }
+
     m_camera.update(Time::getDeltaTime());
     m_shadowHelper.update(m_camera.m_props, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
@@ -574,7 +579,7 @@ void HyacinthEngine::update() {
     newuniform.proj = m_camera.m_props.proj;
     newuniform.view = m_camera.m_props.view;
     newuniform.viewPos = glm::vec4(m_camera.transform.position, Input::mouseDown() ? 0.f : 1.f);
-    newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 10.f);
+    newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, m_shadowHelper.DDGIntensity);
     newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_camera.m_props.farClip);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeViewProj[i] = m_shadowHelper.m_cascades[i].viewProj;
@@ -611,6 +616,10 @@ void HyacinthEngine::drawImGui() {
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
+    if (!m_showImGui) {
+        return;
+    }
+
     ImGuiID dockspace_id = ImGui::GetID("My Dockspace");
     ImGuiViewport* viewport = ImGui::GetMainViewport();
 
@@ -624,8 +633,7 @@ void HyacinthEngine::drawImGui() {
         ImGui::DockBuilderSplitNode(dock_id_main, ImGuiDir_Left, 0.20f, &dock_id_left, &dock_id_main);
         ImGuiID dock_id_left_top = 0;
         ImGuiID dock_id_left_bottom = 0;
-        ImGui::DockBuilderSplitNode(dock_id_left, ImGuiDir_Up, 0.25f, &dock_id_left_top, &dock_id_left_bottom);
-        ImGui::DockBuilderDockWindow("Viewport", dock_id_main);
+        ImGui::DockBuilderSplitNode(dock_id_left, ImGuiDir_Up, 0.50f, &dock_id_left_top, &dock_id_left_bottom);
         ImGui::DockBuilderDockWindow("Info", dock_id_left_top);
         ImGui::DockBuilderDockWindow("Properties", dock_id_left_bottom);
         ImGui::DockBuilderFinish(dockspace_id);
@@ -642,6 +650,7 @@ void HyacinthEngine::drawImGui() {
 
     ImGui::Begin("Properties");
     ImGui::DragFloat3("light position", &m_shadowHelper.transform.position.x, 0.1f);
+    ImGui::DragFloat("light intensity", &m_shadowHelper.DDGIntensity, 0.01f);
     ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
     ImGui::End();
 }
@@ -730,6 +739,7 @@ void HyacinthEngine::draw()
     if (m_owDDGIHelper.showProbes) {
         m_owDDGIHelper.drawProbes(cmd, m_frameData[m_frameIndex].descriptorSet);
     }
+    VK_LABEL_END(cmd);
 
     endDraw();
 }
@@ -737,7 +747,6 @@ void HyacinthEngine::draw()
 void HyacinthEngine::endDraw()
 {
     VkCommandBuffer& cmd = getCurrentFrame().commandBuffer;
-	VK_LABEL_END(cmd);
 
     VK_LABEL(cmd, "ImGui Pass");
     ImGui::Render();

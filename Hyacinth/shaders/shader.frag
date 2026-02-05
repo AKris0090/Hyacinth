@@ -49,7 +49,7 @@ layout(set = 1, binding = 0) uniform sampler2D globalTextures2D[];
 layout(location = 0) out vec4 outColor;
 
 const float ambientStrength = 0.5;
-const vec3 lightColor = vec3(1.0, 0.875, 0.5);
+const vec3 lightColor = vec3(0.99, 0.98, 0.83);
 
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
@@ -247,7 +247,7 @@ void main() {
     float NdotL = max(dot(N, L), 0.0);
     Lo += (kD * sampledColor.rgb / PI + specular) * radiance * NdotL;
 
-    vec3 ambient = sampledColor.rgb * DDGIGetIrradiance(fragPos.xyz, N, ubo.viewPos.xyz);// * kD;
+    vec3 ambient = sampledColor.rgb * DDGIGetIrradiance(fragPos.xyz, inNormal.xyz, ubo.viewPos.xyz) * 1.5;// * kD;
 
     uint cascadeIndex = 0;
 	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
