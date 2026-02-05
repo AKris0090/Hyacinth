@@ -45,6 +45,7 @@ private:
 	void updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view);
 
 public:
+	float DDGIntensity = 1.25f;
 	Transform transform;
 	Cascade m_cascades[SHADOW_MAP_CASCADE_COUNT];
 	VkExtent2D extent;
