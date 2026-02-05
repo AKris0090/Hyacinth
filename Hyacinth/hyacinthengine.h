@@ -69,6 +69,7 @@ private:
 	};
 
 	bool m_initialized = false;
+	bool m_showImGui = false;
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
