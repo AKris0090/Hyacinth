@@ -3,8 +3,7 @@
 
 #include "probeCommon.glsl"
 #include "bufferInfo.glsl"
-
-#define SHADOW_MAP_CASCADE_COUNT 3
+#include "shadowCommon.glsl"
 
 layout	(location = 0) in vec4 inPosition;
 

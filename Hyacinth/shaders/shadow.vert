@@ -1,7 +1,7 @@
 #version 460
 #extension GL_EXT_buffer_reference : require
 
-#define SHADOW_MAP_CASCADE_COUNT 3
+#include "shadowCommon.glsl"
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4[SHADOW_MAP_CASCADE_COUNT] cascadeViewProj;

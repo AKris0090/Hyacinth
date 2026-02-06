@@ -2,8 +2,7 @@
 #extension GL_EXT_nonuniform_qualifier : require
 
 #include "probeCommon.glsl"
-
-#define SHADOW_MAP_CASCADE_COUNT 3
+#include "shadowCommon.glsl"
 
 layout	(location = 0) flat in int colorSamplerIndex;
 layout	(location = 1) flat in int normalSamplerIndex;
@@ -96,13 +95,13 @@ float textureProj(vec4 shadowCoord, vec2 offset, uint cascadeIndex)
 	float shadow = 1.0;
     const float biasModifier = 1.0;
     float scaledBias = max(0.005 * (1.0 - dot(normalize(inNormal.xyz), (ubo.lightPos.xyz - fragPos.xyz))), 0.005);
-    if (cascadeIndex == SHADOW_MAP_CASCADE_COUNT)
+    if (cascadeIndex == SHADOW_MAP_CASCADE_COUNT - 1)
     {
-        scaledBias *= 1.0 / (ubo.cascadeSplits[SHADOW_MAP_CASCADE_COUNT] * biasModifier);
+        scaledBias *= 1.0 / (ubo.cascadeSplits[SHADOW_MAP_CASCADE_COUNT - 1] * biasModifier);
     }
     else
     {
-        scaledBias *= 1.0 / (ubo.cascadeSplits[cascadeIndex] * biasModifier);
+     scaledBias *= 1.0 / (ubo.cascadeSplits[cascadeIndex] * biasModifier);
     }
 
 	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
@@ -125,13 +124,13 @@ float filterPCF(vec4 sc, uint cascadeIndex)
 	int count = 0;
 	int range = 1;
 	
-	for (int x = -range; x <= range; x++) {
-		for (int y = -range; y <= range; y++) {
-			shadowFactor += textureProj(sc, vec2(dx*x, dy*y), cascadeIndex);
+	// for (int x = -range; x <= range; x++) {
+	// 	for (int y = -range; y <= range; y++) {
+	 		shadowFactor += textureProj(sc, vec2(0, 0), cascadeIndex);
 			count++;
-		}
-	}
-	return shadowFactor / count;
+	// 	}
+	// }
+	return shadowFactor;// / count;
 }
 
 vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {

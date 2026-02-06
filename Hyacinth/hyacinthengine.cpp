@@ -586,7 +586,7 @@ void HyacinthEngine::update() {
     newuniform.view = m_camera.m_props.view;
     newuniform.viewPos = glm::vec4(m_camera.transform.position, Input::mouseDown() ? 0.f : 1.f);
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, m_shadowHelper.DDGIntensity);
-    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_camera.m_props.farClip);
+    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_shadowHelper.m_cascades[2].splitDepth);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeViewProj[i] = m_shadowHelper.m_cascades[i].viewProj;
     }
@@ -659,6 +659,7 @@ void HyacinthEngine::drawImGui() {
     ImGui::End();
 
     ImGui::Begin("Properties");
+    ImGui::DragFloat3("camera position", &m_camera.transform.position.x, 0.1f);
     ImGui::DragFloat3("light position", &m_shadowHelper.transform.position.x, 0.1f);
     ImGui::DragFloat("light intensity", &m_shadowHelper.DDGIntensity, 0.01f);
     ImGui::DragFloat("cascade split delta", &m_shadowHelper.cascadeSplitLambda, 0.01f);
@@ -707,7 +708,7 @@ void HyacinthEngine::draw()
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
     m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_indirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-        m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
+        // m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
     }
     VK_LABEL_END(cmd);
 

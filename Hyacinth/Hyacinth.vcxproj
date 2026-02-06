@@ -218,6 +218,7 @@
     <None Include="shaders\probeVis.vert" />
     <None Include="shaders\raygen.rgen" />
     <None Include="shaders\shadow.vert" />
+    <None Include="shaders\shadowCommon.glsl" />
     <None Include="shaders\visibilityBuild.comp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -70,7 +70,10 @@ void FPSCam::update(float deltaTime, bool moveMouse) {
         dirtyView = true;
     }
 
-    m_props.proj = getProjectionMatrix(m_props);
+    if (dirtyProj) {
+        m_props.proj = getProjectionMatrix(m_props);
+        dirtyProj = false;
+	}
 
     if (dirtyView) {
         m_props.view = getViewMatrix(m_props, transform);

@@ -14,7 +14,7 @@
 #include "imgui_impl_vulkan.h"
 #include "fpcam.h"
 
-constexpr int SHADOW_MAP_CASCADE_COUNT = 3;
+constexpr int SHADOW_MAP_CASCADE_COUNT = 4;
 constexpr int cascadeImageSize = 4096;
 
 struct shadowUniform {

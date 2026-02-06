@@ -309,5 +309,8 @@
     <None Include="shaders\depth.vert">
       <Filter>Source Files\shaders</Filter>
     </None>
+    <None Include="shaders\shadowCommon.glsl">
+      <Filter>Source Files\shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
