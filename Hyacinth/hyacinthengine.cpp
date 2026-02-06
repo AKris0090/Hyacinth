@@ -470,7 +470,6 @@ void HyacinthEngine::createDescriptorSets()
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (((float) (m_scene.numTextures + 2)) / (float) MAX_FRAMES_IN_FLIGHT) }, // divided because multiplied by maxSets later. we only want 1 descriptor per texture, not 3
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float) (1.f / MAX_FRAMES_IN_FLIGHT) } // for shadows, only 1 (not 3)
     };
-
     m_descriptorAllocator.initPool(MAX_FRAMES_IN_FLIGHT * 2, sizes);
 
     {
@@ -511,6 +510,11 @@ void HyacinthEngine::setupImGUI()
     ImGui_ImplSDL3_InitForVulkan(m_window);
     ImGui_ImplVulkan_InitInfo init_info = {};
     init_info.ApiVersion = VK_API_VERSION_1_3;
+    init_info.CheckVkResultFn = [](VkResult res) {
+        if (res != VK_SUCCESS) {
+            std::cerr << "ImGui Vulkan error: " << res << std::endl;
+        }
+	};
     init_info.Instance = m_instance;
     init_info.PhysicalDevice = m_physicalDevice;
     init_info.Device = m_device;
@@ -523,7 +527,7 @@ void HyacinthEngine::setupImGUI()
     init_info.MinImageCount = static_cast<uint32_t>(m_swapChainImages.size());
     init_info.ImageCount = static_cast<uint32_t>(m_swapChainImages.size());
     init_info.Allocator = nullptr;
-    ImGui_ImplVulkan_Init(&init_info);
+    bool res = ImGui_ImplVulkan_Init(&init_info);
 }
 
 void HyacinthEngine::init()
@@ -561,6 +565,8 @@ void HyacinthEngine::init()
 
     setupImGUI();
 
+    m_shadowHelper.setupImGui();
+
     m_owDDGIHelper.bakeDDGI(m_textureSet);
 
     m_initialized = true;
@@ -571,7 +577,7 @@ void HyacinthEngine::update() {
 		m_showImGui = !m_showImGui;
     }
 
-    m_camera.update(Time::getDeltaTime());
+    m_camera.update(Time::getDeltaTime(), mouseLocked);
     m_shadowHelper.update(m_camera.m_props, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
 
@@ -637,6 +643,10 @@ void HyacinthEngine::drawImGui() {
         ImGui::DockBuilderDockWindow("Info", dock_id_left_top);
         ImGui::DockBuilderDockWindow("Properties", dock_id_left_bottom);
         ImGui::DockBuilderFinish(dockspace_id);
+
+        ImGuiID dock_id_bottom = 0;
+        ImGui::DockBuilderSplitNode(dock_id_main, ImGuiDir_Down, 0.25f, &dock_id_bottom, &dock_id_main);
+        ImGui::DockBuilderDockWindow("Shadow Maps", dock_id_bottom);
     }
 
     // Submit dockspace
@@ -651,7 +661,18 @@ void HyacinthEngine::drawImGui() {
     ImGui::Begin("Properties");
     ImGui::DragFloat3("light position", &m_shadowHelper.transform.position.x, 0.1f);
     ImGui::DragFloat("light intensity", &m_shadowHelper.DDGIntensity, 0.01f);
+    ImGui::DragFloat("cascade split delta", &m_shadowHelper.cascadeSplitLambda, 0.01f);
+    ImGui::DragFloat("cascade min distance (zNear)", &m_camera.m_props.nearClip, 0.01f);
+    ImGui::DragFloat("cascade max distance (zFar)", &m_camera.m_props.farClip, 0.01f);
     ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
+    ImGui::End();
+
+    ImGui::Begin("Shadow Maps");
+    for(int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+        ImGui::Image(m_shadowHelper.m_imGuiSets[i], ImVec2(128, 128));
+        if (i + 1 < SHADOW_MAP_CASCADE_COUNT)
+            ImGui::SameLine();
+	}
     ImGui::End();
 }
 

@@ -25,7 +25,10 @@ glm::mat4 getProjectionMatrix(FPSCam::CameraProps& props) {
     return proj;
 }
 
-void FPSCam::update(float deltaTime) {
+void FPSCam::update(float deltaTime, bool moveMouse) {
+    if (!moveMouse) {
+        return;
+    }
     auto [dx, dy] = Input::getMouseMotion();
 
     if (glm::abs(dx) > 0.f || glm::abs(dy) > 0.f) {
@@ -67,10 +70,8 @@ void FPSCam::update(float deltaTime) {
         dirtyView = true;
     }
 
-    if (dirtyProj) {
-        m_props.proj = getProjectionMatrix(m_props);
-        dirtyProj = false;
-    }
+    m_props.proj = getProjectionMatrix(m_props);
+
     if (dirtyView) {
         m_props.view = getViewMatrix(m_props, transform);
 		getFrustumPlanes(m_frustumPlanes.planes, m_props.proj * m_props.view);

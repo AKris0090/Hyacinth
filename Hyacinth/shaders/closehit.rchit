@@ -110,7 +110,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 rayDir) {
 }
 
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float directLightIntensity = 3.0;
+const float directLightIntensity = 13.0;
 
 void main()
 {
@@ -156,10 +156,10 @@ void main()
         float halfLambert = (NdotL * 0.5) + 0.5;
 
 		if(shadowed) {
-		    intensity *= vec3(0.1);
+		    intensity *= vec3(0.2);
 		}
 
-		vec3 directDiffuse = halfLambert * intensity;
+		vec3 directDiffuse = (albedo / PI) * halfLambert * intensity;
 
         float maxAlbedo = 0.9f;
 

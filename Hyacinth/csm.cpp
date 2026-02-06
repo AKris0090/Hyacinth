@@ -39,6 +39,7 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
 	{
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float)SHADOW_MAP_CASCADE_COUNT }, // one per cascade
 	};
 	m_descriptorAllocator.initPool(maxFramesInFlight + (maxFramesInFlight * SHADOW_MAP_CASCADE_COUNT), sizes);
 
@@ -114,6 +115,12 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	VK_CHECK(vkCreatePipelineLayout(vkdeviceutils::device, &pipelineLayoutCInfo, nullptr, &m_shadowPipelineUtil.m_pipeline.layout));
 
 	m_shadowPipelineUtil.buildPipeline();
+}
+
+void shadowHelper::setupImGui() {
+	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+		m_imGuiSets[i] = (ImTextureID)ImGui_ImplVulkan_AddTexture(m_shadowImage.imageSampler, m_cascades[i].cascadeImageView, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+	}
 }
 
 void shadowHelper::update(FPSCam::CameraProps& cam, int currentFrame) {
@@ -290,6 +297,9 @@ void shadowHelper::destroy() {
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
 		vkDestroyImageView(vkdeviceutils::device, m_cascades[i].cascadeImageView, nullptr);
 		vkdeviceutils::destroyBuffer(m_cascades[i].cascadeDrawBuffer);
+		for (int j = 0; j < m_uniformBuffers.size(); j++) {
+			vkdeviceutils::destroyBuffer(m_cascades[i].cullUniformBuffers[j]);
+		}
 	}
 	vmaDestroyImage(vkdeviceutils::allocator, m_shadowImage.image, m_shadowImage.imageAllocation);
 

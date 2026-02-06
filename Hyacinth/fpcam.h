@@ -45,7 +45,7 @@ public:
     bool dirtyProj;
     bool dirtyView;
 
-	void update(float deltaTime);
+	void update(float deltaTime, bool moveMouse);
     static void getFrustumPlanes(glm::vec4* planes, glm::mat4 matrix);
 
     FPSCam() {
@@ -58,7 +58,7 @@ public:
         dirtyProj = true;
         dirtyView = true;
 
-        update(0.f);
+        update(0.f, true);
     };
 
     FPSCam(float aspect, float fov, float nearC, float farC) {
@@ -71,6 +71,6 @@ public:
         dirtyProj = true;
         dirtyView = true;
 
-        update(0.f);
+        update(0.f, true);
     }
 };
