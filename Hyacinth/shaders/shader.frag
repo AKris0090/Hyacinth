@@ -124,13 +124,13 @@ float filterPCF(vec4 sc, uint cascadeIndex)
 	int count = 0;
 	int range = 1;
 	
-	// for (int x = -range; x <= range; x++) {
-	// 	for (int y = -range; y <= range; y++) {
-	 		shadowFactor += textureProj(sc, vec2(0, 0), cascadeIndex);
+	for (int x = -range; x <= range; x++) {
+		for (int y = -range; y <= range; y++) {
+	 		shadowFactor += textureProj(sc, vec2(dx * x, dy * y), cascadeIndex);
 			count++;
-	// 	}
-	// }
-	return shadowFactor;// / count;
+		}
+	}
+	return shadowFactor / count;
 }
 
 vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {

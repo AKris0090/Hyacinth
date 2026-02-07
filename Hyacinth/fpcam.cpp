@@ -1,7 +1,5 @@
 #include "fpcam.h"
 
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-
 enum side { LEFT = 0, RIGHT = 1, TOP = 2, BOTTOM = 3, BACK = 4, FRONT = 5 };
 
 void FPSCam::getFrustumPlanes(glm::vec4* planes, glm::mat4 matrix) {
@@ -20,7 +18,7 @@ glm::mat4 getViewMatrix(FPSCam::CameraProps& props, Transform& t) {
 }
 
 glm::mat4 getProjectionMatrix(FPSCam::CameraProps& props) {
-    glm::mat4 proj = glm::perspectiveZO(glm::radians(props.FOV), props.aspectRatio, props.nearClip, props.farClip);
+    glm::mat4 proj = glm::perspective(glm::radians(props.FOV), props.aspectRatio, props.nearClip, props.farClip);
     proj[1][1] *= -1;
     return proj;
 }
