@@ -5,7 +5,7 @@
 
 int main() {
 	SDLWindow sdlwindow;
-	sdlwindow.init("Hyacinth Engine", 1280, 720);
+	sdlwindow.init("Hyacinth Engine", 1920, 1080);
 
 	HyacinthEngine hyacinthEngine;
 	hyacinthEngine.m_window = sdlwindow.m_window;

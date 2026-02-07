@@ -1,6 +1,7 @@
 #pragma once
 
 #include "raytracing.h"
+#include "probevis.h"
 #include "ecshelpers.h"
 #include "vkdescriptorutils.h"
 #include "vkpipelineutils.h"
@@ -24,38 +25,17 @@ struct DDGIVolume {
 	VulkanImage rayDataImage;
 	VulkanImage irradianceImage;
 	VulkanImage visibilityImage;
-
-	VkDeviceAddress materialIndexAddress;
 };
 
 struct ddgiPushConstant {
 	VkDeviceAddress probePositionBufferAddress;
 	VkDeviceAddress vertexAddress;
 	VkDeviceAddress indexAddress;
-	VkDeviceAddress materialIndexAddress;
 };
 
 struct DDGIVertex {
 	glm::vec4 pos;
 	glm::vec4 normal;
-};
-
-struct probeVisObjects {
-	VulkanPipelineBuilder pipelineUtil;
-	uint32_t indexCount;
-
-	VulkanBuffer vertexBuffer;
-	VulkanBuffer indexBuffer;
-	gltfObject sphereObject;
-
-	VkDescriptorSetLayout visSetLayout;
-	VkDescriptorSet visSet;
-	DescriptorLayoutBuilder			visLayoutBuilder{};
-	DescriptorAllocator				visDescriptorAllocator{};
-
-	struct probeVisPushContant {
-		VkDeviceAddress probePositionAddress;
-	};
 };
 
 class owDDGI {
@@ -89,7 +69,7 @@ private:
 	VulkanBuffer closestHitIndexBuffer;
 
 	void createRaytraceDescriptors();
-	void createRaytracePipeline(VkDescriptorSetLayout& textureLayout);
+	void createRaytracePipeline();
 	void createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
 
 public:
@@ -97,11 +77,7 @@ public:
 	probeVisObjects	m_probeVis{};
 	bool showProbes = false;
 
-	void setup(rtHelper* rtHelper, SceneGraph& m_scene, VkDescriptorSetLayout& textureLayout);
+	void setup(rtHelper* rtHelper, SceneGraph& m_scene);
 	void bakeDDGI(VkDescriptorSet& textureSet);
 	void shutdown();
-
-	// probe visualization stuff
-	void createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
-	void drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& descSet);
 };

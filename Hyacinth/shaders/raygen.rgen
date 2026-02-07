@@ -15,7 +15,6 @@ layout( push_constant ) uniform constants
 	ProbePositionBuffer probePosAddress;
 	VertexBuffer vertexBufferAddress;
 	IndexBuffer indexBufferAddress;
-	MaterialIntBuffer materialBuffer;
 } pc;
 
 void main() 

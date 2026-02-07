@@ -416,11 +416,13 @@ void HyacinthEngine::createDepthPipeline()
 }
 
 void HyacinthEngine::loadScene() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    auto path = vkdebugutils::getExeDir() / "objects" / "sanmiguel.glb";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    // auto path = "C:/Users/ajnkr/Documents/Orchid/Sandbox/trainStation/station.gltf";
     // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
 
-    m_scene.objects.push_back(gltfutils::loadFromFile(path.string()));
+    m_scene.objects.push_back(gltfutils::loadFromFile(path.string(), true));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
     m_scene.buildSceneGraph();
     m_meshBuffers = vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
@@ -540,7 +542,7 @@ void HyacinthEngine::init()
 
 	createSyncObjects(); // also creates device context
 
-    m_camera = FPSCam(m_swImageFormat.aspectRatio, 90.f, 0.01f, 40.f);
+    m_camera = FPSCam(m_swImageFormat.aspectRatio, 90.f, 0.01f, 150.f);
 
     createColorImages();
 
@@ -556,8 +558,8 @@ void HyacinthEngine::init()
 
     m_rtHelper.setup(m_scene);
 
-    m_owDDGIHelper.setup(&m_rtHelper, m_scene, m_textureSetLayout);
-    m_owDDGIHelper.createProbeVisualizationStructures(m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
+    m_owDDGIHelper.setup(&m_rtHelper, m_scene);
+    m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_probeVolume.irradianceImage, m_owDDGIHelper.m_probeVolume.visibilityImage, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
 
@@ -584,7 +586,7 @@ void HyacinthEngine::update() {
     UBO newuniform{};
     newuniform.proj = m_camera.m_props.proj;
     newuniform.view = m_camera.m_props.view;
-    newuniform.viewPos = glm::vec4(m_camera.transform.position, Input::mouseDown() ? 0.f : 1.f);
+    newuniform.viewPos = glm::vec4(m_camera.transform.position, ambientToggle);
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, m_shadowHelper.DDGIntensity);
     newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_shadowHelper.m_cascades[2].splitDepth);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
@@ -666,6 +668,7 @@ void HyacinthEngine::drawImGui() {
     ImGui::DragFloat("cascade min distance (zNear)", &m_camera.m_props.nearClip, 0.01f);
     ImGui::DragFloat("cascade max distance (zFar)", &m_camera.m_props.farClip, 0.01f);
     ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
+	ImGui::Checkbox("ambient toggle", &ambientToggle);
     ImGui::End();
 
     ImGui::Begin("Shadow Maps");
@@ -704,13 +707,15 @@ void HyacinthEngine::draw()
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
 
-    VK_LABEL(cmd, "Compute Cull");
+    VK_LABEL(cmd, "Compute Cull Main");
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
     m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_indirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
-    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-        m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
-    }
     VK_LABEL_END(cmd);
+    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+        VK_LABEL(cmd, "Compute Cull Shadow");
+        m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
+        VK_LABEL_END(cmd);
+    }
 
     // shadows
     m_shadowHelper.drawShadowMaps(cmd, numDraws, m_frameIndex, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress);
@@ -759,7 +764,7 @@ void HyacinthEngine::draw()
 	vkCmdDrawIndexedIndirect(cmd, m_indirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
     if (m_owDDGIHelper.showProbes) {
-        m_owDDGIHelper.drawProbes(cmd, m_frameData[m_frameIndex].descriptorSet);
+        m_owDDGIHelper.m_probeVis.drawProbes(cmd, m_owDDGIHelper.m_probeVolume.probePositionBuffer.gpuAddress, m_frameData[m_frameIndex].descriptorSet);
     }
     VK_LABEL_END(cmd);
 
@@ -877,7 +882,6 @@ void HyacinthEngine::cleanup()
         for (auto& node : obj.nodes) {
             vkdeviceutils::destroyBuffer(node.get()->accelStructureIndexBuffer);
             vkdeviceutils::destroyBuffer(node.get()->accelStructureVertexBuffer);
-            vkdeviceutils::destroyBuffer(node.get()->materialBuffer);
         }
         for (auto& tex : obj.textures) {
             vkimageutils::destroyImage(tex);

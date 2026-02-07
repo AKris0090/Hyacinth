@@ -85,6 +85,9 @@
     <Filter Include="Source Files\renderer\utils\vkutils\debug">
       <UniqueIdentifier>{a485a8ad-8016-4cc6-b187-7a33ab7d3646}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\utils\probe_vis">
+      <UniqueIdentifier>{4a0508bc-e29d-44fe-8251-d0f3b69564a9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -174,6 +177,9 @@
     <ClCompile Include="vkdebugutils.cpp">
       <Filter>Source Files\renderer\utils\vkutils\debug</Filter>
     </ClCompile>
+    <ClCompile Include="probevis.cpp">
+      <Filter>Source Files\renderer\utils\probe_vis</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sdlwindow.h">
@@ -259,6 +265,9 @@
     </ClInclude>
     <ClInclude Include="imguihelper.h">
       <Filter>Source Files\renderer\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="probevis.h">
+      <Filter>Source Files\renderer\utils\probe_vis</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

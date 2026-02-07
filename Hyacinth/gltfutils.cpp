@@ -58,11 +58,12 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
     return bounds;
 }
 
-static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
+static void loadGLTFNode(gltfObject& obj, bool includeInAccel, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
     SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
 
     auto node = std::make_unique<gltfNode>();
     node->parentIndex = parent;
+	node->includeInAccel = includeInAccel;
 
     if (nodeIn.matrix.size() == 16) {
         node->worldTransform = glm::make_mat4x4(nodeIn.matrix.data());
@@ -91,7 +92,7 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
 
     if (nodeIn.children.size() > 0) {
         for (size_t i = 0; i < nodeIn.children.size(); i++) {
-            loadGLTFNode(obj, model, model->nodes[nodeIn.children[i]], nodeIndex);
+            loadGLTFNode(obj, includeInAccel, model, model->nodes[nodeIn.children[i]], nodeIndex);
         }
     }
 
@@ -232,7 +233,7 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
     std::cout << "created image: " << curImage.name << std::endl;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
@@ -260,7 +261,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename) {
     const tinygltf::Scene& scene = model->scenes[model->defaultScene];
     for (size_t i = 0; i < scene.nodes.size(); i++) {
         const tinygltf::Node node = model->nodes[scene.nodes[i]];
-        loadGLTFNode(object, model, node, -1);
+        loadGLTFNode(object, includeInAccel, model, node, -1);
     }
 
     object.textureIndices.resize(model->textures.size());
@@ -295,6 +296,10 @@ gltfObject gltfutils::loadFromFile(const std::string& filename) {
 }
 
 void SceneGraph::buildNodeBuffers(gltfNode* node) {
+    if (node->primitives.size() == 0 || node->includeInAccel == false) {
+        return;
+	}
+
     // for building acceleration structures
     std::vector<glm::vec3> positions;
     for (const auto& v : node->vertices) {
@@ -326,9 +331,6 @@ void SceneGraph::buildNodeBuffers(gltfNode* node) {
         });
 
     vkdeviceutils::destroyBuffer(staging);
-
-    node->materialBuffer = vkdeviceutils::createBuffer(node->materialIndex.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "node_material");
-    vkdeviceutils::uploadToBuffer(node->materialBuffer, node->materialIndex.size() * sizeof(uint32_t), node->materialIndex.data());
 }
 
 void SceneGraph::buildSceneGraph() {
@@ -375,15 +377,15 @@ void SceneGraph::buildSceneGraph() {
                     node.get()->indices.push_back(i + nodeVertOffset);
                 }
 
-                for (int i = 0; i < prim.get()->indices.size() / 3; i++) {
-                    node.get()->materialIndex.push_back(obj.materials[primDrawData.materialIndex].baseColorIndex);
-                }
-
                 sortedDrawCalls[prim.get()->materialIndex + materialOffset].push_back(draw);
 
                 drawID++;
             }
             matrixID++;
+            numNodes++;
+            if (node->includeInAccel && node->vertices.size() > 0 && node->indices.size() > 0) {
+				numAccelNodes++;
+            }
 
             // for acceleration structures
             buildNodeBuffers(node.get());
@@ -398,7 +400,6 @@ void SceneGraph::buildSceneGraph() {
         }
         materialOffset += obj.materials.size();
         textureOffset += obj.textures.size();
-        numNodes++;
     }
 
     numTextures = textureOffset + 1;

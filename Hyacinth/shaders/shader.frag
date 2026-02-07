@@ -246,7 +246,8 @@ void main() {
     float NdotL = max(dot(N, L), 0.0);
     Lo += (kD * sampledColor.rgb / PI + specular) * radiance * NdotL;
 
-    vec3 ambient = sampledColor.rgb * DDGIGetIrradiance(fragPos.xyz, inNormal.xyz, ubo.viewPos.xyz) * 1.5;// * kD;
+    vec3 irrad = DDGIGetIrradiance(fragPos.xyz, inNormal.xyz, ubo.viewPos.xyz) * 1.5;
+    vec3 ambient = sampledColor.rgb * irrad;
 
     uint cascadeIndex = 0;
 	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
@@ -261,4 +262,8 @@ void main() {
     vec3 color = ambient + Lo * shadow;
 
     outColor = vec4(color, 1.0f);
+
+    if (ubo.viewPos.w == 1.0) {
+        outColor = vec4(irrad, 1.0);
+    }
 }

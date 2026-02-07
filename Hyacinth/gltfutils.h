@@ -42,13 +42,12 @@ struct gltfNode {
 	glm::mat4 worldTransform = glm::mat4(1.0f);
     std::vector<uint32_t> childrenIndices;
     int32_t parentIndex = -1;
+    bool includeInAccel = false;
 
     std::vector<Vertex> vertices;
     VulkanBuffer accelStructureVertexBuffer;
     std::vector<uint32_t> indices;
     VulkanBuffer accelStructureIndexBuffer;
-    std::vector<uint32_t> materialIndex;
-    VulkanBuffer materialBuffer;
 };
 
 struct gltfObject {
@@ -75,6 +74,7 @@ struct SceneGraph {
     std::vector<VulkanImage> dummyTextures;
     uint32_t numTextures;
     uint32_t numNodes = 0;
+    uint32_t numAccelNodes = 0;
 
     std::vector<VkSampler> imageSamplers;
 
@@ -96,5 +96,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename);
+    gltfObject loadFromFile(const std::string& filename, bool includeInAccel);
 }

@@ -10,8 +10,6 @@ layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 layout(set = 0, binding = 2) uniform sampler2DArray irradianceTex;
 layout(set = 0, binding = 3) uniform sampler2DArray visibilityTex;
 
-layout(set = 1, binding = 0) uniform sampler2D globalTextures2D[];
-
 layout(location = 0) rayPayloadInEXT vec4 hitValue;
 layout(location = 2) rayPayloadEXT bool shadowed;
 hitAttributeEXT vec2 barycentricWeights;
@@ -21,7 +19,6 @@ layout( push_constant ) uniform constants
 	ProbePositionBuffer probePosAddress;
 	VertexBuffer vertexBufferAddress;
 	IndexBuffer indexBufferAddress;
-	MaterialIntBuffer materialBuffer;
 } pc;
 
 vec3 DDGIGetSurfaceBias(vec3 surfaceNormal, vec3 cameraDirection)
@@ -110,7 +107,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 rayDir) {
 }
 
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float directLightIntensity = 13.0;
+const float directLightIntensity = 3.0;
 
 void main()
 {
@@ -131,14 +128,7 @@ void main()
 
 		vec3 normal = normalize(a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz);
 
-		vec2 uv0 = vec2(v0.position.w, v0.normal.w);
-		vec2 uv1 = vec2(v1.position.w, v1.normal.w);
-		vec2 uv2 = vec2(v2.position.w, v2.normal.w);
-		vec2 uv = a * uv0 + b * uv1 + c * uv2;
-
 		vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
-
-		vec3 albedo = texture(globalTextures2D[pc.materialBuffer.mats[gl_PrimitiveID]], uv).rgb;
 
 		vec3 lightVector = normalize(lightPos); // directional light
 
@@ -156,16 +146,16 @@ void main()
         float halfLambert = (NdotL * 0.5) + 0.5;
 
 		if(shadowed) {
-		    intensity *= vec3(0.2);
+		    intensity *= vec3(0.0);
 		}
-
-		vec3 directDiffuse = (albedo / PI) * halfLambert * intensity;
 
         float maxAlbedo = 0.9f;
 
+		vec3 directDiffuse = maxAlbedo * halfLambert * intensity;
+
 		vec3 irradiance = DDGIGetIrradiance(worldPos, normal, gl_WorldRayDirectionEXT);
 
-		radiance = directDiffuse + ((min(albedo, vec3(maxAlbedo, maxAlbedo, maxAlbedo)) / PI) * irradiance);
+		radiance = directDiffuse + (maxAlbedo / PI) * irradiance;
 	}
 	hitValue = vec4(radiance, distance);
 }

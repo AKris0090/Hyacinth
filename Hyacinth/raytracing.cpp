@@ -120,12 +120,16 @@ void rtHelper::createAccelerationStructure(VkAccelerationStructureTypeKHR asType
 
 // this should loop over all of the nodes in the scenegraph and create their accelerations structures
 void rtHelper::createBottomLevelAS(SceneGraph& scene) {
-    m_blAccelStructures.resize(scene.numNodes);
+    m_blAccelStructures.resize(scene.numAccelNodes);
     std::cout << "building bottom-level accel structures" << std::endl;
 
     uint32_t id = 0;
     for(const auto& obj : scene.objects) {
         for (const auto& node : obj.nodes) {
+            if (!node.get()->includeInAccel || node.get()->vertices.empty() || node.get()->indices.empty()) {
+                std::cerr << "Warning: Node " << id << " has no geometry, skipping BLAS creation." << std::endl;
+                continue;
+			}
             VkAccelerationStructureGeometryKHR       asGeometry{};
             VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
             primitiveToGeometry(node.get(), asGeometry, asBuildRangeInfo);
@@ -145,11 +149,15 @@ void rtHelper::createTopLevelAS(SceneGraph& scene) {
 
     // Prepare instance data for TLAS
     std::vector<VkAccelerationStructureInstanceKHR> tlasInstances;
-    tlasInstances.reserve(scene.numNodes);
+    tlasInstances.reserve(scene.numAccelNodes);
 
     uint32_t meshIndex = 0;
     for(const auto& obj : scene.objects) {
         for (const auto& node : obj.nodes) {
+            if (node->includeInAccel == false || node->vertices.empty() || node->indices.empty()) {
+                std::cerr << "Warning: Node " << meshIndex << " is marked as not included in acceleration structure or has no geometry, skipping TLAS instance creation." << std::endl;
+                continue;
+			}
             VkAccelerationStructureInstanceKHR asInstance{};
             asInstance.transform = toTransformMatrixKHR(node.get()->worldTransform);
             asInstance.instanceCustomIndex = meshIndex;                       // gl_InstanceCustomIndexEXT
@@ -176,7 +184,7 @@ void rtHelper::createTopLevelAS(SceneGraph& scene) {
         asGeometry = { .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
                             .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
                             .geometry = {.instances = geometryInstances} };
-        asBuildRangeInfo = { .primitiveCount = scene.numNodes };
+        asBuildRangeInfo = { .primitiveCount = scene.numAccelNodes };
 
         createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, m_tlAccelStrucutre, asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
     }
