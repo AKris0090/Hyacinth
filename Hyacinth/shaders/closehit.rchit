@@ -106,8 +106,9 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 rayDir) {
     return irradiance;
 }
 
+const vec3 lightColor = vec3(0.99, 0.98, 0.83);
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float directLightIntensity = 3.0;
+const float directLightIntensity = 2.0;
 
 void main()
 {
@@ -140,22 +141,20 @@ void main()
 		shadowed = true;
 		traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 1, worldPos, tmin, lightVector, tmax, 2);
 
-		vec3 intensity = vec3(directLightIntensity);
+		vec3 intensity = vec3(directLightIntensity) * lightColor;
 
-        float NdotL = max(dot(normal, lightVector), 0.0);
+        float NdotL = max(dot(normal, -lightVector), 0.0);
         float halfLambert = (NdotL * 0.5) + 0.5;
 
-		if(shadowed) {
-		    intensity *= vec3(0.0);
+		vec3 directDiffuse = halfLambert * intensity;
+
+        if(shadowed) {
+		    directDiffuse *= vec3(0.1);
 		}
-
-        float maxAlbedo = 0.9f;
-
-		vec3 directDiffuse = maxAlbedo * halfLambert * intensity;
 
 		vec3 irradiance = DDGIGetIrradiance(worldPos, normal, gl_WorldRayDirectionEXT);
 
-		radiance = directDiffuse + (maxAlbedo / PI) * irradiance;
+		radiance = directDiffuse + irradiance;
 	}
 	hitValue = vec4(radiance, distance);
 }

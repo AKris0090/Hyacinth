@@ -227,7 +227,7 @@ void main() {
     vec3 L = normalize(ubo.lightPos.xyz - fragPos.xyz);
     vec3 H = normalize(V + L);
 
-    vec3 radiance = lightColor * vec3(6.0);
+    vec3 radiance = lightColor * vec3(3.0);
 
     vec3 F0 = vec3(0.04); 
     F0      = mix(F0, sampledColor.rgb, metalRough.b);
@@ -239,14 +239,12 @@ void main() {
     float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
     vec3 specular = numerator / denominator;
 
-    vec3 kS = F;
-    vec3 kD = vec3(1.0) - kS;
-    kD *= 1.0 - metalRough.b;
-
     float NdotL = max(dot(N, L), 0.0);
-    Lo += (kD * sampledColor.rgb / PI + specular) * radiance * NdotL;
+    float halfLambert = (NdotL * 0.5) + 0.5;
 
-    vec3 irrad = DDGIGetIrradiance(fragPos.xyz, inNormal.xyz, ubo.viewPos.xyz) * 1.5;
+    Lo += (sampledColor.rgb / PI) * halfLambert * radiance;
+
+    vec3 irrad = DDGIGetIrradiance(fragPos.xyz, N, ubo.viewPos.xyz);
     vec3 ambient = sampledColor.rgb * irrad;
 
     uint cascadeIndex = 0;
@@ -259,7 +257,7 @@ void main() {
     vec4 shadowCoord = (biasMat * ubo.cascadeViewProj[cascadeIndex]) * vec4(fragPos.xyz, 1.0);	 
 	float shadow = filterPCF(shadowCoord / shadowCoord.w, cascadeIndex);
 
-    vec3 color = ambient + Lo * shadow;
+    vec3 color = ambient + (Lo * shadow);
 
     outColor = vec4(color, 1.0f);
 

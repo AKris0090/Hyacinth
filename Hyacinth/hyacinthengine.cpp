@@ -416,8 +416,8 @@ void HyacinthEngine::createDepthPipeline()
 }
 
 void HyacinthEngine::loadScene() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "sanmiguel.glb";
-    // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "sanmiguel.glb";
+    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     // auto path = "C:/Users/ajnkr/Documents/Orchid/Sandbox/trainStation/station.gltf";
     // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
