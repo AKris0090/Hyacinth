@@ -16,7 +16,7 @@ const int VISIBIILITY_TILE_WIDTH = 16;
 
 const int PROBE_BORDER = 1;
 
-const int RAYS_PER_PROBE = 2500;
+const int RAYS_PER_PROBE = 20000;
 
 const float PI = 3.141592653;
 
@@ -142,3 +142,11 @@ vec3 getProbeWorldPos(ivec3 baseCoords) {
 vec3 getSurfaceBias(vec3 normal, vec3 camDir) {
     return (normal * 0.2) + (-camDir * 0.05);
 }
+
+struct RayPayload {
+    vec3 radiance;
+    float distance;
+    int depth;
+};
+
+const uint MAX_DEPTH = 4;

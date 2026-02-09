@@ -560,6 +560,7 @@ void HyacinthEngine::init()
 
     m_owDDGIHelper.setup(&m_rtHelper, m_scene);
     m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_probeVolume.irradianceImage, m_owDDGIHelper.m_probeVolume.visibilityImage, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
+	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
 
@@ -668,6 +669,7 @@ void HyacinthEngine::drawImGui() {
     ImGui::DragFloat("cascade min distance (zNear)", &m_camera.m_props.nearClip, 0.01f);
     ImGui::DragFloat("cascade max distance (zFar)", &m_camera.m_props.farClip, 0.01f);
     ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
+	ImGui::Checkbox("show volumes", &m_owDDGIHelper.showVolumes);
 	ImGui::Checkbox("ambient toggle", &ambientToggle);
     ImGui::End();
 
@@ -766,6 +768,11 @@ void HyacinthEngine::draw()
     if (m_owDDGIHelper.showProbes) {
         m_owDDGIHelper.m_probeVis.drawProbes(cmd, m_owDDGIHelper.m_probeVolume.probePositionBuffer.gpuAddress, m_frameData[m_frameIndex].descriptorSet);
     }
+
+    if (m_owDDGIHelper.showVolumes) {
+		m_owDDGIHelper.m_volumeVis.drawVolumes(cmd, m_owDDGIHelper.volumeTransformBuffer.gpuAddress, m_frameData[m_frameIndex].descriptorSet);
+    }
+
     VK_LABEL_END(cmd);
 
     endDraw();

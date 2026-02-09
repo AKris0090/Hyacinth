@@ -170,9 +170,9 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 	m_probeVolume.transform.scale = glm::vec3(31.855, 13.78, 18.87);
 
 	// evenly disperse probes TODO: figure out why volume isn't matching up with blender
-	float xSpace = m_probeVolume.transform.scale.x / PROBE_DENSITY_WIDTH;
-	float ySpace = m_probeVolume.transform.scale.y / PROBE_DENSITY_HEIGHT;
-	float zSpace = m_probeVolume.transform.scale.z / PROBE_DENSITY_DEPTH;
+	float xSpace = m_probeVolume.transform.scale.x / (PROBE_DENSITY_WIDTH - 1);
+	float ySpace = m_probeVolume.transform.scale.y / (PROBE_DENSITY_HEIGHT - 1);
+	float zSpace = m_probeVolume.transform.scale.z / (PROBE_DENSITY_DEPTH - 1);
 
 	glm::vec3 probeSpacing = glm::vec3(xSpace, ySpace, zSpace);
 
@@ -201,6 +201,12 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 	VkDeviceSize probeBufferSize = probePositions.size() * sizeof(glm::vec4);
 	m_probeVolume.probePositionBuffer = vkdeviceutils::createBuffer(probeBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "probe_pos_ssbo");
 	vkdeviceutils::uploadToBuffer(m_probeVolume.probePositionBuffer, probeBufferSize, probePositions.data());
+
+	std::vector<glm::mat4> volumeTransforms;
+	VkDeviceSize volumeBufferSize = 1 * sizeof(glm::mat4); // TODO: make this with more volumes
+	volumeTransforms.push_back(m_probeVolume.transform.getMatrix());
+	volumeTransformBuffer = vkdeviceutils::createBuffer(volumeBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "volume_data_ssbo");
+	vkdeviceutils::uploadToBuffer(volumeTransformBuffer, volumeBufferSize, volumeTransforms.data());
 
 	VkExtent3D rayDataExtent{
 		.width = RAYS_PER_PROBE,
@@ -372,10 +378,9 @@ void owDDGI::shutdown() {
 
 	vkdeviceutils::destroyBuffer(closestHitVertexBuffer);
 	vkdeviceutils::destroyBuffer(closestHitIndexBuffer);
-	vkdeviceutils::destroyBuffer(m_probeVis.vertexBuffer);
-	vkdeviceutils::destroyBuffer(m_probeVis.indexBuffer);
 	vkdeviceutils::destroyBuffer(m_sbtBuffer);
 	vkdeviceutils::destroyBuffer(m_probeVolume.probePositionBuffer);
+	vkdeviceutils::destroyBuffer(volumeTransformBuffer);
 
 	vkimageutils::destroyImage(m_probeVolume.irradianceImage);
 	vkimageutils::destroyImage(m_probeVolume.visibilityImage);
@@ -384,12 +389,10 @@ void owDDGI::shutdown() {
 	m_visibilityComputePipeline.destroy();
 	m_rtPipeline.destroy();
 
-	m_probeVis.pipelineUtil.destroyPipeline();
-
 	m_descriptorAllocator.destroyPool();
 	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_descriptorLayout, nullptr);
 	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_computeDescriptorLayout, nullptr);
 
-	m_probeVis.visDescriptorAllocator.destroyPool();
-	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_probeVis.visSetLayout, nullptr);
+	m_probeVis.destroy();
+	m_volumeVis.destroy();
 }

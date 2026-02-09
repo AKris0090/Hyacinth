@@ -154,6 +154,20 @@ void VulkanPipelineBuilder::disableBlending() {
 	m_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 }
 
+void VulkanPipelineBuilder::enableBlending() {
+    m_colorBlendAttachment.blendEnable = VK_TRUE;
+
+    m_colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    m_colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    m_colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+
+    m_colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    m_colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    m_colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    m_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+}
+
 void VulkanPipelineBuilder::setColorAttachmentFormat(VkFormat format) {
     m_colorAttachmentformat = format;
     m_renderInfo.colorAttachmentCount = 1;

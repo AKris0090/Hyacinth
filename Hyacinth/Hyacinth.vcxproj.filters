@@ -88,6 +88,9 @@
     <Filter Include="Source Files\renderer\utils\probe_vis">
       <UniqueIdentifier>{4a0508bc-e29d-44fe-8251-d0f3b69564a9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\utils\probe_volume_vis">
+      <UniqueIdentifier>{995ad00e-5499-4fe6-b1b8-1ab1208537a2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -180,6 +183,9 @@
     <ClCompile Include="probevis.cpp">
       <Filter>Source Files\renderer\utils\probe_vis</Filter>
     </ClCompile>
+    <ClCompile Include="volume_vis.cpp">
+      <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sdlwindow.h">
@@ -269,6 +275,9 @@
     <ClInclude Include="probevis.h">
       <Filter>Source Files\renderer\utils\probe_vis</Filter>
     </ClInclude>
+    <ClInclude Include="volume_vis.h">
+      <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\shader.vert">
@@ -319,6 +328,12 @@
       <Filter>Source Files\shaders</Filter>
     </None>
     <None Include="shaders\shadowCommon.glsl">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\volumeVis.vert">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\volumeVis.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>

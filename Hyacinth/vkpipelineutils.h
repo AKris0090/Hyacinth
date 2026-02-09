@@ -43,6 +43,7 @@ public:
 	void setMultisamplingNone();
     void setMultisampling(VkSampleCountFlagBits sampleCount);
     void disableBlending();
+    void enableBlending();
 	void setColorAttachmentFormat(VkFormat format);
 	void setDepthAttachmentFormat(VkFormat format);
 	void enableDepthTest(bool depthWrite, VkCompareOp op);

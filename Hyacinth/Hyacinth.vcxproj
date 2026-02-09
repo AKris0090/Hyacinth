@@ -171,6 +171,7 @@
     <ClCompile Include="vkpipelineutils.cpp" />
     <ClCompile Include="vkswapchainutils.cpp" />
     <ClCompile Include="hyacinthengine.cpp" />
+    <ClCompile Include="volume_vis.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.h" />
@@ -202,6 +203,7 @@
     <ClInclude Include="vkmeshutils.h" />
     <ClInclude Include="vkpipelineutils.h" />
     <ClInclude Include="vkswapchainutils.h" />
+    <ClInclude Include="volume_vis.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\shader.frag" />
@@ -222,6 +224,8 @@
     <None Include="shaders\shadow.vert" />
     <None Include="shaders\shadowCommon.glsl" />
     <None Include="shaders\visibilityBuild.comp" />
+    <None Include="shaders\volumeVis.frag" />
+    <None Include="shaders\volumeVis.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

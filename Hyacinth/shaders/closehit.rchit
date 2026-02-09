@@ -8,7 +8,7 @@
 
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 
-layout(location = 0) rayPayloadInEXT vec4 hitValue;
+layout(location = 0) rayPayloadInEXT RayPayload payload;
 layout(location = 2) rayPayloadEXT bool shadowed;
 hitAttributeEXT vec2 barycentricWeights;
 
@@ -21,16 +21,17 @@ layout( push_constant ) uniform constants
 
 const vec3 lightColor = vec3(0.99, 0.98, 0.83);
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-const float directLightIntensity = 10000.0;
 
 void main()
 {
+	if (payload.depth == 0) {
+		payload.distance = gl_RayTminEXT + gl_HitTEXT;
+		if (gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT) {
+			payload.distance *= -0.2;
+		}
+	}
 	vec3 radiance = vec3(0.0);
-	float distance = 0.0;
-	distance = gl_RayTminEXT + gl_HitTEXT;
-	if (gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT) {
-		distance *= -0.2;
-	} else {
+	if (gl_HitKindEXT != gl_HitKindBackFacingTriangleEXT) {
 		ivec3 index = ivec3(pc.indexBufferAddress.indices[3 * gl_PrimitiveID], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 1], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 2]);
 		float b = barycentricWeights.x;
         float c = barycentricWeights.y;
@@ -42,30 +43,33 @@ void main()
 
 		vec3 normal = normalize(a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz);
 
-		vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
-
 		vec3 lightVector = normalize(lightPos); // directional light
 
 		uint rayFlags = gl_RayFlagsOpaqueEXT | gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 		uint cullMask = 0xff;
-		float tmin = 0.1;
+		float tmin = 0.01;
 		float tmax = 1000.0;
+		float epsilon = 0.001;
+		vec3 origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal * epsilon;
 
 		shadowed = true;
-		traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 1, worldPos, tmin, -lightVector, tmax, 2);
+		traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 1, origin, tmin, lightVector, tmax, 2);
 
-		vec3 intensity = vec3(directLightIntensity) * lightColor;
-
-        float NdotL = max(dot(normal, -lightVector), 0.0);
+        float NdotL = max(dot(normal, lightVector), 0.0);
         float halfLambert = (NdotL * 0.5) + 0.5;
-
-		vec3 directDiffuse = halfLambert * intensity;
+		vec3 directDiffuse = halfLambert * lightColor;
 
         if(shadowed) {
 		    directDiffuse *= vec3(0.0);
 		}
 
-		radiance = directDiffuse;
+		payload.radiance = (payload.radiance * 0.9) + directDiffuse;
+
+		if (payload.depth < MAX_DEPTH) {
+			rayFlags = gl_RayFlagsOpaqueEXT;
+		    payload.depth++;
+		    vec3 newDir = reflect(gl_WorldRayDirectionEXT, normal);
+		    traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin, tmin, newDir, tmax, 0);
+		}
 	}
-	hitValue = vec4(radiance, distance);
 }

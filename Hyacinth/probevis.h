@@ -4,8 +4,7 @@
 #include "vkdescriptorutils.h"
 #include "vkpipelineutils.h"
 
-struct probeVisObjects {
-	uint32_t probeCount;
+class probeVisObjects {
 
 	VulkanPipelineBuilder pipelineUtil;
 	uint32_t indexCount;
@@ -14,8 +13,6 @@ struct probeVisObjects {
 	VulkanBuffer indexBuffer;
 	gltfObject sphereObject;
 
-	VkDescriptorSetLayout visSetLayout;
-	VkDescriptorSet visSet;
 	DescriptorLayoutBuilder			visLayoutBuilder{};
 	DescriptorAllocator				visDescriptorAllocator{};
 
@@ -23,6 +20,12 @@ struct probeVisObjects {
 		VkDeviceAddress probePositionAddress;
 	};
 
+public:
+	uint32_t probeCount;
+	VkDescriptorSetLayout visSetLayout;
+	VkDescriptorSet visSet;
+
 	void createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VulkanImage& irradianceImage, VulkanImage& visibilityImage, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
 	void drawProbes(VkCommandBuffer& cmd, VkDeviceAddress& probePositionAddress, VkDescriptorSet& descSet);
+	void destroy();
 };

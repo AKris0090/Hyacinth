@@ -2,6 +2,7 @@
 
 #include "raytracing.h"
 #include "probevis.h"
+#include "volume_vis.h"
 #include "ecshelpers.h"
 #include "vkdescriptorutils.h"
 #include "vkpipelineutils.h"
@@ -12,7 +13,7 @@ constexpr int PROBE_DENSITY_WIDTH = 30;  // x
 constexpr int PROBE_DENSITY_HEIGHT = 14;  // y
 constexpr int PROBE_DENSITY_DEPTH = 20;  // z
 
-constexpr int RAYS_PER_PROBE = 2500;
+constexpr int RAYS_PER_PROBE = 20000;
 
 constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;
@@ -75,7 +76,10 @@ private:
 public:
 	DDGIVolume m_probeVolume;
 	probeVisObjects	m_probeVis{};
+	volumeVisHelper m_volumeVis;
+	VulkanBuffer volumeTransformBuffer;
 	bool showProbes = false;
+	bool showVolumes = true;
 
 	void setup(rtHelper* rtHelper, SceneGraph& m_scene);
 	void bakeDDGI(VkDescriptorSet& textureSet);
