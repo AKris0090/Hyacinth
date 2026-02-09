@@ -1,4 +1,4 @@
-#include "volume_vis.h"
+#include "volumevis.h"
 
 void volumeVisHelper::createVolumeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples) {
 	auto cubePath = vkdebugutils::getExeDir() / "objects" / "cube.glb";

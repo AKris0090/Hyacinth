@@ -171,7 +171,7 @@
     <ClCompile Include="vkpipelineutils.cpp" />
     <ClCompile Include="vkswapchainutils.cpp" />
     <ClCompile Include="hyacinthengine.cpp" />
-    <ClCompile Include="volume_vis.cpp" />
+    <ClCompile Include="volumevis.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.h" />
@@ -203,7 +203,7 @@
     <ClInclude Include="vkmeshutils.h" />
     <ClInclude Include="vkpipelineutils.h" />
     <ClInclude Include="vkswapchainutils.h" />
-    <ClInclude Include="volume_vis.h" />
+    <ClInclude Include="volumevis.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\shader.frag" />

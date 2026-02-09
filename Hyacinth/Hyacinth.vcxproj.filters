@@ -183,7 +183,7 @@
     <ClCompile Include="probevis.cpp">
       <Filter>Source Files\renderer\utils\probe_vis</Filter>
     </ClCompile>
-    <ClCompile Include="volume_vis.cpp">
+    <ClCompile Include="volumevis.cpp">
       <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
     </ClCompile>
   </ItemGroup>
@@ -275,7 +275,7 @@
     <ClInclude Include="probevis.h">
       <Filter>Source Files\renderer\utils\probe_vis</Filter>
     </ClInclude>
-    <ClInclude Include="volume_vis.h">
+    <ClInclude Include="volumevis.h">
       <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
     </ClInclude>
   </ItemGroup>

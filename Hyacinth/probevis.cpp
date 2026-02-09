@@ -136,7 +136,6 @@ void probeVisObjects::destroy() {
 	vkdeviceutils::destroyBuffer(vertexBuffer);
 	vkdeviceutils::destroyBuffer(indexBuffer);
 	pipelineUtil.destroyPipeline();
-	pipelineUtil.destroyPipeline();
 	visDescriptorAllocator.destroyPool();
 	vkDestroyDescriptorSetLayout(vkdeviceutils::device, visSetLayout, nullptr);
 }

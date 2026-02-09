@@ -2,7 +2,7 @@
 
 #include "raytracing.h"
 #include "probevis.h"
-#include "volume_vis.h"
+#include "volumevis.h"
 #include "ecshelpers.h"
 #include "vkdescriptorutils.h"
 #include "vkpipelineutils.h"
