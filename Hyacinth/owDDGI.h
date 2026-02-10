@@ -79,7 +79,7 @@ public:
 	volumeVisHelper m_volumeVis;
 	VulkanBuffer volumeTransformBuffer;
 	bool showProbes = false;
-	bool showVolumes = true;
+	bool showVolumes = false;
 
 	void setup(rtHelper* rtHelper, SceneGraph& m_scene);
 	void bakeDDGI(VkDescriptorSet& textureSet);

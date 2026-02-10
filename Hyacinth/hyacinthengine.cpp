@@ -416,13 +416,14 @@ void HyacinthEngine::createDepthPipeline()
 }
 
 void HyacinthEngine::loadScene() {
-    // auto path = vkdebugutils::getExeDir() / "objects" / "sanmiguel.glb";
-    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    auto path = "C:/Users/ajnkr/Documents/Hyacinth/Hyacinth/objects/test_scene.glb";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     // auto path = "C:/Users/ajnkr/Documents/Orchid/Sandbox/trainStation/station.gltf";
     // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
 
-    m_scene.objects.push_back(gltfutils::loadFromFile(path.string(), true));
+    m_scene.objects.push_back(gltfutils::loadFromFile(path, true));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
     m_scene.buildSceneGraph();
     m_meshBuffers = vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
