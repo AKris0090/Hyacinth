@@ -350,12 +350,13 @@ void HyacinthEngine::createGraphicsPipeline()
     bufferRange.size = sizeof(GPUDrawPushConstants);
     bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayout, 3> sets = { m_descriptorSetLayout, m_textureSetLayout, m_owDDGIHelper.m_probeVis.visSetLayout };
+    // std::array<VkDescriptorSetLayout, 3> sets = { m_descriptorSetLayout, m_textureSetLayout, m_owDDGIHelper.m_probeVis.visSetLayout };
+    std::array<VkDescriptorSetLayout, 2> sets = { m_descriptorSetLayout, m_textureSetLayout };
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCInfo { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pipelineLayoutCInfo.pushConstantRangeCount = 1;
     pipelineLayoutCInfo.pPushConstantRanges = &bufferRange;
-	pipelineLayoutCInfo.setLayoutCount = 3;
+	pipelineLayoutCInfo.setLayoutCount = sets.size();
 	pipelineLayoutCInfo.pSetLayouts = sets.data();
 
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
@@ -559,9 +560,9 @@ void HyacinthEngine::init()
 
     m_rtHelper.setup(m_scene);
 
-    m_owDDGIHelper.setup(&m_rtHelper, m_scene);
-    m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_probeVolume.irradianceImage, m_owDDGIHelper.m_probeVolume.visibilityImage, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
-	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
+    // m_owDDGIHelper.setup(&m_rtHelper, m_scene);
+    // m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_probeVolume.irradianceImage, m_owDDGIHelper.m_probeVolume.visibilityImage, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
+	// m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
 
@@ -571,7 +572,7 @@ void HyacinthEngine::init()
 
     m_shadowHelper.setupImGui();
 
-    m_owDDGIHelper.bakeDDGI(m_textureSet);
+    // m_owDDGIHelper.bakeDDGI(m_textureSet);
 
     m_initialized = true;
 }
@@ -669,8 +670,8 @@ void HyacinthEngine::drawImGui() {
     ImGui::DragFloat("cascade split delta", &m_shadowHelper.cascadeSplitLambda, 0.01f);
     ImGui::DragFloat("cascade min distance (zNear)", &m_camera.m_props.nearClip, 0.01f);
     ImGui::DragFloat("cascade max distance (zFar)", &m_camera.m_props.farClip, 0.01f);
-    ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
-	ImGui::Checkbox("show volumes", &m_owDDGIHelper.showVolumes);
+    // ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
+	// ImGui::Checkbox("show volumes", &m_owDDGIHelper.showVolumes);
 	ImGui::Checkbox("ambient toggle", &ambientToggle);
     ImGui::End();
 
@@ -689,7 +690,7 @@ void HyacinthEngine::draw()
     pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
     pushConstants.materialAddress = m_materialBuffer.gpuAddress;
     pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
-    pushConstants.probePositionAddress = m_owDDGIHelper.m_probeVolume.probePositionBuffer.gpuAddress;
+    // pushConstants.probePositionAddress = m_owDDGIHelper.m_probeVolume.probePositionBuffer.gpuAddress;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -746,14 +747,15 @@ void HyacinthEngine::draw()
     VK_LABEL(cmd, "Main Render Pass");
     vkCmdBeginRendering(cmd, &renderingInfo);
 
-    std::array<VkDescriptorSet, 3> sets = { m_frameData[m_frameIndex].descriptorSet, m_textureSet, m_owDDGIHelper.m_probeVis.visSet };
+    // std::array<VkDescriptorSet, 3> sets = { m_frameData[m_frameIndex].descriptorSet, m_textureSet, m_owDDGIHelper.m_probeVis.visSet };
+    std::array<VkDescriptorSet, 2> sets = { m_frameData[m_frameIndex].descriptorSet, m_textureSet };
 
     vkCmdBindDescriptorSets(
         cmd,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         m_pipelineUtil.m_pipeline.layout,
         0,
-        3,
+        sets.size(),
         sets.data(),
         0,
         nullptr
@@ -766,13 +768,13 @@ void HyacinthEngine::draw()
 
 	vkCmdDrawIndexedIndirect(cmd, m_indirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
-    if (m_owDDGIHelper.showProbes) {
-        m_owDDGIHelper.m_probeVis.drawProbes(cmd, m_owDDGIHelper.m_probeVolume.probePositionBuffer.gpuAddress, m_frameData[m_frameIndex].descriptorSet);
-    }
-
-    if (m_owDDGIHelper.showVolumes) {
-		m_owDDGIHelper.m_volumeVis.drawVolumes(cmd, m_owDDGIHelper.volumeTransformBuffer.gpuAddress, m_frameData[m_frameIndex].descriptorSet);
-    }
+    // if (m_owDDGIHelper.showProbes) {
+    //     m_owDDGIHelper.m_probeVis.drawProbes(cmd, m_owDDGIHelper.m_probeVolume.probePositionBuffer.gpuAddress, m_frameData[m_frameIndex].descriptorSet);
+    // }
+    // 
+    // if (m_owDDGIHelper.showVolumes) {
+	// 	m_owDDGIHelper.m_volumeVis.drawVolumes(cmd, m_owDDGIHelper.volumeTransformBuffer.gpuAddress, m_frameData[m_frameIndex].descriptorSet);
+    // }
 
     VK_LABEL_END(cmd);
 
@@ -864,7 +866,8 @@ void HyacinthEngine::cleanup()
 
     m_frustumCullHelper.shutdown();
 	m_shadowHelper.destroy();
-	m_owDDGIHelper.shutdown();
+	// m_owDDGIHelper.shutdown();
+    m_rtHelper.shutdown();
 
 	vkdeviceutils::destroyBuffer(m_meshBuffers.indexBuffer);
 	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);

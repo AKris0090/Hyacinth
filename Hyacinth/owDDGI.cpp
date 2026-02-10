@@ -374,8 +374,6 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 }
 
 void owDDGI::shutdown() {
-	m_rtHelper->shutdown();
-
 	vkdeviceutils::destroyBuffer(closestHitVertexBuffer);
 	vkdeviceutils::destroyBuffer(closestHitIndexBuffer);
 	vkdeviceutils::destroyBuffer(m_sbtBuffer);
