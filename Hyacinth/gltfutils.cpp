@@ -334,11 +334,6 @@ void SceneGraph::buildNodeBuffers(gltfNode* node) {
 }
 
 void SceneGraph::buildSceneGraph() {
-    uint32_t materialOffset = 0;
-    uint32_t textureOffset = 0;
-    uint32_t drawID = 0;
-    uint32_t matrixID = 0;
-
     for (const auto& obj : objects) {
         uint32_t currentNumMatrices = static_cast<uint32_t>(transformMatrices.size());
 
@@ -347,14 +342,14 @@ void SceneGraph::buildSceneGraph() {
             for (const auto& prim : node.get()->primitives) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
+				uint32_t matIndex = prim.get()->materialIndex;
 
                 gltfDrawCommand draw{};
                 draw.firstIndex = firstIndex;
                 draw.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
-                draw.instanceCount = 1;
-                draw.firstInstance = drawID;
                 draw.vertexCount = prim.get()->vertices.size();
                 draw.boundingBox = getBoundingBox(prim.get()->vertices);
+                draw.transformIndex = transformMatrices.size() - 1;
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);
@@ -362,11 +357,6 @@ void SceneGraph::buildSceneGraph() {
                 for (const auto& index : prim.get()->indices) {
                     indices.push_back(index + firstVertex);
 				}
-
-                DrawData primDrawData{};
-                primDrawData.materialIndex = prim.get()->materialIndex + materialOffset;
-                primDrawData.transformIndex = matrixID;
-                drawData.push_back(primDrawData);
 
                 // acceleration structure-specific
                 uint32_t nodeVertOffset = node.get()->vertices.size();
@@ -377,11 +367,9 @@ void SceneGraph::buildSceneGraph() {
                     node.get()->indices.push_back(i + nodeVertOffset);
                 }
 
-                sortedDrawCalls[prim.get()->materialIndex + materialOffset].push_back(draw);
-
-                drawID++;
+                sortedDrawCalls[matIndex].push_back(draw);
             }
-            matrixID++;
+
             numNodes++;
             if (node->includeInAccel && node->vertices.size() > 0 && node->indices.size() > 0) {
 				numAccelNodes++;
@@ -393,26 +381,33 @@ void SceneGraph::buildSceneGraph() {
         
         for (const auto& mat : obj.materials) {
             GPUMaterialIndices newMatIndices{};
-            newMatIndices.baseColorIndex = mat.baseColorIndex + textureOffset;
-            newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + textureOffset;
-            newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + textureOffset;
+            newMatIndices.baseColorIndex = mat.baseColorIndex;
+            newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex;
+            newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex;
             materialObjects.push_back(newMatIndices);
         }
-        materialOffset += obj.materials.size();
-        textureOffset += obj.textures.size();
+
+		numTextures += static_cast<uint32_t>(obj.textures.size());
     }
 
-    numTextures = textureOffset + 1;
+    uint32_t drawCounter = 0;
     for (const auto& [key, value] : sortedDrawCalls) {
         for (const auto& gltfDraw : value) {
             VkDrawIndexedIndirectCommand drawCmd{};
             drawCmd.firstIndex = gltfDraw.firstIndex;
             drawCmd.indexCount = gltfDraw.indexCount;
-            drawCmd.instanceCount = gltfDraw.instanceCount;
-            drawCmd.firstInstance = gltfDraw.firstInstance;
+            drawCmd.instanceCount = 1;
+            drawCmd.firstInstance = drawCounter;
 
+            DrawData primDrawData{};
+            primDrawData.materialIndex = key;
+            primDrawData.transformIndex = gltfDraw.transformIndex;
+
+            drawData.push_back(primDrawData);
             drawCommands.push_back(drawCmd);
 			boundingBoxes.push_back(gltfDraw.boundingBox);
+            
+            drawCounter++;
         }
     }
 }

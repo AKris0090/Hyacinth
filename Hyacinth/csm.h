@@ -62,7 +62,7 @@ public:
 
 	void setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayout);
 	void setupImGui();
-	void update(FPSCam::CameraProps& cam, int currentFrame);
+	void update(Camera& cam, int currentFrame);
 	void drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint32_t frameIndex, VkDeviceAddress& matrixBufferAddress, VkDeviceAddress& drawDataBufferAddress);
 	void destroy();
 };

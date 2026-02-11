@@ -3,7 +3,7 @@
 #include <SDL3/SDL.h>
 #include <utility>
 
-namespace Input {
+namespace InputManager {
 	// setter method
 	void handleSDLInput(SDL_Event& e);
 

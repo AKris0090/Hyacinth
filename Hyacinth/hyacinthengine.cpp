@@ -544,7 +544,7 @@ void HyacinthEngine::init()
 
 	createSyncObjects(); // also creates device context
 
-    m_camera = FPSCam(m_swImageFormat.aspectRatio, 90.f, 0.01f, 150.f);
+    m_camera = Camera(m_swImageFormat.aspectRatio, 90.f, 0.01f, 150.f);
 
     createColorImages();
 
@@ -578,18 +578,18 @@ void HyacinthEngine::init()
 }
 
 void HyacinthEngine::update() {
-    if (Input::tabKeyDown()) {
+    if (InputManager::tabKeyDown()) {
 		m_showImGui = !m_showImGui;
     }
 
-    m_camera.update(Time::getDeltaTime(), mouseLocked);
-    m_shadowHelper.update(m_camera.m_props, m_frameIndex);
+    m_camera.update(Time::getDeltaTime(), mouseLocked, m_frameIndex);
+    m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
 
     UBO newuniform{};
-    newuniform.proj = m_camera.m_props.proj;
-    newuniform.view = m_camera.m_props.view;
-    newuniform.viewPos = glm::vec4(m_camera.transform.position, ambientToggle);
+    newuniform.proj = m_camera.m_proj;
+    newuniform.view = m_camera.m_view;
+    newuniform.viewPos = glm::vec4(m_camera.m_transform.position, ambientToggle);
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, m_shadowHelper.DDGIntensity);
     newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_shadowHelper.m_cascades[2].splitDepth);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
@@ -664,12 +664,12 @@ void HyacinthEngine::drawImGui() {
     ImGui::End();
 
     ImGui::Begin("Properties");
-    ImGui::DragFloat3("camera position", &m_camera.transform.position.x, 0.1f);
+    ImGui::DragFloat3("camera position", &m_camera.m_transform.position.x, 0.1f);
     ImGui::DragFloat3("light position", &m_shadowHelper.transform.position.x, 0.1f);
     ImGui::DragFloat("light intensity", &m_shadowHelper.DDGIntensity, 0.01f);
     ImGui::DragFloat("cascade split delta", &m_shadowHelper.cascadeSplitLambda, 0.01f);
-    ImGui::DragFloat("cascade min distance (zNear)", &m_camera.m_props.nearClip, 0.01f);
-    ImGui::DragFloat("cascade max distance (zFar)", &m_camera.m_props.farClip, 0.01f);
+    ImGui::DragFloat("cascade min distance (zNear)", &m_camera.m_zNear, 0.01f);
+    ImGui::DragFloat("cascade max distance (zFar)", &m_camera.m_zFar, 0.01f);
     // ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
 	// ImGui::Checkbox("show volumes", &m_owDDGIHelper.showVolumes);
 	ImGui::Checkbox("ambient toggle", &ambientToggle);

@@ -51,7 +51,7 @@ class HyacinthEngine {
 public:
 	bool mouseLocked = true;
 	struct SDL_Window* m_window{ nullptr };
-	FPSCam							m_camera{};
+	Camera m_camera;
 
 	HyacinthEngine() {};
 	~HyacinthEngine() { cleanup(); };
