@@ -1,6 +1,8 @@
 #pragma once
 
 #include "raytracing.h"
+#include "probevis.h"
+#include "volumevis.h"
 #include "ecshelpers.h"
 #include "vkdescriptorutils.h"
 #include "vkpipelineutils.h"
@@ -11,7 +13,7 @@ constexpr int PROBE_DENSITY_WIDTH = 30;  // x
 constexpr int PROBE_DENSITY_HEIGHT = 14;  // y
 constexpr int PROBE_DENSITY_DEPTH = 20;  // z
 
-constexpr int RAYS_PER_PROBE = 2500;
+constexpr int RAYS_PER_PROBE = 20000;
 
 constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;
@@ -24,38 +26,17 @@ struct DDGIVolume {
 	VulkanImage rayDataImage;
 	VulkanImage irradianceImage;
 	VulkanImage visibilityImage;
-
-	VkDeviceAddress materialIndexAddress;
 };
 
 struct ddgiPushConstant {
 	VkDeviceAddress probePositionBufferAddress;
 	VkDeviceAddress vertexAddress;
 	VkDeviceAddress indexAddress;
-	VkDeviceAddress materialIndexAddress;
 };
 
 struct DDGIVertex {
 	glm::vec4 pos;
 	glm::vec4 normal;
-};
-
-struct probeVisObjects {
-	VulkanPipelineBuilder pipelineUtil;
-	uint32_t indexCount;
-
-	VulkanBuffer vertexBuffer;
-	VulkanBuffer indexBuffer;
-	gltfObject sphereObject;
-
-	VkDescriptorSetLayout visSetLayout;
-	VkDescriptorSet visSet;
-	DescriptorLayoutBuilder			visLayoutBuilder{};
-	DescriptorAllocator				visDescriptorAllocator{};
-
-	struct probeVisPushContant {
-		VkDeviceAddress probePositionAddress;
-	};
 };
 
 class owDDGI {
@@ -89,19 +70,18 @@ private:
 	VulkanBuffer closestHitIndexBuffer;
 
 	void createRaytraceDescriptors();
-	void createRaytracePipeline(VkDescriptorSetLayout& textureLayout);
+	void createRaytracePipeline();
 	void createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
 
 public:
 	DDGIVolume m_probeVolume;
 	probeVisObjects	m_probeVis{};
+	volumeVisHelper m_volumeVis;
+	VulkanBuffer volumeTransformBuffer;
 	bool showProbes = false;
+	bool showVolumes = false;
 
-	void setup(rtHelper* rtHelper, SceneGraph& m_scene, VkDescriptorSetLayout& textureLayout);
+	void setup(rtHelper* rtHelper, SceneGraph& m_scene);
 	void bakeDDGI(VkDescriptorSet& textureSet);
 	void shutdown();
-
-	// probe visualization stuff
-	void createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
-	void drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& descSet);
 };

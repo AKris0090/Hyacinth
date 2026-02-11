@@ -11,10 +11,10 @@
 #include "vkimageutils.h"
 #include "vkpipelineutils.h"
 #include "vkdescriptorutils.h"
+#include "imgui_impl_vulkan.h"
 #include "fpcam.h"
 
-constexpr int SHADOW_MAP_CASCADE_COUNT = 3;
-constexpr float cascadeSplitLambda = 0.95f;
+constexpr int SHADOW_MAP_CASCADE_COUNT = 4;
 constexpr int cascadeImageSize = 4096;
 
 struct shadowUniform {
@@ -29,6 +29,7 @@ struct Cascade {
 	glm::vec4 frustumPlanes[6];
 	VulkanBuffer cullUniformBuffers[MAX_FRAMES_IN_FLIGHT];
 	VkDescriptorSet cascadeCullDescriptorSets[MAX_FRAMES_IN_FLIGHT];
+	VkSampler imGuiCascadeSampler;
 };
 
 struct shadowGPUPushConstant {
@@ -45,6 +46,7 @@ private:
 	void updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view);
 
 public:
+	float cascadeSplitLambda = 0.95f;
 	float DDGIntensity = 1.25f;
 	Transform transform;
 	Cascade m_cascades[SHADOW_MAP_CASCADE_COUNT];
@@ -56,8 +58,11 @@ public:
 	DescriptorAllocator	m_descriptorAllocator{};
 	VkDescriptorSetLayout m_descriptorSetLayout{ VK_NULL_HANDLE };
 
+	ImTextureID m_imGuiSets[SHADOW_MAP_CASCADE_COUNT];
+
 	void setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayout);
-	void update(FPSCam::CameraProps& cam, int currentFrame);
+	void setupImGui();
+	void update(Camera& cam, int currentFrame);
 	void drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint32_t frameIndex, VkDeviceAddress& matrixBufferAddress, VkDeviceAddress& drawDataBufferAddress);
 	void destroy();
 };

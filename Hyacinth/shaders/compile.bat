@@ -6,6 +6,9 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./depth.vert -o depth.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./probeVis.vert -o probeVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./probeVis.frag -o probeFrag.spv
 
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./volumeVis.vert -o volumeVert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./volumeVis.frag -o volumeFrag.spv
+
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./frustumCull.comp -o frustumCull.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./irradianceBuild.comp -o irradianceComp.spv

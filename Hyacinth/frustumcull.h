@@ -5,18 +5,17 @@
 #include "vkdescriptorutils.h"
 #include "fpcam.h"
 
-class FrustumCullHelper {
-private:
-	struct ComputeCullPushConstant {
-		VkDeviceAddress drawBufferAddress;
-		VkDeviceAddress bbAddress;
-		VkDeviceAddress matrixAddress;
-		VkDeviceAddress drawDataAddress;
-		uint32_t numDraws;
-	};
+struct ComputeCullPushConstant {
+	VkDeviceAddress drawBufferAddress;
+	VkDeviceAddress bbAddress;
+	VkDeviceAddress matrixAddress;
+	VkDeviceAddress drawDataAddress;
+	uint32_t numDraws;
+};
 
-	std::vector<VulkanBuffer> m_uniformPlaneBuffers;
-	std::vector<void*> m_mappedUniformPlaneBuffers;
+class FrustumCullHelper {  
+private:
+	VulkanBuffer m_uniformPlaneBuffers[MAX_FRAMES_IN_FLIGHT];
 	DescriptorAllocator m_computeDescAlloc;
 
 public:
@@ -26,6 +25,6 @@ public:
 
 	void shutdown();
 	void setup();
-	void update(FPSCam::UniformPlanes& planes, int index);
+	void update(CameraFrustumPlanes& planes, int index);
 	void executeCull(VkCommandBuffer& cmd, VkDescriptorSet& set, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& bbAddress, VkDeviceAddress& matrixAddress, VkDeviceAddress& drawDataAddress, uint32_t numDraws);
 };
