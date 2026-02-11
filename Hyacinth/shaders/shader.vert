@@ -3,8 +3,7 @@
 
 #include "probeCommon.glsl"
 #include "bufferInfo.glsl"
-
-#define SHADOW_MAP_CASCADE_COUNT 3
+#include "shadowCommon.glsl"
 
 layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
@@ -33,7 +32,7 @@ layout( push_constant ) uniform constants
 	TransformBuffer transformBuffer;
 	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
-	ProbePositionBuffer probePosBuffer;
+	// ProbePositionBuffer probePosBuffer;
 } PushConstants;
 
 void main() 

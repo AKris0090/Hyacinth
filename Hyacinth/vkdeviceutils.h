@@ -31,6 +31,7 @@ struct QueueFamilyIndices {
 
 struct VulkanBuffer {
     VkBuffer buffer;
+	void* pMappedData;
 	VkDeviceAddress gpuAddress;
     VmaAllocation allocation;
     VmaAllocationInfo info;
@@ -71,4 +72,5 @@ namespace vkdeviceutils {
     VulkanBuffer createBufferWithAlignment(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, VkDeviceSize alignment = 0, std::string qual = "");
     void destroyBuffer(VulkanBuffer& buffer);
     void uploadToBuffer(VulkanBuffer& buffer, size_t size, void* data);
+	void stageAndUploadBuffers(VkDeviceSize* pSizes, void** ppData, VulkanBuffer* pBuffers, uint32_t count);
 }

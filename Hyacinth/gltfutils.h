@@ -22,11 +22,10 @@ static std::string getFilePathExtension(const std::string& FileName) {
 
 struct gltfDrawCommand {
     uint32_t    indexCount;
-    uint32_t    instanceCount;
     uint32_t    firstIndex;
     int32_t     vertexOffset;
-    uint32_t    firstInstance;
     uint32_t    vertexCount;
+	uint32_t    transformIndex;
     AABB        boundingBox;
 };
 
@@ -42,13 +41,12 @@ struct gltfNode {
 	glm::mat4 worldTransform = glm::mat4(1.0f);
     std::vector<uint32_t> childrenIndices;
     int32_t parentIndex = -1;
+    bool includeInAccel = false;
 
     std::vector<Vertex> vertices;
     VulkanBuffer accelStructureVertexBuffer;
     std::vector<uint32_t> indices;
     VulkanBuffer accelStructureIndexBuffer;
-    std::vector<uint32_t> materialIndex;
-    VulkanBuffer materialBuffer;
 };
 
 struct gltfObject {
@@ -75,6 +73,7 @@ struct SceneGraph {
     std::vector<VulkanImage> dummyTextures;
     uint32_t numTextures;
     uint32_t numNodes = 0;
+    uint32_t numAccelNodes = 0;
 
     std::vector<VkSampler> imageSamplers;
 
@@ -96,5 +95,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename);
+    gltfObject loadFromFile(const std::string& filename, bool includeInAccel);
 }

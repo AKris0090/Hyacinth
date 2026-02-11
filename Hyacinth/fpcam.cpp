@@ -1,10 +1,8 @@
 #include "fpcam.h"
 
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-
 enum side { LEFT = 0, RIGHT = 1, TOP = 2, BOTTOM = 3, BACK = 4, FRONT = 5 };
 
-void FPSCam::getFrustumPlanes(glm::vec4* planes, glm::mat4 matrix) {
+void Camera::GetFrustumPlanes(glm::vec4* planes, glm::mat4 matrix) {
 	glm::mat4 transposed = glm::transpose(matrix);
 
     planes[LEFT]    = glm::normalize(transposed[BOTTOM] + transposed[LEFT]);
@@ -15,66 +13,89 @@ void FPSCam::getFrustumPlanes(glm::vec4* planes, glm::mat4 matrix) {
     planes[FRONT]   = glm::normalize(transposed[BOTTOM] - transposed[TOP]);
 }
 
-glm::mat4 getViewMatrix(FPSCam::CameraProps& props, Transform& t) {
-    return glm::lookAt(t.position, t.position + props.forward, props.up);
+void Camera::setViewMatrix() {
+    m_view = glm::lookAt(m_transform.position, m_transform.position + m_forward, m_up);
+    m_dirtyView = false;
 }
 
-glm::mat4 getProjectionMatrix(FPSCam::CameraProps& props) {
-    glm::mat4 proj = glm::perspectiveZO(glm::radians(props.FOV), props.aspectRatio, props.nearClip, props.farClip);
+void Camera::setProjectionMatrix() {
+    glm::mat4 proj = glm::perspective(glm::radians(m_FOV), m_aspectRatio, m_zNear, m_zFar);
     proj[1][1] *= -1;
-    return proj;
+    m_proj = proj;
+    m_dirtyProj = false;
 }
 
-void FPSCam::update(float deltaTime) {
-    auto [dx, dy] = Input::getMouseMotion();
+void Camera::update(float deltaTime, bool moveMouse, int imageIndex) {
+    if (!moveMouse) {
+        return;
+    }
+    auto [dx, dy] = InputManager::getMouseMotion();
 
     if (glm::abs(dx) > 0.f || glm::abs(dy) > 0.f) {
-        float mouseX = dx * lookSpeed * deltaTime;
-        float mouseY = dy * lookSpeed * deltaTime;
+        float mouseX = dx * m_lookSpeed * deltaTime;
+        float mouseY = dy * m_lookSpeed * deltaTime;
 
-        m_props.yaw += mouseX;
-        m_props.pitch -= mouseY;
+        m_yaw += mouseX;
+        m_pitch -= mouseY;
 
-        if (m_props.yaw > 360.f)  m_props.yaw -= 360.f;
-        if (m_props.yaw < -360.f) m_props.yaw += 360.f;
-        m_props.pitch = glm::clamp(m_props.pitch, -89.9f, 89.9f);
+        if (m_yaw > 360.f)  m_yaw -= 360.f;
+        if (m_yaw < -360.f) m_yaw += 360.f;
+        m_pitch = glm::clamp(m_pitch, -89.9f, 89.9f);
 
-        glm::quat qYaw = glm::angleAxis(glm::radians(m_props.yaw), glm::vec3(0, 1, 0));
-        glm::quat qPitch = glm::angleAxis(glm::radians(m_props.pitch), glm::vec3(1, 0, 0));
+        glm::quat qYaw = glm::angleAxis(glm::radians(m_yaw), glm::vec3(0, 1, 0));
+        glm::quat qPitch = glm::angleAxis(glm::radians(m_pitch), glm::vec3(1, 0, 0));
 
-        transform.rotation = qYaw * qPitch;
-        m_props.forward = glm::normalize(glm::vec3(
-            cos(glm::radians(m_props.yaw)) * cos(glm::radians(m_props.pitch)),
-            sin(glm::radians(m_props.pitch)),
-            sin(glm::radians(m_props.yaw)) * cos(glm::radians(m_props.pitch))
+        m_transform.rotation = qYaw * qPitch;
+        m_forward = glm::normalize(glm::vec3(
+            cos(glm::radians(m_yaw)) * cos(glm::radians(m_pitch)),
+            sin(glm::radians(m_pitch)),
+            sin(glm::radians(m_yaw)) * cos(glm::radians(m_pitch))
         ));
-        m_props.right = glm::normalize(glm::cross(m_props.forward, glm::vec3(0.0f, 1.0f, 0.0f)));
-        m_props.up = glm::normalize(glm::cross(m_props.right, m_props.forward));
+        m_right = glm::normalize(glm::cross(m_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+        m_up = glm::normalize(glm::cross(m_right, m_forward));
 
-        dirtyView = true;
+        m_dirtyView = true;
     }
 
     glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
-    if (Input::forwardKeyDown())    localDisplacement += m_props.forward;
-    if (Input::backwardKeyDown())   localDisplacement -= m_props.forward;
-    if (Input::rightKeyDown())      localDisplacement += m_props.right;
-    if (Input::leftKeyDown())       localDisplacement -= m_props.right;
-    if (Input::upKeyDown())         localDisplacement += m_props.up;
-    if (Input::downKeyDown())       localDisplacement -= m_props.up;
+    if (InputManager::forwardKeyDown())    localDisplacement += m_forward;
+    if (InputManager::backwardKeyDown())   localDisplacement -= m_forward;
+    if (InputManager::rightKeyDown())      localDisplacement += m_right;
+    if (InputManager::leftKeyDown())       localDisplacement -= m_right;
+    if (InputManager::upKeyDown())         localDisplacement += m_up;
+    if (InputManager::downKeyDown())       localDisplacement -= m_up;
 
     if (glm::length(localDisplacement) > 0) {
-        transform.position += glm::normalize(localDisplacement) * moveSpeed * deltaTime;
-        dirtyView = true;
+        m_transform.position += glm::normalize(localDisplacement) * m_moveSpeed * deltaTime;
+        m_dirtyView = true;
     }
 
-    if (dirtyProj) {
-        m_props.proj = getProjectionMatrix(m_props);
-        dirtyProj = false;
-    }
-    if (dirtyView) {
-        m_props.view = getViewMatrix(m_props, transform);
-		getFrustumPlanes(m_frustumPlanes.planes, m_props.proj * m_props.view);
+    if (m_dirtyProj) {
+        setProjectionMatrix();
+	}
 
-        dirtyView = false;
+    if (m_dirtyView) {
+        setViewMatrix();
+        GetFrustumPlanes(m_frustumPlanes.planes, m_proj * m_view);
     }
+
+
+}
+
+Camera::Camera(float aspect, float fov, float nearC, float farC) {
+    m_moveSpeed = BASE_MOVE_SPEED;
+    m_lookSpeed = BASE_LOOK_SPEED;
+    m_aspectRatio = aspect;
+    m_FOV = fov;
+    m_zNear = nearC;
+    m_zFar = farC;
+    m_dirtyProj = true;
+    m_dirtyView = true;
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        // m_frustumProperties[i].camFrustumUniformBuffer = vkdeviceutils::createBuffer(sizeof(CameraFrustumPlanes), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frustum_uniform");;
+        // m_frustumProperties[i].m_frustumPlaneUniformSet = VK_NULL_HANDLE;
+	}
+
+    update(0.f, true, 0);
 }

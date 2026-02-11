@@ -49,8 +49,9 @@ struct UBO {
 
 class HyacinthEngine {
 public:
+	bool mouseLocked = true;
 	struct SDL_Window* m_window{ nullptr };
-	FPSCam							m_camera{};
+	Camera m_camera;
 
 	HyacinthEngine() {};
 	~HyacinthEngine() { cleanup(); };
@@ -69,7 +70,8 @@ private:
 	};
 
 	bool m_initialized = false;
-	bool m_showImGui = false;
+	bool m_showImGui = true;
+	bool ambientToggle = false;
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -104,12 +106,13 @@ private:
 	perFrame						m_uploadFrame			{};
 	SceneGraph						m_scene					{};
 	DescriptorAllocator				m_descriptorAllocator	{};
+	DescriptorAllocator				m_imGuiAllocator		{};
 	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_textureSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
-	owDDGI							m_owDDGIHelper;
+	// owDDGI							m_owDDGIHelper;
 	FrustumCullHelper				m_frustumCullHelper;
 
 	void createInstance(); // also creates vma allocator

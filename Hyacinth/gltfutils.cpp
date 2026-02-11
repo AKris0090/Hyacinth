@@ -58,11 +58,12 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
     return bounds;
 }
 
-static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
+static void loadGLTFNode(gltfObject& obj, bool includeInAccel, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
     SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
 
     auto node = std::make_unique<gltfNode>();
     node->parentIndex = parent;
+	node->includeInAccel = includeInAccel;
 
     if (nodeIn.matrix.size() == 16) {
         node->worldTransform = glm::make_mat4x4(nodeIn.matrix.data());
@@ -91,7 +92,7 @@ static void loadGLTFNode(gltfObject& obj, const tinygltf::Model* model, const ti
 
     if (nodeIn.children.size() > 0) {
         for (size_t i = 0; i < nodeIn.children.size(); i++) {
-            loadGLTFNode(obj, model, model->nodes[nodeIn.children[i]], nodeIndex);
+            loadGLTFNode(obj, includeInAccel, model, model->nodes[nodeIn.children[i]], nodeIndex);
         }
     }
 
@@ -232,7 +233,7 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
     std::cout << "created image: " << curImage.name << std::endl;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
@@ -260,7 +261,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename) {
     const tinygltf::Scene& scene = model->scenes[model->defaultScene];
     for (size_t i = 0; i < scene.nodes.size(); i++) {
         const tinygltf::Node node = model->nodes[scene.nodes[i]];
-        loadGLTFNode(object, model, node, -1);
+        loadGLTFNode(object, includeInAccel, model, node, -1);
     }
 
     object.textureIndices.resize(model->textures.size());
@@ -295,6 +296,10 @@ gltfObject gltfutils::loadFromFile(const std::string& filename) {
 }
 
 void SceneGraph::buildNodeBuffers(gltfNode* node) {
+    if (node->primitives.size() == 0 || node->includeInAccel == false) {
+        return;
+	}
+
     // for building acceleration structures
     std::vector<glm::vec3> positions;
     for (const auto& v : node->vertices) {
@@ -326,17 +331,9 @@ void SceneGraph::buildNodeBuffers(gltfNode* node) {
         });
 
     vkdeviceutils::destroyBuffer(staging);
-
-    node->materialBuffer = vkdeviceutils::createBuffer(node->materialIndex.size() * sizeof(uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "node_material");
-    vkdeviceutils::uploadToBuffer(node->materialBuffer, node->materialIndex.size() * sizeof(uint32_t), node->materialIndex.data());
 }
 
 void SceneGraph::buildSceneGraph() {
-    uint32_t materialOffset = 0;
-    uint32_t textureOffset = 0;
-    uint32_t drawID = 0;
-    uint32_t matrixID = 0;
-
     for (const auto& obj : objects) {
         uint32_t currentNumMatrices = static_cast<uint32_t>(transformMatrices.size());
 
@@ -345,14 +342,14 @@ void SceneGraph::buildSceneGraph() {
             for (const auto& prim : node.get()->primitives) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
+				uint32_t matIndex = prim.get()->materialIndex;
 
                 gltfDrawCommand draw{};
                 draw.firstIndex = firstIndex;
                 draw.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
-                draw.instanceCount = 1;
-                draw.firstInstance = drawID;
                 draw.vertexCount = prim.get()->vertices.size();
                 draw.boundingBox = getBoundingBox(prim.get()->vertices);
+                draw.transformIndex = transformMatrices.size() - 1;
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);
@@ -360,11 +357,6 @@ void SceneGraph::buildSceneGraph() {
                 for (const auto& index : prim.get()->indices) {
                     indices.push_back(index + firstVertex);
 				}
-
-                DrawData primDrawData{};
-                primDrawData.materialIndex = prim.get()->materialIndex + materialOffset;
-                primDrawData.transformIndex = matrixID;
-                drawData.push_back(primDrawData);
 
                 // acceleration structure-specific
                 uint32_t nodeVertOffset = node.get()->vertices.size();
@@ -375,15 +367,13 @@ void SceneGraph::buildSceneGraph() {
                     node.get()->indices.push_back(i + nodeVertOffset);
                 }
 
-                for (int i = 0; i < prim.get()->indices.size() / 3; i++) {
-                    node.get()->materialIndex.push_back(obj.materials[primDrawData.materialIndex].baseColorIndex);
-                }
-
-                sortedDrawCalls[prim.get()->materialIndex + materialOffset].push_back(draw);
-
-                drawID++;
+                sortedDrawCalls[matIndex].push_back(draw);
             }
-            matrixID++;
+
+            numNodes++;
+            if (node->includeInAccel && node->vertices.size() > 0 && node->indices.size() > 0) {
+				numAccelNodes++;
+            }
 
             // for acceleration structures
             buildNodeBuffers(node.get());
@@ -391,27 +381,33 @@ void SceneGraph::buildSceneGraph() {
         
         for (const auto& mat : obj.materials) {
             GPUMaterialIndices newMatIndices{};
-            newMatIndices.baseColorIndex = mat.baseColorIndex + textureOffset;
-            newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + textureOffset;
-            newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + textureOffset;
+            newMatIndices.baseColorIndex = mat.baseColorIndex;
+            newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex;
+            newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex;
             materialObjects.push_back(newMatIndices);
         }
-        materialOffset += obj.materials.size();
-        textureOffset += obj.textures.size();
-        numNodes++;
+
+		numTextures += static_cast<uint32_t>(obj.textures.size());
     }
 
-    numTextures = textureOffset + 1;
+    uint32_t drawCounter = 0;
     for (const auto& [key, value] : sortedDrawCalls) {
         for (const auto& gltfDraw : value) {
             VkDrawIndexedIndirectCommand drawCmd{};
             drawCmd.firstIndex = gltfDraw.firstIndex;
             drawCmd.indexCount = gltfDraw.indexCount;
-            drawCmd.instanceCount = gltfDraw.instanceCount;
-            drawCmd.firstInstance = gltfDraw.firstInstance;
+            drawCmd.instanceCount = 1;
+            drawCmd.firstInstance = drawCounter;
 
+            DrawData primDrawData{};
+            primDrawData.materialIndex = key;
+            primDrawData.transformIndex = gltfDraw.transformIndex;
+
+            drawData.push_back(primDrawData);
             drawCommands.push_back(drawCmd);
 			boundingBoxes.push_back(gltfDraw.boundingBox);
+            
+            drawCounter++;
         }
     }
 }

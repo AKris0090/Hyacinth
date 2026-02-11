@@ -39,6 +39,7 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
 	{
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float)SHADOW_MAP_CASCADE_COUNT }, // one per cascade
 	};
 	m_descriptorAllocator.initPool(maxFramesInFlight + (maxFramesInFlight * SHADOW_MAP_CASCADE_COUNT), sizes);
 
@@ -55,9 +56,9 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 		vkdescriptorutils::queueWriteBuffer(m_uniformDescriptorSets[i], 0, sizeof(shadowUniform), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_uniformBuffers[i]);
 
 		for (int j = 0; j < SHADOW_MAP_CASCADE_COUNT; j++) {
-			m_cascades[j].cullUniformBuffers[i] = vkdeviceutils::createBuffer(sizeof(FPSCam::UniformPlanes), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "csm_uniform");
+			m_cascades[j].cullUniformBuffers[i] = vkdeviceutils::createBuffer(sizeof(CameraFrustumPlanes), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "csm_uniform");
 			m_cascades[j].cascadeCullDescriptorSets[i] = m_descriptorAllocator.allocate(cullLayout);
-			vkdescriptorutils::queueWriteBuffer(m_cascades[j].cascadeCullDescriptorSets[i], 0, sizeof(FPSCam::UniformPlanes), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_cascades[j].cullUniformBuffers[i]);
+			vkdescriptorutils::queueWriteBuffer(m_cascades[j].cascadeCullDescriptorSets[i], 0, sizeof(CameraFrustumPlanes), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_cascades[j].cullUniformBuffers[i]);
 		}
 	}
 
@@ -116,16 +117,22 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	m_shadowPipelineUtil.buildPipeline();
 }
 
-void shadowHelper::update(FPSCam::CameraProps& cam, int currentFrame) {
-	updateFrustumCorners(cam.nearClip, cam.farClip, cam.proj, cam.view);
+void shadowHelper::setupImGui() {
+	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+		m_imGuiSets[i] = (ImTextureID)ImGui_ImplVulkan_AddTexture(m_shadowImage.imageSampler, m_cascades[i].cascadeImageView, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+	}
+}
+
+void shadowHelper::update(Camera& cam, int currentFrame) {
+	updateFrustumCorners(cam.m_zNear, cam.m_zFar, cam.m_proj, cam.m_view);
 
 	std::vector<glm::mat4> cascadeViewProjMatrices(SHADOW_MAP_CASCADE_COUNT);
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
 		cascadeViewProjMatrices[i] = m_cascades[i].viewProj;
 		
 		// update cascade frustum planes for culling
-		FPSCam::getFrustumPlanes(m_cascades[i].frustumPlanes, m_cascades[i].viewProj);
-		memcpy(m_cascades[i].cullUniformBuffers[currentFrame].info.pMappedData, m_cascades[i].frustumPlanes, sizeof(FPSCam::UniformPlanes));
+		Camera::GetFrustumPlanes(m_cascades[i].frustumPlanes, m_cascades[i].viewProj);
+		memcpy(m_cascades[i].cullUniformBuffers[currentFrame].info.pMappedData, m_cascades[i].frustumPlanes, sizeof(CameraFrustumPlanes));
 	}
 	memcpy(m_uniformBuffers[currentFrame].info.pMappedData, cascadeViewProjMatrices.data(), sizeof(glm::mat4) * SHADOW_MAP_CASCADE_COUNT);
 }
@@ -290,6 +297,9 @@ void shadowHelper::destroy() {
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
 		vkDestroyImageView(vkdeviceutils::device, m_cascades[i].cascadeImageView, nullptr);
 		vkdeviceutils::destroyBuffer(m_cascades[i].cascadeDrawBuffer);
+		for (int j = 0; j < m_uniformBuffers.size(); j++) {
+			vkdeviceutils::destroyBuffer(m_cascades[i].cullUniformBuffers[j]);
+		}
 	}
 	vmaDestroyImage(vkdeviceutils::allocator, m_shadowImage.image, m_shadowImage.imageAllocation);
 

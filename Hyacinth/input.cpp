@@ -1,6 +1,6 @@
 #include "input.h"
 
-namespace Input {
+namespace InputManager {
 	bool forward, backward;
 	bool left, right;
 	bool up, down;

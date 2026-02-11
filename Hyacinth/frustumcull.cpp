@@ -1,8 +1,6 @@
 #include "frustumcull.h"
 
 void FrustumCullHelper::setup() {
-	m_uniformPlaneBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    m_mappedUniformPlaneBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     m_computeSets.resize(MAX_FRAMES_IN_FLIGHT);
 
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
@@ -19,12 +17,11 @@ void FrustumCullHelper::setup() {
     }
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        m_uniformPlaneBuffers[i] = vkdeviceutils::createBuffer(sizeof(FPSCam::UniformPlanes), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frustum_uniform");
-        m_mappedUniformPlaneBuffers[i] = m_uniformPlaneBuffers[i].info.pMappedData;
+        m_uniformPlaneBuffers[i] = vkdeviceutils::createBuffer(sizeof(CameraFrustumPlanes), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frustum_uniform");
 
         m_computeSets[i] = m_computeDescAlloc.allocate(m_computeLayout);
 
-		vkdescriptorutils::queueWriteBuffer(m_computeSets[i], 0, sizeof(FPSCam::UniformPlanes), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_uniformPlaneBuffers[i]);
+		vkdescriptorutils::queueWriteBuffer(m_computeSets[i], 0, sizeof(CameraFrustumPlanes), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_uniformPlaneBuffers[i]);
     }
 	vkdescriptorutils::flushDescriptorWrites();
 
@@ -36,8 +33,8 @@ void FrustumCullHelper::setup() {
     m_computeCullPipeline = vkpipelineutils::createComputePipeline(&m_computeLayout, 1, &cullPCRange, 1, "shaders/frustumCull.spv");
 }
 
-void FrustumCullHelper::update(FPSCam::UniformPlanes& planes, int index) {
-    memcpy(m_mappedUniformPlaneBuffers[index], &planes, sizeof(FPSCam::UniformPlanes));
+void FrustumCullHelper::update(CameraFrustumPlanes& planes, int index) {
+    memcpy(m_uniformPlaneBuffers[index].pMappedData, &planes, sizeof(CameraFrustumPlanes));
 }
 
 void FrustumCullHelper::executeCull(VkCommandBuffer& cmd, VkDescriptorSet& set, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& bbAddress, VkDeviceAddress& matrixAddress, VkDeviceAddress& drawDataAddress, uint32_t numDraws) {
