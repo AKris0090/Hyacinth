@@ -30,6 +30,18 @@ struct IndexedIndirectCommand
 	uint firstInstance;
 };
 
+struct VolumeData {
+	int width;
+	int height;
+	int depth;
+	vec3 pos;
+	float pad;
+	vec3 spacing;
+	float pad2;
+	vec3 inverseSpacing;
+	float pad3;
+};
+
 layout(buffer_reference, std430) readonly buffer TransformBuffer{ 
 	mat4 model[];
 };
@@ -64,4 +76,8 @@ layout(buffer_reference, std430) buffer InputIndirectDraws {
 
 layout(buffer_reference, std430) buffer OutputIndirectDraws {
 	IndexedIndirectCommand indirectDrawsOut[];
+};
+
+layout(buffer_reference, std430) readonly buffer VolumeDataBuffer {
+	VolumeData data[];
 };
