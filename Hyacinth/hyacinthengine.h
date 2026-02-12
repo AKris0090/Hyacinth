@@ -71,7 +71,7 @@ private:
 
 	bool m_initialized = false;
 	bool m_showImGui = true;
-	bool ambientToggle = false;
+	bool ambientToggle = true;
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -112,7 +112,7 @@ private:
 	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
-	// owDDGI							m_owDDGIHelper;
+	owDDGI							m_owDDGIHelper;
 	FrustumCullHelper				m_frustumCullHelper;
 
 	void createInstance(); // also creates vma allocator

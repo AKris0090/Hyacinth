@@ -15,15 +15,21 @@ layout( push_constant ) uniform constants
 	ProbePositionBuffer probePosAddress;
 	VertexBuffer vertexBufferAddress;
 	IndexBuffer indexBufferAddress;
+	VolumeDataBuffer volumeDataAddress;
+	int volumeIndex;
 } pc;
 
 void main() 
 {
-	uint probeIndex = (gl_LaunchIDEXT.z * PROBES_PER_PLANE) + gl_LaunchIDEXT.y; // x should be num rays, y should be num probes per layer, z should be num probes vertically
+	VolumeData volume = pc.volumeDataAddress.data[pc.volumeIndex];
+
+	int probesPerPlane = volume.width * volume.depth;
+
+	uint probeIndex = (gl_LaunchIDEXT.z * probesPerPlane) + gl_LaunchIDEXT.y; // x should be num rays, y should be num probes per layer, z should be num probes vertically
 	ivec3 rayDataCoords;
 	rayDataCoords.x = int(gl_LaunchIDEXT.x);
-	rayDataCoords.y = int(probeIndex % PROBES_PER_PLANE);
-	rayDataCoords.z = int(probeIndex / PROBES_PER_PLANE);
+	rayDataCoords.y = int(probeIndex % probesPerPlane);
+	rayDataCoords.z = int(probeIndex / probesPerPlane);
 
 	vec3 origin = pc.probePosAddress.positions[probeIndex].xyz;
 	vec3 dir = DDGISphericalFibonacci(float(gl_LaunchIDEXT.x), float(RAYS_PER_PROBE));
