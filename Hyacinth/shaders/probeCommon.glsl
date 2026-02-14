@@ -1,41 +1,27 @@
 #extension GL_EXT_buffer_reference : require
 
-const int PROBE_DENSITY_WIDTH = 30;
-const int PROBE_DENSITY_DEPTH = 20;
-const int PROBE_DENSITY_HEIGHT = 14;
-const int PROBES_PER_PLANE = PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH;
-
-const int IRRADIANCE_INNER_RES = 6;
-const int IRRADIANCE_TILE_WIDTH = 8;
-
-const int VISIBILITY_INNER_RES = 14;
-const int VISIBILITY_TILE_WIDTH = 16;
-
-const int VISIBIILITY_INNER_RES = 14;
-const int VISIBIILITY_TILE_WIDTH = 16;
-
-const int PROBE_BORDER = 1;
+const int IRRADIANCE_INNER = 6;
+const int VISIBILITY_INNER = 14;
 
 const int RAYS_PER_PROBE = 20000;
-
 const float PI = 3.141592653;
 
-ivec3 getRayDataTexelCoords(uint rayIndex, uint probeIndex) {
+ivec3 getRayDataTexelCoords(uint rayIndex, uint probeIndex, int probesPerPlane) {
     ivec3 coords;
     coords.x = int(rayIndex);
-    coords.z = int(probeIndex) / PROBES_PER_PLANE;
-    coords.y = int(probeIndex) % PROBES_PER_PLANE;
+    coords.z = int(probeIndex) / probesPerPlane;
+    coords.y = int(probeIndex) % probesPerPlane;
     return coords;
 }
 
-int probeIndexFromPixel(ivec3 pixelCoord, uint probeWithBorder) {
+int probeIndexFromPixel(ivec3 pixelCoord, uint probeWithBorder, int probeDensityWidth, int probeDensityDepth) {
     int probeX = pixelCoord.x / int(probeWithBorder);
     int probeZ = pixelCoord.y / int(probeWithBorder);
     int layer = pixelCoord.z;
 
     // Number of probes laid out per row (width) and per column (depth)
-    const int probesPerRow = PROBE_DENSITY_WIDTH;
-    const int probesPerSlice = PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH;
+    const int probesPerRow = probeDensityWidth;
+    const int probesPerSlice = probeDensityWidth * probeDensityDepth;
 
     return probeX
         + probeZ * probesPerRow
@@ -57,17 +43,17 @@ vec3 DDGISphericalFibonacci(float index, float numSamples)
     return normalize(vec3((cos(phi) * sinTheta), (sin(phi) * sinTheta), cosTheta));
 }
 
-ivec3 getAtlasPosition(int probeIndex, int tileWidth)
+ivec3 getAtlasPosition(int probeIndex, int tileWidth, int probeDensityWidth, int probeDensityDepth)
 {
     ivec3 p;
-    p.z = probeIndex / (PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH);
-    int rem = probeIndex % (PROBE_DENSITY_WIDTH * PROBE_DENSITY_DEPTH);
+    p.z = probeIndex / (probeDensityWidth * probeDensityDepth);
+    int rem = probeIndex % (probeDensityWidth * probeDensityDepth);
 
-    int px = rem % PROBE_DENSITY_WIDTH;
-    int py = rem / PROBE_DENSITY_WIDTH;
+    int px = rem % probeDensityWidth;
+    int py = rem / probeDensityWidth;
 
-    p.x = px * tileWidth + PROBE_BORDER;
-    p.y = py * tileWidth + PROBE_BORDER;
+    p.x = px * tileWidth + 1; // border
+    p.y = py * tileWidth + 1; // border
 
     return p;
 }
@@ -119,23 +105,18 @@ layout(buffer_reference, std430) readonly buffer ProbePositionBuffer {
     vec3 positions[];
 };
 
-const vec3 volumePos = vec3(-16.044f, -1.4202f, -9.08f);
-const vec3 probeSpacing = vec3(1.061833, 0.984286, 0.943500);
-const vec3 invProbeSpacing = vec3(1.0 / 1.061833, 1.0 / 0.984286, 1.0 / 0.943500);
-const ivec3 probeCounts = ivec3(PROBE_DENSITY_WIDTH, PROBE_DENSITY_HEIGHT, PROBE_DENSITY_DEPTH);
-
-int ProbeCoordsToIndex(ivec3 p)
+int ProbeCoordsToIndex(ivec3 p, ivec3 probeCounts)
 {
     return p.x
         + p.z * probeCounts.x
         + p.y * probeCounts.x * probeCounts.z;
 }
 
-ivec3 getBaseProbeCoords(vec3 worldPos) {
-    return clamp(ivec3((worldPos - volumePos) * invProbeSpacing), ivec3(0), probeCounts - ivec3(1));
+ivec3 getBaseProbeCoords(vec3 worldPos, vec3 inverseProbeSpacing, vec3 volumePos, ivec3 probeCounts) {
+    return clamp(ivec3((worldPos - volumePos) * inverseProbeSpacing), ivec3(0), probeCounts - ivec3(1));
 }
 
-vec3 getProbeWorldPos(ivec3 baseCoords) {
+vec3 getProbeWorldPos(ivec3 baseCoords, vec3 probeSpacing, vec3 volumePos) {
     return baseCoords * probeSpacing + volumePos;
 }
 

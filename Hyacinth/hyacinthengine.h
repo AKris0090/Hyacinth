@@ -112,7 +112,7 @@ private:
 	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
-	// owDDGI							m_owDDGIHelper;
+	owDDGI							m_owDDGIHelper;
 	FrustumCullHelper				m_frustumCullHelper;
 
 	void createInstance(); // also creates vma allocator

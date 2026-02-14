@@ -9,29 +9,50 @@
 #include "glm/gtx/string_cast.hpp"
 #include <array>
 
-constexpr int PROBE_DENSITY_WIDTH = 30;  // x
-constexpr int PROBE_DENSITY_HEIGHT = 14;  // y
-constexpr int PROBE_DENSITY_DEPTH = 20;  // z
+constexpr int PROBE_A_DENSITY_WIDTH		= 30;  // x
+constexpr int PROBE_A_DENSITY_HEIGHT	= 14;  // y
+constexpr int PROBE_A_DENSITY_DEPTH		= 20;  // z
 
 constexpr int RAYS_PER_PROBE = 20000;
 
 constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;
 
+struct VolumeData {
+	int densityWidth;
+	int densityHeight;
+	int densityDepth;
+	int padding;
+	glm::vec4 pos;
+	glm::vec4 spacing;
+	glm::vec4 inverseSpacing;
+};
+
 struct DDGIVolume {
 	Transform transform;
 	std::vector<std::vector<std::vector<glm::vec3>>> probes;
 	VulkanBuffer probePositionBuffer;
+	VolumeData data;
 
 	VulkanImage rayDataImage;
 	VulkanImage irradianceImage;
 	VulkanImage visibilityImage;
+
+	VkDescriptorSet rayDataDescriptorSet;
+	VkDescriptorSet computeBuildDescriptorSet;
+};
+
+struct ComputePushConstant {
+	VkDeviceAddress volumeDataAddress;
+	uint32_t volumeIndex;
 };
 
 struct ddgiPushConstant {
 	VkDeviceAddress probePositionBufferAddress;
 	VkDeviceAddress vertexAddress;
 	VkDeviceAddress indexAddress;
+	VkDeviceAddress volumeDataAddress;
+	uint32_t volumeIndex;
 };
 
 struct DDGIVertex {
@@ -57,14 +78,12 @@ private:
 
 	DescriptorAllocator				m_descriptorAllocator{};
 	VkDescriptorSetLayout			m_descriptorLayout{};
-	VkDescriptorSet					m_rtDescriptorSet{};
 
 	VulkanPipeline					m_rtPipeline				{};
 	VulkanPipeline					m_irradianceComputePipeline	{};
 	VulkanPipeline					m_visibilityComputePipeline	{};
 
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
-	VkDescriptorSet					m_computeDescriptorSet{};
 
 	VulkanBuffer closestHitVertexBuffer;
 	VulkanBuffer closestHitIndexBuffer;
@@ -73,11 +92,13 @@ private:
 	void createRaytracePipeline();
 	void createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
 
+	void addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, uint32_t densityDepth, uint32_t densityHeight);
+
 public:
-	DDGIVolume m_probeVolume;
+	std::vector<DDGIVolume> m_probeVolumes;
 	probeVisObjects	m_probeVis{};
 	volumeVisHelper m_volumeVis;
-	VulkanBuffer volumeTransformBuffer;
+	VulkanBuffer volumeDataBuffer;
 	bool showProbes = false;
 	bool showVolumes = false;
 

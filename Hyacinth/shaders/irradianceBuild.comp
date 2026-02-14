@@ -1,6 +1,8 @@
 #version 460
-#include "probeCommon.glsl"
 #define EPSILON 0.0001f
+
+#include "probeCommon.glsl"
+#include "bufferInfo.glsl"
 
 layout(set = 0, binding = 0) uniform sampler2DArray rayData;
 layout(set = 0, binding = 1, rgba16f) uniform image2DArray irradianceMap;
@@ -10,13 +12,21 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 int k_read_table[6] = {5, 3, 1, -1, -3, -5};
 
+layout( push_constant ) uniform constants
+{
+	VolumeDataBuffer volumeData;
+	int volumeIndex;
+} pc;
+
 void main() {
 	ivec3 coords = ivec3(gl_GlobalInvocationID.xyz);
 
-	const uint probeWithBorder = IRRADIANCE_INNER_RES + 2;
-    const uint probeLastPixel = IRRADIANCE_INNER_RES + 1;
+	VolumeData volume = pc.volumeData.data[pc.volumeIndex];
 
-	int probeIndex = probeIndexFromPixel(coords, probeWithBorder);
+	const uint probeWithBorder = IRRADIANCE_INNER + 2;
+    const uint probeLastPixel = IRRADIANCE_INNER + 1;
+
+	int probeIndex = probeIndexFromPixel(coords, probeWithBorder, volume.width, volume.depth);
 
 	bool borderPixel = ((gl_GlobalInvocationID.x % probeWithBorder) == 0) || ((gl_GlobalInvocationID.x % probeWithBorder ) == probeLastPixel );
     borderPixel = borderPixel || ((gl_GlobalInvocationID.y % probeWithBorder) == 0) || ((gl_GlobalInvocationID.y % probeWithBorder ) == probeLastPixel);
@@ -29,11 +39,11 @@ void main() {
 		uint max_backfaces = uint(RAYS_PER_PROBE * 0.1f);
 
 		for(int rayIndex = 0; rayIndex < RAYS_PER_PROBE; rayIndex++) {
-			ivec3 samplePos = getRayDataTexelCoords(rayIndex, probeIndex);
+			ivec3 samplePos = getRayDataTexelCoords(rayIndex, probeIndex, volume.width * volume.depth);
 
 			vec3 rayDir = DDGISphericalFibonacci(rayIndex, RAYS_PER_PROBE);
 
-			vec3 texelDirection = oct_decode(normalized_oct_coord(coords.xy, IRRADIANCE_INNER_RES));
+			vec3 texelDirection = oct_decode(normalized_oct_coord(coords.xy, IRRADIANCE_INNER));
 
 			float weight = max(0.0, dot(texelDirection, rayDir));
 
@@ -77,8 +87,8 @@ void main() {
 	ivec3 source_pixel_coordinate = coords;
     
 	if ( corner_pixel ) {
-        source_pixel_coordinate.x += probe_pixel_x == 0 ? IRRADIANCE_INNER_RES : -IRRADIANCE_INNER_RES;
-        source_pixel_coordinate.y += probe_pixel_y == 0 ? IRRADIANCE_INNER_RES : -IRRADIANCE_INNER_RES;
+        source_pixel_coordinate.x += probe_pixel_x == 0 ? IRRADIANCE_INNER : -IRRADIANCE_INNER;
+        source_pixel_coordinate.y += probe_pixel_y == 0 ? IRRADIANCE_INNER : -IRRADIANCE_INNER;
     }
     else if ( row_pixel ) {
         source_pixel_coordinate.x += k_read_table[probe_pixel_x - 1];
