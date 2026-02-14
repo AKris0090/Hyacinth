@@ -37,6 +37,9 @@ struct DDGIVolume {
 	VulkanImage rayDataImage;
 	VulkanImage irradianceImage;
 	VulkanImage visibilityImage;
+
+	VkDescriptorSet rayDataDescriptorSet;
+	VkDescriptorSet computeBuildDescriptorSet;
 };
 
 struct ComputePushConstant {
@@ -75,14 +78,12 @@ private:
 
 	DescriptorAllocator				m_descriptorAllocator{};
 	VkDescriptorSetLayout			m_descriptorLayout{};
-	VkDescriptorSet					m_rtDescriptorSet{};
 
 	VulkanPipeline					m_rtPipeline				{};
 	VulkanPipeline					m_irradianceComputePipeline	{};
 	VulkanPipeline					m_visibilityComputePipeline	{};
 
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
-	VkDescriptorSet					m_computeDescriptorSet{};
 
 	VulkanBuffer closestHitVertexBuffer;
 	VulkanBuffer closestHitIndexBuffer;
@@ -97,9 +98,8 @@ public:
 	std::vector<DDGIVolume> m_probeVolumes;
 	probeVisObjects	m_probeVis{};
 	volumeVisHelper m_volumeVis;
-	VulkanBuffer volumeTransformBuffer;
 	VulkanBuffer volumeDataBuffer;
-	bool showProbes = true;
+	bool showProbes = false;
 	bool showVolumes = false;
 
 	void setup(rtHelper* rtHelper, SceneGraph& m_scene);

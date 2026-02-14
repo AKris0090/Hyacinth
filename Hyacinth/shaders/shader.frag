@@ -202,7 +202,7 @@ void main() {
     specular = pow(specular, 16.0) * metalRough.b;
 
     vec3 irrad = DDGIGetIrradiance(fragPos.xyz, N, ubo.viewPos.xyz);
-    vec3 ambient = (sampledColor.rgb / PI) * 0.2; // * irrad;
+    vec3 ambient = (sampledColor.rgb / PI) * irrad;
 
     uint cascadeIndex = 0;
 	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {

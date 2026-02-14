@@ -96,7 +96,11 @@ void volumeVisHelper::createVolumeVisualizationStructures(VkDescriptorSetLayout&
 	pipelineUtil.buildPipeline();
 }
 
-void volumeVisHelper::drawVolumes(VkCommandBuffer& cmd, VkDeviceAddress& volumeTransformAddress, VkDescriptorSet& descSet) {
+void volumeVisHelper::update(std::vector<glm::mat4>& volumeMatrices, int frameIndex) {
+	memcpy(volumeTransformBuffers[frameIndex].pMappedData, volumeMatrices.data(), volumeMatrices.size() * sizeof(glm::mat4));
+}
+
+void volumeVisHelper::drawVolumes(VkCommandBuffer& cmd, VkDescriptorSet& descSet, int frameIndex) {
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer.buffer, offsets);
 	vkCmdBindIndexBuffer(cmd, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -107,7 +111,7 @@ void volumeVisHelper::drawVolumes(VkCommandBuffer& cmd, VkDeviceAddress& volumeT
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.layout, 0, 1, sets.data(), 0, nullptr);
 
 	volumePushContant pc{};
-	pc.volumeTransformAddress = volumeTransformAddress;
+	pc.volumeTransformAddress = volumeTransformBuffers[frameIndex].gpuAddress;
 
 	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(volumePushContant), &pc);
 
