@@ -12,6 +12,7 @@ class volumeVisHelper {
 	uint32_t indexCount;
 	VulkanBuffer vertexBuffer;
 	VulkanBuffer indexBuffer;
+
 	gltfObject boxObject;
 	
 	struct volumePushContant {
@@ -19,7 +20,10 @@ class volumeVisHelper {
 	};
 	
 public:
+	std::vector<VulkanBuffer> volumeTransformBuffers;
+
 	void createVolumeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
-	void drawVolumes(VkCommandBuffer& cmd, VkDeviceAddress& volumeTranformAddress, VkDescriptorSet& descSet);
+	void update(std::vector<glm::mat4>& volumes, int frameIndex);
+	void drawVolumes(VkCommandBuffer& cmd, VkDescriptorSet& descSet, int frameIndex);
 	void destroy();
 };

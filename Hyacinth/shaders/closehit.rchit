@@ -57,7 +57,7 @@ void main()
 
         float NdotL = max(dot(normal, lightVector), 0.0);
         float halfLambert = (NdotL * 0.5) + 0.5;
-		vec3 directDiffuse = halfLambert * lightColor;
+		vec3 directDiffuse = halfLambert * lightColor * 1.25;
 
         if(shadowed) {
 		    directDiffuse *= vec3(0.0);

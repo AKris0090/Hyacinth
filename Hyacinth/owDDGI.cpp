@@ -8,7 +8,7 @@ void owDDGI::createRaytraceDescriptors() {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f },
 	};
 
-	m_descriptorAllocator.initPool(2, sizes);
+	m_descriptorAllocator.initPool(2 * m_probeVolumes.size(), sizes);
 
 	{
 		DescriptorLayoutBuilder layoutBuilder;
@@ -25,15 +25,17 @@ void owDDGI::createRaytraceDescriptors() {
 		m_computeDescriptorLayout = layoutBuilder.buildLayout(nullptr, 0);
 	}
 
-	m_rtDescriptorSet = m_descriptorAllocator.allocate(m_descriptorLayout);
-	m_computeDescriptorSet = m_descriptorAllocator.allocate(m_computeDescriptorLayout);
+	for (int i = 0; i < m_probeVolumes.size(); i++) {
+		m_probeVolumes[i].rayDataDescriptorSet = m_descriptorAllocator.allocate(m_descriptorLayout);
+		m_probeVolumes[i].computeBuildDescriptorSet = m_descriptorAllocator.allocate(m_computeDescriptorLayout);
 
-	vkdescriptorutils::queueWriteAccelStructure(m_rtDescriptorSet, 0, 1, &m_rtHelper->m_tlAccelStrucutre.accel);
-	vkdescriptorutils::queueWriteImage(m_rtDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[0].rayDataImage, VK_IMAGE_LAYOUT_GENERAL);
+		vkdescriptorutils::queueWriteAccelStructure(m_probeVolumes[i].rayDataDescriptorSet, 0, 1, &m_rtHelper->m_tlAccelStrucutre.accel);
+		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].rayDataDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[i].rayDataImage, VK_IMAGE_LAYOUT_GENERAL);
 
-	vkdescriptorutils::queueWriteImage(m_computeDescriptorSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_probeVolumes[0].rayDataImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	vkdescriptorutils::queueWriteImage(m_computeDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[0].irradianceImage, VK_IMAGE_LAYOUT_GENERAL);
-	vkdescriptorutils::queueWriteImage(m_computeDescriptorSet, 2, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[0].visibilityImage, VK_IMAGE_LAYOUT_GENERAL);
+		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].computeBuildDescriptorSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_probeVolumes[i].rayDataImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].computeBuildDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[i].irradianceImage, VK_IMAGE_LAYOUT_GENERAL);
+		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].computeBuildDescriptorSet, 2, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[i].visibilityImage, VK_IMAGE_LAYOUT_GENERAL);
+	}
 
 	VkDeviceSize probeVolumeSize = sizeof(VolumeData) * m_probeVolumes.size();
 	volumeDataBuffer = vkdeviceutils::createBuffer(probeVolumeSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "volume_data_ssbo");
@@ -268,10 +270,14 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT);
 
 	std::vector<glm::mat4> volumeTransforms;
-	VkDeviceSize volumeBufferSize = 1 * sizeof(glm::mat4); // TODO: make this with more volumes
-	volumeTransforms.push_back(m_probeVolumes[0].transform.getMatrix());
-	volumeTransformBuffer = vkdeviceutils::createBuffer(volumeBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "volume_transform_ssbo");
-	vkdeviceutils::uploadToBuffer(volumeTransformBuffer, volumeBufferSize, volumeTransforms.data());
+	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4); // TODO: make this with more volumes
+	for (int i = 0; i < m_probeVolumes.size(); i++) {
+		volumeTransforms.push_back(m_probeVolumes[i].transform.getMatrix());
+	}
+	m_volumeVis.volumeTransformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		m_volumeVis.volumeTransformBuffers[i] = vkdeviceutils::createBuffer(volumeBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "volume_transform_ssbo");
+	}
 
 	// create other RT resources
 	createRaytraceDescriptors();
@@ -352,7 +358,7 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 			vkCmdClearColorImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
 			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.pipeline);
 
-			std::array<VkDescriptorSet, 2> sets = { m_rtDescriptorSet };
+			std::array<VkDescriptorSet, 1> sets = { volume.rayDataDescriptorSet };
 
 			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.layout, 0, 1, sets.data(), 0, nullptr);
 
@@ -384,7 +390,7 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 			};
 			vkCmdPushConstants(cmd, m_irradianceComputePipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstant), &compPC);
 
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline.layout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline.layout, 0, 1, &volume.computeBuildDescriptorSet, 0, nullptr);
 
 			vkCmdDispatch(cmd, volume.data.densityWidth, volume.data.densityDepth, volume.data.densityHeight);
 
@@ -408,7 +414,7 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 
 			vkCmdPushConstants(cmd, m_visibilityComputePipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstant), &compPC);
 
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline.layout, 0, 1, &m_computeDescriptorSet, 0, nullptr);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline.layout, 0, 1, &volume.computeBuildDescriptorSet, 0, nullptr);
 
 			vkCmdDispatch(cmd, volume.data.densityWidth, volume.data.densityDepth, volume.data.densityHeight);
 
@@ -426,7 +432,10 @@ void owDDGI::shutdown() {
 	vkdeviceutils::destroyBuffer(closestHitIndexBuffer);
 	vkdeviceutils::destroyBuffer(m_sbtBuffer);
 	vkdeviceutils::destroyBuffer(volumeDataBuffer);
-	vkdeviceutils::destroyBuffer(volumeTransformBuffer);
+
+	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		vkdeviceutils::destroyBuffer(m_volumeVis.volumeTransformBuffers[i]);
+	}
 
 	for(auto& volume : m_probeVolumes) {
 		vkdeviceutils::destroyBuffer(volume.probePositionBuffer);

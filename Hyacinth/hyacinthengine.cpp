@@ -561,7 +561,7 @@ void HyacinthEngine::init()
 
     m_owDDGIHelper.setup(&m_rtHelper, m_scene);
     m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_probeVolumes[0].irradianceImage, m_owDDGIHelper.m_probeVolumes[0].visibilityImage, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
-	// m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
+	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_depthImages[0].imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
 
@@ -584,6 +584,12 @@ void HyacinthEngine::update() {
     m_camera.update(Time::getDeltaTime(), mouseLocked, m_frameIndex);
     m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
+
+    std::vector<glm::mat4> matrices;
+    for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
+        matrices.push_back(m_owDDGIHelper.m_probeVolumes[i].transform.getMatrix());
+	}
+    m_owDDGIHelper.m_volumeVis.update(matrices, m_frameIndex);
 
     UBO newuniform{};
     newuniform.proj = m_camera.m_proj;
@@ -670,8 +676,16 @@ void HyacinthEngine::drawImGui() {
     ImGui::DragFloat("cascade min distance (zNear)", &m_camera.m_zNear, 0.01f);
     ImGui::DragFloat("cascade max distance (zFar)", &m_camera.m_zFar, 0.01f);
     ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
-	// ImGui::Checkbox("show volumes", &m_owDDGIHelper.showVolumes);
+	ImGui::Checkbox("show volumes", &m_owDDGIHelper.showVolumes);
 	ImGui::Checkbox("ambient toggle", &ambientToggle);
+    ImGui::Text("Volumes");
+    for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
+        ImGui::PushID(i);
+        ImGui::DragFloat3("position", &m_owDDGIHelper.m_probeVolumes[i].transform.position.x, 0.1f);
+        ImGui::DragFloat3("rotation", &m_owDDGIHelper.m_probeVolumes[i].transform.rotation.x, 0.1f);
+        ImGui::DragFloat3("scale", &m_owDDGIHelper.m_probeVolumes[i].transform.scale.x, 0.1f);
+        ImGui::PopID();
+	}
     ImGui::End();
 
     ImGui::Begin("Shadow Maps");
@@ -773,7 +787,7 @@ void HyacinthEngine::draw()
     }
     
     if (m_owDDGIHelper.showVolumes) {
-		m_owDDGIHelper.m_volumeVis.drawVolumes(cmd, m_owDDGIHelper.volumeTransformBuffer.gpuAddress, m_frameData[m_frameIndex].descriptorSet);
+		m_owDDGIHelper.m_volumeVis.drawVolumes(cmd, m_frameData[m_frameIndex].descriptorSet, m_frameIndex);
     }
 
     VK_LABEL_END(cmd);
