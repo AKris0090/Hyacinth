@@ -79,7 +79,9 @@ struct GPUDrawPushConstants {
 	VkDeviceAddress transformAddress;
 	VkDeviceAddress materialAddress;
 	VkDeviceAddress drawDataAddress;
-	// VkDeviceAddress probePositionAddress;
+	VkDeviceAddress probePositionAddress;
+	VkDeviceAddress volumeDataAddress;
+	uint32_t volumeIndex;
 };
 
 namespace vkmeshutils {

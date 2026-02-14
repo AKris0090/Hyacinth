@@ -32,13 +32,15 @@ layout( push_constant ) uniform constants
 	TransformBuffer transformBuffer;
 	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
-	// ProbePositionBuffer probePosBuffer;
-} PushConstants;
+	ProbePositionBuffer probePosBuffer;
+    VolumeDataBuffer volumeDataBuffer;
+    int volumeIndex;
+} pc;
 
 void main() 
 {
-	DrawData draw = PushConstants.drawDataBuffer.draws[gl_InstanceIndex];
-	mat4 model = PushConstants.transformBuffer.model[draw.transformIndex];
+	DrawData draw = pc.drawDataBuffer.draws[gl_InstanceIndex];
+	mat4 model = pc.transformBuffer.model[draw.transformIndex];
 	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0f);
 
 	fragPos = model * vec4(inPosition.xyz, 1.0);
@@ -49,7 +51,7 @@ void main()
 	vec3 N = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));
 	TBNMatrix = mat3(T, B, N);
 
-	Material mat = PushConstants.materialBuffer.mats[draw.materialIndex];
+	Material mat = pc.materialBuffer.mats[draw.materialIndex];
 
 	colorSamplerIndex = mat.baseColorIndex;
 	normalSamplerIndex = mat.normalIndex;
