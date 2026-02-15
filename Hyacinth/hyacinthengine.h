@@ -50,6 +50,7 @@ struct UBO {
 struct GBuffer {
 	VulkanImage albedo;
 	VulkanImage normal;
+	VulkanImage ddgiImage;
 	VulkanImage depth;
 
 	VkDescriptorSet					m_compositeSet{ VK_NULL_HANDLE };
@@ -74,7 +75,8 @@ private:
 		VkCommandBuffer commandBuffer;
 		VulkanBuffer	uniformBuffer;
 		void*			mappedUniformBuffer;
-		VkDescriptorSet descriptorSet;
+		VkDescriptorSet uniformDescriptorSet;
+		VkDescriptorSet shadowDescriptorSet;
 	};
 
 	bool m_initialized = false;
@@ -104,6 +106,7 @@ private:
 	SWChainImageFormat				m_swImageFormat			{};
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
+	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
 	VulkanBuffer 					m_worldMatrixBuffer		{};
@@ -115,6 +118,7 @@ private:
 	DescriptorAllocator				m_imGuiAllocator		{};
 	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_textureSetLayout		{ VK_NULL_HANDLE };
+	VkDescriptorSetLayout			m_shadowSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_compositeSetLayout	{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
@@ -130,6 +134,7 @@ private:
 	void createSyncObjects();
 	void createGraphicsPipeline();
 	void createCompositePipeline();
+	void createDDGIPipeline();
 	void createBuffers();
 	void createDescriptorSets();
 	void setupImGUI();
