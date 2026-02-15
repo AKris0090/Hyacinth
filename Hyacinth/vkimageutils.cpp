@@ -174,7 +174,7 @@ namespace vkimageutils {
 		return attachmentInfo;
 	}
 
-	VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView& msaaDepthView, VkImageView& resolvedDepthView) {
+	VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView& msaaDepthView) {
 		VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		attachmentInfo.imageView = msaaDepthView;
 		attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;

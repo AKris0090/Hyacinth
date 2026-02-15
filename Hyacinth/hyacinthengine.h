@@ -104,7 +104,6 @@ private:
 	SWChainImageFormat				m_swImageFormat			{};
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
-	VulkanPipelineBuilder			m_depthPipelineUtil		{};
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
 	VulkanBuffer 					m_worldMatrixBuffer		{};
@@ -131,7 +130,6 @@ private:
 	void createSyncObjects();
 	void createGraphicsPipeline();
 	void createCompositePipeline();
-	void createDepthPipeline();
 	void createBuffers();
 	void createDescriptorSets();
 	void setupImGUI();
