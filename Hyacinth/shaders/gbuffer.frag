@@ -1,7 +1,7 @@
 #version 460
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_buffer_reference : require
 
-#include "probeCommon.glsl"
 #include "shadowCommon.glsl"
 #include "bufferInfo.glsl"
 
@@ -30,7 +30,6 @@ layout( push_constant ) uniform constants
 	TransformBuffer transformBuffer;
 	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
-	ProbePositionBuffer probePosBuffer;
     VolumeDataBuffer volumeDataBuffer;
     int volumeIndex;
 } pc;
