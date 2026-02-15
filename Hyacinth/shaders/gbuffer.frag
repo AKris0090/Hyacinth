@@ -47,7 +47,8 @@ const mat4 biasMat = mat4(
 
 layout(set = 1, binding = 0) uniform sampler2D globalTextures2D[];
 
-layout(location = 0) out vec4 outColor;
+layout(location = 0) out vec4 outAlbedo;
+layout(location = 1) out vec4 outNormal;
 
 const vec3 lightColor = vec3(0.99, 0.98, 0.83);
 
@@ -216,9 +217,12 @@ void main() {
 
     vec3 color = ambient + ((diffuse + vec3(specular)) * shadow);
 
-    outColor = vec4(color, 1.0f);
+    outAlbedo = vec4(sampledColor.rgb, 1.0);
+    outNormal = vec4(N, 1.0);
 
-    if (ubo.viewPos.w == 1.0) {
-        outColor = vec4(irrad, 1.0);
-    }
+    // outColor = vec4(color, 1.0f);
+    // 
+    // if (ubo.viewPos.w == 1.0) {
+    //     outColor = vec4(irrad, 1.0);
+    // }
 }

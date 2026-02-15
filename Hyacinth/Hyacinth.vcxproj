@@ -152,6 +152,7 @@
     <ClCompile Include="ecshelpers.h" />
     <ClCompile Include="fpcam.cpp" />
     <ClCompile Include="frustumcull.cpp" />
+    <ClCompile Include="fullscreen_quad.cpp" />
     <ClCompile Include="gltfutils.cpp" />
     <ClCompile Include="imguihelper.cpp" />
     <ClCompile Include="input.cpp" />
@@ -185,6 +186,7 @@
     <ClInclude Include="csm.h" />
     <ClInclude Include="fpcam.h" />
     <ClInclude Include="frustumcull.h" />
+    <ClInclude Include="fullscreen_quad.h" />
     <ClInclude Include="gltfutils.h" />
     <ClInclude Include="imguihelper.h" />
     <ClInclude Include="input.h" />
@@ -206,14 +208,16 @@
     <ClInclude Include="volumevis.h" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="shaders\shader.frag" />
-    <Text Include="shaders\shader.vert" />
+    <Text Include="shaders\gbuffer.frag" />
+    <Text Include="shaders\gbuffer.vert" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\bufferInfo.glsl" />
     <None Include="shaders\closehit.rchit" />
+    <None Include="shaders\composite.frag" />
     <None Include="shaders\depth.vert" />
     <None Include="shaders\frustumCull.comp" />
+    <None Include="shaders\fsQuad.vert" />
     <None Include="shaders\irradianceBuild.comp" />
     <None Include="shaders\miss.rmiss" />
     <None Include="shaders\probeCommon.glsl" />

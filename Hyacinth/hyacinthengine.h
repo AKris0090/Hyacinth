@@ -47,6 +47,14 @@ struct UBO {
 	glm::mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
 };
 
+struct GBuffer {
+	VulkanImage albedo;
+	VulkanImage normal;
+	VulkanImage depth;
+
+	VkDescriptorSet					m_compositeSet{ VK_NULL_HANDLE };
+};
+
 class HyacinthEngine {
 public:
 	bool mouseLocked = true;
@@ -91,12 +99,11 @@ private:
 	std::vector<VkSemaphore>		m_imageFinishedSemas	{};
 	std::vector<VkFence> 			m_inFlightFences		{};
 	VkFence							m_uploadFence			{ VK_NULL_HANDLE };
-	std::vector<VulkanImage>		m_colorImages			{};
+	std::vector<GBuffer>			m_gBuffers				{};
 	std::vector<VulkanImage>		m_swapChainImages		{}; // a.k.a color resolve
-	std::vector<VulkanImage>		m_depthImages			{};
-	std::vector<VulkanImage>		m_depthResolveImages	{};
 	SWChainImageFormat				m_swImageFormat			{};
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
+	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_depthPipelineUtil		{};
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
@@ -110,6 +117,7 @@ private:
 	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_textureSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };
+	VkDescriptorSetLayout			m_compositeSetLayout	{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
 	owDDGI							m_owDDGIHelper;
@@ -122,6 +130,7 @@ private:
 	void createCommandBuffers();
 	void createSyncObjects();
 	void createGraphicsPipeline();
+	void createCompositePipeline();
 	void createDepthPipeline();
 	void createBuffers();
 	void createDescriptorSets();

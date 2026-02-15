@@ -334,6 +334,8 @@ void SceneGraph::buildNodeBuffers(gltfNode* node) {
 }
 
 void SceneGraph::buildSceneGraph() {
+    FullscreenQuad::addFullscreenQuad(vertices, indices);
+
     for (const auto& obj : objects) {
         uint32_t currentNumMatrices = static_cast<uint32_t>(transformMatrices.size());
 

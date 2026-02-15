@@ -19,6 +19,7 @@ struct VulkanPipeline {
 
 class VulkanPipelineBuilder {
 public:
+    int numColorAttachments = 1;
     VulkanPipeline                                  m_pipeline;
 	std::vector<VkPipelineShaderStageCreateInfo>    m_shaderStages;
 
@@ -29,7 +30,7 @@ public:
     VkPipelineDepthStencilStateCreateInfo           m_depthStencil;
     VkPipelineRenderingCreateInfo                   m_renderInfo;
 	VkPipelineViewportStateCreateInfo               m_viewportState;
-    VkFormat                                        m_colorAttachmentformat;
+    std::vector<VkFormat>                           m_colorAttachmentformats;
     VkPipelineVertexInputStateCreateInfo            m_vertexInputInfo;
 
     void reset();
@@ -44,7 +45,7 @@ public:
     void setMultisampling(VkSampleCountFlagBits sampleCount);
     void disableBlending();
     void enableBlending();
-	void setColorAttachmentFormat(VkFormat format);
+	void setColorAttachmentFormat(VkFormat format, int numAttachments);
 	void setDepthAttachmentFormat(VkFormat format);
 	void enableDepthTest(bool depthWrite, VkCompareOp op);
     void setDefaultAttributes();
