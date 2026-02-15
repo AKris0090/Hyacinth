@@ -30,7 +30,7 @@ namespace vkimageutils {
 	VulkanImage					createTextureImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped);
 	void						transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
 	void						generateMipmaps(VkCommandBuffer& commandBuffer, VulkanImage& image);
-	VkRenderingAttachmentInfo	createColorAttachmentInfo(VkImageView& msaaColorView, VkImageView& resolveImageView, const VkClearValue& clearColor, VkImageLayout imageLayout);
+	VkRenderingAttachmentInfo	createColorAttachmentInfo(VkImageView& msaaColorView, const VkClearValue& clearColor, VkImageLayout imageLayout);
 	VkRenderingAttachmentInfo	createDepthAttachmentInfo(VkImageView& msaaDepthView, VkImageView& resolvedDepthView);
 	VkRenderingAttachmentInfo	createShadowAttachmentInfo(VkImageView& view);
 

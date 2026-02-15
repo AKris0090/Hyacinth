@@ -64,12 +64,18 @@ void VulkanPipelineBuilder::buildPipeline() {
     m_viewportState.viewportCount = 1;
     m_viewportState.scissorCount = 1;
 
+    VkPipelineColorBlendAttachmentState attachment2{};
+    attachment2.blendEnable = VK_FALSE;
+    attachment2.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+	std::array<VkPipelineColorBlendAttachmentState, 2> blendAttachments = { m_colorBlendAttachment, attachment2 };
+
     VkPipelineColorBlendStateCreateInfo colorBlending = {};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY;
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &m_colorBlendAttachment;
+    colorBlending.attachmentCount = numColorAttachments;
+    colorBlending.pAttachments = blendAttachments.data();
 
     auto bindings = Vertex::getBindingDescription();
     auto attributesNormal = Vertex::getAttributeDescriptions();
@@ -168,10 +174,13 @@ void VulkanPipelineBuilder::enableBlending() {
     m_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 }
 
-void VulkanPipelineBuilder::setColorAttachmentFormat(VkFormat format) {
-    m_colorAttachmentformat = format;
-    m_renderInfo.colorAttachmentCount = 1;
-    m_renderInfo.pColorAttachmentFormats = &m_colorAttachmentformat;
+void VulkanPipelineBuilder::setColorAttachmentFormat(VkFormat format, int numAttachments) {
+    m_colorAttachmentformats.resize(numAttachments);
+    for(int i = 0; i < numAttachments; i++) {
+        m_colorAttachmentformats[i] = format;
+	}
+    m_renderInfo.colorAttachmentCount = numAttachments;
+    m_renderInfo.pColorAttachmentFormats = m_colorAttachmentformats.data();
 }
 
 void VulkanPipelineBuilder::setDepthAttachmentFormat(VkFormat format) {
