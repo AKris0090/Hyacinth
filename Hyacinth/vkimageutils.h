@@ -31,7 +31,7 @@ namespace vkimageutils {
 	void						transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
 	void						generateMipmaps(VkCommandBuffer& commandBuffer, VulkanImage& image);
 	VkRenderingAttachmentInfo	createColorAttachmentInfo(VkImageView& msaaColorView, const VkClearValue& clearColor, VkImageLayout imageLayout);
-	VkRenderingAttachmentInfo	createDepthAttachmentInfo(VkImageView& msaaDepthView, VkImageView& resolvedDepthView);
+	VkRenderingAttachmentInfo	createDepthAttachmentInfo(VkImageView& msaaDepthView);
 	VkRenderingAttachmentInfo	createShadowAttachmentInfo(VkImageView& view);
 
 	void destroyImage(VulkanImage& image);
