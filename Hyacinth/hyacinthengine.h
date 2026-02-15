@@ -50,6 +50,7 @@ struct UBO {
 struct GBuffer {
 	VulkanImage albedo;
 	VulkanImage normal;
+
 	VulkanImage ddgiImage;
 	VulkanImage depth;
 

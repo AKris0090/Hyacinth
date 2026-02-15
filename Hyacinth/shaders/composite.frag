@@ -34,7 +34,8 @@ vec3 worldPosFromDepth(float depth) {
 }
 
 void main() {
-	vec3 fragPos = worldPosFromDepth(texture(depthMap, inUV).r);
+    float depth = texture(depthMap, inUV).r;
+	vec3 fragPos = worldPosFromDepth(depth);
 	vec4 Nshadow = texture(normalMap, inUV);
     vec3 N = Nshadow.xyz * 2.0 - 1.0; // only because swapchain image is unorm
 	vec4 albedo = texture(albedoMap, inUV);
@@ -50,6 +51,9 @@ void main() {
 	vec3 r = reflect(-L, N);
     float specular = max(0.0, dot(r, V));
     specular = pow(specular, 16.0) * albedo.w;
+    if (depth == 1.0) {
+        specular = 0.0;
+    }
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
 	vec3 ambient = albedo.rgb * irrad; // replace 0.2 with irradiance
