@@ -417,7 +417,7 @@ void HyacinthEngine::createCompositePipeline()
 void HyacinthEngine::createDDGIPipeline()
 {
     m_ddgiPipelineUtil.addShader("shaders/quadVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    m_ddgiPipelineUtil.addShader("shaders/composite.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    m_ddgiPipelineUtil.addShader("shaders/ddgiFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     m_ddgiPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     m_ddgiPipelineUtil.setDefaultAttributes();
@@ -449,11 +449,18 @@ void HyacinthEngine::createDDGIPipeline()
     m_ddgiPipelineUtil.m_viewportState.pViewports = &viewport;
     m_ddgiPipelineUtil.m_viewportState.pScissors = &scissor;
 
-    std::array<VkDescriptorSetLayout, 1> sets = { m_compositeSetLayout };
+    std::array<VkDescriptorSetLayout, 3> sets = { m_compositeSetLayout, m_descriptorSetLayout, m_owDDGIHelper.m_probeVis.visSetLayout };
+
+    VkPushConstantRange volumeInfoRange{};
+    volumeInfoRange.offset = 0;
+    volumeInfoRange.size = sizeof(ComputePushConstant);
+    volumeInfoRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pipelineLayoutCInfo.setLayoutCount = sets.size();
     pipelineLayoutCInfo.pSetLayouts = sets.data();
+    pipelineLayoutCInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCInfo.pPushConstantRanges = &volumeInfoRange;
 
     VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_ddgiPipelineUtil.m_pipeline.layout));
 
@@ -636,6 +643,8 @@ void HyacinthEngine::init()
 
     createCompositePipeline();
 
+    createDDGIPipeline();
+
     setupImGUI();
 
     m_shadowHelper.setupImGui();
@@ -688,6 +697,7 @@ void HyacinthEngine::setupDraw()
 
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].albedo.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].normal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].ddgiImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
     vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -773,9 +783,12 @@ void HyacinthEngine::draw()
     pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
     pushConstants.materialAddress = m_materialBuffer.gpuAddress;
     pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
-    pushConstants.probePositionAddress = m_owDDGIHelper.m_probeVolumes[0].probePositionBuffer.gpuAddress;
     pushConstants.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
     pushConstants.volumeIndex = 0;
+
+    ComputePushConstant ddgiPushConstant{};
+    ddgiPushConstant.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
+    ddgiPushConstant.volumeIndex = 0;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -852,6 +865,20 @@ void HyacinthEngine::draw()
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].albedo.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].normal.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    VK_LABEL(cmd, "DDGI Pass");
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.pipeline);
+    std::array<VkDescriptorSet, 3> ddgiSets = { m_gBuffers[m_frameIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVis.visSet };
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.layout, 0, ddgiSets.size(), ddgiSets.data(), 0, nullptr);
+    vkCmdPushConstants(cmd, m_ddgiPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &ddgiPushConstant);
+    VkRenderingAttachmentInfo ddgiAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].ddgiImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkRenderingInfo ddgiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &ddgiAttachment, nullptr);
+    vkCmdBeginRendering(cmd, &ddgiRenderingInfo);
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+    vkCmdEndRendering(cmd);
+    VK_LABEL_END(cmd);
 
 	VK_LABEL(cmd, "Composite Pass");
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.pipeline);

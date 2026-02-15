@@ -215,6 +215,7 @@
     <None Include="shaders\bufferInfo.glsl" />
     <None Include="shaders\closehit.rchit" />
     <None Include="shaders\composite.frag" />
+    <None Include="shaders\ddgi.frag" />
     <None Include="shaders\depth.vert" />
     <None Include="shaders\frustumCull.comp" />
     <None Include="shaders\fsQuad.vert" />
