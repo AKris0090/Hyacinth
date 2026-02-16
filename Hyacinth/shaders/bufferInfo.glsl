@@ -1,5 +1,12 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 
+const mat4 biasMat = mat4(
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 1.0, 0.0,
+	0.5, 0.5, 0.0, 1.0
+);
+
 struct Material {
 	int baseColorIndex;
 	int normalIndex;

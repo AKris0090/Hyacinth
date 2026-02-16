@@ -91,6 +91,9 @@
     <Filter Include="Source Files\renderer\utils\probe_volume_vis">
       <UniqueIdentifier>{995ad00e-5499-4fe6-b1b8-1ab1208537a2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\utils\fullscreen_quad">
+      <UniqueIdentifier>{edea1441-0d30-4f42-9484-be16bfe1a40b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -186,6 +189,9 @@
     <ClCompile Include="volumevis.cpp">
       <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
     </ClCompile>
+    <ClCompile Include="fullscreen_quad.cpp">
+      <Filter>Source Files\renderer\utils\fullscreen_quad</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sdlwindow.h">
@@ -278,12 +284,15 @@
     <ClInclude Include="volumevis.h">
       <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
     </ClInclude>
+    <ClInclude Include="fullscreen_quad.h">
+      <Filter>Source Files\renderer\utils\fullscreen_quad</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="shaders\shader.vert">
+    <Text Include="shaders\gbuffer.vert">
       <Filter>Source Files\shaders</Filter>
     </Text>
-    <Text Include="shaders\shader.frag">
+    <Text Include="shaders\gbuffer.frag">
       <Filter>Source Files\shaders</Filter>
     </Text>
   </ItemGroup>
@@ -334,6 +343,12 @@
       <Filter>Source Files\shaders</Filter>
     </None>
     <None Include="shaders\volumeVis.frag">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\composite.frag">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\fsQuad.vert">
       <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>

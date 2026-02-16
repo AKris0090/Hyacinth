@@ -49,7 +49,7 @@ void volumeVisHelper::createVolumeVisualizationStructures(VkDescriptorSetLayout&
 	pipelineUtil.setDefaultAttributes();
 	pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
 	pipelineUtil.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineUtil.setColorAttachmentFormat(SWImageFormat.format);
+	pipelineUtil.setColorAttachmentFormat(SWImageFormat.format, 1);
 	pipelineUtil.setMultisampling(msaaSamples);
 	pipelineUtil.enableBlending();
 

@@ -1,7 +1,6 @@
 #version 460
 #extension GL_EXT_buffer_reference : require
 
-#include "probeCommon.glsl"
 #include "bufferInfo.glsl"
 #include "shadowCommon.glsl"
 
@@ -32,7 +31,6 @@ layout( push_constant ) uniform constants
 	TransformBuffer transformBuffer;
 	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
-	ProbePositionBuffer probePosBuffer;
     VolumeDataBuffer volumeDataBuffer;
     int volumeIndex;
 } pc;

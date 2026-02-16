@@ -67,7 +67,7 @@ void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& 
 	pipelineUtil.setDefaultAttributes();
 	pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
 	pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineUtil.setColorAttachmentFormat(SWImageFormat.format);
+	pipelineUtil.setColorAttachmentFormat(SWImageFormat.format, 1);
 	pipelineUtil.setMultisampling(msaaSamples);
 	pipelineUtil.disableBlending();
 
