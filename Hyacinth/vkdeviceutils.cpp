@@ -167,13 +167,13 @@ namespace vkdeviceutils {
         return renderingInfo;
     }
 
-    VkRenderingInfo createRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* colorAttachment, VkRenderingAttachmentInfo* depthAttachment) {
+    VkRenderingInfo createRenderingInfo(VkExtent2D renderArea, uint32_t numColorAttachments, VkRenderingAttachmentInfo* colorAttachments, VkRenderingAttachmentInfo* depthAttachment) {
         VkRenderingInfo renderingInfo{};
         renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
         renderingInfo.renderArea = VkRect2D{ VkOffset2D {0, 0}, renderArea };
         renderingInfo.layerCount = 1;
-        renderingInfo.colorAttachmentCount = 1;
-        renderingInfo.pColorAttachments = colorAttachment;
+        renderingInfo.colorAttachmentCount = numColorAttachments;
+        renderingInfo.pColorAttachments = colorAttachments;
         renderingInfo.pDepthAttachment = depthAttachment;
         renderingInfo.pStencilAttachment = nullptr;
 

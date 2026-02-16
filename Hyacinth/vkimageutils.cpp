@@ -164,28 +164,22 @@ namespace vkimageutils {
 		return newImage;
 	}
 
-	VkRenderingAttachmentInfo createColorAttachmentInfo(VkImageView& msaaColorView, VkImageView& resolveImageView, const VkClearValue& clearColor, VkImageLayout imageLayout) {
+	VkRenderingAttachmentInfo createColorAttachmentInfo(VkImageView& msaaColorView, const VkClearValue& clearColor, VkImageLayout imageLayout) {
 		VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		attachmentInfo.imageView = msaaColorView;
 		attachmentInfo.imageLayout = imageLayout;
 		attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachmentInfo.resolveImageView = resolveImageView;
-		attachmentInfo.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		attachmentInfo.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
 		attachmentInfo.clearValue = clearColor;
 		return attachmentInfo;
 	}
 
-	VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView& msaaDepthView, VkImageView& resolvedDepthView) {
+	VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView& msaaDepthView) {
 		VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		attachmentInfo.imageView = msaaDepthView;
 		attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
 		attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachmentInfo.resolveImageView = resolvedDepthView;
-		attachmentInfo.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-		attachmentInfo.resolveMode = VK_RESOLVE_MODE_MIN_BIT;
 		attachmentInfo.clearValue.depthStencil.depth = 1.f;
 		return attachmentInfo;
 	}

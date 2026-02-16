@@ -4,6 +4,7 @@
 #include "vkmeshutils.h"
 #include "vkimageutils.h"
 #include "vkdescriptorutils.h"
+#include "fullscreen_quad.h"
 #include <unordered_set>
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
