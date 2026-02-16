@@ -39,14 +39,15 @@ void main() {
 	vec4 Nshadow = texture(normalMap, inUV);
     vec3 N = Nshadow.xyz * 2.0 - 1.0; // only because swapchain image is unorm
 	vec4 albedo = texture(albedoMap, inUV);
+    albedo
 
 	vec3 V    = normalize(ubo.viewPos.xyz - fragPos);
 	vec3 L    = normalize(ubo.lightPos.xyz - fragPos);
-	vec3 radiance = lightColor * vec3(3.0);
+	vec3 radiance = lightColor * vec3(17.0);
 
 	float NdotL = max(dot(N, L), 0.0);
-    float halfLambert = (NdotL * 0.5) + 0.5;
-    vec3 diffuse = (albedo.rgb / PI) * halfLambert * radiance;
+    float customLambert = (NdotL * 0.35) + 0.025;
+    vec3 diffuse = (albedo.rgb / PI) * customLambert * radiance;
 
 	vec3 r = reflect(-L, N);
     float specular = max(0.0, dot(r, V));
@@ -56,7 +57,7 @@ void main() {
     }
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = albedo.rgb * irrad; // replace 0.2 with irradiance
+	vec3 ambient = albedo.rgb * irrad;
 
 	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
 
