@@ -180,6 +180,17 @@ namespace vkdeviceutils {
         return renderingInfo;
     }
 
+    VkRenderingInfo createStencilRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* pStencilAttachment) {
+        VkRenderingInfo renderingInfo{};
+        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        renderingInfo.renderArea = VkRect2D{ VkOffset2D {0, 0}, renderArea };
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = 0;
+        renderingInfo.pStencilAttachment = pStencilAttachment;
+
+        return renderingInfo;
+    }
+
     VulkanBuffer createBuffer(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, std::string qual, VkDeviceSize alignment) {
         VkBufferCreateInfo bufferInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         bufferInfo.size = size;

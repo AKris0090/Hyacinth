@@ -5,10 +5,10 @@ void owDDGI::createRaytraceDescriptors() {
 	{
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1.f }, // accelstructure
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 4.f },				// out images (2 for rayData/irradiancce, 2 for compute version)
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2.f },
 	};
 
-	m_descriptorAllocator.initPool(2 * m_probeVolumes.size(), sizes);
+	m_descriptorAllocator.initPool(3 * m_probeVolumes.size(), sizes);
 
 	{
 		DescriptorLayoutBuilder layoutBuilder;
@@ -25,9 +25,17 @@ void owDDGI::createRaytraceDescriptors() {
 		m_computeDescriptorLayout = layoutBuilder.buildLayout(nullptr, 0);
 	}
 
+	{
+		DescriptorLayoutBuilder layoutBuilder;
+		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_ALL);			// irradiance image
+		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_ALL);			// visibility image
+		m_irradianceVisSetLayout = layoutBuilder.buildLayout(nullptr, 0);
+	}
+
 	for (int i = 0; i < m_probeVolumes.size(); i++) {
 		m_probeVolumes[i].rayDataDescriptorSet = m_descriptorAllocator.allocate(m_descriptorLayout);
 		m_probeVolumes[i].computeBuildDescriptorSet = m_descriptorAllocator.allocate(m_computeDescriptorLayout);
+		m_probeVolumes[i].irradianceVisSet = m_descriptorAllocator.allocate(m_irradianceVisSetLayout);
 
 		vkdescriptorutils::queueWriteAccelStructure(m_probeVolumes[i].rayDataDescriptorSet, 0, 1, &m_rtHelper->m_tlAccelStrucutre.accel);
 		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].rayDataDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[i].rayDataImage, VK_IMAGE_LAYOUT_GENERAL);
@@ -35,6 +43,9 @@ void owDDGI::createRaytraceDescriptors() {
 		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].computeBuildDescriptorSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_probeVolumes[i].rayDataImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].computeBuildDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[i].irradianceImage, VK_IMAGE_LAYOUT_GENERAL);
 		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].computeBuildDescriptorSet, 2, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[i].visibilityImage, VK_IMAGE_LAYOUT_GENERAL);
+
+		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].irradianceVisSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_probeVolumes[i].irradianceImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].irradianceVisSet, 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_probeVolumes[i].visibilityImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
 
 	VkDeviceSize probeVolumeSize = sizeof(VolumeData) * m_probeVolumes.size();
@@ -178,16 +189,17 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	volume.data.pos = glm::vec4(pos, 1.f);
 
 	numProbes = densityWidth * densityDepth;
-	m_probeVis.probeCount = numProbes * densityHeight;
+	volume.totalNumProbes = numProbes * densityHeight;
 
 	// test volume for sponza
 	volume.transform.position = pos;
+	volume.transform.rotation = glm::quat(glm::vec3(0.f));
 	volume.transform.scale = scale;
 
 	// evenly disperse probes TODO: figure out why volume isn't matching up with blender
-	float xSpace = volume.transform.scale.x / (densityWidth );
-	float ySpace = volume.transform.scale.y / (densityHeight );
-	float zSpace = volume.transform.scale.z / (densityDepth );
+	float xSpace = volume.transform.scale.x / (densityWidth);
+	float ySpace = volume.transform.scale.y / (densityHeight);
+	float zSpace = volume.transform.scale.z / (densityDepth);
 
 	glm::vec3 probeSpacing = glm::vec3(xSpace, ySpace, zSpace);
 	volume.data.spacing = glm::vec4(probeSpacing, 1.f);
@@ -266,13 +278,18 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 
 	glm::vec3 posA = glm::vec3(-16.044f, -1.4202f, -9.08f);
 	glm::vec3 scaleA = glm::vec3(31.855, 13.78, 18.87);
-
 	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT);
+
+	glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
+	glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
+	addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT);
 
 	std::vector<glm::mat4> volumeTransforms;
 	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4); // TODO: make this with more volumes
 	for (int i = 0; i < m_probeVolumes.size(); i++) {
-		volumeTransforms.push_back(m_probeVolumes[i].transform.getMatrix());
+		Transform t = m_probeVolumes[i].transform;
+		t.scale -= m_probeVolumes[i].data.spacing;
+		volumeTransforms.push_back(t.getMatrix());
 	}
 	m_volumeVis.volumeTransformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -343,8 +360,8 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 	uint32_t i = 0;
 	for (auto& volume : m_probeVolumes) {
-		VkClearValue clearValues[1]{};
-		clearValues[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+		VkClearValue clearValue{};
+		clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 
 		VkImageSubresourceRange subResourceRange = {};
 		subResourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -355,7 +372,7 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 
 		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
 			vkimageutils::transitionImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-			vkCmdClearColorImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+			vkCmdClearColorImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue.color, 1, &subResourceRange);
 			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.pipeline);
 
 			std::array<VkDescriptorSet, 1> sets = { volume.rayDataDescriptorSet };
@@ -372,10 +389,10 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 			vkCmdPushConstants(cmd, m_rtPipeline.layout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);
 
 			vkimageutils::transitionImage(cmd, volume.irradianceImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-			vkCmdClearColorImage(cmd, volume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+			vkCmdClearColorImage(cmd, volume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue.color, 1, &subResourceRange);
 
 			vkimageutils::transitionImage(cmd, volume.visibilityImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-			vkCmdClearColorImage(cmd, volume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValues[0].color, 1, &subResourceRange);
+			vkCmdClearColorImage(cmd, volume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue.color, 1, &subResourceRange);
 
 			// x should be num rays, y should be num probes per layer, z should be num probes vertically
 			rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, RAYS_PER_PROBE, volume.data.densityWidth * volume.data.densityDepth, volume.data.densityHeight);
@@ -450,6 +467,7 @@ void owDDGI::shutdown() {
 	m_descriptorAllocator.destroyPool();
 	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_descriptorLayout, nullptr);
 	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_computeDescriptorLayout, nullptr);
+	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_irradianceVisSetLayout, nullptr);
 
 	m_probeVis.destroy();
 	m_volumeVis.destroy();

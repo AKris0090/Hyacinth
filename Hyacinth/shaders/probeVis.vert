@@ -26,6 +26,7 @@ layout(buffer_reference, std430) readonly buffer ProbePositionBuffer{
 layout( push_constant ) uniform constants
 {
 	ProbePositionBuffer probePosBuffer;
+	ivec2 volumeDims;
 } PushConstants;
 
 void main() 

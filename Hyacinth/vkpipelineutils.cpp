@@ -187,6 +187,10 @@ void VulkanPipelineBuilder::setDepthAttachmentFormat(VkFormat format) {
     m_renderInfo.depthAttachmentFormat = format;
 }
 
+void VulkanPipelineBuilder::setStencilAttachmentFormat(VkFormat format) {
+    m_renderInfo.stencilAttachmentFormat = format;
+}
+
 void VulkanPipelineBuilder::enableDepthTest(bool depthWrite, VkCompareOp op) {
     m_depthStencil.depthTestEnable = VK_TRUE;
     m_depthStencil.depthWriteEnable = depthWrite;
