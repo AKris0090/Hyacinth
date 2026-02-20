@@ -1,6 +1,6 @@
 #include "probevis.h"
 
-void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VulkanImage& irradianceImage, VulkanImage& visibilityImage, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples) {
+void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkDescriptorSetLayout& irradianceVisSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples) {
 	auto spherePath = vkdebugutils::getExeDir() / "objects" / "sphere.glb";
 	sphereObject = gltfutils::loadFromFile(spherePath.string(), false);
 	gltfNode* node = sphereObject.nodes[0].get();
@@ -41,24 +41,6 @@ void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& 
 
 	vkdeviceutils::destroyBuffer(staging);
 
-
-	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
-	{
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2.f }
-	};
-	{
-		DescriptorLayoutBuilder layoutBuilder;
-		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
-		visSetLayout = layoutBuilder.buildLayout(nullptr, 0);
-	}
-	visDescriptorAllocator.initPool(1, sizes);
-	visSet = visDescriptorAllocator.allocate(visSetLayout);
-
-	vkdescriptorutils::queueWriteImage(visSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, irradianceImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	vkdescriptorutils::queueWriteImage(visSet, 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, visibilityImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	vkdescriptorutils::flushDescriptorWrites();
-
 	// create probe vis pipeline
 	pipelineUtil.addShader("shaders/probeVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	pipelineUtil.addShader("shaders/probeFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -71,7 +53,7 @@ void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& 
 	pipelineUtil.setMultisampling(msaaSamples);
 	pipelineUtil.disableBlending();
 
-	pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
+	pipelineUtil.enableDepthTest(false, VK_COMPARE_OP_ALWAYS);
 	pipelineUtil.setDepthAttachmentFormat(depthFormat);
 
 	VkViewport viewport{};
@@ -99,9 +81,9 @@ void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& 
 	VkPushConstantRange bufferRange{};
 	bufferRange.offset = 0;
 	bufferRange.size = sizeof(probeVisObjects::probeVisPushContant);
-	bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	std::array<VkDescriptorSetLayout, 2> setLayouts = { descSetLayout, visSetLayout };
+	std::array<VkDescriptorSetLayout, 2> setLayouts = { descSetLayout, irradianceVisSetLayout };
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	pipelineLayoutCInfo.pushConstantRangeCount = 1;
@@ -114,28 +96,28 @@ void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& 
 	pipelineUtil.buildPipeline();
 }
 
-void probeVisObjects::drawProbes(VkCommandBuffer& cmd, VkDeviceAddress& probePositionAddress, VkDescriptorSet& descSet) {
+void probeVisObjects::drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& irradianceVisSet, VkDeviceAddress& probePositionAddress, VkDescriptorSet& descSet, int currentVolumeProbeCount, int width, int depth) {
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer.buffer, offsets);
 	vkCmdBindIndexBuffer(cmd, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.pipeline);
 
-	std::array<VkDescriptorSet, 2> sets = { descSet, visSet };
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.layout, 0, 2, sets.data(), 0, nullptr);
+	std::array<VkDescriptorSet, 2> sets = { descSet, irradianceVisSet };
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.layout, 0, sets.size(), sets.data(), 0, nullptr);
 
 	probeVisObjects::probeVisPushContant pc{};
 	pc.probePositionAddress = probePositionAddress;
+	pc.volumeWidth = width;
+	pc.volumeDepth = depth;  
 
 	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(probeVisObjects::probeVisPushContant), &pc);
 
-	vkCmdDrawIndexed(cmd, indexCount, probeCount, 0, 0, 0);
+	vkCmdDrawIndexed(cmd, indexCount, currentVolumeProbeCount, 0, 0, 0);
 }
 
 void probeVisObjects::destroy() {
 	vkdeviceutils::destroyBuffer(vertexBuffer);
 	vkdeviceutils::destroyBuffer(indexBuffer);
 	pipelineUtil.destroyPipeline();
-	visDescriptorAllocator.destroyPool();
-	vkDestroyDescriptorSetLayout(vkdeviceutils::device, visSetLayout, nullptr);
 }

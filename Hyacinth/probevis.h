@@ -13,19 +13,16 @@ class probeVisObjects {
 	VulkanBuffer indexBuffer;
 	gltfObject sphereObject;
 
-	DescriptorLayoutBuilder			visLayoutBuilder{};
-	DescriptorAllocator				visDescriptorAllocator{};
-
 	struct probeVisPushContant {
 		VkDeviceAddress probePositionAddress;
+		uint32_t volumeWidth;
+		uint32_t volumeDepth;
 	};
 
 public:
 	uint32_t probeCount;
-	VkDescriptorSetLayout visSetLayout;
-	VkDescriptorSet visSet;
 
-	void createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VulkanImage& irradianceImage, VulkanImage& visibilityImage, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
-	void drawProbes(VkCommandBuffer& cmd, VkDeviceAddress& probePositionAddress, VkDescriptorSet& descSet);
+	void createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkDescriptorSetLayout& irradianceVisSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
+	void drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& irradianceVisSet, VkDeviceAddress& probePositionAddress, VkDescriptorSet& descSet, int currentVolumeProbeCount, int width, int depth);
 	void destroy();
 };

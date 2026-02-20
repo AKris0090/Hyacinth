@@ -333,8 +333,33 @@ void SceneGraph::buildNodeBuffers(gltfNode* node) {
     vkdeviceutils::destroyBuffer(staging);
 }
 
+void addUnitCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
+    auto cubePath = vkdebugutils::getExeDir() / "objects" / "cube.glb";
+    gltfObject boxObject = gltfutils::loadFromFile(cubePath.string(), false);
+    gltfNode* node = boxObject.nodes[0].get();
+    for (const auto& p : node->primitives) {
+        for (const auto& v : p.get()->vertices) {
+            node->vertices.push_back(v);
+        }
+        for (const auto& index : p.get()->indices) {
+            node->indices.push_back(index);
+        }
+    }
+
+    for (int i = 0; i < node->vertices.size(); i++) {
+        Vertex vert{};
+        vert.pos = glm::vec4(glm::vec3(node->vertices[i].pos), 0.f);
+        vertices.push_back(vert);
+        std::cout << glm::to_string(vert.pos) << std::endl;
+    }
+    for (auto& i : node->indices) {
+        indices.push_back(i);
+    }
+}
+
 void SceneGraph::buildSceneGraph() {
     FullscreenQuad::addFullscreenQuad(vertices, indices);
+    addUnitCube(vertices, indices);
 
     for (const auto& obj : objects) {
         uint32_t currentNumMatrices = static_cast<uint32_t>(transformMatrices.size());

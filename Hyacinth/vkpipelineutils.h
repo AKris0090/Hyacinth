@@ -47,6 +47,7 @@ public:
     void enableBlending();
 	void setColorAttachmentFormat(VkFormat format, int numAttachments);
 	void setDepthAttachmentFormat(VkFormat format);
+    void setStencilAttachmentFormat(VkFormat format);
 	void enableDepthTest(bool depthWrite, VkCompareOp op);
     void setDefaultAttributes();
     void setPositionAttribute();

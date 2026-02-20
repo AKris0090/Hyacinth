@@ -128,7 +128,12 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
 }
 
 void main() {
-	vec3 fragPos = worldPosFromDepth(texture(depthMap, inUV).r);
+    float depth = texture(depthMap, inUV).r;
+    if(depth == 1.0) {
+        outColor = vec4(0.0);
+        return;
+    }
+	vec3 fragPos = worldPosFromDepth(depth);
 	vec4 Nshadow = texture(normalMap, inUV);
     vec3 N = Nshadow.xyz * 2.0 - 1.0;
 	vec3 irrad = DDGIGetIrradiance(fragPos, N, ubo.viewPos.xyz);

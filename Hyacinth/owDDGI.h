@@ -9,9 +9,13 @@
 #include "glm/gtx/string_cast.hpp"
 #include <array>
 
-constexpr int PROBE_A_DENSITY_WIDTH		= 30;  // x
-constexpr int PROBE_A_DENSITY_HEIGHT	= 14;  // y
-constexpr int PROBE_A_DENSITY_DEPTH		= 20;  // z
+constexpr int PROBE_A_DENSITY_WIDTH		= 20;  // x 30
+constexpr int PROBE_A_DENSITY_HEIGHT	= 10;  // y 14
+constexpr int PROBE_A_DENSITY_DEPTH		= 20;  // z 20
+
+constexpr int PROBE_B_DENSITY_WIDTH = 15;  // x 30
+constexpr int PROBE_B_DENSITY_HEIGHT = 7;  // y 14
+constexpr int PROBE_B_DENSITY_DEPTH = 7;  // z 20
 
 constexpr int RAYS_PER_PROBE = 20000;
 
@@ -31,6 +35,7 @@ struct VolumeData {
 struct DDGIVolume {
 	Transform transform;
 	std::vector<std::vector<std::vector<glm::vec3>>> probes;
+	uint32_t totalNumProbes;
 	VulkanBuffer probePositionBuffer;
 	VolumeData data;
 
@@ -40,6 +45,7 @@ struct DDGIVolume {
 
 	VkDescriptorSet rayDataDescriptorSet;
 	VkDescriptorSet computeBuildDescriptorSet;
+	VkDescriptorSet irradianceVisSet;
 };
 
 struct ComputePushConstant {
@@ -99,7 +105,14 @@ public:
 	probeVisObjects	m_probeVis{};
 	volumeVisHelper m_volumeVis;
 	VulkanBuffer volumeDataBuffer;
+
+	VkDescriptorSetLayout m_irradianceVisSetLayout;
+
 	bool showProbes = false;
+
+	bool showProbesA = false;
+	bool showProbesB = false;
+
 	bool showVolumes = false;
 
 	void setup(rtHelper* rtHelper, SceneGraph& m_scene);
