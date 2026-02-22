@@ -2,7 +2,10 @@
 
 #include "vkmeshutils.h"
 
-const std::array<glm::vec3, 4> fullscreenQuadPositions = {
+constexpr int QUAD_INDEX_COUNT = 6;
+constexpr int QUAD_VERTEX_COUNT = 4;
+
+const std::array<glm::vec3, QUAD_VERTEX_COUNT> fullscreenQuadPositions = {
 	glm::vec3(-1.0f, -1.0f, 0.0f),		// 0: bottom-left
 	glm::vec3(1.0f, -1.0f, 0.0f),		// 1: bottom-right
 	glm::vec3(1.0f,  1.0f, 0.0f),		// 2: top-right

@@ -42,9 +42,9 @@ struct VolumeData {
 	int height;
 	int depth;
 	vec3 pos;
-	float pad;
+	float probeNormalBias;
 	vec3 spacing;
-	float pad2;
+	float probeViewBias;
 	vec3 inverseSpacing;
 	float pad3;
 };

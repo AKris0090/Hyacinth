@@ -36,7 +36,15 @@ const bool enableValLayers = false;
 const bool enableValLayers = true;
 #endif
 
+constexpr uint8_t CURRENT_BIT = 0x01;
+constexpr uint8_t ANY_BIT = 0x02;
+
 const VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+
+struct volumeStencilPushConstant {
+	VkDeviceAddress volumeTransformAddress;
+	uint32_t volumeIndex;
+};
 
 struct UBO {
 	glm::mat4 view;
@@ -51,6 +59,7 @@ struct GBuffer {
 	VulkanImage albedo;
 	VulkanImage normal;
 
+	VulkanImage stencilDepth;
 	VulkanImage ddgiImage;
 	VulkanImage depth;
 
@@ -80,9 +89,14 @@ private:
 		VkDescriptorSet shadowDescriptorSet;
 	};
 
+	float volANormalBias;
+	float volBNormalBias;
+	float volAViewBias;
+	float volBViewBias;
+
 	bool m_initialized = false;
 	bool m_showImGui = true;
-	bool ambientToggle = false;
+	bool ambientToggle = true;
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -108,6 +122,7 @@ private:
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
+	VulkanPipelineBuilder			m_volumeStencilPipeline	{};
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_indirectDrawBuffer	{};
 	VulkanBuffer 					m_worldMatrixBuffer		{};
@@ -136,6 +151,7 @@ private:
 	void createGraphicsPipeline();
 	void createCompositePipeline();
 	void createDDGIPipeline();
+	void createDDGIVolumePipeline();
 	void createBuffers();
 	void createDescriptorSets();
 	void setupImGUI();

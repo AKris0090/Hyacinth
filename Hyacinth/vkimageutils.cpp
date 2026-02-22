@@ -97,6 +97,9 @@ namespace vkimageutils {
 		if (format == VK_FORMAT_D32_SFLOAT) {
 			aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
 		}
+		if (format == VK_FORMAT_S8_UINT) {
+			aspectFlag = VK_IMAGE_ASPECT_STENCIL_BIT;
+		}
 
 		newImage.imageView = vkimageutils::createImageView(newImage, 0, arrayLayers, aspectFlag);
 
@@ -164,23 +167,43 @@ namespace vkimageutils {
 		return newImage;
 	}
 
-	VkRenderingAttachmentInfo createColorAttachmentInfo(VkImageView& msaaColorView, const VkClearValue& clearColor, VkImageLayout imageLayout) {
+	VkRenderingAttachmentInfo createColorAttachmentInfo(VkImageView& msaaColorView, const VkClearValue& clearColor, VkImageLayout imageLayout, bool clear) {
 		VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		attachmentInfo.imageView = msaaColorView;
 		attachmentInfo.imageLayout = imageLayout;
 		attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		if (!clear) {
+			attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		}
 		attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachmentInfo.clearValue = clearColor;
 		return attachmentInfo;
 	}
 
-	VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView& msaaDepthView) {
+	VkRenderingAttachmentInfo createDepthAttachmentInfo(VkImageView& msaaDepthView, bool clear) {
 		VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		attachmentInfo.imageView = msaaDepthView;
 		attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
 		attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		if (!clear) {
+			attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		}
 		attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachmentInfo.clearValue.depthStencil.depth = 1.f;
+		return attachmentInfo;
+	}
+
+	VkRenderingAttachmentInfo createStencilAttachmentInfo(VkImageView& stencilImageView, bool clear) {
+		VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+		attachmentInfo.imageView = stencilImageView;
+		attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+		attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		if (!clear) {
+			attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		}
+		attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachmentInfo.clearValue.depthStencil.stencil = 0;
+
 		return attachmentInfo;
 	}
 
