@@ -49,7 +49,7 @@ void owDDGI::createRaytraceDescriptors() {
 	}
 
 	VkDeviceSize probeVolumeSize = sizeof(VolumeData) * m_probeVolumes.size();
-	volumeDataBuffer = vkdeviceutils::createBuffer(probeVolumeSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "volume_data_ssbo");
+	volumeDataBuffer = vkdeviceutils::createBuffer(probeVolumeSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "volume_data_ssbo");
 	std::vector<VolumeData> volumeData;
 	for (auto& vol : m_probeVolumes) {
 		volumeData.push_back(vol.data);
@@ -186,23 +186,23 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	volume.data.densityWidth = densityWidth;
 	volume.data.densityHeight = densityHeight;
 	volume.data.densityDepth = densityDepth;
-	volume.data.pos = glm::vec4(pos, 1.f);
+	volume.data.pos = glm::vec4(pos, 0.1f);
 
 	numProbes = densityWidth * densityDepth;
 	volume.totalNumProbes = numProbes * densityHeight;
 
 	// test volume for sponza
 	volume.transform.position = pos;
-	volume.transform.rotation = glm::quat(glm::vec3(0.f));
+	volume.transform.rotation = glm::quat(glm::vec3(0.f)); 
 	volume.transform.scale = scale;
 
-	// evenly disperse probes TODO: figure out why volume isn't matching up with blender
+	// evenly disperse probes
 	float xSpace = volume.transform.scale.x / (densityWidth);
 	float ySpace = volume.transform.scale.y / (densityHeight);
 	float zSpace = volume.transform.scale.z / (densityDepth);
 
 	glm::vec3 probeSpacing = glm::vec3(xSpace, ySpace, zSpace);
-	volume.data.spacing = glm::vec4(probeSpacing, 1.f);
+	volume.data.spacing = glm::vec4(probeSpacing, 0.8f);
 	volume.data.inverseSpacing = glm::vec4((1.0f / probeSpacing), 1.f);
 
 	for (int i = 0; i < densityHeight; i++) {
@@ -280,8 +280,8 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 	glm::vec3 scaleA = glm::vec3(31.855, 13.78, 18.87);
 	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT);
 
-	glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
-	glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
+	glm::vec3 posB = glm::vec3(-11.744f, 3.280f, 1.650f);
+	glm::vec3 scaleB = glm::vec3(24.f, 4.5f, 4.1f);
 	addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT);
 
 	std::vector<glm::mat4> volumeTransforms;

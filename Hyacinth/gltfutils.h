@@ -6,8 +6,6 @@
 #include "vkdescriptorutils.h"
 #include "fullscreen_quad.h"
 #include <unordered_set>
-#include <iostream>
-#include "glm/gtx/string_cast.hpp"
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
 constexpr int DUMMY_METALROUGH_TEX_INDEX = 1;

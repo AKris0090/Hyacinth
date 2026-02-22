@@ -60,5 +60,9 @@ void main() {
 
 	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
 
-	outColor = vec4(color, 1.0);
+    outColor = vec4(color, 1.0);
+
+    if (ubo.viewPos.w == 1.0) {
+        outColor = vec4(irrad, 1.0);
+    }
 }  

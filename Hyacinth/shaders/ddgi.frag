@@ -45,9 +45,12 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
     VolumeData volume = pc.volumeDataBuffer.data[pc.volumeIndex];
 
     ivec3 probeCounts = ivec3(volume.width, volume.height, volume.depth);
-    const vec3 Wo = normalize(cameraPos.xyz - worldPosition);
-    const float minimum_distance_between_probes = 1.0;
-    vec3 surfaceBias = (normal * 0.2f + Wo * 0.8f) * (0.75f * minimum_distance_between_probes) * 0.3; // last is self-shadow bias
+    // const vec3 Wo = normalize(cameraPos.xyz - worldPosition);
+    // const float minimum_distance_between_probes = 1.0;
+    // vec3 surfaceBias = (normal * 0.2f + Wo * 0.8f) * (0.75f * minimum_distance_between_probes) * 0.3; // last is self-shadow bias, 
+
+    vec3 cameraDirection = normalize(cameraPos - worldPosition);
+    vec3 surfaceBias = (normal * volume.probeNormalBias) + (cameraDirection * volume.probeViewBias);
 
     ivec3 irradianceTextureSize = textureSize(irradianceTex, 0);
     ivec3 visibilityTextureSize = textureSize(visibilityTex, 0);

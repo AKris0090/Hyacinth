@@ -354,8 +354,10 @@
     <None Include="shaders\fsQuad.vert">
       <Filter>Source Files\shaders</Filter>
     </None>
-    <None Include="shaders\ddgi.frag" />
     <None Include="shaders\ddgiStencil.frag">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\ddgi.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>

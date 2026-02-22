@@ -89,6 +89,11 @@ private:
 		VkDescriptorSet shadowDescriptorSet;
 	};
 
+	float volANormalBias;
+	float volBNormalBias;
+	float volAViewBias;
+	float volBViewBias;
+
 	bool m_initialized = false;
 	bool m_showImGui = true;
 	bool ambientToggle = false;
