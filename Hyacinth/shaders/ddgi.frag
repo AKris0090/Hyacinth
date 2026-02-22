@@ -47,7 +47,10 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
     ivec3 probeCounts = ivec3(volume.width, volume.height, volume.depth);
     const vec3 Wo = normalize(cameraPos.xyz - worldPosition);
     const float minimum_distance_between_probes = 1.0;
-    vec3 surfaceBias = (normal * 0.2f + Wo * 0.8f) * (0.75f * minimum_distance_between_probes) * 0.3; // last is self-shadow bias
+    vec3 surfaceBias = (normal * 0.2f + Wo * 0.8f) * (0.75f * minimum_distance_between_probes) * 0.3; // last is self-shadow bias, 
+
+    // vec3 cameraDirection = normalize(cameraPos - worldPosition);
+    // vec3 surfaceBias = (normal * volume.probeNormalBias) + (cameraDirection * volume.probeViewBias);
 
     ivec3 irradianceTextureSize = textureSize(irradianceTex, 0);
     ivec3 visibilityTextureSize = textureSize(visibilityTex, 0);
@@ -128,7 +131,12 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
 }
 
 void main() {
-	vec3 fragPos = worldPosFromDepth(texture(depthMap, inUV).r);
+    float depth = texture(depthMap, inUV).r;
+    if(depth == 1.0) {
+        outColor = vec4(0.0);
+        return;
+    }
+	vec3 fragPos = worldPosFromDepth(depth);
 	vec4 Nshadow = texture(normalMap, inUV);
     vec3 N = Nshadow.xyz * 2.0 - 1.0;
 	vec3 irrad = DDGIGetIrradiance(fragPos, N, ubo.viewPos.xyz);

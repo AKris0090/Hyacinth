@@ -17,6 +17,6 @@ struct Transform {
 		return ret;
 	}
 
-	Transform() : position(glm::vec3(0.f)), rotation(glm::quat(0.f, 0.f, 0.f, 1.f)), scale(glm::vec3(1.f)) {};
+	Transform() {};
 	Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale) : position(position), rotation(rotation), scale(scale) {}
 };

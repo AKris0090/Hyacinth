@@ -7,8 +7,6 @@ layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
 
-layout (location = 0) out vec4 probeDir;
-
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
@@ -25,10 +23,11 @@ layout(buffer_reference, std430) readonly buffer VolumeTransformBuffer {
 layout( push_constant ) uniform constants
 {
 	VolumeTransformBuffer volumeTransforms;
+    int volumeIndex;
 } pc;
 
 void main() 
 {
-	mat4 volumeT = pc.volumeTransforms.transforms[gl_InstanceIndex];
+	mat4 volumeT = pc.volumeTransforms.transforms[pc.volumeIndex];
 	gl_Position = ubo.proj * ubo.view * volumeT * vec4(inPosition.xyz, 1.0f);
 }

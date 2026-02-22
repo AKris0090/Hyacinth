@@ -68,6 +68,7 @@ namespace vkdeviceutils {
     VkSampleCountFlagBits getMaxUsableSampleCount(VkPhysicalDevice& physicalDevice);
     VkRenderingInfo createDepthRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* depthAttachment);
     VkRenderingInfo createRenderingInfo(VkExtent2D renderArea, uint32_t numColorAttachments, VkRenderingAttachmentInfo* colorAttachments, VkRenderingAttachmentInfo* depthAttachment);
+    VkRenderingInfo createStencilRenderingInfo(VkExtent2D renderArea, VkRenderingAttachmentInfo* pStencilAttachment);
     VulkanBuffer createBuffer(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, std::string qual = "", VkDeviceSize alignment = 0);
     VulkanBuffer createBufferWithAlignment(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, VkDeviceSize alignment = 0, std::string qual = "");
     void destroyBuffer(VulkanBuffer& buffer);

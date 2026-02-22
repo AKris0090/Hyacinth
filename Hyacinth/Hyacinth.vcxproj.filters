@@ -94,6 +94,9 @@
     <Filter Include="Source Files\renderer\utils\fullscreen_quad">
       <UniqueIdentifier>{edea1441-0d30-4f42-9484-be16bfe1a40b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\utils\unit_cube">
+      <UniqueIdentifier>{94830179-1217-4f4c-8484-a4d21b906f2d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -188,9 +191,6 @@
     </ClCompile>
     <ClCompile Include="volumevis.cpp">
       <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
-    </ClCompile>
-    <ClCompile Include="fullscreen_quad.cpp">
-      <Filter>Source Files\renderer\utils\fullscreen_quad</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -287,6 +287,9 @@
     <ClInclude Include="fullscreen_quad.h">
       <Filter>Source Files\renderer\utils\fullscreen_quad</Filter>
     </ClInclude>
+    <ClInclude Include="unit_cube.h">
+      <Filter>Source Files\renderer\utils\unit_cube</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\gbuffer.vert">
@@ -349,6 +352,12 @@
       <Filter>Source Files\shaders</Filter>
     </None>
     <None Include="shaders\fsQuad.vert">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\ddgiStencil.frag">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\ddgi.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>
