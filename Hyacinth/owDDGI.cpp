@@ -280,8 +280,10 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 	glm::vec3 scaleA = glm::vec3(31.855, 13.78, 18.87);
 	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT);
 
-	glm::vec3 posB = glm::vec3(-11.744f, 3.280f, 1.650f);
-	glm::vec3 scaleB = glm::vec3(24.f, 4.5f, 4.1f);
+	// glm::vec3 posB = glm::vec3(-11.744f, 3.280f, 1.650f);
+	// glm::vec3 scaleB = glm::vec3(24.f, 4.5f, 4.1f);
+	glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
+	glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
 	addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT);
 
 	std::vector<glm::mat4> volumeTransforms;

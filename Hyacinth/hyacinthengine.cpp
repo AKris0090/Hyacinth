@@ -857,9 +857,9 @@ void HyacinthEngine::drawImGui() {
     ImGui::Text("Volumes");
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
         ImGui::PushID(i);
-        ImGui::DragFloat3("position", &m_owDDGIHelper.m_probeVolumes[i].transform.position.x, 0.1f);
-        ImGui::DragFloat3("rotation", &m_owDDGIHelper.m_probeVolumes[i].transform.rotation.x, 0.1f);
-        ImGui::DragFloat3("scale", &m_owDDGIHelper.m_probeVolumes[i].transform.scale.x, 0.1f);
+        ImGui::DragFloat3("position", &m_owDDGIHelper.m_probeVolumes[i].transform.position.x, 0.01f);
+        ImGui::DragFloat3("rotation", &m_owDDGIHelper.m_probeVolumes[i].transform.rotation.x, 0.01f);
+        ImGui::DragFloat3("scale", &m_owDDGIHelper.m_probeVolumes[i].transform.scale.x, 0.01f);
         ImGui::PopID();
 	}
     ImGui::DragFloat("vol a normal bias", &volANormalBias, 0.01f);

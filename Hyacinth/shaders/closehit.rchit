@@ -60,7 +60,7 @@ void main()
 		vec3 directDiffuse = halfLambert * lightColor * 1.25;
 
         if(shadowed) {
-		    directDiffuse *= vec3(0.0);
+		    directDiffuse *= vec3(0.02);
 		}
 
 		payload.radiance = payload.radiance + directDiffuse;
