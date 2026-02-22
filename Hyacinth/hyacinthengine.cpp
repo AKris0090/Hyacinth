@@ -245,7 +245,7 @@ void HyacinthEngine::createColorImages() {
         gb.albedo = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "albedo_image");
 		gb.normal = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "normal_image");
         gb.ddgiImage = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "ddgi_image");
-        gb.stencilDepth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "stencil_depth_image");
+        gb.stencilDepth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "stencil_depth_image");
 	    vkimageutils::createImageSampler(gb.albedo);
 	    vkimageutils::createImageSampler(gb.normal);
         vkimageutils::createImageSampler(gb.depth);
@@ -425,7 +425,7 @@ void HyacinthEngine::createDDGIVolumePipeline()
     m_volumeStencilPipeline.setDefaultAttributes();
     m_volumeStencilPipeline.setPolygonMode(VK_POLYGON_MODE_FILL);
     m_volumeStencilPipeline.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    m_volumeStencilPipeline.setStencilAttachmentFormat(VK_FORMAT_D32_SFLOAT_S8_UINT);
+    m_volumeStencilPipeline.setStencilAttachmentFormat(VK_FORMAT_S8_UINT);
     m_volumeStencilPipeline.setMultisampling(m_msaaSamples);
     m_volumeStencilPipeline.disableBlending();
 
@@ -490,7 +490,7 @@ void HyacinthEngine::createDDGIPipeline()
     m_ddgiPipelineUtil.setColorAttachmentFormat(m_swImageFormat.format, 1);
     m_ddgiPipelineUtil.setMultisampling(m_msaaSamples);
     m_ddgiPipelineUtil.disableBlending();
-    m_ddgiPipelineUtil.setStencilAttachmentFormat(VK_FORMAT_D32_SFLOAT_S8_UINT);
+    m_ddgiPipelineUtil.setStencilAttachmentFormat(VK_FORMAT_S8_UINT);
 
     m_ddgiPipelineUtil.m_depthStencil.stencilTestEnable = true;
     m_ddgiPipelineUtil.m_depthStencil.front.compareMask = CURRENT_BIT;
@@ -728,6 +728,11 @@ void HyacinthEngine::init()
     m_owDDGIHelper.bakeDDGI(m_textureSet);
 
     m_initialized = true;
+
+    volANormalBias = m_owDDGIHelper.m_probeVolumes[0].data.pos.w;
+    volBNormalBias = m_owDDGIHelper.m_probeVolumes[1].data.pos.w;
+    volAViewBias = m_owDDGIHelper.m_probeVolumes[0].data.spacing.w;
+    volBViewBias = m_owDDGIHelper.m_probeVolumes[1].data.spacing.w;
 }
 
 void HyacinthEngine::update() {
@@ -738,6 +743,16 @@ void HyacinthEngine::update() {
     m_camera.update(Time::getDeltaTime(), mouseLocked, m_frameIndex);
     m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
+
+    std::vector<VolumeData> volumeData;
+    for (auto& vol : m_owDDGIHelper.m_probeVolumes) {
+        volumeData.push_back(vol.data);
+    }
+    volumeData[0].pos.w = volANormalBias;
+    volumeData[1].pos.w = volBNormalBias;
+    volumeData[0].spacing.w = volAViewBias;
+    volumeData[1].spacing.w = volBViewBias;
+    memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
@@ -847,6 +862,10 @@ void HyacinthEngine::drawImGui() {
         ImGui::DragFloat3("scale", &m_owDDGIHelper.m_probeVolumes[i].transform.scale.x, 0.1f);
         ImGui::PopID();
 	}
+    ImGui::DragFloat("vol a normal bias", &volANormalBias, 0.01f);
+    ImGui::DragFloat("vol b normal bias", &volBNormalBias, 0.01f);
+    ImGui::DragFloat("vol a view bias", &volAViewBias, 0.01f);
+    ImGui::DragFloat("vol b view bias", &volBViewBias, 0.01f);
     ImGui::End();
 
     ImGui::Begin("Shadow Maps");
@@ -943,7 +962,7 @@ void HyacinthEngine::draw()
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].normal.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     VK_LABEL(cmd, "DDGI Pass");
-    bool notFirst = true;
+    bool shouldClear = true;
     for (int i = m_owDDGIHelper.m_probeVolumes.size() - 1; i >= 0; i--) {
         ddgiPushConstant.volumeIndex = i;
         vsPushConstant.volumeIndex = i;
@@ -951,7 +970,7 @@ void HyacinthEngine::draw()
         VK_LABEL(cmd, "Stencil Volume");
         // bind stencil pipeline
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.pipeline);
-        VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_frameIndex].stencilDepth.imageView, notFirst);
+        VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_frameIndex].stencilDepth.imageView, shouldClear);
         VkRenderingInfo volumeStencilRenderingInfo = vkdeviceutils::createStencilRenderingInfo(m_swImageFormat.extent, &stencilAttachmentInfo);
         vkCmdBeginRendering(cmd, &volumeStencilRenderingInfo);
         vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -965,7 +984,7 @@ void HyacinthEngine::draw()
         VK_LABEL_END(cmd);
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.pipeline);
-        VkRenderingAttachmentInfo ddgiAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].ddgiImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, notFirst);
+        VkRenderingAttachmentInfo ddgiAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].ddgiImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, shouldClear);
         VkRenderingAttachmentInfo stencilAttachment = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_frameIndex].stencilDepth.imageView, false);
         VkRenderingInfo ddgiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &ddgiAttachment, nullptr);
         ddgiRenderingInfo.pStencilAttachment = &stencilAttachment;
@@ -979,7 +998,7 @@ void HyacinthEngine::draw()
         vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
         vkCmdEndRendering(cmd);
 
-        notFirst = false;
+        shouldClear = false;
     }
     VK_LABEL_END(cmd);
 

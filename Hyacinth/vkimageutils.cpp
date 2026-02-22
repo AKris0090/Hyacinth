@@ -97,7 +97,7 @@ namespace vkimageutils {
 		if (format == VK_FORMAT_D32_SFLOAT) {
 			aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
 		}
-		if (format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
+		if (format == VK_FORMAT_S8_UINT) {
 			aspectFlag = VK_IMAGE_ASPECT_STENCIL_BIT;
 		}
 

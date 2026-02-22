@@ -63,7 +63,7 @@ void main()
 		    directDiffuse *= vec3(0.0);
 		}
 
-		payload.radiance = (payload.radiance * 0.9) + directDiffuse;
+		payload.radiance = payload.radiance + directDiffuse;
 
 		if (payload.depth < MAX_DEPTH) {
 			rayFlags = gl_RayFlagsOpaqueEXT;

@@ -350,7 +350,6 @@ void addUnitCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) 
         Vertex vert{};
         vert.pos = glm::vec4(glm::vec3(node->vertices[i].pos), 0.f);
         vertices.push_back(vert);
-        std::cout << glm::to_string(vert.pos) << std::endl;
     }
     for (auto& i : node->indices) {
         indices.push_back(i);

@@ -27,8 +27,8 @@ struct VolumeData {
 	int densityHeight;
 	int densityDepth;
 	int padding;
-	glm::vec4 pos;
-	glm::vec4 spacing;
+	glm::vec4 pos;		// pos.w is normalBias
+	glm::vec4 spacing;	// spacing.w is viewBias
 	glm::vec4 inverseSpacing;
 };
 
