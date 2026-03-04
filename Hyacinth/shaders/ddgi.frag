@@ -46,11 +46,8 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
 
     ivec3 probeCounts = ivec3(volume.width, volume.height, volume.depth);
     const vec3 Wo = normalize(cameraPos.xyz - worldPosition);
-    const float minimum_distance_between_probes = 1.0;
+    const float minimum_distance_between_probes = min(min(volume.spacing.x, volume.spacing.y), volume.spacing.z);
     vec3 surfaceBias = (normal * 0.2f + Wo * 0.8f) * (0.75f * minimum_distance_between_probes) * 0.3; // last is self-shadow bias, 
-
-    // vec3 cameraDirection = normalize(cameraPos - worldPosition);
-    // vec3 surfaceBias = (normal * volume.probeNormalBias) + (cameraDirection * volume.probeViewBias);
 
     ivec3 irradianceTextureSize = textureSize(irradianceTex, 0);
     ivec3 visibilityTextureSize = textureSize(visibilityTex, 0);
@@ -117,9 +114,13 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         vec2 atlasUV;
         atlasUV.x = (float(base.x) + probeUV.x * float(IRRADIANCE_INNER)) / float(irradianceTextureSize.x);
         atlasUV.y = (float(base.y) + probeUV.y * float(IRRADIANCE_INNER)) / float(irradianceTextureSize.y);
-        vec3 probeIrradiance = texture(irradianceTex, vec3(atlasUV, base.z)).rgb;
+        vec4 probeIrradiance = texture(irradianceTex, vec3(atlasUV, base.z));
 
-        sumIrradiance += (weight * probeIrradiance);
+        if (probeIrradiance.w == 0.0) { // invalid
+            continue;
+        }
+
+        sumIrradiance += (weight * probeIrradiance.xyz);
         accumulatedWeights += weight;
     }
 

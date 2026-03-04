@@ -72,6 +72,7 @@ void main() {
             result.w = 1.0f;
         }
 
+		result.w = 1.0f; // valid probe, passes backface check
 		imageStore(irradianceMap, coords, result);
 		return;
 	}
