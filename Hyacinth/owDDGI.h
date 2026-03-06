@@ -9,15 +9,13 @@
 #include "glm/gtx/string_cast.hpp"
 #include <array>
 
-constexpr int PROBE_A_DENSITY_WIDTH		= 20;  // x 30
+constexpr int PROBE_A_DENSITY_WIDTH		= 20;  // x 20
 constexpr int PROBE_A_DENSITY_HEIGHT	= 10;  // y 14
 constexpr int PROBE_A_DENSITY_DEPTH		= 20;  // z 20
 
 constexpr int PROBE_B_DENSITY_WIDTH = 15;  // x 30
 constexpr int PROBE_B_DENSITY_HEIGHT = 7;  // y 14
 constexpr int PROBE_B_DENSITY_DEPTH = 7;  // z 20
-
-constexpr int RAYS_PER_PROBE = 20000;
 
 constexpr int IRRADIANCE_PIXEL_COUNT = 8;
 constexpr int VISIBILITY_PIXEL_COUNT = 16;
@@ -27,9 +25,9 @@ struct VolumeData {
 	int densityHeight;
 	int densityDepth;
 	int padding;
-	glm::vec4 pos;		// pos.w is normalBias
-	glm::vec4 spacing;	// spacing.w is viewBias
-	glm::vec4 inverseSpacing;
+	glm::vec4 pos;				// pos.w is normalBias
+	glm::vec4 spacing;			// spacing.w is viewBias
+	glm::vec4 inverseSpacing;	// inverseSpacing.w is number of rays
 };
 
 struct DDGIVolume {
@@ -46,6 +44,8 @@ struct DDGIVolume {
 	VkDescriptorSet rayDataDescriptorSet;
 	VkDescriptorSet computeBuildDescriptorSet;
 	VkDescriptorSet irradianceVisSet;
+
+	VulkanBuffer probeOffsetBuffer;
 };
 
 struct ComputePushConstant {
@@ -98,7 +98,7 @@ private:
 	void createRaytracePipeline();
 	void createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
 
-	void addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, uint32_t densityDepth, uint32_t densityHeight);
+	void addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, uint32_t densityDepth, uint32_t densityHeight, float viewBias, float normalBias);
 
 public:
 	std::vector<DDGIVolume> m_probeVolumes;

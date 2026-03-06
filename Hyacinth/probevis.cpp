@@ -53,7 +53,7 @@ void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& 
 	pipelineUtil.setMultisampling(msaaSamples);
 	pipelineUtil.disableBlending();
 
-	pipelineUtil.enableDepthTest(false, VK_COMPARE_OP_ALWAYS);
+	pipelineUtil.enableDepthTest(false, VK_COMPARE_OP_LESS);
 	pipelineUtil.setDepthAttachmentFormat(depthFormat);
 
 	VkViewport viewport{};

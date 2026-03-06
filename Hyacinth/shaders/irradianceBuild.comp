@@ -36,12 +36,12 @@ void main() {
 		const float energyConservation = 0.95;
 
 		uint backfaces = 0;
-		uint max_backfaces = uint(RAYS_PER_PROBE * 0.1f);
+		uint max_backfaces = uint(volume.numRays * 0.1f);
 
-		for(int rayIndex = 0; rayIndex < RAYS_PER_PROBE; rayIndex++) {
+		for(int rayIndex = 0; rayIndex < int(volume.numRays); rayIndex++) {
 			ivec3 samplePos = getRayDataTexelCoords(rayIndex, probeIndex, volume.width * volume.depth);
 
-			vec3 rayDir = DDGISphericalFibonacci(rayIndex, RAYS_PER_PROBE);
+			vec3 rayDir = DDGISphericalFibonacci(rayIndex, int(volume.numRays));
 
 			vec3 texelDirection = oct_decode(normalized_oct_coord(coords.xy, IRRADIANCE_INNER));
 
