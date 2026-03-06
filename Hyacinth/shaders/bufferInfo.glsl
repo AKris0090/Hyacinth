@@ -46,7 +46,7 @@ struct VolumeData {
 	vec3 spacing;
 	float probeViewBias;
 	vec3 inverseSpacing;
-	float pad3;
+	float numRays;
 };
 
 layout(buffer_reference, std430) readonly buffer TransformBuffer{ 

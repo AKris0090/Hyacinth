@@ -3,7 +3,6 @@
 const int IRRADIANCE_INNER = 6;
 const int VISIBILITY_INNER = 14;
 
-const int RAYS_PER_PROBE = 20000;
 const float PI = 3.141592653;
 
 ivec3 getRayDataTexelCoords(uint rayIndex, uint probeIndex, int probesPerPlane) {
