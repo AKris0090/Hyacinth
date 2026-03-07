@@ -2,6 +2,16 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
+#define DEFAULT_PORT "6767"
+
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <iphlpapi.h>
+#include <iostream>
+
+#pragma comment(lib, "Ws2_32.lib")
+
 #include "hyacinth-client.h"
 
 int HyacinthNetworkClient::setup(std::string serveraddr) {
@@ -37,13 +47,9 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
         return 1;
     }
 
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(6767);
-    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-
     const char* msg = "hello server";
-    sendto(connectSocket, msg, strlen(msg), 0, (sockaddr*)&addr, sizeof(addr));
+    sockaddr* addr = (sockaddr*)&result->ai_addr;
+    sendto(connectSocket, msg, strlen(msg), 0, addr, sizeof(addr));
 
     return 0;
 }
