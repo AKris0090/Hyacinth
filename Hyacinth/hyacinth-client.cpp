@@ -1,15 +1,3 @@
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-
-#define DEFAULT_PORT "6767"
-
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
-#include <iostream>
-
 #pragma comment(lib, "Ws2_32.lib")
 
 #include "hyacinth-client.h"
@@ -38,7 +26,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
         return 1;
     }
 
-    SOCKET connectSocket = INVALID_SOCKET;
+    connectSocket = INVALID_SOCKET;
     connectSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if (connectSocket == INVALID_SOCKET) {
         std::cout << "problem with socket(): " << WSAGetLastError() << std::endl;
@@ -48,8 +36,16 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
     }
 
     const char* msg = "hello server";
-    sockaddr* addr = (sockaddr*)&result->ai_addr;
-    sendto(connectSocket, msg, strlen(msg), 0, addr, sizeof(addr));
+    sendto(connectSocket, msg, strlen(msg), 0, result->ai_addr, (int)result->ai_addrlen);
+
+    serverAddress = result->ai_addr;
+    serverAddressLen = (int)result->ai_addrlen;
 
     return 0;
+}
+
+void HyacinthNetworkClient::sendPositionString(Transform& t) {
+    std::string s = glm::to_string(t.position);
+    const char* msg = s.c_str();
+    sendto(connectSocket, msg, strlen(msg), 0, serverAddress, serverAddressLen);
 }
