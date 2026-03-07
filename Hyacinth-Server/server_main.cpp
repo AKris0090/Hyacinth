@@ -69,9 +69,24 @@ int main()
 
     freeaddrinfo(result);
 
+    char hostname[256];
+    gethostname(hostname, sizeof(hostname));
+
+    struct addrinfo* localResult = NULL;
+    struct addrinfo localHints;
+    ZeroMemory(&localHints, sizeof(localHints));
+    localHints.ai_family = AF_INET;
+
+    if (getaddrinfo(hostname, NULL, &localHints, &localResult) == 0) {
+        char localIP[INET_ADDRSTRLEN];
+        struct sockaddr_in* ipv4 = (struct sockaddr_in*)localResult->ai_addr;
+        InetNtopA(AF_INET, &(ipv4->sin_addr), localIP, sizeof(localIP));
+        std::cout << "Connect from other devices using: " << localIP << ":" << DEFAULT_PORT << std::endl;
+        freeaddrinfo(localResult);
+    }
+
     char recvBuff[DEFAULT_LEN];
     sockaddr_in clientAddr;
-
     while (true) {
         int clientAddrSize = sizeof(clientAddr);
 
