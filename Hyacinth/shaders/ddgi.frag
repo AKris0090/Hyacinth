@@ -41,13 +41,17 @@ vec3 worldPosFromDepth(float depth) {
     return (inverse(ubo.view) * viewSpace).xyz;
 }
 
+vec3 DDGIGetSurfaceBias(vec3 surfaceNormal, vec3 cameraDirection, VolumeData volume)
+{
+    return (surfaceNormal * volume.probeNormalBias) + (-cameraDirection * volume.probeViewBias);
+}
+
 vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
     VolumeData volume = pc.volumeDataBuffer.data[pc.volumeIndex];
 
     ivec3 probeCounts = ivec3(volume.width, volume.height, volume.depth);
-    const vec3 Wo = normalize(cameraPos.xyz - worldPosition);
-    const float minimum_distance_between_probes = min(min(volume.spacing.x, volume.spacing.y), volume.spacing.z);
-    vec3 surfaceBias = (normal * 0.2f + Wo * 0.8f) * (0.75f * minimum_distance_between_probes) * 0.3; // last is self-shadow bias, 
+    const vec3 camDir = normalize(worldPosition - cameraPos.xyz);
+    vec3 surfaceBias = DDGIGetSurfaceBias(normal, camDir, volume);
 
     ivec3 irradianceTextureSize = textureSize(irradianceTex, 0);
     ivec3 visibilityTextureSize = textureSize(visibilityTex, 0);
@@ -75,10 +79,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         float trilinearWeight = (trilinear.x * trilinear.y * trilinear.z);
         float weight = 1.0;
 
-        float wrapShading = (dot(worldToAdjProbe, normal) + 1.0) * 0.5;
-        weight *= (wrapShading * wrapShading) + 0.2;
-
-        vec2 probeUV = oct_encode(-biasedToAdjProbe) * 0.5 + 0.5;
+        vec2 probeUV = oct_encode(biasedToAdjProbe) * 0.5 + 0.5;
         int altProbeIndex = ProbeCoordsToIndex(adjacentProbeCoords, probeCounts);
 
         ivec3 visBase = getAtlasPosition(altProbeIndex, VISIBILITY_INNER + 2, volume.width, volume.depth);
@@ -86,13 +87,15 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         visAtlasUV.x = (float(visBase.x) + probeUV.x * float(VISIBILITY_INNER)) / float(visibilityTextureSize.x);
         visAtlasUV.y = (float(visBase.y) + probeUV.y * float(VISIBILITY_INNER)) / float(visibilityTextureSize.y);
 
-        vec2 filteredDistance = texture(visibilityTex, vec3(visAtlasUV, visBase.z)).rg;
-        float variance = abs((filteredDistance.x * filteredDistance.x) - filteredDistance.y);
+        vec2 visibility = texture(visibilityTex, vec3(visAtlasUV, visBase.z)).rg;
+        float meanDist = visibility.x;
 
         float chebyshevWeight = 1.f;
-        if (biasedPosToAdjProbeDist > filteredDistance.x)
+        if (biasedPosToAdjProbeDist > meanDist)
         {
-            float v = biasedPosToAdjProbeDist - filteredDistance.x;
+            float variance = abs((visibility.x * visibility.x) - visibility.y);
+
+            float v = biasedPosToAdjProbeDist - meanDist;
             chebyshevWeight = variance / (variance + (v * v));
 
             chebyshevWeight = max((chebyshevWeight * chebyshevWeight * chebyshevWeight), 0.f);
@@ -102,11 +105,6 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
 
         weight = max(0.000001f, weight);
 
-        const float crushThreshold = 0.2f;
-        if (weight < crushThreshold)
-        {
-            weight *= (weight * weight) * (1.f / (crushThreshold * crushThreshold));
-        }
         weight *= trilinearWeight;
 
         probeUV = oct_encode(normal) * 0.5 + 0.5;
@@ -126,7 +124,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
 
     vec3 netIrradiance = sumIrradiance / accumulatedWeights;
 
-    vec3 irradiance = 0.5f * PI * netIrradiance * 0.95f;
+    vec3 irradiance = 0.5f * PI * netIrradiance;
 
     return irradiance;
 }

@@ -1,5 +1,5 @@
 #version 460
-#define EPSILON 0.0001f
+#define EPSILON 0.000001f
 
 #include "probeCommon.glsl"
 #include "bufferInfo.glsl"
@@ -32,41 +32,22 @@ void main() {
     borderPixel = borderPixel || ((gl_GlobalInvocationID.y % probeWithBorder) == 0) || ((gl_GlobalInvocationID.y % probeWithBorder ) == probeLastPixel);
 
 	if (!borderPixel) {
-		vec4 result = vec4(0);
-		const float energyConservation = 0.95;
+		vec4 result = vec4(0.0);
 
-		uint backfaces = 0;
-		uint max_backfaces = uint(RAYS_PER_PROBE * 0.1f);
+		vec3 texelDirection = oct_decode(normalized_oct_coord(coords.xy, VISIBILITY_INNER));
 
-		for(int rayIndex = 0; rayIndex < RAYS_PER_PROBE; rayIndex++) {
+		for(int rayIndex = 0; rayIndex < int(volume.numRays); rayIndex++) {
 			ivec3 samplePos = getRayDataTexelCoords(rayIndex, probeIndex, volume.width * volume.depth);
 
-			vec3 rayDir = DDGISphericalFibonacci(rayIndex, RAYS_PER_PROBE);
-
-			vec3 texelDirection = oct_decode(normalized_oct_coord(coords.xy, VISIBILITY_INNER));
+			vec3 rayDir = DDGISphericalFibonacci(rayIndex, int(volume.numRays));
 
 			float weight = max(0.0, dot(texelDirection, rayDir));
+			weight = pow(weight, 2.5f); // probe distance sharpness exponent?
 
-			float distance2 = texelFetch(rayData, samplePos, 0).w;
-            if ( distance2 < 0.0f) {
-                ++backfaces;
+			float probeMaxRayDistance = length(volume.spacing) * 1.5;
+			float distance = min(abs(texelFetch(rayData, samplePos, 0).w), probeMaxRayDistance);
 
-                // Early out: only blend ray radiance into the probe if the backface threshold hasn't been exceeded
-                if (backfaces >= max_backfaces)
-                    return;
-
-                continue;
-            }
-
-            float probe_max_ray_distance = 1.0f * 1.5f;
-            weight = pow(weight, 2.5f);
-                
-            if (weight >= EPSILON) {
-                distance2 = min(abs(distance2), probe_max_ray_distance);
-                vec3 value = vec3(distance2, distance2 * distance2, 0);
-                // Storing the sum of the weights in alpha temporarily
-                result += vec4(value * weight, weight);
-            }
+            result += vec4(distance * weight, (distance * distance) * weight, 0.f, weight);
 		}
 
 		if (result.w > EPSILON) {

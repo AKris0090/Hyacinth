@@ -19,7 +19,7 @@ layout( push_constant ) uniform constants
 	IndexBuffer indexBufferAddress;
 } pc;
 
-const vec3 lightColor = vec3(0.99, 0.98, 0.83);
+const vec3 lightColor = vec3(1.0); // vec3(0.99, 0.98, 0.83);
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
 
 void main()
@@ -27,7 +27,8 @@ void main()
 	if (payload.depth == 0) {
 		payload.distance = gl_RayTminEXT + gl_HitTEXT;
 		if (gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT) {
-			payload.distance *= -0.2;
+			payload.distance *= -1.0;
+			return;
 		}
 	}
 	vec3 radiance = vec3(0.0);
@@ -60,7 +61,7 @@ void main()
 		vec3 directDiffuse = halfLambert * lightColor * 1.25;
 
         if(shadowed) {
-		    directDiffuse *= vec3(0.02);
+		    directDiffuse *= vec3(0.03);
 		}
 
 		payload.radiance = payload.radiance + directDiffuse;
