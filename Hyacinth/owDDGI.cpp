@@ -181,12 +181,12 @@ void owDDGI::createRaytracePipeline()
 	}
 }
 
-void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, uint32_t densityDepth, uint32_t densityHeight) {
+void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, uint32_t densityDepth, uint32_t densityHeight, float viewBias, float normalBias) {
 	DDGIVolume volume;
 	volume.data.densityWidth = densityWidth;
 	volume.data.densityHeight = densityHeight;
 	volume.data.densityDepth = densityDepth;
-	volume.data.pos = glm::vec4(pos, 0.1f);
+	volume.data.pos = glm::vec4(pos, normalBias);
 
 	numProbes = densityWidth * densityDepth;
 	volume.totalNumProbes = numProbes * densityHeight;
@@ -202,8 +202,8 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	float zSpace = volume.transform.scale.z / (densityDepth);
 
 	glm::vec3 probeSpacing = glm::vec3(xSpace, ySpace, zSpace);
-	volume.data.spacing = glm::vec4(probeSpacing, 0.8f);
-	volume.data.inverseSpacing = glm::vec4((1.0f / probeSpacing), 1.f);
+	volume.data.spacing = glm::vec4(probeSpacing, viewBias);
+	volume.data.inverseSpacing = glm::vec4((1.0f / probeSpacing), 10000);
 
 	for (int i = 0; i < densityHeight; i++) {
 		std::vector<std::vector<glm::vec3>> probePlane;
@@ -232,7 +232,7 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	vkdeviceutils::uploadToBuffer(volume.probePositionBuffer, probeBufferSize, probePositions.data());
 
 	VkExtent3D rayDataExtent{
-		.width = RAYS_PER_PROBE,
+		.width = static_cast<uint32_t>(volume.data.inverseSpacing.w),
 		.height = densityDepth * densityWidth,
 		.depth = 1
 	};
@@ -278,13 +278,13 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 
 	glm::vec3 posA = glm::vec3(-16.044f, -1.4202f, -9.08f);
 	glm::vec3 scaleA = glm::vec3(31.855, 13.78, 18.87);
-	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT);
+	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT, 1.f, 0.4f);
 
 	// glm::vec3 posB = glm::vec3(-11.744f, 3.280f, 1.650f);
 	// glm::vec3 scaleB = glm::vec3(24.f, 4.5f, 4.1f);
 	glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
 	glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
-	addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT);
+	addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT, 0.4f, 0.2f);
 
 	std::vector<glm::mat4> volumeTransforms;
 	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4); // TODO: make this with more volumes
@@ -400,7 +400,7 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 			vkCmdClearColorImage(cmd, volume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue.color, 1, &subResourceRange);
 
 			// x should be num rays, y should be num probes per layer, z should be num probes vertically
-			rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, RAYS_PER_PROBE, volume.data.densityWidth * volume.data.densityDepth, volume.data.densityHeight);
+			rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, static_cast<uint32_t>(volume.data.inverseSpacing.w), volume.data.densityWidth * volume.data.densityDepth, volume.data.densityHeight);
 			vkimageutils::transitionImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 			// radiance
