@@ -1,5 +1,6 @@
 #include "sdlwindow.h"
 #include "hyacinthengine.h"
+#include "hyacinth-client.h"
 #include "input.h"
 #include "time.h"
 
@@ -10,6 +11,12 @@ int main() {
 	HyacinthEngine hyacinthEngine;
 	hyacinthEngine.m_window = sdlwindow.m_window;
 	hyacinthEngine.init();
+
+	HyacinthNetworkClient netClient;
+	std::string ip;
+	std::cout << "Enter server IP: ";
+	std::getline(std::cin, ip);
+	std::cout << netClient.setup(ip) << std::endl;
 
 	Time::setInitialTime();
 
