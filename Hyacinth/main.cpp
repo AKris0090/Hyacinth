@@ -35,6 +35,7 @@ int main() {
 			}
 		}
 		hyacinthEngine.draw();
+		netClient.sendPositionString(hyacinthEngine.m_camera.m_transform);
 
 		Time::updateTime();
 	}
