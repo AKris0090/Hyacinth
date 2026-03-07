@@ -6,6 +6,8 @@ namespace imguihelper {
         ImGuiStyle& style = ImGui::GetStyle();
         ImVec4* colors = style.Colors;
 
+        style.WindowMenuButtonPosition = ImGuiDir_None;
+
         // ---------- Window ----------
         colors[ImGuiCol_WindowBg] = ImVec4(0.12f, 0.12f, 0.12f, 1.0f); // main window
         colors[ImGuiCol_ChildBg] = ImVec4(0.11f, 0.11f, 0.11f, 1.0f);

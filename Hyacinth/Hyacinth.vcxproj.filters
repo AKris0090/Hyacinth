@@ -97,6 +97,9 @@
     <Filter Include="Source Files\renderer\utils\unit_cube">
       <UniqueIdentifier>{94830179-1217-4f4c-8484-a4d21b906f2d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\network">
+      <UniqueIdentifier>{608d8ed5-3a42-42ba-8667-a4bb85a63498}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -191,6 +194,9 @@
     </ClCompile>
     <ClCompile Include="volumevis.cpp">
       <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
+    </ClCompile>
+    <ClCompile Include="hyacinth-client.cpp">
+      <Filter>Source Files\network</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -289,6 +295,9 @@
     </ClInclude>
     <ClInclude Include="unit_cube.h">
       <Filter>Source Files\renderer\utils\unit_cube</Filter>
+    </ClInclude>
+    <ClInclude Include="hyacinth-client.h">
+      <Filter>Source Files\network</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
