@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{21a9e21c-46da-415f-a845-39bdd7b6cf07}</ProjectGuid>
-    <RootNamespace>Hyacinth</RootNamespace>
+    <ProjectGuid>{5cb6544d-8d2f-43e1-81a8-04c80695d705}</ProjectGuid>
+    <RootNamespace>HyacinthServer</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -100,22 +100,15 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions);WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.4.335.0\Lib;Ws2_32.lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>Ws2_32.lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -123,117 +116,20 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions);WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.4.335.0\Lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.cpp" />
-    <ClCompile Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_vulkan.cpp" />
-    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui.cpp" />
-    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_demo.cpp" />
-    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_draw.cpp" />
-    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_tables.cpp" />
-    <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_widgets.cpp" />
-    <ClCompile Include="csm.cpp" />
-    <ClCompile Include="ecshelpers.h" />
-    <ClCompile Include="fpcam.cpp" />
-    <ClCompile Include="frustumcull.cpp" />
-    <ClCompile Include="gltfutils.cpp" />
-    <ClCompile Include="hyacinth-client.cpp" />
-    <ClCompile Include="imguihelper.cpp" />
-    <ClCompile Include="input.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="mikktspace\mikktspace.cpp" />
-    <ClCompile Include="owDDGI.cpp" />
-    <ClCompile Include="probevis.cpp" />
-    <ClCompile Include="raytracing.cpp" />
-    <ClCompile Include="sdlwindow.cpp" />
-    <ClCompile Include="time.cpp" />
-    <ClCompile Include="vkdebugutils.cpp" />
-    <ClCompile Include="vkdebugutils.h" />
-    <ClCompile Include="vkdescriptorutils.cpp" />
-    <ClCompile Include="vkdeviceutils.cpp" />
-    <ClCompile Include="vkimageutils.cpp" />
-    <ClCompile Include="vkmeshutils.cpp" />
-    <ClCompile Include="vkpipelineutils.cpp" />
-    <ClCompile Include="vkswapchainutils.cpp" />
-    <ClCompile Include="hyacinthengine.cpp" />
-    <ClCompile Include="volumevis.cpp" />
+    <ClCompile Include="physics_manager.cpp" />
+    <ClCompile Include="server_main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.h" />
-    <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_vulkan.h" />
-    <ClInclude Include="..\..\DEV\imgui-1.92.5\imconfig.h" />
-    <ClInclude Include="..\..\DEV\imgui-1.92.5\imgui.h" />
-    <ClInclude Include="..\..\DEV\imgui-1.92.5\imgui_internal.h" />
-    <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_rectpack.h" />
-    <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_textedit.h" />
-    <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_truetype.h" />
-    <ClInclude Include="csm.h" />
-    <ClInclude Include="fpcam.h" />
-    <ClInclude Include="frustumcull.h" />
-    <ClInclude Include="fullscreen_quad.h" />
-    <ClInclude Include="gltfutils.h" />
-    <ClInclude Include="hyacinth-client.h" />
-    <ClInclude Include="imguihelper.h" />
-    <ClInclude Include="input.h" />
-    <ClInclude Include="mikktspace\mikktspace.h" />
-    <ClInclude Include="owDDGI.h" />
-    <ClInclude Include="probevis.h" />
-    <ClInclude Include="raytracing.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="sdlwindow.h" />
-    <ClInclude Include="tangentHelper.h" />
-    <ClInclude Include="time.h" />
-    <ClInclude Include="unit_cube.h" />
-    <ClInclude Include="vkdescriptorutils.h" />
-    <ClInclude Include="vkdeviceutils.h" />
-    <ClInclude Include="hyacinthengine.h" />
-    <ClInclude Include="vkimageutils.h" />
-    <ClInclude Include="vkmeshutils.h" />
-    <ClInclude Include="vkpipelineutils.h" />
-    <ClInclude Include="vkswapchainutils.h" />
-    <ClInclude Include="volumevis.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="shaders\gbuffer.frag" />
-    <Text Include="shaders\gbuffer.vert" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\bufferInfo.glsl" />
-    <None Include="shaders\closehit.rchit" />
-    <None Include="shaders\composite.frag" />
-    <None Include="shaders\ddgi.frag" />
-    <None Include="shaders\ddgiStencil.frag" />
-    <None Include="shaders\depth.vert" />
-    <None Include="shaders\frustumCull.comp" />
-    <None Include="shaders\fsQuad.vert" />
-    <None Include="shaders\irradianceBuild.comp" />
-    <None Include="shaders\miss.rmiss" />
-    <None Include="shaders\probeCommon.glsl" />
-    <None Include="shaders\probeMiss.rmiss" />
-    <None Include="shaders\probeVis.frag" />
-    <None Include="shaders\probeVis.vert" />
-    <None Include="shaders\raygen.rgen" />
-    <None Include="shaders\shadow.vert" />
-    <None Include="shaders\shadowCommon.glsl" />
-    <None Include="shaders\visibilityBuild.comp" />
-    <None Include="shaders\volumeVis.frag" />
-    <None Include="shaders\volumeVis.vert" />
+    <None Include="physics_manager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
