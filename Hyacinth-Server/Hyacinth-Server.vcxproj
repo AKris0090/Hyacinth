@@ -125,7 +125,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="physics_manager.cpp" />
     <ClCompile Include="server_main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="physics_manager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

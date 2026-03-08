@@ -40,11 +40,13 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
 
     serverAddress = result->ai_addr;
     serverAddressLen = (int)result->ai_addrlen;
+    connected = true;
 
     return 0;
 }
 
 void HyacinthNetworkClient::sendPositionString(Transform& t) {
+    if (!connected) return;
     std::string s = glm::to_string(t.position);
     const char* msg = s.c_str();
     sendto(connectSocket, msg, strlen(msg), 0, serverAddress, serverAddressLen);

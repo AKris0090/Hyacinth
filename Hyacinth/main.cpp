@@ -4,6 +4,8 @@
 #include "input.h"
 #include "time.h"
 
+#define CONNECT_SERVER true
+
 int main() {
 	SDLWindow sdlwindow;
 	sdlwindow.init("Hyacinth Engine", 1920, 1080);
@@ -16,7 +18,7 @@ int main() {
 	std::string ip;
 	std::cout << "Enter server IP: ";
 	std::getline(std::cin, ip);
-	std::cout << netClient.setup(ip) << std::endl;
+	if (CONNECT_SERVER) std::cout << netClient.setup(ip) << std::endl;
 
 	Time::setInitialTime();
 

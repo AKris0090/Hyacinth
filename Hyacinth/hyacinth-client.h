@@ -12,6 +12,7 @@
 
 class HyacinthNetworkClient {
 private:
+	bool connected;
 	SOCKET connectSocket;
 	sockaddr* serverAddress;
 	int serverAddressLen;
