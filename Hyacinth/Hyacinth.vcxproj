@@ -102,14 +102,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions);WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.4.335.0\Lib;Ws2_32.lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;C:\VulkanSDK\1.4.335.0\Lib;Ws2_32.lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
@@ -125,14 +125,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions);WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.4.335.0\Lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;Ws2_32.lib;C:\VulkanSDK\1.4.335.0\Lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>

@@ -3,10 +3,15 @@
 #include "hyacinth-client.h"
 #include "input.h"
 #include "time.h"
+#include "hyacinth_physics.h"
 
 #define CONNECT_SERVER true
 
+#pragma comment(lib, "Hyacinth-Physics.lib")
+
 int main() {
+	hyacinthPhysicsTest();
+
 	SDLWindow sdlwindow;
 	sdlwindow.init("Hyacinth Engine", 1920, 1080);
 
