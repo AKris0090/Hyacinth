@@ -1,7 +1,10 @@
 #include "sdlwindow.h"
 #include "hyacinthengine.h"
+#include "hyacinth-client.h"
 #include "input.h"
 #include "time.h"
+
+#define CONNECT_SERVER true
 
 int main() {
 	SDLWindow sdlwindow;
@@ -10,6 +13,12 @@ int main() {
 	HyacinthEngine hyacinthEngine;
 	hyacinthEngine.m_window = sdlwindow.m_window;
 	hyacinthEngine.init();
+
+	HyacinthNetworkClient netClient;
+	std::string ip;
+	std::cout << "Enter server IP: ";
+	std::getline(std::cin, ip);
+	if (CONNECT_SERVER) std::cout << netClient.setup(ip) << std::endl;
 
 	Time::setInitialTime();
 
@@ -28,6 +37,7 @@ int main() {
 			}
 		}
 		hyacinthEngine.draw();
+		netClient.sendPositionString(hyacinthEngine.m_camera.m_transform);
 
 		Time::updateTime();
 	}
