@@ -13,10 +13,21 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\physX">
+      <UniqueIdentifier>{b50c3589-632f-4faa-a857-25d6d316e6d6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="server_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="physics_manager.cpp">
+      <Filter>Source Files\physX</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="physics_manager.h">
+      <Filter>Source Files\physX</Filter>
+    </None>
   </ItemGroup>
 </Project>
