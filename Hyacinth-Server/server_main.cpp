@@ -9,13 +9,17 @@
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <iostream>
+#include "hyacinth_physics.h"
 
 #pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "Hyacinth-Physics.lib")
 
 #define DEFAULT_LEN 512
 
 int main()
 {
+    hyacinthPhysicsTest();
+
     WSADATA wsaData;
     int iResult;
 
