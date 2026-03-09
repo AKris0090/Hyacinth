@@ -41,6 +41,7 @@ void serverListenForPackets(SOCKET* s) {
         // InetNtopA(AF_INET, &(clientAddr.sin_addr), clientIP, sizeof(clientIP));
         // std::cout << "Received " << bytesReceived << " bytes from " << clientIP << ": " << recvBuff << std::endl;
 
+        if (std::string("recvBuff") == "hello server") continue;
         ClientPacket p = decomposePacket(recvBuff);
         p.print();
     }
