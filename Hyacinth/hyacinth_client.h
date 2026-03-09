@@ -18,5 +18,5 @@ private:
 	int serverAddressLen;
 public:
 	int setup(std::string serveraddr);
-	void sendPositionString(Transform& t);
+	void sendMovementString(Transform& t);
 };
