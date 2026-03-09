@@ -102,14 +102,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions);WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;C:\VulkanSDK\1.4.335.0\Lib;Ws2_32.lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Lib;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;C:\VulkanSDK\1.4.335.0\Lib;Ws2_32.lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
@@ -125,14 +125,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions);WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;Ws2_32.lib;C:\VulkanSDK\1.4.335.0\Lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Lib;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;Ws2_32.lib;C:\VulkanSDK\1.4.335.0\Lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
@@ -153,7 +153,7 @@
     <ClCompile Include="fpcam.cpp" />
     <ClCompile Include="frustumcull.cpp" />
     <ClCompile Include="gltfutils.cpp" />
-    <ClCompile Include="hyacinth-client.cpp" />
+    <ClCompile Include="hyacinth_client.cpp" />
     <ClCompile Include="imguihelper.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
@@ -188,7 +188,7 @@
     <ClInclude Include="frustumcull.h" />
     <ClInclude Include="fullscreen_quad.h" />
     <ClInclude Include="gltfutils.h" />
-    <ClInclude Include="hyacinth-client.h" />
+    <ClInclude Include="hyacinth_client.h" />
     <ClInclude Include="imguihelper.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="mikktspace\mikktspace.h" />

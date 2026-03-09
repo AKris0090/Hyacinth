@@ -17,9 +17,9 @@ struct Entity {
 
 struct ClientPacket {
 	uint32_t id;
-	int8_t movementX;
-	int8_t movementY;
-	int8_t movementZ;
+	float movementX;
+	float movementY;
+	float movementZ;
 
 	std::string toString();
 	void print() const;

@@ -14,7 +14,7 @@ std::string ClientPacket::toString() {
 }
 
 ClientPacket decomposePacket(char buff[DEFAULT_LEN]) {
-	ClientPacket p;
+	ClientPacket p{};
 
 	std::string s = std::string(buff);
 	size_t pos_id = s.find("id:");
@@ -24,15 +24,15 @@ ClientPacket decomposePacket(char buff[DEFAULT_LEN]) {
 
 	pos_x += 5;
 	size_t pos_y = s.find("posY:");
-	p.movementX = static_cast<int8_t>(std::stoi(s.substr(pos_x, pos_y - pos_x)));
+	p.movementX = std::stof(s.substr(pos_x, pos_y - pos_x));
 
 	pos_y += 5;
 	size_t pos_z = s.find("posZ:");
-	p.movementY = static_cast<int8_t>(std::stoi(s.substr(pos_y, pos_z - pos_y)));
+	p.movementY = std::stof(s.substr(pos_y, pos_z - pos_y));
 
 	pos_z += 5;
 	size_t length = s.length();
-	p.movementZ = static_cast<int8_t>(std::stoi(s.substr(pos_z, length - pos_z)));
+	p.movementZ = std::stof(s.substr(pos_z, length - pos_z));
 
 	return p;
 }

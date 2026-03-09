@@ -195,7 +195,7 @@
     <ClCompile Include="volumevis.cpp">
       <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
     </ClCompile>
-    <ClCompile Include="hyacinth-client.cpp">
+    <ClCompile Include="hyacinth_client.cpp">
       <Filter>Source Files\network</Filter>
     </ClCompile>
   </ItemGroup>
@@ -296,7 +296,7 @@
     <ClInclude Include="unit_cube.h">
       <Filter>Source Files\renderer\utils\unit_cube</Filter>
     </ClInclude>
-    <ClInclude Include="hyacinth-client.h">
+    <ClInclude Include="hyacinth_client.h">
       <Filter>Source Files\network</Filter>
     </ClInclude>
   </ItemGroup>
