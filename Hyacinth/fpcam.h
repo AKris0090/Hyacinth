@@ -27,7 +27,7 @@ private:
     void setProjectionMatrix();
     
 public:
-    bool m_dirtyProj, m_dirtyView;
+    bool m_dirtyProj, m_dirtyView, m_dirtyMovement;
     Transform m_transform;
     CameraFrustumPlanes m_frustumPlanes;
     // CameraUniformProperties m_frustumProperties[MAX_FRAMES_IN_FLIGHT];

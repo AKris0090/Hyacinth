@@ -9,17 +9,47 @@
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <iostream>
-#include "hyacinth_physics.h"
+#include <vector>
+#include <queue>
+#include <unordered_map>
+#include <string>
+
+#include "hyacinth_network.h"
 
 #pragma comment(lib, "Ws2_32.lib")
-#pragma comment(lib, "Hyacinth-Physics.lib")
+#pragma comment(lib, "Hyacinth-Common.lib")
 
-#define DEFAULT_LEN 512
+std::unordered_map<uint32_t, ServerEntity*> entityMap;
+
+void serverListenForPackets(SOCKET* s) {
+    char recvBuff[DEFAULT_LEN];
+    sockaddr_in clientAddr;
+
+    while (true) {
+        int clientAddrSize = sizeof(clientAddr);
+
+        int bytesReceived = recvfrom(*s, recvBuff, sizeof(recvBuff) - 1, 0, (sockaddr*)&clientAddr, &clientAddrSize);
+
+        if (bytesReceived == SOCKET_ERROR) {
+            std::cout << "recvfrom failed: " << WSAGetLastError() << std::endl;
+            break;
+        }
+
+        recvBuff[bytesReceived] = '\0';
+
+        // char clientIP[INET_ADDRSTRLEN];
+        // InetNtopA(AF_INET, &(clientAddr.sin_addr), clientIP, sizeof(clientIP));
+        // std::cout << "Received " << bytesReceived << " bytes from " << clientIP << ": " << recvBuff << std::endl;
+
+        ClientPacket p = decomposePacket(recvBuff);
+        p.print();
+    }
+
+    closesocket(*s);
+}
 
 int main()
 {
-    hyacinthPhysicsTest();
-
     WSADATA wsaData;
     int iResult;
 
@@ -89,26 +119,7 @@ int main()
         freeaddrinfo(localResult);
     }
 
-    char recvBuff[DEFAULT_LEN];
-    sockaddr_in clientAddr;
-    while (true) {
-        int clientAddrSize = sizeof(clientAddr);
-
-        int bytesReceived = recvfrom(listenSocket, recvBuff, sizeof(recvBuff) - 1, 0, (sockaddr*)&clientAddr, &clientAddrSize);
-
-        if (bytesReceived == SOCKET_ERROR) {
-            std::cout << "recvfrom failed: " << WSAGetLastError() << std::endl;
-            break;
-        }
-
-        recvBuff[bytesReceived] = '\0';
-
-        char clientIP[INET_ADDRSTRLEN];
-        InetNtopA(AF_INET, &(clientAddr.sin_addr), clientIP, sizeof(clientIP));
-        std::cout << "Received " << bytesReceived << " bytes from " << clientIP << ": " << recvBuff << std::endl;
-    }
-
-    closesocket(listenSocket);
+    serverListenForPackets(&listenSocket);
 
     WSACleanup();
     return 0;

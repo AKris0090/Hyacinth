@@ -68,6 +68,7 @@ void Camera::update(float deltaTime, bool moveMouse, int imageIndex) {
     if (glm::length(localDisplacement) > 0) {
         m_transform.position += glm::normalize(localDisplacement) * m_moveSpeed * deltaTime;
         m_dirtyView = true;
+        m_dirtyMovement = true;
     }
 
     if (m_dirtyProj) {

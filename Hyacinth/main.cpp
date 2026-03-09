@@ -1,6 +1,6 @@
 #include "sdlwindow.h"
 #include "hyacinthengine.h"
-#include "hyacinth-client.h"
+#include "hyacinth_client.h"
 #include "input.h"
 #include "time.h"
 #include "hyacinth_physics.h"
@@ -42,7 +42,10 @@ int main() {
 			}
 		}
 		hyacinthEngine.draw();
-		netClient.sendPositionString(hyacinthEngine.m_camera.m_transform);
+		if (hyacinthEngine.m_camera.m_dirtyMovement) {
+			netClient.sendMovementString(hyacinthEngine.m_camera.m_transform);
+			hyacinthEngine.m_camera.m_dirtyMovement = false;
+		}
 
 		Time::updateTime();
 	}

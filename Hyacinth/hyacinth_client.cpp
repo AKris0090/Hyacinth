@@ -1,6 +1,8 @@
 #pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "Hyacinth-Common.lib")
 
-#include "hyacinth-client.h"
+#include "hyacinth_client.h"
+#include "hyacinth_network.h"
 
 int HyacinthNetworkClient::setup(std::string serveraddr) {
     WSADATA wsaData;
@@ -45,9 +47,15 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
     return 0;
 }
 
-void HyacinthNetworkClient::sendPositionString(Transform& t) {
+void HyacinthNetworkClient::sendMovementString(Transform& t) {
     if (!connected) return;
-    std::string s = glm::to_string(t.position);
+    ClientPacket p;
+    p.id = 0;
+    p.movementX = t.position.x;
+    p.movementY = t.position.y;
+    p.movementZ = t.position.z;
+
+    std::string s = p.toString();
     const char* msg = s.c_str();
     sendto(connectSocket, msg, strlen(msg), 0, serverAddress, serverAddressLen);
 }
