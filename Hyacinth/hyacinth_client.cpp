@@ -14,20 +14,49 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
         return 1;
     }
 
-    struct addrinfo* result = NULL, * ptr = NULL, hints;
+    struct addrinfo* result = NULL, hints;
 
+    // create UDP connection socket
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = IPPROTO_UDP;
+    hints.ai_flags = AI_PASSIVE;
+    iResult = getaddrinfo(NULL, MY_UDP_PORT, &hints, &result);
+    if (iResult != 0) {
+        std::cout << "getaddrinfo failed: " << iResult << std::endl;
+        WSACleanup();
+        return 1;
+    }
+    udpConnectionSocket = INVALID_SOCKET;
+    udpConnectionSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (udpConnectionSocket == INVALID_SOCKET) {
+        std::cout << "problem with udp socket(): " << WSAGetLastError() << std::endl;
+        freeaddrinfo(result);
+        WSACleanup();
+        return 1;
+    }
+    iResult = bind(udpConnectionSocket, result->ai_addr, (int)result->ai_addrlen);
+    if (iResult != 0) {
+        std::cout << "udp bind failed: " << iResult << std::endl;
+        freeaddrinfo(result);
+        closesocket(udpConnectionSocket);
+        WSACleanup();
+        return 1;
+    }
+    freeaddrinfo(result);
 
+    // create TCP connection socket
+    ZeroMemory(&hints, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
     iResult = getaddrinfo(serveraddr.c_str(), DEFAULT_PORT, &hints, &result);
     if (iResult != 0) {
         printf("getaddrinfo failed: %d\n", iResult);
         WSACleanup();
         return 1;
     }
-
     connectSocket = INVALID_SOCKET;
     connectSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if (connectSocket == INVALID_SOCKET) {
@@ -36,9 +65,63 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
         WSACleanup();
         return 1;
     }
+    iResult = connect(connectSocket, result->ai_addr, (int)result->ai_addrlen);
+    if (iResult == SOCKET_ERROR) {
+        closesocket(connectSocket);
+        connectSocket = INVALID_SOCKET;
+    }
+    freeaddrinfo(result);
+    if(connectSocket == INVALID_SOCKET) {
+        printf("Unable to connect to server! Make sure it is running and listening!\n");
+        WSACleanup();
+        return 1;
+    }
 
-    const char* msg = "hello server";
-    sendto(connectSocket, msg, strlen(msg), 0, result->ai_addr, (int)result->ai_addrlen);
+    // send the server handshake packet after tcp connection established
+    ClientRequestConnectionPacket myRequest;
+    myRequest.port = static_cast<uint32_t>(std::stoi(MY_UDP_PORT));
+    std::string requestString = myRequest.toString();
+
+    int sendResult = send(connectSocket, requestString.c_str(), requestString.length(), 0);
+    if (sendResult == SOCKET_ERROR) {
+        std::cout << "request failed to send?" << std::endl;
+        closesocket(connectSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    iResult = shutdown(connectSocket, SD_SEND);
+    if (iResult == SOCKET_ERROR) {
+        printf("shutdown failed: %d\n", WSAGetLastError());
+        closesocket(connectSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // get the server response to the join request. contains client id
+    char recvbuf[DEFAULT_LEN];
+    int recvbuflen = DEFAULT_LEN;
+    do {
+        iResult = recv(connectSocket, recvbuf, recvbuflen, 0);
+        if (iResult > 0)
+            printf("Bytes received: %d\n", iResult);
+        else if (iResult == 0)
+            printf("Connection closed\n");
+        else
+            printf("recv failed: %d\n", WSAGetLastError());
+    } while (iResult > 0);
+    iResult = shutdown(connectSocket, SD_BOTH);
+    if (iResult == SOCKET_ERROR) {
+        printf("secondary shutdown failed: %d\n", WSAGetLastError());
+        closesocket(connectSocket);
+        WSACleanup();
+        return 1;
+    }
+    ClientRequestConnectionPacket serverResponse;
+    serverResponse.fromString(std::string(recvbuf));
+    clientID = serverResponse.port;
+
+    std::cout << "my id is: " << clientID << std::endl;
 
     serverAddress = result->ai_addr;
     serverAddressLen = (int)result->ai_addrlen;
@@ -49,7 +132,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
 
 void HyacinthNetworkClient::sendMovementString(Transform& t) {
     if (!connected) return;
-    ClientPacket p;
+    ClientUpdatePacket p;
     p.id = 0;
     p.movementX = t.position.x;
     p.movementY = t.position.y;
@@ -57,5 +140,5 @@ void HyacinthNetworkClient::sendMovementString(Transform& t) {
 
     std::string s = p.toString();
     const char* msg = s.c_str();
-    sendto(connectSocket, msg, strlen(msg), 0, serverAddress, serverAddressLen);
+    sendto(udpConnectionSocket, msg, strlen(msg), 0, serverAddress, serverAddressLen);
 }

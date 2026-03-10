@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\network">
+      <UniqueIdentifier>{cf05a34d-32c5-4655-9975-c22ef087ba16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ecs">
+      <UniqueIdentifier>{21e811c1-d777-495f-8002-f3cf47ef1f2c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -22,7 +28,10 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Build\Include\hyacinth_network.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\network</Filter>
+    </ClInclude>
+    <ClInclude Include="Build\Include\transform.h">
+      <Filter>Header Files\ecs</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

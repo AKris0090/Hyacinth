@@ -149,7 +149,6 @@
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_tables.cpp" />
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_widgets.cpp" />
     <ClCompile Include="csm.cpp" />
-    <ClCompile Include="ecshelpers.h" />
     <ClCompile Include="fpcam.cpp" />
     <ClCompile Include="frustumcull.cpp" />
     <ClCompile Include="gltfutils.cpp" />
