@@ -31,16 +31,16 @@ void handleNewClient(SOCKET* socket, ServersideClient* newClient) {
     int recvbuflen = DEFAULT_LEN;
     initialReq = recv(*socket, recvbuf, recvbuflen, 0);
 
-    ClientRequestConnectionPacket p;
-    p.fromString(std::string(recvbuf));
-    newClient->clientAddr.sin_port = p.port;
-
-    std::cout << "client added on port: " << newClient->clientAddr.sin_port << std::endl;
-
-    ClientRequestConnectionPacket response;
-    response.port = newClient->id;
-
     if (initialReq > 0) {
+        ClientRequestConnectionPacket p;
+        p.fromString(std::string(recvbuf));
+        newClient->clientAddr.sin_port = p.port;
+
+        std::cout << "client added on port: " << newClient->clientAddr.sin_port << std::endl;
+
+        ClientRequestConnectionPacket response;
+        response.port = newClient->id;
+
         std::string msg = response.toString();
         serverAck = send(*socket, msg.c_str(), msg.length(), 0);
         if (serverAck == SOCKET_ERROR) {
