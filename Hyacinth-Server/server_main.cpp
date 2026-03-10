@@ -64,7 +64,7 @@ void handleNewClient(SOCKET* socket, ServersideClient* newClient) {
 void serverListenForClients(SOCKET* tcpSocket) {
     while (true) {
         if (listen(*tcpSocket, SOMAXCONN) == SOCKET_ERROR) {
-            printf("Listen failed with error: %ld\n", WSAGetLastError());
+            std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
             closesocket(*tcpSocket);
             WSACleanup();
             return;
@@ -76,7 +76,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
         SOCKET clientSocket = INVALID_SOCKET;
         clientSocket = accept(*tcpSocket, (sockaddr*)&clientAddr, &clientAddrSize);
         if (clientSocket == INVALID_SOCKET) {
-            printf("accept failed: %d\n", WSAGetLastError());
+            std::cout << "accept failed: " << WSAGetLastError() << std::endl;
             closesocket(*tcpSocket);
             WSACleanup();
             return;
