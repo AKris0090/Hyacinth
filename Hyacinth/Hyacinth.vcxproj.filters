@@ -120,9 +120,6 @@
     <ClCompile Include="gltfutils.cpp">
       <Filter>Source Files\renderer\utils\gltfutils</Filter>
     </ClCompile>
-    <ClCompile Include="ecshelpers.h">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="vkdescriptorutils.cpp">
       <Filter>Source Files\renderer\utils\vkutils\descriptor</Filter>
     </ClCompile>

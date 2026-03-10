@@ -2,19 +2,19 @@
 #include "framework.h"
 #include "hyacinth_network.h"
 
-void ClientPacket::print() const {
+void ClientUpdatePacket::print() const {
 	std::cout << "id: " << id << ", movement: " << movementX << ", " << movementY << ", " << movementZ << std::endl;
 }
 
-std::string ClientPacket::toString() {
+std::string ClientUpdatePacket::toString() {
 	return "id:" + std::to_string(id) +
 		"posX:" + std::to_string(movementX) +
 		"posY:" + std::to_string(movementY) +
 		"posZ:" + std::to_string(movementZ);
 }
 
-ClientPacket decomposePacket(char buff[DEFAULT_LEN]) {
-	ClientPacket p{};
+ClientUpdatePacket decomposePacket(char buff[DEFAULT_LEN]) {
+	ClientUpdatePacket p{};
 
 	std::string s = std::string(buff);
 	size_t pos_id = s.find("id:");
@@ -35,4 +35,15 @@ ClientPacket decomposePacket(char buff[DEFAULT_LEN]) {
 	p.movementZ = std::stof(s.substr(pos_z, length - pos_z));
 
 	return p;
+}
+
+std::string ClientRequestConnectionPacket::toString() {
+	return std::string("myport:") + std::to_string(port);
+}
+
+void ClientRequestConnectionPacket::fromString(std::string s) {
+	std::cout << s << std::endl;
+	size_t start = s.find("myport:") + 7;
+	std::cout << start << ", " << s.length() - start << std::endl;
+	port = static_cast<uint32_t>(stoi(s.substr(start, s.length() - start)));
 }
