@@ -23,7 +23,7 @@ int main() {
 	std::string ip;
 	std::cout << "Enter server IP: ";
 	std::getline(std::cin, ip);
-	if (CONNECT_SERVER) std::cout << netClient.setup(ip) << std::endl;
+	if (CONNECT_SERVER) std::cout << (netClient.setup(ip) ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 
 	Time::setInitialTime();
 

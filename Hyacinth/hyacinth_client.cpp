@@ -70,12 +70,13 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
         closesocket(connectSocket);
         connectSocket = INVALID_SOCKET;
     }
-    freeaddrinfo(result);
     if(connectSocket == INVALID_SOCKET) {
         printf("Unable to connect to server! Make sure it is running and listening!\n");
         WSACleanup();
         return 1;
     }
+    std::cout << "connected to server!" << std::endl;
+    freeaddrinfo(result);
 
     // send the server handshake packet after tcp connection established
     ClientRequestConnectionPacket myRequest;
@@ -89,30 +90,23 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
         WSACleanup();
         return 1;
     }
-
-    iResult = shutdown(connectSocket, SD_SEND);
-    if (iResult == SOCKET_ERROR) {
-        printf("shutdown failed: %d\n", WSAGetLastError());
-        closesocket(connectSocket);
-        WSACleanup();
-        return 1;
-    }
+    std::cout << "sent request" << std::endl;
 
     // get the server response to the join request. contains client id
     char recvbuf[DEFAULT_LEN];
     int recvbuflen = DEFAULT_LEN;
-    do {
-        iResult = recv(connectSocket, recvbuf, recvbuflen, 0);
-        if (iResult > 0)
-            printf("Bytes received: %d\n", iResult);
-        else if (iResult == 0)
-            printf("Connection closed\n");
-        else
-            printf("recv failed: %d\n", WSAGetLastError());
-    } while (iResult > 0);
+    iResult = recv(connectSocket, recvbuf, recvbuflen, 0);
+    if (iResult <= 0) {
+        std::cout << "could not receive response from server!" << std::endl;
+        closesocket(connectSocket);
+        WSACleanup();
+        return 1;
+    }
+    recvbuf[iResult] = '\0';
+
     iResult = shutdown(connectSocket, SD_BOTH);
     if (iResult == SOCKET_ERROR) {
-        printf("secondary shutdown failed: %d\n", WSAGetLastError());
+        std::cout << "secondary shutdown failed: " << WSAGetLastError() << std::endl;
         closesocket(connectSocket);
         WSACleanup();
         return 1;
