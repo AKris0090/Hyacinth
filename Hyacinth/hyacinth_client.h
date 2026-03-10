@@ -3,6 +3,7 @@
 #include "transform.h"
 
 #define DEFAULT_PORT "6767"
+#define SERVER_UDP_PORT "6969"
 #define MY_UDP_PORT "4321"
 
 #include <windows.h>
@@ -17,8 +18,9 @@ private:
 	bool connected;
 	uint32_t clientID;
 	SOCKET connectSocket;
-	SOCKET udpConnectionSocket;
-	sockaddr* serverAddress;
+	SOCKET udpReceiverSocket;
+	SOCKET serverUDPSocket;
+	sockaddr serverAddress;
 	int serverAddressLen;
 public:
 	int setup(std::string serveraddr);
