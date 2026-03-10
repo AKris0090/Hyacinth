@@ -24,38 +24,39 @@
 uint32_t currentClientID = -1;
 std::unordered_map<uint32_t, ServersideClient*> clients;
 
-void handleNewClient(SOCKET* socket, ServersideClient* newClient) {
+void handleNewClient(SOCKET socket, ServersideClient* newClient) {
     int initialReq, serverAck;
 
     char recvbuf[DEFAULT_LEN];
     int recvbuflen = DEFAULT_LEN;
-    initialReq = recv(*socket, recvbuf, recvbuflen, 0);
+    initialReq = recv(socket, recvbuf, recvbuflen, 0);
 
     if (initialReq > 0) {
+        recvbuf[initialReq] = '\0';
         ClientRequestConnectionPacket p;
         p.fromString(std::string(recvbuf));
         newClient->clientAddr.sin_port = p.port;
 
-        std::cout << "client added on port: " << newClient->clientAddr.sin_port << std::endl;
+        std::cout << "client added with port: " << newClient->clientAddr.sin_port << std::endl;
 
         ClientRequestConnectionPacket response;
         response.port = newClient->id;
 
         std::string msg = response.toString();
-        serverAck = send(*socket, msg.c_str(), msg.length(), 0);
+        serverAck = send(socket, msg.c_str(), msg.length(), 0);
         if (serverAck == SOCKET_ERROR) {
             std::cout << "acknowledge failed to send?" << std::endl;
-            closesocket(*socket);
+            closesocket(socket);
             clients.erase(newClient->id);
             return;
         }
         std::cout << "client requested connection, sent acknowledgement with id: " << newClient->id << std::endl;
-        shutdown(*socket, SD_BOTH);
+        shutdown(socket, SD_BOTH);
     }
     else {
-        std::cout << "client initiation receive failure" << std::endl;
+        std::cout << "client initiation receive failure: " << initialReq << " " << WSAGetLastError() << std::endl;
         clients.erase(newClient->id);
-        closesocket(*socket);
+        closesocket(socket);
     }
 }
 
@@ -84,7 +85,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
         newClient->clientAddr = clientAddr;
         clients[currentClientID] = newClient;
 
-        std::thread newClientThread(handleNewClient, &clientSocket, newClient);
+        std::thread newClientThread(handleNewClient, clientSocket, newClient);
         newClientThread.detach();
     }
 }

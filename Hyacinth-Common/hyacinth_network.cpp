@@ -42,8 +42,6 @@ std::string ClientRequestConnectionPacket::toString() {
 }
 
 void ClientRequestConnectionPacket::fromString(std::string s) {
-	std::cout << s << std::endl;
 	size_t start = s.find("myport:") + 7;
-	std::cout << start << ", " << s.length() - start << std::endl;
 	port = static_cast<uint32_t>(stoi(s.substr(start, s.length() - start)));
 }
