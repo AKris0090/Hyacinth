@@ -4,7 +4,6 @@
 
 #define DEFAULT_PORT "6767"
 #define SERVER_UDP_PORT "6969"
-#define MY_UDP_PORT "4321"
 
 #include <windows.h>
 #include <winsock2.h>
@@ -19,6 +18,7 @@ private:
 	uint32_t clientID;
 	SOCKET connectSocket;
 	SOCKET udpReceiverSocket;
+	int receiverPort;
 	SOCKET serverUDPSocket;
 	sockaddr serverAddress;
 	int serverAddressLen;
