@@ -46,7 +46,6 @@ void handleNewClient(SOCKET* socket, ServersideClient* newClient) {
         if (serverAck == SOCKET_ERROR) {
             std::cout << "acknowledge failed to send?" << std::endl;
             closesocket(*socket);
-            WSACleanup();
             clients.erase(newClient->id);
             return;
         }
@@ -57,7 +56,6 @@ void handleNewClient(SOCKET* socket, ServersideClient* newClient) {
         std::cout << "client initiation receive failure" << std::endl;
         clients.erase(newClient->id);
         closesocket(*socket);
-        WSACleanup();
     }
 }
 
@@ -77,9 +75,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
         clientSocket = accept(*tcpSocket, (sockaddr*)&clientAddr, &clientAddrSize);
         if (clientSocket == INVALID_SOCKET) {
             std::cout << "accept failed: " << WSAGetLastError() << std::endl;
-            closesocket(*tcpSocket);
-            WSACleanup();
-            return;
+            continue;
         }
 
         currentClientID++;
