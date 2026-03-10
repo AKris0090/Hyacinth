@@ -17,33 +17,34 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
     struct addrinfo* result = NULL, hints;
 
     // create UDP receiver socket
-    ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_protocol = IPPROTO_UDP;
-    hints.ai_flags = AI_PASSIVE;
-    iResult = getaddrinfo(NULL, MY_UDP_PORT, &hints, &result);
-    if (iResult != 0) {
-        std::cout << "getaddrinfo failed: " << iResult << std::endl;
-        WSACleanup();
-        return 1;
-    }
-    udpReceiverSocket = INVALID_SOCKET;
-    udpReceiverSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    udpReceiverSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (udpReceiverSocket == INVALID_SOCKET) {
         std::cout << "problem with udp socket(): " << WSAGetLastError() << std::endl;
         freeaddrinfo(result);
         WSACleanup();
         return 1;
     }
-    iResult = bind(udpReceiverSocket, result->ai_addr, (int)result->ai_addrlen);
+    sockaddr_in recvAddr;
+    ZeroMemory(&recvAddr, sizeof(recvAddr));
+    recvAddr.sin_family = AF_INET;
+    recvAddr.sin_addr.s_addr = INADDR_ANY;
+    recvAddr.sin_port = 0;
+
+    iResult = bind(udpReceiverSocket, (sockaddr*)&recvAddr, sizeof(recvAddr));
     if (iResult != 0) {
-        std::cout << "udp bind failed: " << iResult << std::endl;
-        freeaddrinfo(result);
+        std::cout << "udp receiver socket binding failed: " << iResult << std::endl;
+        return 1;
+    }
+
+    sockaddr_in boundAddr;
+    int boundAddrLen = sizeof(boundAddr);
+    if (getsockname(udpReceiverSocket, (sockaddr*)&boundAddr, &boundAddrLen) == SOCKET_ERROR) {
+        std::cout << "getsockname failed: " << WSAGetLastError() << std::endl;
         closesocket(udpReceiverSocket);
         WSACleanup();
         return 1;
     }
+    receiverPort = ntohs(boundAddr.sin_port);
     freeaddrinfo(result);
 
     // create server UDP sender socket
@@ -104,7 +105,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
 
     // send the server handshake packet after tcp connection established
     ClientRequestConnectionPacket myRequest;
-    myRequest.port = static_cast<uint32_t>(std::stoi(MY_UDP_PORT));
+    myRequest.port = static_cast<uint32_t>(receiverPort);
     std::string requestString = myRequest.toString();
 
     int sendResult = send(connectSocket, requestString.c_str(), requestString.length(), 0);
