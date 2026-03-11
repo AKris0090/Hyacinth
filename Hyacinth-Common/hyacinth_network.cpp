@@ -39,7 +39,6 @@ std::string ServerPacket::toString() {
 	std::ostringstream oss;
 	for (size_t i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
-		std::cout << e.id << std::endl;
 		oss << e.id << "," << e.pos.x
 			<< "," << e.pos.y 
 			<< "," << e.pos.z 

@@ -165,3 +165,7 @@ void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VkDescriptorSet& u
 
 	vkCmdDrawIndexed(cmd, indexCount, entities.size(), 0, 0, 0);
 }
+
+void NetworkEntityManager::shutdown() {
+	vkdeviceutils::destroyBuffer(entityPositionBuffer);
+}

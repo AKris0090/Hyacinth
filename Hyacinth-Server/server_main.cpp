@@ -67,7 +67,6 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
             return;
         }
 
-        std::cout << spString << std::endl;
         std::cout << "sent client entity list!" << std::endl;
 
         shutdown(socket, SD_BOTH);
@@ -101,6 +100,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
         currentClientID++;
         ServersideClient* newClient = new ServersideClient();
         newClient->id = currentClientID;
+        newClient->entity.id = currentClientID;
         newClient->clientAddr = clientAddr;
         newClient->clientAddrLen = clientAddrSize;
         clients[currentClientID] = newClient;
@@ -147,7 +147,7 @@ void updateTick() {
         for (const auto& [id, client] : clients) {
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
-        std::this_thread::sleep_for(7.1825s);
+        std::this_thread::sleep_for(7.1825ms);
     }
 }
 
