@@ -100,6 +100,9 @@
     <Filter Include="Source Files\network">
       <UniqueIdentifier>{608d8ed5-3a42-42ba-8667-a4bb85a63498}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\network\network_entities">
+      <UniqueIdentifier>{053aada3-44ab-4d1a-936d-98dd5c0d70e5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -194,6 +197,9 @@
     </ClCompile>
     <ClCompile Include="hyacinth_client.cpp">
       <Filter>Source Files\network</Filter>
+    </ClCompile>
+    <ClCompile Include="net_ent.cpp">
+      <Filter>Source Files\network\network_entities</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -295,6 +301,9 @@
     </ClInclude>
     <ClInclude Include="hyacinth_client.h">
       <Filter>Source Files\network</Filter>
+    </ClInclude>
+    <ClInclude Include="net_ent.h">
+      <Filter>Source Files\network\network_entities</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

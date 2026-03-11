@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <string>
 #include <thread>
+#include <chrono>
 
 #include "hyacinth_network.h"
 
@@ -25,7 +26,7 @@ uint32_t currentClientID = -1;
 std::unordered_map<uint32_t, ServersideClient*> clients;
 
 void handleNewClient(SOCKET socket, ServersideClient* newClient) {
-    int initialReq, serverAck;
+    int initialReq, serverAck, entityMessage;
 
     char recvbuf[DEFAULT_LEN];
     int recvbuflen = DEFAULT_LEN;
@@ -35,7 +36,8 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
         recvbuf[initialReq] = '\0';
         ClientRequestConnectionPacket p;
         p.fromString(std::string(recvbuf));
-        newClient->clientAddr.sin_port = p.port;
+
+        newClient->clientAddr.sin_port = htons(p.port);
 
         std::cout << "client added with port: " << newClient->clientAddr.sin_port << std::endl;
 
@@ -51,6 +53,23 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
             return;
         }
         std::cout << "client requested connection, sent acknowledgement with id: " << newClient->id << std::endl;
+
+        ServerPacket sp;
+        for (const auto& [id, client] : clients) {
+            sp.entities.push_back(client->entity);
+        }
+        std::string spString = sp.toString();
+        entityMessage = send(socket, spString.c_str(), spString.length(), 0);
+        if (entityMessage == SOCKET_ERROR) {
+            std::cout << "entityList failed to send?" << std::endl;
+            closesocket(socket);
+            clients.erase(newClient->id);
+            return;
+        }
+
+        std::cout << spString << std::endl;
+        std::cout << "sent client entity list!" << std::endl;
+
         shutdown(socket, SD_BOTH);
     }
     else {
@@ -83,6 +102,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
         ServersideClient* newClient = new ServersideClient();
         newClient->id = currentClientID;
         newClient->clientAddr = clientAddr;
+        newClient->clientAddrLen = clientAddrSize;
         clients[currentClientID] = newClient;
 
         std::thread newClientThread(handleNewClient, clientSocket, newClient);
@@ -107,10 +127,28 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         recvBuff[bytesReceived] = '\0';
 
         ClientUpdatePacket p = decomposePacket(recvBuff);
-        p.print();
+        clients[p.id]->entity.pos = glm::vec3(p.movementX, p.movementY, p.movementZ);
     }
 
     closesocket(*udpSocket);
+}
+
+void updateTick() {
+    using namespace std::chrono_literals;
+
+    SOCKET serverSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+    while (true) {
+        ServerPacket p;
+        for (const auto& [id, client] : clients) {
+            p.entities.push_back(client->entity);
+        }
+        std::string packetString = p.toString();
+        for (const auto& [id, client] : clients) {
+            sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
+        }
+        std::this_thread::sleep_for(7.1825s);
+    }
 }
 
 int main()
@@ -203,6 +241,9 @@ int main()
     // listen on the udp thread
     std::thread udpSocketThread(serverListenForUDPPackets, &udpListenSocket);
 
+    std::thread tickThread(updateTick);
+
+    tickThread.join();
     tcpSocketThread.join();
     udpSocketThread.join();
 

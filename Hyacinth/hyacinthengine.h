@@ -24,6 +24,8 @@
 
 #include "imguihelper.h"
 
+#include "net_ent.h"
+
 #include "vk_mem_alloc.h"
 
 #include <glm/glm.hpp>
@@ -70,6 +72,9 @@ class HyacinthEngine {
 public:
 	bool mouseLocked = true;
 	struct SDL_Window* m_window{ nullptr };
+	SWChainImageFormat				m_swImageFormat{};
+	VkDescriptorSetLayout			m_descriptorSetLayout{ VK_NULL_HANDLE };
+	NetworkEntityManager* p_netEntManager;
 	Camera m_camera;
 
 	HyacinthEngine() {};
@@ -88,6 +93,8 @@ private:
 		VkDescriptorSet uniformDescriptorSet;
 		VkDescriptorSet shadowDescriptorSet;
 	};
+
+
 
 	float volANormalBias;
 	float volBNormalBias;
@@ -118,7 +125,6 @@ private:
 	VkFence							m_uploadFence			{ VK_NULL_HANDLE };
 	std::vector<GBuffer>			m_gBuffers				{};
 	std::vector<VulkanImage>		m_swapChainImages		{}; // a.k.a color resolve
-	SWChainImageFormat				m_swImageFormat			{};
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
@@ -132,7 +138,6 @@ private:
 	SceneGraph						m_scene					{};
 	DescriptorAllocator				m_descriptorAllocator	{};
 	DescriptorAllocator				m_imGuiAllocator		{};
-	VkDescriptorSetLayout			m_descriptorSetLayout	{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_textureSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_shadowSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };

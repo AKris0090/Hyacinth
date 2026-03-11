@@ -7,32 +7,21 @@ void ClientUpdatePacket::print() const {
 }
 
 std::string ClientUpdatePacket::toString() {
-	return "id:" + std::to_string(id) +
-		"posX:" + std::to_string(movementX) +
-		"posY:" + std::to_string(movementY) +
-		"posZ:" + std::to_string(movementZ);
+	std::ostringstream oss;
+	oss << id << "," << movementX << "," << movementY << "," << movementZ;
+	return oss.str();
 }
 
 ClientUpdatePacket decomposePacket(char buff[DEFAULT_LEN]) {
 	ClientUpdatePacket p{};
 
 	std::string s = std::string(buff);
-	size_t pos_id = s.find("id:");
-	size_t pos_x = s.find("posX:");
-	pos_id += 3;
-	p.id = static_cast<uint32_t>(std::stoi(s.substr(pos_id, pos_x - pos_id)));
-
-	pos_x += 5;
-	size_t pos_y = s.find("posY:");
-	p.movementX = std::stof(s.substr(pos_x, pos_y - pos_x));
-
-	pos_y += 5;
-	size_t pos_z = s.find("posZ:");
-	p.movementY = std::stof(s.substr(pos_y, pos_z - pos_y));
-
-	pos_z += 5;
-	size_t length = s.length();
-	p.movementZ = std::stof(s.substr(pos_z, length - pos_z));
+	std::stringstream es(s);
+	std::string field;
+	std::getline(es, field, ','); p.id = std::stoi(field);
+	std::getline(es, field, ','); p.movementX = std::stof(field);
+	std::getline(es, field, ','); p.movementY = std::stof(field);
+	std::getline(es, field, ','); p.movementZ = std::stof(field);
 
 	return p;
 }
@@ -44,4 +33,45 @@ std::string ClientRequestConnectionPacket::toString() {
 void ClientRequestConnectionPacket::fromString(std::string s) {
 	size_t start = s.find("myport:") + 7;
 	port = static_cast<uint32_t>(stoi(s.substr(start, s.length() - start)));
+}
+
+std::string ServerPacket::toString() {
+	std::ostringstream oss;
+	for (size_t i = 0; i < entities.size(); i++) {
+		const Entity& e = entities[i];
+		std::cout << e.id << std::endl;
+		oss << e.id << "," << e.pos.x
+			<< "," << e.pos.y 
+			<< "," << e.pos.z 
+			<< "," << e.rot.x 
+			<< "," << e.rot.y 
+			<< "," << e.rot.z;
+		if (i + 1 < entities.size()) oss << "|";
+	}
+	return oss.str();
+}
+
+ServerPacket ServerPacket::fromString(std::string s) {
+	ServerPacket packet;
+
+	std::stringstream ss(s);
+	std::string entityStr;
+
+	while (std::getline(ss, entityStr, '|')) {
+		std::stringstream es(entityStr);
+		std::string field;
+		Entity e;
+
+		std::getline(es, field, ','); e.id = std::stoi(field);
+		std::getline(es, field, ','); e.pos.x = std::stof(field);
+		std::getline(es, field, ','); e.pos.y = std::stof(field);
+		std::getline(es, field, ','); e.pos.z = std::stof(field);
+		std::getline(es, field, ','); e.rot.x = std::stof(field);
+		std::getline(es, field, ','); e.rot.y = std::stof(field);
+		std::getline(es, field, ','); e.rot.z = std::stof(field);
+
+		packet.entities.push_back(e);
+	}
+
+	return packet;
 }
