@@ -743,6 +743,7 @@ void HyacinthEngine::update() {
     m_camera.update(Time::getDeltaTime(), mouseLocked, m_frameIndex);
     m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
+    p_netEntManager->update();
 
     std::vector<VolumeData> volumeData;
     for (auto& vol : m_owDDGIHelper.m_probeVolumes) {
@@ -1012,11 +1013,20 @@ void HyacinthEngine::draw()
 	vkCmdSetViewport(cmd, 0, 1, &viewport);
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 	vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
+    vkCmdEndRendering(cmd);
+    VK_LABEL_END(cmd);
+
+    VK_LABEL(cmd, "Network Entity Pass");
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+    VkRenderingAttachmentInfo netColorInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+    VkRenderingAttachmentInfo netDepthInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
+    VkRenderingInfo netRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netColorInfo, &netDepthInfo);
+    vkCmdBeginRendering(cmd, &netRenderingInfo);
+    p_netEntManager->drawEntities(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
+    vkCmdEndRendering(cmd);
     VK_LABEL_END(cmd);
 
     if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
-        vkCmdEndRendering(cmd);
-        vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
         VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
 		VkRenderingAttachmentInfo depthVisInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
         VkRenderingInfo visRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &visInfo, &depthVisInfo);
@@ -1032,8 +1042,12 @@ void HyacinthEngine::draw()
         if (m_owDDGIHelper.showVolumes) {
             m_owDDGIHelper.m_volumeVis.drawVolumes(cmd, m_frameData[m_frameIndex].uniformDescriptorSet, m_frameIndex, m_owDDGIHelper.m_probeVolumes.size());
         }
+        vkCmdEndRendering(cmd);
     }
 
+    VkRenderingAttachmentInfo imguiAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+    VkRenderingInfo imguiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &imguiAttachment, nullptr);
+    vkCmdBeginRendering(cmd, &imguiRenderingInfo);
     VK_LABEL(cmd, "ImGui Pass");
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
