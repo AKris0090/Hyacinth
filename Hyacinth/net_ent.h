@@ -33,4 +33,5 @@ public:
 	void updateEntitiesFromPacket(ServerPacket& p, uint32_t currentClientID);
 	void update();
 	void drawEntities(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
+	void shutdown();
 };
