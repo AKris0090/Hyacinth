@@ -35,7 +35,7 @@ public:
     float m_aspectRatio, m_FOV , m_zNear, m_zFar, m_yaw = 0.f, m_pitch = 0.f;
 
     glm::vec3 m_forward = { 0.f, 0.f, -1.f };
-    glm::vec3 m_right;
+    glm::vec3 m_right = { 1.f, 0.f, 0.f };
     glm::vec3 m_up = { 0.f, 1.f, 0.f };
 
     glm::mat4 m_proj;

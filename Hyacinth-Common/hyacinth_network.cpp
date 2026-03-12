@@ -2,26 +2,24 @@
 #include "framework.h"
 #include "hyacinth_network.h"
 
-void ClientUpdatePacket::print() const {
-	std::cout << "id: " << id << ", movement: " << movementX << ", " << movementY << ", " << movementZ << std::endl;
-}
-
 std::string ClientUpdatePacket::toString() {
 	std::ostringstream oss;
-	oss << id << "," << movementX << "," << movementY << "," << movementZ;
+	oss << (int) id << "," << (float) tDelta << "," << (float) xRelMouse << "," << (float) yRelMouse << "," << (int) movementFB << "," << (int) movementLR << "," << (int) movementUD;
 	return oss.str();
 }
 
-ClientUpdatePacket decomposePacket(char buff[DEFAULT_LEN]) {
+ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	ClientUpdatePacket p{};
 
-	std::string s = std::string(buff);
 	std::stringstream es(s);
 	std::string field;
 	std::getline(es, field, ','); p.id = std::stoi(field);
-	std::getline(es, field, ','); p.movementX = std::stof(field);
-	std::getline(es, field, ','); p.movementY = std::stof(field);
-	std::getline(es, field, ','); p.movementZ = std::stof(field);
+	std::getline(es, field, ','); p.tDelta = std::stof(field);
+	std::getline(es, field, ','); p.xRelMouse = std::stof(field);
+	std::getline(es, field, ','); p.yRelMouse = std::stof(field);
+	std::getline(es, field, ','); p.movementFB = std::stoi(field);
+	std::getline(es, field, ','); p.movementLR = std::stoi(field);
+	std::getline(es, field, ','); p.movementUD = std::stoi(field);
 
 	return p;
 }
@@ -39,12 +37,13 @@ std::string ServerPacket::toString() {
 	std::ostringstream oss;
 	for (size_t i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
-		oss << e.id << "," << e.pos.x
-			<< "," << e.pos.y 
-			<< "," << e.pos.z 
-			<< "," << e.rot.x 
-			<< "," << e.rot.y 
-			<< "," << e.rot.z;
+		oss << e.id << "," << e.transform.position.x
+			<< "," << e.transform.position.y 
+			<< "," << e.transform.position.z 
+			<< "," << e.transform.rotation.x 
+			<< "," << e.transform.rotation.y 
+			<< "," << e.transform.rotation.z
+			<< "," << e.transform.rotation.w;
 		if (i + 1 < entities.size()) oss << "|";
 	}
 	return oss.str();
@@ -62,12 +61,13 @@ ServerPacket ServerPacket::fromString(std::string s) {
 		Entity e;
 
 		std::getline(es, field, ','); e.id = std::stoi(field);
-		std::getline(es, field, ','); e.pos.x = std::stof(field);
-		std::getline(es, field, ','); e.pos.y = std::stof(field);
-		std::getline(es, field, ','); e.pos.z = std::stof(field);
-		std::getline(es, field, ','); e.rot.x = std::stof(field);
-		std::getline(es, field, ','); e.rot.y = std::stof(field);
-		std::getline(es, field, ','); e.rot.z = std::stof(field);
+		std::getline(es, field, ','); e.transform.position.x = std::stof(field);
+		std::getline(es, field, ','); e.transform.position.y = std::stof(field);
+		std::getline(es, field, ','); e.transform.position.z = std::stof(field);
+		std::getline(es, field, ','); e.transform.rotation.x = std::stof(field);
+		std::getline(es, field, ','); e.transform.rotation.y = std::stof(field);
+		std::getline(es, field, ','); e.transform.rotation.z = std::stof(field);
+		std::getline(es, field, ','); e.transform.rotation.w = std::stof(field);
 
 		packet.entities.push_back(e);
 	}

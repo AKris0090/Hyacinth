@@ -10,12 +10,13 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerPacket& p, uint32_t cu
 			entities[e.id] = new Entity();
 			entities[e.id]->id = e.id;
 		}
-		entities[e.id]->pos = e.pos;
+		entities[e.id]->transform.position = e.transform.position;
+		entities[e.id]->transform.rotation = e.transform.rotation;
 	}
 }
 
 void NetworkEntityManager::setupRenderingUtils() {
-	auto spherePath = vkdebugutils::getExeDir() / "objects" / "sphere.glb";
+	auto spherePath = vkdebugutils::getExeDir() / "objects" / "cubeOrigin.glb";
 	sphereObject = std::make_unique<gltfObject>(gltfutils::loadFromFile(spherePath.string(), false));
 	gltfNode* node = sphereObject.get()->nodes[0].get();
 	for (const auto& p : node->primitives) {
@@ -116,19 +117,19 @@ void NetworkEntityManager::setupFromServerPacket(ServerPacket& p, uint32_t curre
 			if (e.id == currentClientID) continue;
 			Entity* newEnt = new Entity;
 			newEnt->id = e.id;
-			newEnt->pos = e.pos;
-			newEnt->rot = e.rot;
+			newEnt->transform.position = e.transform.position;
+			newEnt->transform.rotation = e.transform.rotation;
 			entities[e.id] = newEnt;
 			ids.push_back(e.id);
 		}
 	}
 	
 	// create entity position buffer
-	std::vector<glm::vec3> entityPositions;
+	std::vector<glm::mat4> entityPositions;
 	for (const auto& id : ids) {
-		entityPositions.push_back(entities[id]->pos);
+		entityPositions.push_back(entities[id]->transform.getMatrix());
 	}
-	size_t entityBufferSize = 2 * sizeof(glm::vec3);
+	size_t entityBufferSize = 2 * sizeof(glm::mat4);
 	entityPositionBuffer = vkdeviceutils::createBuffer(entityBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "entity_pos_buffer");
 	if (entityPositions.size() > 0) {
 		memcpy(entityPositionBuffer.pMappedData, entityPositions.data(), entityBufferSize);
@@ -139,11 +140,11 @@ void NetworkEntityManager::setupFromServerPacket(ServerPacket& p, uint32_t curre
 
 void NetworkEntityManager::update() {
 	if (entities.size() > 0) {
-		std::vector<glm::vec3> entityPositions;
+		std::vector<glm::mat4> entityPositions;
 		for (const auto& id : ids) {
-			entityPositions.push_back(entities[id]->pos);
+			entityPositions.push_back(entities[id]->transform.getMatrix());
 		}
-		size_t entityBufferSize = entityPositions.size() * sizeof(glm::vec3);
+		size_t entityBufferSize = entityPositions.size() * sizeof(glm::mat4);
 		memcpy(entityPositionBuffer.pMappedData, entityPositions.data(), entityBufferSize);
 	}
 }
