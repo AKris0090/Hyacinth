@@ -112,10 +112,10 @@ namespace InputManager {
 		int8_t lr = 0;
 		int8_t ud = 0;
 
-		if (forwardKeyDown()) fb -= 1;
-		if (backwardKeyDown()) fb += 1;
-		if (leftKeyDown()) lr += 1;
-		if (rightKeyDown()) lr -= 1;
+		if (forwardKeyDown()) fb += 1;
+		if (backwardKeyDown()) fb -= 1;
+		if (rightKeyDown()) lr += 1;
+		if (leftKeyDown()) lr -= 1;
 		if (upKeyDown()) ud += 1;
 		if (downKeyDown()) ud -= 1;
 

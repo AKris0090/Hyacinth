@@ -21,7 +21,9 @@ void NetworkEntityManager::setupRenderingUtils() {
 	gltfNode* node = sphereObject.get()->nodes[0].get();
 	for (const auto& p : node->primitives) {
 		for (const auto& v : p.get()->vertices) {
-			node->vertices.push_back(v);
+			Vertex upV = v;
+			//upV.pos = node->worldTransform * upV.pos;
+			node->vertices.push_back(upV);
 		}
 		for (const auto& index : p.get()->indices) {
 			node->indices.push_back(index);
