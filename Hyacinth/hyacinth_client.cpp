@@ -17,7 +17,7 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
         recvBuff[bytesReceived] = '\0';
 
         ServerPacket sp;
-        sp = sp.fromString(std::string(recvBuff));
+        sp = ServerPacket::fromString(std::string(recvBuff));
         netEntManager.updateEntitiesFromPacket(sp, clientID);
     }
 
@@ -173,7 +173,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     clientID = serverResponse.port;
 
     ServerPacket sp;
-    sp = sp.fromString(std::string(entityBuff));
+    sp = ServerPacket::fromString(std::string(entityBuff));
     netEntManager.imageFormat = swImageFormat;
     netEntManager.uniformSetLayout = &uniformLayout;
     netEntManager.setupFromServerPacket(sp, clientID);
@@ -188,15 +188,24 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     return 0;
 }
 
-void HyacinthNetworkClient::sendMovementString(Transform& t) {
-    if (!connected) return;
+void HyacinthNetworkClient::updateServerTick() {
+    auto [dx, dy] = InputManager::getTickMouseMotion();
+    std::array<int8_t, 3> movement = InputManager::getMovement();
+
     ClientUpdatePacket p;
     p.id = clientID;
-    p.movementX = t.position.x;
-    p.movementY = t.position.y;
-    p.movementZ = t.position.z;
+    p.tDelta = Time::getDeltaTime();
+    p.movementFB = movement[0];
+    p.movementLR = movement[1];
+    p.movementUD = movement[2];
+    p.xRelMouse = -dx;
+    p.yRelMouse = dy;
          
     std::string s = p.toString();
     const char* msg = s.c_str();
     sendto(serverUDPSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);
+}
+
+void HyacinthNetworkClient::shutdownNet() {
+    netEntManager.shutdown();
 }

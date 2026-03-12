@@ -13,6 +13,8 @@
 #include <string>
 #include <thread>
 #include "net_ent.h"
+#include "input.h"
+#include "time.h"
 
 class HyacinthNetworkClient {
 private:
@@ -31,5 +33,6 @@ public:
 	NetworkEntityManager netEntManager;
 
 	int setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout);
-	void sendMovementString(Transform& t);
+	void updateServerTick();
+	void shutdownNet();
 };

@@ -16,18 +16,17 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
-layout(buffer_reference, std430) readonly buffer EntityPositionBuffer{ 
-	vec3 positions[];
+layout(buffer_reference, std430) readonly buffer EntityTransformBuffer{ 
+	mat4 transforms[];
 };
 
 layout( push_constant ) uniform constants
 {
-	EntityPositionBuffer entityPosBuffer;
+	EntityTransformBuffer entityTransformBuffer;
 } pc;
 
 void main() 
 {
-	vec3 entityPos = pc.entityPosBuffer.positions[gl_InstanceIndex];
-	vec3 worldPos  = inPosition.xyz + entityPos;
-	gl_Position = ubo.proj * ubo.view * vec4(worldPos.xyz, 1.0f);
+	mat4 entityTransform = pc.entityTransformBuffer.transforms[gl_InstanceIndex];
+	gl_Position = ubo.proj * ubo.view * entityTransform * vec4(inPosition.xyz, 1.0f);
 }

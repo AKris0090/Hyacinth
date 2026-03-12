@@ -43,13 +43,14 @@ int main() {
 			}
 		}
 		hyacinthEngine.draw();
-		if (hyacinthEngine.m_camera.m_dirtyMovement) {
-			netClient.sendMovementString(hyacinthEngine.m_camera.m_transform);
-			hyacinthEngine.m_camera.m_dirtyMovement = false;
+		if (hyacinthEngine.mouseLocked) {
+			netClient.updateServerTick();
 		}
 
 		Time::updateTime();
 	}
+
+	netClient.shutdownNet();
 
 	return 0;
 } 

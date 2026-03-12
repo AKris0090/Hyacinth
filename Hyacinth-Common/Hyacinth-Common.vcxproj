@@ -149,6 +149,7 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Build\Include\entity.h" />
     <ClInclude Include="Build\Include\hyacinth_network.h" />
     <ClInclude Include="Build\Include\transform.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

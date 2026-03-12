@@ -16,6 +16,7 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include "glm/glm.hpp"
 
 #include "hyacinth_network.h"
 
@@ -110,6 +111,46 @@ void serverListenForClients(SOCKET* tcpSocket) {
     }
 }
 
+void pushSimulation(ClientUpdatePacket& p) {
+    Transform& t = clients[p.id]->entity.transform;
+    if (glm::abs(p.xRelMouse) > 0.f || glm::abs(p.yRelMouse) > 0.f) {
+        float mouseX = p.xRelMouse * clients[p.id]->entity.camSpeed * p.tDelta;
+        float mouseY = p.yRelMouse * clients[p.id]->entity.camSpeed * p.tDelta;
+    
+        t.yaw += mouseX;
+        t.pitch -= mouseY;
+    
+        if (t.yaw > 360.f)  t.yaw -= 360.f;
+        if (t.yaw < -360.f) t.yaw += 360.f;
+        t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
+    
+        glm::quat qYaw = glm::angleAxis(glm::radians(t.yaw), glm::vec3(0, 1, 0));
+        glm::quat qPitch = glm::angleAxis(glm::radians(t.pitch), glm::vec3(0, 0, 1));
+    
+        t.rotation = qYaw * qPitch;
+        t.forward = glm::normalize(glm::vec3(
+            cos(glm::radians(t.yaw)) * cos(glm::radians(t.pitch)),
+            sin(glm::radians(t.pitch)),
+            sin(glm::radians(t.yaw)) * cos(glm::radians(t.pitch))
+        ));
+        t.right = glm::normalize(glm::cross(t.forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+        t.up = glm::normalize(glm::cross(t.right, t.forward));
+    }
+
+    glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
+    if (p.movementFB > 0)       localDisplacement -= t.forward;
+    if (p.movementFB < 0)       localDisplacement += t.forward;
+    if (p.movementLR > 0)       localDisplacement -= t.right;
+    if (p.movementLR < 0)       localDisplacement += t.right;
+    if (p.movementUD > 0)       localDisplacement += t.up;
+    if (p.movementUD < 0)       localDisplacement -= t.up;
+
+    if (glm::length(localDisplacement) > 0.0) {
+        glm::vec3 a = glm::normalize(localDisplacement);
+        t.position += glm::normalize(localDisplacement) * clients[p.id]->entity.moveSpeed * p.tDelta;
+    }
+}
+
 void serverListenForUDPPackets(SOCKET* udpSocket) {
     char recvBuff[DEFAULT_LEN];
     sockaddr_in clientAddr;
@@ -126,8 +167,8 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
 
         recvBuff[bytesReceived] = '\0';
 
-        ClientUpdatePacket p = decomposePacket(recvBuff);
-        clients[p.id]->entity.pos = glm::vec3(p.movementX, p.movementY, p.movementZ);
+        ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
+        pushSimulation(p);
     }
 
     closesocket(*udpSocket);
@@ -144,6 +185,7 @@ void updateTick() {
             p.entities.push_back(client->entity);
         }
         std::string packetString = p.toString();
+        // std::cout << packetString << std::endl;
         for (const auto& [id, client] : clients) {
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }

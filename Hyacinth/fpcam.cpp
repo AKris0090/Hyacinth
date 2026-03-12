@@ -29,6 +29,7 @@ void Camera::update(float deltaTime, bool moveMouse, int imageIndex) {
     if (!moveMouse) {
         return;
     }
+
     auto [dx, dy] = InputManager::getMouseMotion();
 
     if (glm::abs(dx) > 0.f || glm::abs(dy) > 0.f) {
@@ -79,8 +80,6 @@ void Camera::update(float deltaTime, bool moveMouse, int imageIndex) {
         setViewMatrix();
         GetFrustumPlanes(m_frustumPlanes.planes, m_proj * m_view);
     }
-
-
 }
 
 Camera::Camera(float aspect, float fov, float nearC, float farC) {
@@ -93,10 +92,5 @@ Camera::Camera(float aspect, float fov, float nearC, float farC) {
     m_dirtyProj = true;
     m_dirtyView = true;
 
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        // m_frustumProperties[i].camFrustumUniformBuffer = vkdeviceutils::createBuffer(sizeof(CameraFrustumPlanes), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frustum_uniform");;
-        // m_frustumProperties[i].m_frustumPlaneUniformSet = VK_NULL_HANDLE;
-	}
-
-    update(0.f, true, 0);
+    update(1.f, true, 0);
 }

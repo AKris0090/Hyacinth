@@ -5,6 +5,7 @@ namespace InputManager {
 	bool left, right;
 	bool up, down;
 	float xrel, yrel;
+	float xTickRel, yTickRel;
 	bool mouseLeft;
 	bool tabKey;
 
@@ -47,6 +48,8 @@ namespace InputManager {
 		if (e.type == SDL_EVENT_MOUSE_MOTION) {
 			xrel = static_cast<float>(e.motion.xrel);
 			yrel = static_cast<float>(e.motion.yrel);
+			xTickRel = xrel;
+			yTickRel = yrel;
 		}
 
 		if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
@@ -92,8 +95,30 @@ namespace InputManager {
 
 	std::pair<float, float> getMouseMotion() {
 		std::pair<float, float> motion(xrel, yrel);
-		xrel = 0.0f;
-		yrel = 0.0f;
+		xrel = 0.0;
+		yrel = 0.0;
 		return motion;
+	}
+
+	std::pair<float, float> getTickMouseMotion() {
+		std::pair<float, float> motion(xTickRel, yTickRel);
+		xTickRel = 0.0;
+		yTickRel = 0.0;
+		return motion;
+	}
+
+	std::array<int8_t, 3> getMovement() {
+		int8_t fb = 0;
+		int8_t lr = 0;
+		int8_t ud = 0;
+
+		if (forwardKeyDown()) fb -= 1;
+		if (backwardKeyDown()) fb += 1;
+		if (leftKeyDown()) lr += 1;
+		if (rightKeyDown()) lr -= 1;
+		if (upKeyDown()) ud += 1;
+		if (downKeyDown()) ud -= 1;
+
+		return { fb, lr, ud };
 	}
 }
