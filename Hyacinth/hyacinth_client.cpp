@@ -198,7 +198,7 @@ void HyacinthNetworkClient::updateServerTick() {
     p.movementFB = movement[0];
     p.movementLR = movement[1];
     p.movementUD = movement[2];
-    p.xRelMouse = -dx;
+    p.xRelMouse = dx;
     p.yRelMouse = dy;
          
     std::string s = p.toString();

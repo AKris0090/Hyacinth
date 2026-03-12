@@ -14,7 +14,7 @@ void Camera::GetFrustumPlanes(glm::vec4* planes, glm::mat4 matrix) {
 }
 
 void Camera::setViewMatrix() {
-    m_view = glm::lookAt(m_transform.position, m_transform.position + m_forward, m_up);
+    m_view = glm::lookAt(m_transform.position, m_transform.position + m_transform.forward, m_transform.up);
     m_dirtyView = false;
 }
 
@@ -36,35 +36,35 @@ void Camera::update(float deltaTime, bool moveMouse, int imageIndex) {
         float mouseX = dx * m_lookSpeed * deltaTime;
         float mouseY = dy * m_lookSpeed * deltaTime;
 
-        m_yaw += mouseX;
-        m_pitch -= mouseY;
+        m_transform.yaw += mouseX;
+        m_transform.pitch -= mouseY;
 
-        if (m_yaw > 360.f)  m_yaw -= 360.f;
-        if (m_yaw < -360.f) m_yaw += 360.f;
-        m_pitch = glm::clamp(m_pitch, -89.9f, 89.9f);
+        if (m_transform.yaw > 360.f)  m_transform.yaw -= 360.f;
+        if (m_transform.yaw < -360.f) m_transform.yaw += 360.f;
+        m_transform.pitch = glm::clamp(m_transform.pitch, -89.9f, 89.9f);
 
-        glm::quat qYaw = glm::angleAxis(glm::radians(m_yaw), glm::vec3(0, 1, 0));
-        glm::quat qPitch = glm::angleAxis(glm::radians(m_pitch), glm::vec3(1, 0, 0));
+        glm::quat qYaw = glm::angleAxis(glm::radians(m_transform.yaw), glm::vec3(0, 1, 0));
+        glm::quat qPitch = glm::angleAxis(glm::radians(m_transform.pitch), glm::vec3(0, 0, 1));
 
         m_transform.rotation = qYaw * qPitch;
-        m_forward = glm::normalize(glm::vec3(
-            cos(glm::radians(m_yaw)) * cos(glm::radians(m_pitch)),
-            sin(glm::radians(m_pitch)),
-            sin(glm::radians(m_yaw)) * cos(glm::radians(m_pitch))
+        m_transform.forward = glm::normalize(glm::vec3(
+            cos(glm::radians(m_transform.yaw)) * cos(glm::radians(m_transform.pitch)),
+            sin(glm::radians(m_transform.pitch)),
+            sin(glm::radians(m_transform.yaw)) * cos(glm::radians(m_transform.pitch))
         ));
-        m_right = glm::normalize(glm::cross(m_forward, glm::vec3(0.0f, 1.0f, 0.0f)));
-        m_up = glm::normalize(glm::cross(m_right, m_forward));
+        m_transform.right = glm::normalize(glm::cross(m_transform.forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+        m_transform.up = glm::normalize(glm::cross(m_transform.right, m_transform.forward));
 
         m_dirtyView = true;
     }
 
     glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
-    if (InputManager::forwardKeyDown())    localDisplacement += m_forward;
-    if (InputManager::backwardKeyDown())   localDisplacement -= m_forward;
-    if (InputManager::rightKeyDown())      localDisplacement += m_right;
-    if (InputManager::leftKeyDown())       localDisplacement -= m_right;
-    if (InputManager::upKeyDown())         localDisplacement += m_up;
-    if (InputManager::downKeyDown())       localDisplacement -= m_up;
+    if (InputManager::forwardKeyDown())    localDisplacement += m_transform.forward;
+    if (InputManager::backwardKeyDown())   localDisplacement -= m_transform.forward;
+    if (InputManager::rightKeyDown())      localDisplacement += m_transform.right;
+    if (InputManager::leftKeyDown())       localDisplacement -= m_transform.right;
+    if (InputManager::upKeyDown())         localDisplacement += m_transform.up;
+    if (InputManager::downKeyDown())       localDisplacement -= m_transform.up;
 
     if (glm::length(localDisplacement) > 0) {
         m_transform.position += glm::normalize(localDisplacement) * m_moveSpeed * deltaTime;

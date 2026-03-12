@@ -123,30 +123,30 @@ void pushSimulation(ClientUpdatePacket& p) {
         if (t.yaw > 360.f)  t.yaw -= 360.f;
         if (t.yaw < -360.f) t.yaw += 360.f;
         t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
-    
-        glm::quat qYaw = glm::angleAxis(glm::radians(t.yaw), glm::vec3(0, 1, 0));
-        glm::quat qPitch = glm::angleAxis(glm::radians(t.pitch), glm::vec3(0, 0, 1));
-    
-        t.rotation = qYaw * qPitch;
+
         t.forward = glm::normalize(glm::vec3(
             cos(glm::radians(t.yaw)) * cos(glm::radians(t.pitch)),
             sin(glm::radians(t.pitch)),
             sin(glm::radians(t.yaw)) * cos(glm::radians(t.pitch))
         ));
-        t.right = glm::normalize(glm::cross(t.forward, glm::vec3(0.0f, 1.0f, 0.0f)));
+        t.right = glm::normalize(glm::cross(t.forward, glm::vec3(0.f, 1.f, 0.f)));
         t.up = glm::normalize(glm::cross(t.right, t.forward));
+
+        glm::quat qYaw = glm::angleAxis(glm::radians(t.yaw), glm::vec3(0, -1, 0));
+        glm::quat qPitch = glm::angleAxis(glm::radians(t.pitch), glm::vec3(0, 0, 1));
+
+        t.rotation = qYaw * qPitch;
     }
 
     glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
-    if (p.movementFB > 0)       localDisplacement -= t.forward;
-    if (p.movementFB < 0)       localDisplacement += t.forward;
-    if (p.movementLR > 0)       localDisplacement -= t.right;
-    if (p.movementLR < 0)       localDisplacement += t.right;
+    if (p.movementFB > 0)       localDisplacement += t.forward;
+    if (p.movementFB < 0)       localDisplacement -= t.forward;
+    if (p.movementLR > 0)       localDisplacement += t.right;
+    if (p.movementLR < 0)       localDisplacement -= t.right;
     if (p.movementUD > 0)       localDisplacement += t.up;
     if (p.movementUD < 0)       localDisplacement -= t.up;
 
-    if (glm::length(localDisplacement) > 0.0) {
-        glm::vec3 a = glm::normalize(localDisplacement);
+    if (glm::length(localDisplacement) > 0.0) {  
         t.position += glm::normalize(localDisplacement) * clients[p.id]->entity.moveSpeed * p.tDelta;
     }
 }
