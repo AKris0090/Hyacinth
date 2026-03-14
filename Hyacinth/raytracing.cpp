@@ -124,7 +124,7 @@ void rtHelper::createBottomLevelAS(SceneGraph& scene) {
     std::cout << "building bottom-level accel structures" << std::endl;
 
     uint32_t id = 0;
-    for(const auto& obj : scene.objects) {
+    for(const auto& obj : scene.staticObjects) {
         for (const auto& node : obj.nodes) {
             if (!node.get()->includeInAccel || node.get()->vertices.empty() || node.get()->indices.empty()) {
                 std::cerr << "Warning: Node " << id << " has no geometry, skipping BLAS creation." << std::endl;
@@ -152,7 +152,7 @@ void rtHelper::createTopLevelAS(SceneGraph& scene) {
     tlasInstances.reserve(scene.numAccelNodes);
 
     uint32_t meshIndex = 0;
-    for(const auto& obj : scene.objects) {
+    for(const auto& obj : scene.staticObjects) {
         for (const auto& node : obj.nodes) {
             if (node->includeInAccel == false || node->vertices.empty() || node->indices.empty()) {
                 std::cerr << "Warning: Node " << meshIndex << " is marked as not included in acceleration structure or has no geometry, skipping TLAS instance creation." << std::endl;

@@ -22,6 +22,7 @@ static std::string getFilePathExtension(const std::string& FileName) {
 }
 
 struct gltfDrawCommand {
+    bool dynamic;
     uint32_t    indexCount;
     uint32_t    firstIndex;
     int32_t     vertexOffset;
@@ -43,6 +44,7 @@ struct gltfNode {
     std::vector<uint32_t> childrenIndices;
     int32_t parentIndex = -1;
     bool includeInAccel = false;
+    bool dynamic = false;
 
     std::vector<Vertex> vertices;
     VulkanBuffer accelStructureVertexBuffer;
@@ -51,6 +53,7 @@ struct gltfNode {
 };
 
 struct gltfObject {
+    bool dynamic;
 	std::vector<std::unique_ptr<gltfNode>> nodes;
     uint32_t nodeCounter;
 
@@ -67,8 +70,11 @@ struct DrawData {
 };
 
 struct SceneGraph {
-    std::vector<gltfObject> objects;
-    std::vector<glm::mat4> transformMatrices;
+    std::vector<gltfObject> staticObjects;
+    std::vector<gltfObject> dynamicObjects;
+    std::vector<gltfObject*> combinedObjects;
+    std::vector<glm::mat4> staticTransformMatrices;
+    std::vector<glm::mat4> dynamicTransformMatrices;
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     std::vector<VulkanImage> dummyTextures;
@@ -80,7 +86,9 @@ struct SceneGraph {
 
     std::vector<MaterialInstance> materials;
     std::unordered_map<int32_t, std::vector<gltfDrawCommand>> sortedDrawCalls;
-    std::vector<VkDrawIndexedIndirectCommand> drawCommands;
+
+    std::vector<VkDrawIndexedIndirectCommand> staticDrawCommands;
+    std::vector<VkDrawIndexedIndirectCommand> dynamicDrawCommands;
 
     std::vector<DrawData> drawData;
     std::vector<GPUMaterialIndices> materialObjects;
@@ -96,5 +104,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, bool includeInAccel);
+    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false);
 }

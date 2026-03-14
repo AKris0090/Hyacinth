@@ -94,8 +94,6 @@ private:
 		VkDescriptorSet shadowDescriptorSet;
 	};
 
-
-
 	float volANormalBias;
 	float volBNormalBias;
 	float volAViewBias;
@@ -103,7 +101,7 @@ private:
 
 	bool m_initialized = false;
 	bool m_showImGui = true;
-	bool ambientToggle = true;
+	bool ambientToggle = false;
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -130,8 +128,10 @@ private:
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
 	VulkanPipelineBuilder			m_volumeStencilPipeline	{};
 	GPUMeshBuffers					m_meshBuffers			{};
-	VulkanBuffer 					m_indirectDrawBuffer	{};
-	VulkanBuffer 					m_worldMatrixBuffer		{};
+	VulkanBuffer 					m_staticIndirectDrawBuffer{};
+	VulkanBuffer					m_dynamicIndirectDrawBuffer{};
+	VulkanBuffer 					m_staticWorldMatrixBuffer{};
+	std::vector<VulkanBuffer>		m_dynamicWorldMatrixBuffer{};
 	VulkanBuffer					m_drawDataBuffer		{};
 	VulkanBuffer					m_materialBuffer		{};
 	perFrame						m_uploadFrame			{};

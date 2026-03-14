@@ -313,7 +313,7 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 
 	std::vector<DDGIVertex> vertices;
 	std::vector<uint32_t> indices;
-	for (const auto& object : m_scene.objects) {
+	for (const auto& object : m_scene.staticObjects) {
 		for (const auto& node : object.nodes) {
 			if (!node->includeInAccel) continue;
 
