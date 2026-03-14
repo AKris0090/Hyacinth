@@ -8,9 +8,6 @@
 struct gltfObject;
 
 class NetworkEntityManager {
-	std::vector<uint32_t> ids;
-	std::unordered_map<uint32_t, Entity*> entities;
-
 	VulkanBuffer vertexBuffer;
 	VulkanBuffer indexBuffer;
 	VulkanPipelineBuilder pipelineUtil;
@@ -26,6 +23,8 @@ class NetworkEntityManager {
 	void setupRenderingUtils();
 
 public:
+	std::vector<uint32_t> ids;
+	std::unordered_map<uint32_t, Entity*> entities;
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
 
