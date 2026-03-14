@@ -545,11 +545,13 @@ void HyacinthEngine::loadScene() {
     // auto path = "C:/Users/ajnkr/Documents/Hyacinth/Hyacinth/objects/test_scene.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    auto characterPath = vkdebugutils::getExeDir() / "objects" / "char.glb";
     // auto path = "C:/Users/ajnkr/Documents/Orchid/Sandbox/trainStation/station.gltf";
     // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
 
-    m_scene.objects.push_back(gltfutils::loadFromFile(path.string(), true));
+    m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true));
+    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(characterPath.string(), false, true));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
     m_scene.buildSceneGraph();
 
@@ -566,9 +568,13 @@ void HyacinthEngine::createBuffers() {
     m_materialBuffer = vkdeviceutils::createBuffer(materialDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "material_ssbo");
     vkdeviceutils::uploadToBuffer(m_materialBuffer, materialDataBufferSize, m_scene.materialObjects.data());
 
-	size_t drawCmdBufferSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.drawCommands.size();
-    m_indirectDrawBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_ssbo");
-	vkdeviceutils::uploadToBuffer(m_indirectDrawBuffer, drawCmdBufferSize, m_scene.drawCommands.data());
+	size_t drawCmdBufferSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.staticDrawCommands.size();
+    m_staticIndirectDrawBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_ssbo");
+	vkdeviceutils::uploadToBuffer(m_staticIndirectDrawBuffer, drawCmdBufferSize, m_scene.staticDrawCommands.data());
+
+    size_t dynamicDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.dynamicDrawCommands.size();
+    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
+    vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, dynamicDrawCmdSize, m_scene.dynamicDrawCommands.data());
     
     vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer cmd) {
         for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
@@ -578,17 +584,22 @@ void HyacinthEngine::createBuffers() {
             copyRegion.srcOffset = 0;
             copyRegion.dstOffset = 0;
             copyRegion.size = drawCmdBufferSize;
-			vkCmdCopyBuffer(cmd, m_indirectDrawBuffer.buffer, m_shadowHelper.m_cascades[i].cascadeDrawBuffer.buffer, 1, &copyRegion);
+			vkCmdCopyBuffer(cmd, m_staticIndirectDrawBuffer.buffer, m_shadowHelper.m_cascades[i].cascadeDrawBuffer.buffer, 1, &copyRegion);
         }
     });
 
-	size_t matrixBuffSize = sizeof(glm::mat4) * m_scene.transformMatrices.size();
-    m_worldMatrixBuffer = vkdeviceutils::createBuffer(matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "world_mat_ssbo");
-	vkdeviceutils::uploadToBuffer(m_worldMatrixBuffer, matrixBuffSize, m_scene.transformMatrices.data());
+	size_t matrixBuffSize = sizeof(glm::mat4) * m_scene.staticTransformMatrices.size();
+    m_staticWorldMatrixBuffer = vkdeviceutils::createBuffer(matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "world_mat_ssbo");
+	vkdeviceutils::uploadToBuffer(m_staticWorldMatrixBuffer, matrixBuffSize, m_scene.staticTransformMatrices.data());
 
+    size_t dynamicWorldMatSize = sizeof(glm::mat4) * m_scene.dynamicTransformMatrices.size();
+    m_dynamicWorldMatrixBuffer.resize(MAX_FRAMES_IN_FLIGHT);
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         m_frameData[i].uniformBuffer = vkdeviceutils::createBuffer(sizeof(UBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frame_uniform");
         m_frameData[i].mappedUniformBuffer = m_frameData[i].uniformBuffer.info.pMappedData;
+
+        m_dynamicWorldMatrixBuffer[i] = vkdeviceutils::createBuffer(dynamicWorldMatSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "dynamic_world_mat_ssbo");
+        vkdeviceutils::uploadToBuffer(m_dynamicWorldMatrixBuffer[i], dynamicWorldMatSize, m_scene.dynamicTransformMatrices.data());
     }
 }
 
@@ -743,6 +754,7 @@ void HyacinthEngine::update() {
     m_camera.update(Time::getDeltaTime(), mouseLocked, m_frameIndex);
     m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
+    p_netEntManager->update();
 
     std::vector<VolumeData> volumeData;
     for (auto& vol : m_owDDGIHelper.m_probeVolumes) {
@@ -753,6 +765,16 @@ void HyacinthEngine::update() {
     volumeData[0].spacing.w = volAViewBias;
     volumeData[1].spacing.w = volBViewBias;
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
+
+    if (p_netEntManager->entities.size() > 0) {
+        glm::mat4 entityMatrix = p_netEntManager->entities[p_netEntManager->ids[0]]->transform.getMatrix();
+        std::vector<glm::mat4> newMatrices;
+        for(int i = 0; i < m_scene.dynamicTransformMatrices.size(); i++) {
+            newMatrices.push_back(entityMatrix * m_scene.dynamicTransformMatrices[i]);
+        }
+
+        memcpy(m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData, newMatrices.data(), sizeof(glm::mat4) * newMatrices.size());
+    }
 
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
@@ -880,7 +902,7 @@ void HyacinthEngine::drawImGui() {
 void HyacinthEngine::draw()
 {
     GPUDrawPushConstants pushConstants{};
-    pushConstants.transformAddress = m_worldMatrixBuffer.gpuAddress;
+    pushConstants.transformAddress = m_staticWorldMatrixBuffer.gpuAddress;
     pushConstants.materialAddress = m_materialBuffer.gpuAddress;
     pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
     pushConstants.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
@@ -904,7 +926,7 @@ void HyacinthEngine::draw()
     scissor.offset = { 0, 0 };
     scissor.extent = m_swImageFormat.extent;
 
-    uint32_t numDraws = static_cast<uint32_t>(m_scene.drawCommands.size());
+    uint32_t numStaticDraws = static_cast<uint32_t>(m_scene.staticDrawCommands.size());
 
     drawImGui();
 
@@ -913,16 +935,16 @@ void HyacinthEngine::draw()
 
     VK_LABEL(cmd, "Compute Cull Main");
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
-    m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_indirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
+    m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_staticIndirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
     VK_LABEL_END(cmd);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         VK_LABEL(cmd, "Compute Cull Shadow");
-        m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numDraws);
+        m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
         VK_LABEL_END(cmd);
     }
 
     // shadows
-    m_shadowHelper.drawShadowMaps(cmd, numDraws, m_frameIndex, m_worldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress);
+    m_shadowHelper.drawShadowMaps(cmd, numStaticDraws, m_frameIndex, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress);
 
     // main render pass
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
@@ -952,7 +974,12 @@ void HyacinthEngine::draw()
     vkCmdSetViewport(cmd, 0, 1, &viewport);
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-	vkCmdDrawIndexedIndirect(cmd, m_indirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.drawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+	vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.staticDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+
+    pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
+    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+
+    vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
     vkCmdEndRendering(cmd);
     VK_LABEL_END(cmd);
@@ -1012,11 +1039,20 @@ void HyacinthEngine::draw()
 	vkCmdSetViewport(cmd, 0, 1, &viewport);
 	vkCmdSetScissor(cmd, 0, 1, &scissor);
 	vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
+    vkCmdEndRendering(cmd);
     VK_LABEL_END(cmd);
 
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+    // VK_LABEL(cmd, "Network Entity Pass");
+    // VkRenderingAttachmentInfo netColorInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+    // VkRenderingAttachmentInfo netDepthInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
+    // VkRenderingInfo netRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netColorInfo, &netDepthInfo);
+    // vkCmdBeginRendering(cmd, &netRenderingInfo);
+    // p_netEntManager->drawEntities(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
+    // vkCmdEndRendering(cmd);
+    // VK_LABEL_END(cmd);
+
     if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
-        vkCmdEndRendering(cmd);
-        vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
         VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
 		VkRenderingAttachmentInfo depthVisInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
         VkRenderingInfo visRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &visInfo, &depthVisInfo);
@@ -1032,8 +1068,12 @@ void HyacinthEngine::draw()
         if (m_owDDGIHelper.showVolumes) {
             m_owDDGIHelper.m_volumeVis.drawVolumes(cmd, m_frameData[m_frameIndex].uniformDescriptorSet, m_frameIndex, m_owDDGIHelper.m_probeVolumes.size());
         }
+        vkCmdEndRendering(cmd);
     }
 
+    VkRenderingAttachmentInfo imguiAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+    VkRenderingInfo imguiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &imguiAttachment, nullptr);
+    vkCmdBeginRendering(cmd, &imguiRenderingInfo);
     VK_LABEL(cmd, "ImGui Pass");
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
@@ -1127,8 +1167,8 @@ void HyacinthEngine::cleanup()
 	vkdeviceutils::destroyBuffer(m_meshBuffers.indexBuffer);
 	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);
 	vkdeviceutils::destroyBuffer(m_meshBuffers.aabbBuffer);
-	vkdeviceutils::destroyBuffer(m_indirectDrawBuffer);
-	vkdeviceutils::destroyBuffer(m_worldMatrixBuffer);
+	vkdeviceutils::destroyBuffer(m_staticIndirectDrawBuffer);
+	vkdeviceutils::destroyBuffer(m_staticWorldMatrixBuffer);
     vkdeviceutils::destroyBuffer(m_drawDataBuffer);
     vkdeviceutils::destroyBuffer(m_materialBuffer);
 
@@ -1146,7 +1186,7 @@ void HyacinthEngine::cleanup()
     for (auto& tex : m_scene.dummyTextures) {
         vkimageutils::destroyImage(tex);
     }
-    for (auto& obj : m_scene.objects) {
+    for (auto& obj : m_scene.staticObjects) {
         for (auto& node : obj.nodes) {
             vkdeviceutils::destroyBuffer(node.get()->accelStructureIndexBuffer);
             vkdeviceutils::destroyBuffer(node.get()->accelStructureVertexBuffer);
@@ -1164,7 +1204,7 @@ void HyacinthEngine::cleanup()
         vkDestroyCommandPool(m_device, m_frameData[i].commandPool, nullptr);
 
 		vkdeviceutils::destroyBuffer(m_frameData[i].uniformBuffer);
-
+        vkdeviceutils::destroyBuffer(m_dynamicWorldMatrixBuffer[i]);
         vkdeviceutils::destroyBuffer(m_shadowHelper.m_uniformBuffers[i]);
 	}
 

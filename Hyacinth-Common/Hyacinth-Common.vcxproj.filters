@@ -33,6 +33,9 @@
     <ClInclude Include="Build\Include\transform.h">
       <Filter>Header Files\ecs</Filter>
     </ClInclude>
+    <ClInclude Include="Build\Include\entity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

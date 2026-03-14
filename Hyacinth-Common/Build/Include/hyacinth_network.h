@@ -11,15 +11,12 @@
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include "transform.h"
+#include "entity.h"
+#include <sstream>
 
 #pragma comment(lib, "Ws2_32.lib")
 
 constexpr int DEFAULT_LEN = 512;
-
-struct Entity {
-	uint32_t id;
-	Transform transform;
-};
 
 struct ClientRequestConnectionPacket {
 	uint32_t port;
@@ -30,22 +27,27 @@ struct ClientRequestConnectionPacket {
 
 struct ClientUpdatePacket {
 	uint32_t id;
-	float movementX;
-	float movementY;
-	float movementZ;
+	float tDelta = 0.f;
+	float xRelMouse = 0.f;
+	float yRelMouse = 0.f;
+	int8_t movementFB = 0;
+	int8_t movementLR = 0;
+	int8_t movementUD = 0;
 
 	std::string toString();
-	void print() const;
+	static ClientUpdatePacket fromString(std::string s);
 };
 
 struct ServersideClient {
 	Entity entity;
 	uint32_t id;
 	sockaddr_in clientAddr;
+	int clientAddrLen;
 };
 
 struct ServerPacket {
-	Entity* entities;
-};
+	std::vector<Entity> entities;
 
-ClientUpdatePacket decomposePacket(char buff[DEFAULT_LEN]);
+	std::string toString();
+	static ServerPacket fromString(std::string s);
+};

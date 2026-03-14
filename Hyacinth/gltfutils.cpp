@@ -58,12 +58,13 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
     return bounds;
 }
 
-static void loadGLTFNode(gltfObject& obj, bool includeInAccel, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
+static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
     SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
 
     auto node = std::make_unique<gltfNode>();
     node->parentIndex = parent;
 	node->includeInAccel = includeInAccel;
+    node->dynamic = dynamic;
 
     if (nodeIn.matrix.size() == 16) {
         node->worldTransform = glm::make_mat4x4(nodeIn.matrix.data());
@@ -92,7 +93,7 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, const tinygltf::M
 
     if (nodeIn.children.size() > 0) {
         for (size_t i = 0; i < nodeIn.children.size(); i++) {
-            loadGLTFNode(obj, includeInAccel, model, model->nodes[nodeIn.children[i]], nodeIndex);
+            loadGLTFNode(obj, includeInAccel, dynamic, model, model->nodes[nodeIn.children[i]], nodeIndex);
         }
     }
 
@@ -233,10 +234,11 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
     std::cout << "created image: " << curImage.name << std::endl;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
+    object.dynamic = dynamic;
     object.imageIsSRGB = new std::unordered_set<uint32_t>();
     tinygltf::Model* model;
     model = new tinygltf::Model();
@@ -261,7 +263,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     const tinygltf::Scene& scene = model->scenes[model->defaultScene];
     for (size_t i = 0; i < scene.nodes.size(); i++) {
         const tinygltf::Node node = model->nodes[scene.nodes[i]];
-        loadGLTFNode(object, includeInAccel, model, node, -1);
+        loadGLTFNode(object, includeInAccel, dynamic, model, node, -1);
     }
 
     object.textureIndices.resize(model->textures.size());
@@ -360,22 +362,40 @@ void SceneGraph::buildSceneGraph() {
     FullscreenQuad::addFullscreenQuad(vertices, indices);
     addUnitCube(vertices, indices);
 
-    for (const auto& obj : objects) {
-        uint32_t currentNumMatrices = static_cast<uint32_t>(transformMatrices.size());
+    // TODO: REALLY FUCKING INEFFICIENT, find some other way
+    for (auto& o : staticObjects) {
+        combinedObjects.push_back(&o);
+    }
+    for (auto& o : dynamicObjects) {
+        combinedObjects.push_back(&o);
+    }
 
-        for (const auto& node: obj.nodes) {
-            transformMatrices.push_back(node.get()->worldTransform);
+    for (const auto& obj : combinedObjects) {
+        uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
+        for (const auto& node: obj->nodes) {
+            if (obj->dynamic) {
+                dynamicTransformMatrices.push_back(node.get()->worldTransform);
+            }
+            else {
+                staticTransformMatrices.push_back(node.get()->worldTransform);
+            }
             for (const auto& prim : node.get()->primitives) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
-				uint32_t matIndex = prim.get()->materialIndex;
+				uint32_t matIndex = prim.get()->materialIndex + mat_offset;
 
                 gltfDrawCommand draw{};
+                draw.dynamic = obj->dynamic;
                 draw.firstIndex = firstIndex;
                 draw.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
                 draw.vertexCount = prim.get()->vertices.size();
                 draw.boundingBox = getBoundingBox(prim.get()->vertices);
-                draw.transformIndex = transformMatrices.size() - 1;
+                if (obj->dynamic) {
+                    draw.transformIndex = dynamicTransformMatrices.size() - 1;
+                }
+                else {
+                    draw.transformIndex = staticTransformMatrices.size() - 1;
+                }
 
                 for (const auto& v : prim.get()->vertices) {
                     vertices.push_back(v);
@@ -405,20 +425,21 @@ void SceneGraph::buildSceneGraph() {
             buildNodeBuffers(node.get());
 		}
         
-        for (const auto& mat : obj.materials) {
+        for (const auto& mat : obj->materials) {
             GPUMaterialIndices newMatIndices{};
-            newMatIndices.baseColorIndex = mat.baseColorIndex;
-            newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex;
-            newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex;
+            newMatIndices.baseColorIndex = mat.baseColorIndex + numTextures;
+            newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + numTextures;
+            newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + numTextures;
             materialObjects.push_back(newMatIndices);
         }
 
-		numTextures += static_cast<uint32_t>(obj.textures.size());
+		numTextures += static_cast<uint32_t>(obj->textures.size());
     }
 
     uint32_t drawCounter = 0;
-    for (const auto& [key, value] : sortedDrawCalls) {
-        for (const auto& gltfDraw : value) {
+    for (int matIndex = 0; matIndex < materialObjects.size(); matIndex++) {
+        auto& draws = sortedDrawCalls[matIndex];
+        for (const auto& gltfDraw : draws) {
             VkDrawIndexedIndirectCommand drawCmd{};
             drawCmd.firstIndex = gltfDraw.firstIndex;
             drawCmd.indexCount = gltfDraw.indexCount;
@@ -426,13 +447,13 @@ void SceneGraph::buildSceneGraph() {
             drawCmd.firstInstance = drawCounter;
 
             DrawData primDrawData{};
-            primDrawData.materialIndex = key;
+            primDrawData.materialIndex = matIndex;
             primDrawData.transformIndex = gltfDraw.transformIndex;
 
             drawData.push_back(primDrawData);
-            drawCommands.push_back(drawCmd);
-			boundingBoxes.push_back(gltfDraw.boundingBox);
-            
+            gltfDraw.dynamic ? dynamicDrawCommands.push_back(drawCmd) : staticDrawCommands.push_back(drawCmd);
+            boundingBoxes.push_back(gltfDraw.boundingBox);
+
             drawCounter++;
         }
     }
@@ -467,7 +488,13 @@ void SceneGraph::uploadTextures(VkDescriptorSet& descriptor) {
         vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         textureOffset++;
     }
-    for (auto& obj : objects) {
+    for (auto& obj : staticObjects) {
+        for (auto& tex : obj.textures) {
+            vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            textureOffset++;
+        }
+    }
+    for (auto& obj : dynamicObjects) {
         for (auto& tex : obj.textures) {
             vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             textureOffset++;

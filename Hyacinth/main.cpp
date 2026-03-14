@@ -13,7 +13,7 @@ int main() {
 	hyacinthPhysicsTest();
 
 	SDLWindow sdlwindow;
-	sdlwindow.init("Hyacinth Engine", 1920, 1080);
+	sdlwindow.init("Hyacinth Engine", 1280, 720);
 
 	HyacinthEngine hyacinthEngine;
 	hyacinthEngine.m_window = sdlwindow.m_window;
@@ -23,7 +23,8 @@ int main() {
 	std::string ip;
 	std::cout << "Enter server IP: ";
 	std::getline(std::cin, ip);
-	if (CONNECT_SERVER) std::cout << (netClient.setup(ip) ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
+	if (CONNECT_SERVER) std::cout << (netClient.setup(ip, hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout) ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
+	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 
 	Time::setInitialTime();
 
@@ -42,13 +43,14 @@ int main() {
 			}
 		}
 		hyacinthEngine.draw();
-		if (hyacinthEngine.m_camera.m_dirtyMovement) {
-			netClient.sendMovementString(hyacinthEngine.m_camera.m_transform);
-			hyacinthEngine.m_camera.m_dirtyMovement = false;
+		if (hyacinthEngine.mouseLocked) {
+			netClient.updateServerTick();
 		}
 
 		Time::updateTime();
 	}
+
+	netClient.shutdownNet();
 
 	return 0;
 } 
