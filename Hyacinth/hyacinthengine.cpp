@@ -1042,15 +1042,15 @@ void HyacinthEngine::draw()
     vkCmdEndRendering(cmd);
     VK_LABEL_END(cmd);
 
-    VK_LABEL(cmd, "Network Entity Pass");
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-    VkRenderingAttachmentInfo netColorInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-    VkRenderingAttachmentInfo netDepthInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
-    VkRenderingInfo netRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netColorInfo, &netDepthInfo);
-    vkCmdBeginRendering(cmd, &netRenderingInfo);
-    p_netEntManager->drawEntities(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
-    vkCmdEndRendering(cmd);
-    VK_LABEL_END(cmd);
+    // VK_LABEL(cmd, "Network Entity Pass");
+    // VkRenderingAttachmentInfo netColorInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+    // VkRenderingAttachmentInfo netDepthInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
+    // VkRenderingInfo netRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netColorInfo, &netDepthInfo);
+    // vkCmdBeginRendering(cmd, &netRenderingInfo);
+    // p_netEntManager->drawEntities(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
+    // vkCmdEndRendering(cmd);
+    // VK_LABEL_END(cmd);
 
     if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
         VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
@@ -1204,7 +1204,7 @@ void HyacinthEngine::cleanup()
         vkDestroyCommandPool(m_device, m_frameData[i].commandPool, nullptr);
 
 		vkdeviceutils::destroyBuffer(m_frameData[i].uniformBuffer);
-
+        vkdeviceutils::destroyBuffer(m_dynamicWorldMatrixBuffer[i]);
         vkdeviceutils::destroyBuffer(m_shadowHelper.m_uniformBuffers[i]);
 	}
 
