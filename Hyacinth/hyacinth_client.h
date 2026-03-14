@@ -11,6 +11,10 @@
 #include <iphlpapi.h>
 #include <iostream>
 #include <string>
+#include <thread>
+#include "net_ent.h"
+#include "input.h"
+#include "time.h"
 
 class HyacinthNetworkClient {
 private:
@@ -22,7 +26,13 @@ private:
 	SOCKET serverUDPSocket;
 	sockaddr serverAddress;
 	int serverAddressLen;
+
+	void listenForServer(SOCKET udpReceiverSocket);
+
 public:
-	int setup(std::string serveraddr);
-	void sendMovementString(Transform& t);
+	NetworkEntityManager netEntManager;
+
+	int setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout);
+	void updateServerTick();
+	void shutdownNet();
 };

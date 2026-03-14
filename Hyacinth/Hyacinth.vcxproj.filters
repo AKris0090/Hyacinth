@@ -100,6 +100,18 @@
     <Filter Include="Source Files\network">
       <UniqueIdentifier>{608d8ed5-3a42-42ba-8667-a4bb85a63498}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\network\network_entities">
+      <UniqueIdentifier>{053aada3-44ab-4d1a-936d-98dd5c0d70e5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\net">
+      <UniqueIdentifier>{5ff772ea-c5be-4120-898b-e903554b18df}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\common">
+      <UniqueIdentifier>{098dc222-7420-4ee4-a9a2-3e956438305e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\visualization">
+      <UniqueIdentifier>{c69f709a-01f3-4965-8c25-49c89f103570}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -194,6 +206,9 @@
     </ClCompile>
     <ClCompile Include="hyacinth_client.cpp">
       <Filter>Source Files\network</Filter>
+    </ClCompile>
+    <ClCompile Include="net_ent.cpp">
+      <Filter>Source Files\network\network_entities</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -296,6 +311,9 @@
     <ClInclude Include="hyacinth_client.h">
       <Filter>Source Files\network</Filter>
     </ClInclude>
+    <ClInclude Include="net_ent.h">
+      <Filter>Source Files\network\network_entities</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\gbuffer.vert">
@@ -318,12 +336,6 @@
     <None Include="shaders\miss.rmiss">
       <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
-    <None Include="shaders\probeVis.vert">
-      <Filter>Source Files\shaders</Filter>
-    </None>
-    <None Include="shaders\probeVis.frag">
-      <Filter>Source Files\shaders</Filter>
-    </None>
     <None Include="shaders\probeMiss.rmiss">
       <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
@@ -333,9 +345,6 @@
     <None Include="shaders\irradianceBuild.comp">
       <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
-    <None Include="shaders\bufferInfo.glsl">
-      <Filter>Source Files\shaders</Filter>
-    </None>
     <None Include="shaders\visibilityBuild.comp">
       <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
@@ -343,15 +352,6 @@
       <Filter>Source Files\shaders</Filter>
     </None>
     <None Include="shaders\depth.vert">
-      <Filter>Source Files\shaders</Filter>
-    </None>
-    <None Include="shaders\shadowCommon.glsl">
-      <Filter>Source Files\shaders</Filter>
-    </None>
-    <None Include="shaders\volumeVis.vert">
-      <Filter>Source Files\shaders</Filter>
-    </None>
-    <None Include="shaders\volumeVis.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
     <None Include="shaders\composite.frag">
@@ -365,6 +365,30 @@
     </None>
     <None Include="shaders\ddgi.frag">
       <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\netFrag.frag">
+      <Filter>Source Files\shaders\net</Filter>
+    </None>
+    <None Include="shaders\netVert.vert">
+      <Filter>Source Files\shaders\net</Filter>
+    </None>
+    <None Include="shaders\bufferInfo.glsl">
+      <Filter>Source Files\shaders\common</Filter>
+    </None>
+    <None Include="shaders\shadowCommon.glsl">
+      <Filter>Source Files\shaders\common</Filter>
+    </None>
+    <None Include="shaders\volumeVis.frag">
+      <Filter>Source Files\shaders\visualization</Filter>
+    </None>
+    <None Include="shaders\volumeVis.vert">
+      <Filter>Source Files\shaders\visualization</Filter>
+    </None>
+    <None Include="shaders\probeVis.frag">
+      <Filter>Source Files\shaders\visualization</Filter>
+    </None>
+    <None Include="shaders\probeVis.vert">
+      <Filter>Source Files\shaders\visualization</Filter>
     </None>
   </ItemGroup>
 </Project>

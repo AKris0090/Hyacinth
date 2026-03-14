@@ -2,9 +2,29 @@
 #pragma comment(lib, "Hyacinth-Common.lib")
 
 #include "hyacinth_client.h"
-#include "hyacinth_network.h"
 
-int HyacinthNetworkClient::setup(std::string serveraddr) {
+void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
+    char recvBuff[DEFAULT_LEN];
+
+    while (true) {
+        int bytesReceived = recvfrom(udpReceiverSocket, recvBuff, sizeof(recvBuff) - 1, 0, NULL, NULL);
+
+        if (bytesReceived == SOCKET_ERROR) {
+            std::cout << "recvfrom failed: " << WSAGetLastError() << std::endl;
+            break;
+        }
+
+        recvBuff[bytesReceived] = '\0';
+
+        ServerPacket sp;
+        sp = ServerPacket::fromString(std::string(recvBuff));
+        netEntManager.updateEntitiesFromPacket(sp, clientID);
+    }
+
+    closesocket(udpReceiverSocket);
+}
+
+int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout) {
     WSADATA wsaData;
     int iResult;
 
@@ -44,7 +64,8 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
         WSACleanup();
         return 1;
     }
-    receiverPort = ntohs(boundAddr.sin_port);
+    receiverPort = ntohs(boundAddr.sin_port); // ntohs called, so receiver must call htons() when decrypting
+    std::cout << "receiver set up on port: " << receiverPort << std::endl;
     freeaddrinfo(result);
 
     // create server UDP sender socket
@@ -126,8 +147,19 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
         WSACleanup();
         return 1;
     }
-
     recvbuf[iResult] = '\0';
+
+    // get the entity list from the server
+    char entityBuff[DEFAULT_LEN];
+    int entityBuffLen = DEFAULT_LEN;
+    iResult = recv(connectSocket, entityBuff, entityBuffLen, 0);
+    if (iResult <= 0) {
+        std::cout << "could not receive entity list from server!" << std::endl;
+        closesocket(connectSocket);
+        WSACleanup();
+        return 1;
+    }
+    entityBuff[iResult] = '\0';
 
     iResult = shutdown(connectSocket, SD_BOTH);
     if (iResult == SOCKET_ERROR) {
@@ -140,22 +172,40 @@ int HyacinthNetworkClient::setup(std::string serveraddr) {
     serverResponse.fromString(std::string(recvbuf));
     clientID = serverResponse.port;
 
+    ServerPacket sp;
+    sp = ServerPacket::fromString(std::string(entityBuff));
+    netEntManager.imageFormat = swImageFormat;
+    netEntManager.uniformSetLayout = &uniformLayout;
+    netEntManager.setupFromServerPacket(sp, clientID);
+
     std::cout << "my id is: " << clientID << std::endl;
 
     connected = true;
 
+    std::thread serverListenThread(&HyacinthNetworkClient::listenForServer, this, udpReceiverSocket);
+    serverListenThread.detach();
+
     return 0;
 }
 
-void HyacinthNetworkClient::sendMovementString(Transform& t) {
-    if (!connected) return;
+void HyacinthNetworkClient::updateServerTick() {
+    auto [dx, dy] = InputManager::getTickMouseMotion();
+    std::array<int8_t, 3> movement = InputManager::getMovement();
+
     ClientUpdatePacket p;
     p.id = clientID;
-    p.movementX = t.position.x;
-    p.movementY = t.position.y;
-    p.movementZ = t.position.z;
+    p.tDelta = Time::getDeltaTime();
+    p.movementFB = movement[0];
+    p.movementLR = movement[1];
+    p.movementUD = movement[2];
+    p.xRelMouse = dx;
+    p.yRelMouse = dy;
          
     std::string s = p.toString();
     const char* msg = s.c_str();
     sendto(serverUDPSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);
+}
+
+void HyacinthNetworkClient::shutdownNet() {
+    netEntManager.shutdown();
 }

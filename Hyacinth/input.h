@@ -1,7 +1,9 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#include "glm/glm.hpp"
 #include <utility>
+#include <array>
 
 namespace InputManager {
 	// setter method
@@ -18,4 +20,6 @@ namespace InputManager {
 	bool tabKeyDown();
 
 	std::pair<float, float> getMouseMotion();
+	std::pair<float, float> getTickMouseMotion();
+	std::array<int8_t, 3> getMovement();
 };

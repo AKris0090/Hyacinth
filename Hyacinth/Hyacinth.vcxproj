@@ -157,6 +157,7 @@
     <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mikktspace\mikktspace.cpp" />
+    <ClCompile Include="net_ent.cpp" />
     <ClCompile Include="owDDGI.cpp" />
     <ClCompile Include="probevis.cpp" />
     <ClCompile Include="raytracing.cpp" />
@@ -191,6 +192,7 @@
     <ClInclude Include="imguihelper.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="mikktspace\mikktspace.h" />
+    <ClInclude Include="net_ent.h" />
     <ClInclude Include="owDDGI.h" />
     <ClInclude Include="probevis.h" />
     <ClInclude Include="raytracing.h" />
@@ -223,6 +225,8 @@
     <None Include="shaders\fsQuad.vert" />
     <None Include="shaders\irradianceBuild.comp" />
     <None Include="shaders\miss.rmiss" />
+    <None Include="shaders\netFrag.frag" />
+    <None Include="shaders\netVert.vert" />
     <None Include="shaders\probeCommon.glsl" />
     <None Include="shaders\probeMiss.rmiss" />
     <None Include="shaders\probeVis.frag" />

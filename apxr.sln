@@ -4,10 +4,22 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.14.36811.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hyacinth", "Hyacinth\Hyacinth.vcxproj", "{21A9E21C-46DA-415F-A845-39BDD7B6CF07}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1ECB439F-0CED-4D19-B940-E5340020C20C} = {1ECB439F-0CED-4D19-B940-E5340020C20C}
+		{5CB6544D-8D2F-43E1-81A8-04C80695D705} = {5CB6544D-8D2F-43E1-81A8-04C80695D705}
+		{C5B5FD41-425F-4B98-91EA-261EC7947426} = {C5B5FD41-425F-4B98-91EA-261EC7947426}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hyacinth-Server", "Hyacinth-Server\Hyacinth-Server.vcxproj", "{5CB6544D-8D2F-43E1-81A8-04C80695D705}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1ECB439F-0CED-4D19-B940-E5340020C20C} = {1ECB439F-0CED-4D19-B940-E5340020C20C}
+		{C5B5FD41-425F-4B98-91EA-261EC7947426} = {C5B5FD41-425F-4B98-91EA-261EC7947426}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hyacinth-Physics", "Hyacinth-Physics\Hyacinth-Physics.vcxproj", "{1ECB439F-0CED-4D19-B940-E5340020C20C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C5B5FD41-425F-4B98-91EA-261EC7947426} = {C5B5FD41-425F-4B98-91EA-261EC7947426}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hyacinth-Common", "Hyacinth-Common\Hyacinth-Common.vcxproj", "{C5B5FD41-425F-4B98-91EA-261EC7947426}"
 EndProject

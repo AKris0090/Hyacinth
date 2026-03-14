@@ -2,37 +2,24 @@
 #include "framework.h"
 #include "hyacinth_network.h"
 
-void ClientUpdatePacket::print() const {
-	std::cout << "id: " << id << ", movement: " << movementX << ", " << movementY << ", " << movementZ << std::endl;
-}
-
 std::string ClientUpdatePacket::toString() {
-	return "id:" + std::to_string(id) +
-		"posX:" + std::to_string(movementX) +
-		"posY:" + std::to_string(movementY) +
-		"posZ:" + std::to_string(movementZ);
+	std::ostringstream oss;
+	oss << (int) id << "," << (float) tDelta << "," << (float) xRelMouse << "," << (float) yRelMouse << "," << (int) movementFB << "," << (int) movementLR << "," << (int) movementUD;
+	return oss.str();
 }
 
-ClientUpdatePacket decomposePacket(char buff[DEFAULT_LEN]) {
+ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	ClientUpdatePacket p{};
 
-	std::string s = std::string(buff);
-	size_t pos_id = s.find("id:");
-	size_t pos_x = s.find("posX:");
-	pos_id += 3;
-	p.id = static_cast<uint32_t>(std::stoi(s.substr(pos_id, pos_x - pos_id)));
-
-	pos_x += 5;
-	size_t pos_y = s.find("posY:");
-	p.movementX = std::stof(s.substr(pos_x, pos_y - pos_x));
-
-	pos_y += 5;
-	size_t pos_z = s.find("posZ:");
-	p.movementY = std::stof(s.substr(pos_y, pos_z - pos_y));
-
-	pos_z += 5;
-	size_t length = s.length();
-	p.movementZ = std::stof(s.substr(pos_z, length - pos_z));
+	std::stringstream es(s);
+	std::string field;
+	std::getline(es, field, ','); p.id = std::stoi(field);
+	std::getline(es, field, ','); p.tDelta = std::stof(field);
+	std::getline(es, field, ','); p.xRelMouse = std::stof(field);
+	std::getline(es, field, ','); p.yRelMouse = std::stof(field);
+	std::getline(es, field, ','); p.movementFB = std::stoi(field);
+	std::getline(es, field, ','); p.movementLR = std::stoi(field);
+	std::getline(es, field, ','); p.movementUD = std::stoi(field);
 
 	return p;
 }
@@ -44,4 +31,46 @@ std::string ClientRequestConnectionPacket::toString() {
 void ClientRequestConnectionPacket::fromString(std::string s) {
 	size_t start = s.find("myport:") + 7;
 	port = static_cast<uint32_t>(stoi(s.substr(start, s.length() - start)));
+}
+
+std::string ServerPacket::toString() {
+	std::ostringstream oss;
+	for (size_t i = 0; i < entities.size(); i++) {
+		const Entity& e = entities[i];
+		oss << e.id << "," << e.transform.position.x
+			<< "," << e.transform.position.y 
+			<< "," << e.transform.position.z 
+			<< "," << e.transform.rotation.x 
+			<< "," << e.transform.rotation.y 
+			<< "," << e.transform.rotation.z
+			<< "," << e.transform.rotation.w;
+		if (i + 1 < entities.size()) oss << "|";
+	}
+	return oss.str();
+}
+
+ServerPacket ServerPacket::fromString(std::string s) {
+	ServerPacket packet;
+
+	std::stringstream ss(s);
+	std::string entityStr;
+
+	while (std::getline(ss, entityStr, '|')) {
+		std::stringstream es(entityStr);
+		std::string field;
+		Entity e;
+
+		std::getline(es, field, ','); e.id = std::stoi(field);
+		std::getline(es, field, ','); e.transform.position.x = std::stof(field);
+		std::getline(es, field, ','); e.transform.position.y = std::stof(field);
+		std::getline(es, field, ','); e.transform.position.z = std::stof(field);
+		std::getline(es, field, ','); e.transform.rotation.x = std::stof(field);
+		std::getline(es, field, ','); e.transform.rotation.y = std::stof(field);
+		std::getline(es, field, ','); e.transform.rotation.z = std::stof(field);
+		std::getline(es, field, ','); e.transform.rotation.w = std::stof(field);
+
+		packet.entities.push_back(e);
+	}
+
+	return packet;
 }
