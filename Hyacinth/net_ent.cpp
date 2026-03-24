@@ -3,7 +3,15 @@
 
 void NetworkEntityManager::updateEntitiesFromPacket(ServerPacket& p, uint32_t currentClientID) {
 	for (const auto& e : p.entities) {
-		if (e.id == currentClientID) continue;
+		if (e.id == currentClientID) {
+			p_cam->m_transform.position = e.transform.position;
+			p_cam->m_transform.rotation = e.transform.rotation;
+			p_cam->m_transform.forward = e.transform.forward;
+			p_cam->m_transform.up = e.transform.up;
+			p_cam->m_dirtyProj = true;
+			p_cam->m_dirtyView = true;
+			continue;
+		}
 		auto findit = entities.find(e.id);
 		if (findit == entities.end()) {
 			ids.push_back(e.id);
@@ -12,6 +20,8 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerPacket& p, uint32_t cu
 		}
 		entities[e.id]->transform.position = e.transform.position;
 		entities[e.id]->transform.rotation = e.transform.rotation;
+		entities[e.id]->transform.forward = e.transform.forward;
+		entities[e.id]->transform.up = e.transform.up;
 	}
 }
 
@@ -33,8 +43,8 @@ void NetworkEntityManager::setupRenderingUtils() {
 	
 	VkDeviceSize vertexBufferSize = node->vertices.size() * sizeof(Vertex);
 	VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
-	vertexBuffer = vkdeviceutils::createBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "probe_vis_vertex");
-	indexBuffer = vkdeviceutils::createBuffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "probe_vis_index");
+	vertexBuffer = vkdeviceutils::createBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "entity_vis_vertex");
+	indexBuffer = vkdeviceutils::createBuffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "entity_vis_index");
 	
 	VulkanBuffer staging = vkdeviceutils::createBuffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
 	
@@ -171,4 +181,8 @@ void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VkDescriptorSet& u
 
 void NetworkEntityManager::shutdown() {
 	vkdeviceutils::destroyBuffer(entityPositionBuffer);
+	vkdeviceutils::destroyBuffer(vertexBuffer);
+	vkdeviceutils::destroyBuffer(indexBuffer);
+
+	pipelineUtil.destroyPipeline();
 }

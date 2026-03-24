@@ -23,6 +23,8 @@
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "Hyacinth-Common.lib")
 
+#define TIMEOUT_MSEC = 5000;
+
 uint32_t currentClientID = -1;
 std::unordered_map<uint32_t, ServersideClient*> clients;
 
@@ -111,11 +113,11 @@ void serverListenForClients(SOCKET* tcpSocket) {
     }
 }
 
-void pushSimulation(ClientUpdatePacket& p) {
+void pushSimulation(SimulateStruct& p) {    
     Transform& t = clients[p.id]->entity.transform;
     if (glm::abs(p.xRelMouse) > 0.f || glm::abs(p.yRelMouse) > 0.f) {
-        float mouseX = p.xRelMouse * clients[p.id]->entity.camSpeed * p.tDelta;
-        float mouseY = p.yRelMouse * clients[p.id]->entity.camSpeed * p.tDelta;
+        float mouseX = p.xRelMouse * clients[p.id]->entity.camSpeed;
+        float mouseY = p.yRelMouse * clients[p.id]->entity.camSpeed;
     
         t.yaw += mouseX;
         t.pitch -= mouseY;
@@ -146,8 +148,8 @@ void pushSimulation(ClientUpdatePacket& p) {
     if (p.movementUD > 0)       localDisplacement += t.up;
     if (p.movementUD < 0)       localDisplacement -= t.up;
 
-    if (glm::length(localDisplacement) > 0.0) {  
-        t.position += glm::normalize(localDisplacement) * clients[p.id]->entity.moveSpeed * p.tDelta;
+    if (glm::length(localDisplacement) > 0.0) {
+        t.position += glm::normalize(localDisplacement) * clients[p.id]->entity.moveSpeed * 0.0071825f; // timedelta
     }
 }
 
@@ -168,7 +170,7 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         recvBuff[bytesReceived] = '\0';
 
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
-        pushSimulation(p);
+        clients[p.id]->bufferedPackets.addPacket(p);
     }
 
     closesocket(*udpSocket);
@@ -180,12 +182,15 @@ void updateTick() {
     SOCKET serverSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
     while (true) {
+        for (const auto& [id, client] : clients) {
+            pushSimulation(client->bufferedPackets);
+            client->bufferedPackets.reset();
+        }
         ServerPacket p;
         for (const auto& [id, client] : clients) {
             p.entities.push_back(client->entity);
         }
         std::string packetString = p.toString();
-        // std::cout << packetString << std::endl;
         for (const auto& [id, client] : clients) {
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
