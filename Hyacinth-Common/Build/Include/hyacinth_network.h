@@ -38,8 +38,27 @@ struct ClientUpdatePacket {
 	static ClientUpdatePacket fromString(std::string s);
 };
 
+struct SimulateStruct {
+	uint32_t id;
+	float xRelMouse = 0.f;
+	float yRelMouse = 0.f;
+	int8_t movementFB = 0;
+	int8_t movementLR = 0;
+	int8_t movementUD = 0;
+
+	void addPacket(ClientUpdatePacket pack);
+	void reset() {
+		xRelMouse = 0.f;
+		yRelMouse = 0.f;
+		movementFB = 0;
+		movementLR = 0;
+		movementUD = 0;
+	}
+};
+
 struct ServersideClient {
 	Entity entity;
+	SimulateStruct bufferedPackets;
 	uint32_t id;
 	sockaddr_in clientAddr;
 	int clientAddrLen;

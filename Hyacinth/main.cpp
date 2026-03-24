@@ -4,10 +4,21 @@
 #include "input.h"
 #include "time.h"
 #include "hyacinth_physics.h"
+#include <thread>
+#include <chrono>
 
 #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
+
+void simulationTick(HyacinthEngine* engine) {
+	using namespace std::chrono_literals;
+
+	while (true) {
+		engine->m_camera.update(0.0071825f, engine->mouseLocked);
+		std::this_thread::sleep_for(7.1825ms);
+	}
+}
 
 int main() {
 	hyacinthPhysicsTest();
@@ -20,6 +31,7 @@ int main() {
 	hyacinthEngine.init();
 
 	HyacinthNetworkClient netClient;
+	netClient.netEntManager.p_cam = &hyacinthEngine.m_camera;
 	std::string ip;
 	std::cout << "Enter server IP: ";
 	std::getline(std::cin, ip);
@@ -27,6 +39,9 @@ int main() {
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 
 	Time::setInitialTime();
+
+	std::thread tickThread = std::thread(simulationTick, &hyacinthEngine);
+	tickThread.detach();
 
 	while(sdlwindow.running) {
 		SDL_Event event;

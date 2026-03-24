@@ -4,6 +4,7 @@
 #include "vkpipelineutils.h"
 // #include "gltfutils.h"
 #include <unordered_map>
+#include "fpcam.h"
 
 struct gltfObject;
 
@@ -23,6 +24,7 @@ class NetworkEntityManager {
 	void setupRenderingUtils();
 
 public:
+	Camera* p_cam;
 	std::vector<uint32_t> ids;
 	std::unordered_map<uint32_t, Entity*> entities;
 	SWChainImageFormat imageFormat;

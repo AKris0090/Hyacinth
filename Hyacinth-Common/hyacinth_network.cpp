@@ -38,12 +38,18 @@ std::string ServerPacket::toString() {
 	for (size_t i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
 		oss << e.id << "," << e.transform.position.x
-			<< "," << e.transform.position.y 
-			<< "," << e.transform.position.z 
-			<< "," << e.transform.rotation.x 
-			<< "," << e.transform.rotation.y 
+			<< "," << e.transform.position.y
+			<< "," << e.transform.position.z
+			<< "," << e.transform.rotation.x
+			<< "," << e.transform.rotation.y
 			<< "," << e.transform.rotation.z
-			<< "," << e.transform.rotation.w;
+			<< "," << e.transform.rotation.w
+			<< "," << e.transform.forward.x
+			<< "," << e.transform.forward.y
+			<< "," << e.transform.forward.z
+			<< "," << e.transform.up.x
+			<< "," << e.transform.up.y
+			<< "," << e.transform.up.z;
 		if (i + 1 < entities.size()) oss << "|";
 	}
 	return oss.str();
@@ -68,9 +74,24 @@ ServerPacket ServerPacket::fromString(std::string s) {
 		std::getline(es, field, ','); e.transform.rotation.y = std::stof(field);
 		std::getline(es, field, ','); e.transform.rotation.z = std::stof(field);
 		std::getline(es, field, ','); e.transform.rotation.w = std::stof(field);
+		std::getline(es, field, ','); e.transform.forward.x = std::stof(field);
+		std::getline(es, field, ','); e.transform.forward.y = std::stof(field);
+		std::getline(es, field, ','); e.transform.forward.z = std::stof(field);
+		std::getline(es, field, ','); e.transform.up.x = std::stof(field);
+		std::getline(es, field, ','); e.transform.up.y = std::stof(field);
+		std::getline(es, field, ','); e.transform.up.z = std::stof(field);
 
 		packet.entities.push_back(e);
 	}
 
 	return packet;
+}
+
+void SimulateStruct::addPacket(ClientUpdatePacket pack) {
+	id = pack.id;
+	xRelMouse += pack.xRelMouse * pack.tDelta;
+	yRelMouse += pack.yRelMouse * pack.tDelta;
+	movementFB = pack.movementFB;
+	movementLR = pack.movementLR;
+	movementUD = pack.movementUD;
 }

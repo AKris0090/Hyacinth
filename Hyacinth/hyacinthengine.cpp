@@ -751,7 +751,6 @@ void HyacinthEngine::update() {
 		m_showImGui = !m_showImGui;
     }
 
-    m_camera.update(Time::getDeltaTime(), mouseLocked, m_frameIndex);
     m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
     p_netEntManager->update();
@@ -1043,14 +1042,14 @@ void HyacinthEngine::draw()
     VK_LABEL_END(cmd);
 
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-    // VK_LABEL(cmd, "Network Entity Pass");
-    // VkRenderingAttachmentInfo netColorInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-    // VkRenderingAttachmentInfo netDepthInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
-    // VkRenderingInfo netRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netColorInfo, &netDepthInfo);
-    // vkCmdBeginRendering(cmd, &netRenderingInfo);
-    // p_netEntManager->drawEntities(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
-    // vkCmdEndRendering(cmd);
-    // VK_LABEL_END(cmd);
+    VK_LABEL(cmd, "Network Entity Pass");
+    VkRenderingAttachmentInfo netColorInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+    VkRenderingAttachmentInfo netDepthInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
+    VkRenderingInfo netRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netColorInfo, &netDepthInfo);
+    vkCmdBeginRendering(cmd, &netRenderingInfo);
+    p_netEntManager->drawEntities(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
+    vkCmdEndRendering(cmd);
+    VK_LABEL_END(cmd);
 
     if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
         VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
@@ -1168,6 +1167,7 @@ void HyacinthEngine::cleanup()
 	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);
 	vkdeviceutils::destroyBuffer(m_meshBuffers.aabbBuffer);
 	vkdeviceutils::destroyBuffer(m_staticIndirectDrawBuffer);
+    vkdeviceutils::destroyBuffer(m_dynamicIndirectDrawBuffer);
 	vkdeviceutils::destroyBuffer(m_staticWorldMatrixBuffer);
     vkdeviceutils::destroyBuffer(m_drawDataBuffer);
     vkdeviceutils::destroyBuffer(m_materialBuffer);
@@ -1191,6 +1191,11 @@ void HyacinthEngine::cleanup()
             vkdeviceutils::destroyBuffer(node.get()->accelStructureIndexBuffer);
             vkdeviceutils::destroyBuffer(node.get()->accelStructureVertexBuffer);
         }
+        for (auto& tex : obj.textures) {
+            vkimageutils::destroyImage(tex);
+        }
+    }
+    for (auto& obj : m_scene.dynamicObjects) {
         for (auto& tex : obj.textures) {
             vkimageutils::destroyImage(tex);
         }
