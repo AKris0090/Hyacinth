@@ -16,17 +16,30 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <filesystem>
 #include "glm/glm.hpp"
 
 #include "hyacinth_network.h"
+#include "hyacinth_physics.h"
+#include "light_loader.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "Hyacinth-Common.lib")
+#pragma comment(lib, "Hyacinth-Physics.lib");
 
 #define TIMEOUT_MSEC = 5000;
 
 uint32_t currentClientID = -1;
-std::unordered_map<uint32_t, ServersideClient*> clients;
+EntityManager entityManager;
+std::vector<LightObject*> staticPhysicsObjects;
+PhysicsManager physicsManager;
+
+std::filesystem::path getExeDir()
+{
+    wchar_t buffer[MAX_PATH];
+    GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+    return std::filesystem::path(buffer).parent_path();
+}
 
 void handleNewClient(SOCKET socket, ServersideClient* newClient) {
     int initialReq, serverAck, entityMessage;
@@ -52,13 +65,13 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
         if (serverAck == SOCKET_ERROR) {
             std::cout << "acknowledge failed to send?" << std::endl;
             closesocket(socket);
-            clients.erase(newClient->id);
+            entityManager.clients.erase(newClient->id);
             return;
         }
         std::cout << "client requested connection, sent acknowledgement with id: " << newClient->id << std::endl;
 
         ServerPacket sp;
-        for (const auto& [id, client] : clients) {
+        for (const auto& [id, client] : entityManager.clients) {
             sp.entities.push_back(client->entity);
         }
         std::string spString = sp.toString();
@@ -66,17 +79,19 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
         if (entityMessage == SOCKET_ERROR) {
             std::cout << "entityList failed to send?" << std::endl;
             closesocket(socket);
-            clients.erase(newClient->id);
+            entityManager.clients.erase(newClient->id);
             return;
         }
 
         std::cout << "sent client entity list!" << std::endl;
 
         shutdown(socket, SD_BOTH);
+
+        physicsManager.addCharacterController(newClient->id);
     }
     else {
         std::cout << "client initiation receive failure: " << initialReq << " " << WSAGetLastError() << std::endl;
-        clients.erase(newClient->id);
+        entityManager.clients.erase(newClient->id);
         closesocket(socket);
     }
 }
@@ -106,50 +121,10 @@ void serverListenForClients(SOCKET* tcpSocket) {
         newClient->entity.id = currentClientID;
         newClient->clientAddr = clientAddr;
         newClient->clientAddrLen = clientAddrSize;
-        clients[currentClientID] = newClient;
+        entityManager.clients[currentClientID] = newClient;
 
         std::thread newClientThread(handleNewClient, clientSocket, newClient);
         newClientThread.detach();
-    }
-}
-
-void pushSimulation(SimulateStruct& p) {    
-    Transform& t = clients[p.id]->entity.transform;
-    if (glm::abs(p.xRelMouse) > 0.f || glm::abs(p.yRelMouse) > 0.f) {
-        float mouseX = p.xRelMouse * clients[p.id]->entity.camSpeed;
-        float mouseY = p.yRelMouse * clients[p.id]->entity.camSpeed;
-    
-        t.yaw += mouseX;
-        t.pitch -= mouseY;
-    
-        if (t.yaw > 360.f)  t.yaw -= 360.f;
-        if (t.yaw < -360.f) t.yaw += 360.f;
-        t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
-
-        t.forward = glm::normalize(glm::vec3(
-            cos(glm::radians(t.yaw)) * cos(glm::radians(t.pitch)),
-            sin(glm::radians(t.pitch)),
-            sin(glm::radians(t.yaw)) * cos(glm::radians(t.pitch))
-        ));
-        t.right = glm::normalize(glm::cross(t.forward, glm::vec3(0.f, 1.f, 0.f)));
-        t.up = glm::normalize(glm::cross(t.right, t.forward));
-
-        glm::quat qYaw = glm::angleAxis(glm::radians(t.yaw), glm::vec3(0, -1, 0));
-        glm::quat qPitch = glm::angleAxis(glm::radians(t.pitch), glm::vec3(0, 0, 1));
-
-        t.rotation = qYaw * qPitch;
-    }
-
-    glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
-    if (p.movementFB > 0)       localDisplacement += t.forward;
-    if (p.movementFB < 0)       localDisplacement -= t.forward;
-    if (p.movementLR > 0)       localDisplacement += t.right;
-    if (p.movementLR < 0)       localDisplacement -= t.right;
-    if (p.movementUD > 0)       localDisplacement += t.up;
-    if (p.movementUD < 0)       localDisplacement -= t.up;
-
-    if (glm::length(localDisplacement) > 0.0) {
-        t.position += glm::normalize(localDisplacement) * clients[p.id]->entity.moveSpeed * 0.0071825f; // timedelta
     }
 }
 
@@ -170,7 +145,7 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         recvBuff[bytesReceived] = '\0';
 
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
-        clients[p.id]->bufferedPackets.addPacket(p);
+        entityManager.clients[p.id]->bufferedPackets.addPacket(p);
     }
 
     closesocket(*udpSocket);
@@ -182,24 +157,37 @@ void updateTick() {
     SOCKET serverSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
     while (true) {
-        for (const auto& [id, client] : clients) {
-            pushSimulation(client->bufferedPackets);
+        physicsManager.updatePhysics(&entityManager);
+
+        for (const auto& [id, client] : entityManager.clients) {
             client->bufferedPackets.reset();
         }
+
         ServerPacket p;
-        for (const auto& [id, client] : clients) {
+        for (const auto& [id, client] : entityManager.clients) {
             p.entities.push_back(client->entity);
         }
         std::string packetString = p.toString();
-        for (const auto& [id, client] : clients) {
+        for (const auto& [id, client] : entityManager.clients) {
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
         std::this_thread::sleep_for(7.1825ms);
     }
 }
 
+void startPhysics() {
+    LightLoader loader;
+    auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    staticPhysicsObjects.push_back(loader.loadFromFile(path.string(), true));
+
+    physicsManager.initPhysics();
+    physicsManager.addStaticPhysicsObject(staticPhysicsObjects[0]);
+}
+
 int main()
 {
+    startPhysics(); 
+
     WSADATA wsaData;
     int iResult;
 

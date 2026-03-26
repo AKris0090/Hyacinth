@@ -34,7 +34,7 @@
       <Filter>Header Files\ecs</Filter>
     </ClInclude>
     <ClInclude Include="Build\Include\entity.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\ecs</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -32,7 +32,6 @@ void NetworkEntityManager::setupRenderingUtils() {
 	for (const auto& p : node->primitives) {
 		for (const auto& v : p.get()->vertices) {
 			Vertex upV = v;
-			//upV.pos = node->worldTransform * upV.pos;
 			node->vertices.push_back(upV);
 		}
 		for (const auto& index : p.get()->indices) {

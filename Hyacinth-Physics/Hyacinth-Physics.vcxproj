@@ -116,13 +116,18 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\VulkanSDK\1.4.341.0\Include;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include;C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\bin\win.x86_64.vc143.mt\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -134,21 +139,30 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\VulkanSDK\1.4.341.0\Include;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include;C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\bin\win.x86_64.vc143.mt\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Build\Include\hyacinth_physics.h" />
+    <ClInclude Include="Build\Include\light_loader.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hyacinth_physics.cpp" />
+    <ClCompile Include="light_loader.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

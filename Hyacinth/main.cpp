@@ -21,8 +21,6 @@ void simulationTick(HyacinthEngine* engine) {
 }
 
 int main() {
-	hyacinthPhysicsTest();
-
 	SDLWindow sdlwindow;
 	sdlwindow.init("Hyacinth Engine", 1280, 720);
 

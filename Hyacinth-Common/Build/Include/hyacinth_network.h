@@ -10,6 +10,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
+#include <unordered_map>
 #include "transform.h"
 #include "entity.h"
 #include <sstream>
@@ -69,4 +70,8 @@ struct ServerPacket {
 
 	std::string toString();
 	static ServerPacket fromString(std::string s);
+};
+
+struct EntityManager {
+	std::unordered_map<uint32_t, ServersideClient*> clients;
 };
