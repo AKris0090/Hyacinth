@@ -102,9 +102,10 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions);WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\include;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -125,7 +126,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;GLM_ENABLE_EXPERIMENTAL;%(PreprocessorDefinitions);WIN32_LEAN_AND_MEAN</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\include;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Include;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5\backends;C:\Users\ajnkr\Documents\DEV\VulkanMemoryAllocator-3.3.0\include;C:\VulkanSDK\1.4.335.0\Include;C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\Users\ajnkr\Documents\DEV\imgui-1.92.5;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>

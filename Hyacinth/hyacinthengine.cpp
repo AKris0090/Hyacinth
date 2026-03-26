@@ -553,6 +553,7 @@ void HyacinthEngine::loadScene() {
     m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true));
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(characterPath.string(), false, true));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
+
     m_scene.buildSceneGraph();
 
     m_meshBuffers = vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
