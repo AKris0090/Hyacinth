@@ -24,7 +24,7 @@ class NetworkEntityManager {
 	void setupRenderingUtils();
 
 public:
-	Camera* p_cam;
+	Entity* self;
 	std::vector<uint32_t> ids;
 	std::unordered_map<uint32_t, Entity*> entities;
 	SWChainImageFormat imageFormat;
@@ -34,5 +34,6 @@ public:
 	void updateEntitiesFromPacket(ServerPacket& p, uint32_t currentClientID);
 	void update();
 	void drawEntities(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
+	void drawFPCharacter(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
 	void shutdown();
 };

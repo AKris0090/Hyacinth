@@ -173,10 +173,14 @@ void updateCamera(Entity* e, SimulateStruct& p, Transform& t) {
 
 void PhysicsManager::updatePlayerMovement(Entity* e, SimulateStruct& s) {
 	glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
-	if (s.movementFB > 0)       localDisplacement += e->transform.forward;
-	if (s.movementFB < 0)       localDisplacement -= e->transform.forward;
-	if (s.movementLR > 0)       localDisplacement += e->transform.right;
-	if (s.movementLR < 0)       localDisplacement -= e->transform.right;
+
+	glm::vec3 flatForward = glm::normalize(glm::vec3(e->transform.forward.x, 0.0f, e->transform.forward.z));
+	glm::vec3 flatRight = glm::normalize(glm::vec3(e->transform.right.x, 0.0f, e->transform.right.z));
+
+	if (s.movementFB > 0)       localDisplacement += flatForward;
+	if (s.movementFB < 0)       localDisplacement -= flatForward;
+	if (s.movementLR > 0)       localDisplacement += flatRight;
+	if (s.movementLR < 0)       localDisplacement -= flatRight;
 
 	if (glm::length(localDisplacement) > 0) {
 		localDisplacement = glm::normalize(localDisplacement);

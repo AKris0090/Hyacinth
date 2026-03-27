@@ -33,6 +33,7 @@ uint32_t currentClientID = -1;
 EntityManager entityManager;
 std::vector<LightObject*> staticPhysicsObjects;
 PhysicsManager physicsManager;
+int currentNumConnections = 0;
 
 std::filesystem::path getExeDir()
 {
@@ -55,7 +56,7 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
 
         newClient->clientAddr.sin_port = htons(p.port);
 
-        std::cout << "client added with port: " << newClient->clientAddr.sin_port << std::endl;
+        std::cout << "[NETWORK] client added with port: " << newClient->clientAddr.sin_port << std::endl;
 
         ClientRequestConnectionPacket response;
         response.port = newClient->id;
@@ -68,7 +69,7 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
             entityManager.clients.erase(newClient->id);
             return;
         }
-        std::cout << "client requested connection, sent acknowledgement with id: " << newClient->id << std::endl;
+        std::cout << "[NETWORK] client requested connection, sent acknowledgement with id: " << newClient->id << std::endl;
 
         ServerPacket sp;
         for (const auto& [id, client] : entityManager.clients) {
@@ -77,20 +78,21 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
         std::string spString = sp.toString();
         entityMessage = send(socket, spString.c_str(), spString.length(), 0);
         if (entityMessage == SOCKET_ERROR) {
-            std::cout << "entityList failed to send?" << std::endl;
+            std::cout << "[NETWORK] entityList failed to send?" << std::endl;
             closesocket(socket);
             entityManager.clients.erase(newClient->id);
             return;
         }
 
-        std::cout << "sent client entity list!" << std::endl;
+        std::cout << "[NETWORK] sent client entity list!" << std::endl;
 
         shutdown(socket, SD_BOTH);
 
         physicsManager.addCharacterController(newClient->id);
+        currentNumConnections++;
     }
     else {
-        std::cout << "client initiation receive failure: " << initialReq << " " << WSAGetLastError() << std::endl;
+        std::cout << "[NETWORK] client initiation receive failure: " << initialReq << " " << WSAGetLastError() << std::endl;
         entityManager.clients.erase(newClient->id);
         closesocket(socket);
     }
@@ -99,7 +101,7 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
 void serverListenForClients(SOCKET* tcpSocket) {
     while (true) {
         if (listen(*tcpSocket, SOMAXCONN) == SOCKET_ERROR) {
-            std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
+            std::cout << "[NETWORK] Listen failed with error: " << WSAGetLastError() << std::endl;
             closesocket(*tcpSocket);
             WSACleanup();
             return;
@@ -111,7 +113,12 @@ void serverListenForClients(SOCKET* tcpSocket) {
         SOCKET clientSocket = INVALID_SOCKET;
         clientSocket = accept(*tcpSocket, (sockaddr*)&clientAddr, &clientAddrSize);
         if (clientSocket == INVALID_SOCKET) {
-            std::cout << "accept failed: " << WSAGetLastError() << std::endl;
+            std::cout << "[NETWORK] accept failed: " << WSAGetLastError() << std::endl;
+            continue;
+        }
+
+        if (currentNumConnections + 1 > MAX_CONNECTIONS) {
+            std::cout << "[NETWORK] Cannot accept new client, max number of connections exceeded!" << std::endl;
             continue;
         }
 
@@ -138,7 +145,7 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         int bytesReceived = recvfrom(*udpSocket, recvBuff, sizeof(recvBuff) - 1, 0, (sockaddr*)&clientAddr, &clientAddrSize);
 
         if (bytesReceived == SOCKET_ERROR) {
-            std::cout << "recvfrom failed: " << WSAGetLastError() << std::endl;
+            std::cout << "[NETWORK] recvfrom failed: " << WSAGetLastError() << std::endl;
             break;
         }
 
@@ -193,7 +200,7 @@ int main()
 
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0) {
-        std::cout << "WSA startup failed: " << iResult << std::endl;
+        std::cout << "[NETWORK] WSA startup failed: " << iResult << std::endl;
         return 1;
     }
 
@@ -206,21 +213,21 @@ int main()
     hints.ai_flags = AI_PASSIVE;
     iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
     if (iResult != 0) {
-        std::cout << "getaddrinfo failed: " << iResult << std::endl;
+        std::cout << "[NETWORK] getaddrinfo failed: " << iResult << std::endl;
         WSACleanup();
         return 1;
     }
     SOCKET tcpListenSocket = INVALID_SOCKET;
     tcpListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if (tcpListenSocket == INVALID_SOCKET) {
-        std::cout << "problem with tcp socket(): " << WSAGetLastError() << std::endl;
+        std::cout << "[NETWORK] problem with tcp socket(): " << WSAGetLastError() << std::endl;
         freeaddrinfo(result);
         WSACleanup();
         return 1;
     }
     iResult = bind(tcpListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult != 0) {
-        std::cout << "tcp bind failed: " << iResult << std::endl;
+        std::cout << "[NETWORK] tcp bind failed: " << iResult << std::endl;
         freeaddrinfo(result);
         closesocket(tcpListenSocket);
         WSACleanup();
@@ -236,21 +243,21 @@ int main()
     hints.ai_flags = AI_PASSIVE;
     iResult = getaddrinfo(NULL, PACKET_PORT, &hints, &result);
     if (iResult != 0) {
-        std::cout << "getaddrinfo failed: " << iResult << std::endl;
+        std::cout << "[NETWORK] getaddrinfo failed: " << iResult << std::endl;
         WSACleanup();
         return 1;
     }
     SOCKET udpListenSocket = INVALID_SOCKET;
     udpListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if (udpListenSocket == INVALID_SOCKET) {
-        std::cout << "problem with udp socket(): " << WSAGetLastError() << std::endl;
+        std::cout << "[NETWORK] problem with udp socket(): " << WSAGetLastError() << std::endl;
         freeaddrinfo(result);
         WSACleanup();
         return 1;
     }
     iResult = bind(udpListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult != 0) {
-        std::cout << "udp bind failed: " << iResult << std::endl;
+        std::cout << "[NETWORK] udp bind failed: " << iResult << std::endl;
         freeaddrinfo(result);
         closesocket(udpListenSocket);
         WSACleanup();
@@ -269,7 +276,7 @@ int main()
         char localIP[INET_ADDRSTRLEN];
         struct sockaddr_in* ipv4 = (struct sockaddr_in*)localResult->ai_addr;
         InetNtopA(AF_INET, &(ipv4->sin_addr), localIP, sizeof(localIP));
-        std::cout << "Connect from other devices using: " << localIP << ":" << DEFAULT_PORT << std::endl;
+        std::cout << "[NETWORK] Connect from other devices using: " << localIP << ":" << DEFAULT_PORT << std::endl;
         freeaddrinfo(localResult);
     }
 

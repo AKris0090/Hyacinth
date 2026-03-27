@@ -18,6 +18,7 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 constexpr int DEFAULT_LEN = 512;
+constexpr int MAX_CONNECTIONS = 12;
 
 struct ClientRequestConnectionPacket {
 	uint32_t port;
