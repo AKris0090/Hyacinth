@@ -72,6 +72,6 @@ namespace vkdeviceutils {
     VulkanBuffer createBuffer(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, std::string qual = "", VkDeviceSize alignment = 0);
     VulkanBuffer createBufferWithAlignment(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage, VmaAllocationCreateFlags vmaFlags, VkDeviceSize alignment = 0, std::string qual = "");
     void destroyBuffer(VulkanBuffer& buffer);
-    void uploadToBuffer(VulkanBuffer& buffer, size_t size, void* data);
+    void uploadToBuffer(VulkanBuffer& buffer, size_t size, void* data, size_t offset = 0);
 	void stageAndUploadBuffers(VkDeviceSize* pSizes, void** ppData, VulkanBuffer* pBuffers, uint32_t count);
 }

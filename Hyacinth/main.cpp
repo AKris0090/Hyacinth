@@ -29,7 +29,6 @@ int main() {
 	hyacinthEngine.init();
 
 	HyacinthNetworkClient netClient;
-	netClient.netEntManager.p_cam = &hyacinthEngine.m_camera;
 	std::string ip;
 	std::cout << "Enter server IP: ";
 	std::getline(std::cin, ip);

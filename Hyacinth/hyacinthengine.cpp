@@ -546,12 +546,15 @@ void HyacinthEngine::loadScene() {
     // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto characterPath = vkdebugutils::getExeDir() / "objects" / "char.glb";
+    // auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp.glb";
+    auto firstPersonCharacterPath = "C:/users/ajnkr/Documents/Hyacinth/Hyacinth/objects/char_fp.glb";
     // auto path = "C:/Users/ajnkr/Documents/Orchid/Sandbox/trainStation/station.gltf";
     // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
 
-    m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true));
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(characterPath.string(), false, true));
+    m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true, false, false));
+    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(characterPath.string(), false, true, false));
+    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath, false, true, true));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
 
     m_scene.buildSceneGraph();
@@ -574,8 +577,11 @@ void HyacinthEngine::createBuffers() {
 	vkdeviceutils::uploadToBuffer(m_staticIndirectDrawBuffer, drawCmdBufferSize, m_scene.staticDrawCommands.data());
 
     size_t dynamicDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.dynamicDrawCommands.size();
-    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
+    size_t characterDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.characterDrawCommands.size();
+    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize + characterDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
     vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, dynamicDrawCmdSize, m_scene.dynamicDrawCommands.data());
+    characterDrawOffset = m_scene.dynamicDrawCommands.size();
+    vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, characterDrawCmdSize, m_scene.characterDrawCommands.data(), dynamicDrawCmdSize);
     
     vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer cmd) {
         for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
@@ -752,6 +758,12 @@ void HyacinthEngine::update() {
 		m_showImGui = !m_showImGui;
     }
 
+    // get self entity position to determine camera position
+    m_camera.m_transform = p_netEntManager->self->transform;
+    m_camera.m_transform.position.y += 1.85f;
+    m_camera.m_dirtyProj = true;
+    m_camera.m_dirtyView = true;
+
     m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
     p_netEntManager->update();
@@ -766,14 +778,25 @@ void HyacinthEngine::update() {
     volumeData[1].spacing.w = volBViewBias;
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
-    if (p_netEntManager->entities.size() > 0) {
-        glm::mat4 entityMatrix = p_netEntManager->entities[p_netEntManager->ids[0]]->transform.getMatrix();
+    // first object (self) 
+    std::vector<glm::mat4> characterMatrices;
+    for(int i = 0; i < m_scene.dynamicObjects[1].numMatrices; i++) {
+        glm::mat4 selfMatrix = m_camera.m_transform.getMatrix();
+        characterMatrices.push_back(selfMatrix * m_scene.dynamicTransformMatrices[i + m_scene.dynamicObjects[1].firstMatrix]);
+    }
+    size_t offset = sizeof(glm::mat4) * m_scene.dynamicObjects[1].firstMatrix;
+    memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, characterMatrices.data(), sizeof(glm::mat4) * characterMatrices.size());
+
+    std::vector<glm::mat4> newMatrices;
+    // TODO: eventually bring this up to making it for more clients
+    for (int i = 0; i < p_netEntManager->ids.size(); i++) {
+        glm::mat4 entityMatrix = p_netEntManager->entities[p_netEntManager->ids[i]]->transform.getMatrix();
         std::vector<glm::mat4> newMatrices;
-        for(int i = 0; i < m_scene.dynamicTransformMatrices.size(); i++) {
+        for (int i = 0; i < m_scene.dynamicObjects[0].numMatrices; i++) {
             newMatrices.push_back(entityMatrix * m_scene.dynamicTransformMatrices[i]);
         }
-
-        memcpy(m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData, newMatrices.data(), sizeof(glm::mat4) * newMatrices.size());
+        offset = sizeof(glm::mat4) * m_scene.dynamicObjects[i].firstMatrix;
+        memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, newMatrices.data(), sizeof(glm::mat4) * newMatrices.size());
     }
 
     std::vector<glm::mat4> matrices;
@@ -979,7 +1002,12 @@ void HyacinthEngine::draw()
     pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
     vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-    vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+    if (p_netEntManager->ids.size() > 0) {
+        vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+    }
+
+    // draw character separately
+    vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, characterDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.characterDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
     vkCmdEndRendering(cmd);
     VK_LABEL_END(cmd);
