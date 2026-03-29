@@ -5,6 +5,7 @@
 // #include "gltfutils.h"
 #include <unordered_map>
 #include "fpcam.h"
+#include <mutex>
 
 struct gltfObject;
 
@@ -25,8 +26,10 @@ class NetworkEntityManager {
 
 public:
 	Entity* self;
+	std::mutex selfMutex;
 	std::vector<uint32_t> ids;
 	std::unordered_map<uint32_t, Entity*> entities;
+	std::unordered_map<uint32_t, std::unique_ptr<std::mutex>> entityMutexes;
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
 

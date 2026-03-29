@@ -75,6 +75,7 @@ public:
 	SWChainImageFormat				m_swImageFormat{};
 	VkDescriptorSetLayout			m_descriptorSetLayout{ VK_NULL_HANDLE };
 	NetworkEntityManager* p_netEntManager;
+	std::mutex camMutex;
 	Camera m_camera;
 
 	HyacinthEngine() {};
