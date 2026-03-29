@@ -758,12 +758,6 @@ void HyacinthEngine::update() {
 		m_showImGui = !m_showImGui;
     }
 
-    // get self entity position to determine camera position
-    m_camera.m_transform = p_netEntManager->self->transform;
-    m_camera.m_transform.position.y += 1.85f;
-    m_camera.m_dirtyProj = true;
-    m_camera.m_dirtyView = true;
-
     m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
     p_netEntManager->update();
@@ -781,15 +775,17 @@ void HyacinthEngine::update() {
     // first object (self) 
     std::vector<glm::mat4> characterMatrices;
     for(int i = 0; i < m_scene.dynamicObjects[1].numMatrices; i++) {
+        camMutex.lock();
         glm::mat4 selfMatrix = m_camera.m_transform.getMatrix();
+        camMutex.unlock();
         characterMatrices.push_back(selfMatrix * m_scene.dynamicTransformMatrices[i + m_scene.dynamicObjects[1].firstMatrix]);
     }
     size_t offset = sizeof(glm::mat4) * m_scene.dynamicObjects[1].firstMatrix;
     memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, characterMatrices.data(), sizeof(glm::mat4) * characterMatrices.size());
 
-    std::vector<glm::mat4> newMatrices;
     // TODO: eventually bring this up to making it for more clients
     for (int i = 0; i < p_netEntManager->ids.size(); i++) {
+        p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->lock();
         glm::mat4 entityMatrix = p_netEntManager->entities[p_netEntManager->ids[i]]->transform.getMatrix();
         std::vector<glm::mat4> newMatrices;
         for (int i = 0; i < m_scene.dynamicObjects[0].numMatrices; i++) {
@@ -797,6 +793,7 @@ void HyacinthEngine::update() {
         }
         offset = sizeof(glm::mat4) * m_scene.dynamicObjects[i].firstMatrix;
         memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, newMatrices.data(), sizeof(glm::mat4) * newMatrices.size());
+        p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->unlock();
     }
 
     std::vector<glm::mat4> matrices;
@@ -807,6 +804,7 @@ void HyacinthEngine::update() {
 	}
     m_owDDGIHelper.m_volumeVis.update(matrices, m_frameIndex);
 
+    camMutex.lock();
     UBO newuniform{};
     newuniform.proj = m_camera.m_proj;
     newuniform.view = m_camera.m_view;
@@ -818,6 +816,7 @@ void HyacinthEngine::update() {
     }
 
     memcpy(m_frameData[m_frameIndex].mappedUniformBuffer, &newuniform, sizeof(UBO));
+    camMutex.unlock();
 }
 
 void HyacinthEngine::setupDraw()

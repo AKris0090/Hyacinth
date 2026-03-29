@@ -4,11 +4,13 @@
 void NetworkEntityManager::updateEntitiesFromPacket(ServerPacket& p, uint32_t currentClientID) {
 	for (const auto& e : p.entities) {
 		if (e.id == currentClientID) {
+			selfMutex.lock();
 			self->transform.position = e.transform.position;
 			self->transform.rotation = e.transform.rotation;
 			self->transform.yaw = e.transform.yaw;
 			self->transform.pitch = e.transform.pitch;
 			self->transform.setRotationPitchYaw();
+			selfMutex.unlock();
 			continue;
 		}
 		auto findit = entities.find(e.id);
@@ -16,12 +18,15 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerPacket& p, uint32_t cu
 			ids.push_back(e.id);
 			entities[e.id] = new Entity();
 			entities[e.id]->id = e.id;
+			entityMutexes.emplace(e.id, std::make_unique<std::mutex>());
 		}
+		entityMutexes[e.id].get()->lock();
 		entities[e.id]->transform.position = e.transform.position;
 		entities[e.id]->transform.rotation = e.transform.rotation;
 		entities[e.id]->transform.pitch = e.transform.pitch;
 		entities[e.id]->transform.yaw = e.transform.yaw;
 		entities[e.id]->transform.setRotationPitchYaw();
+		entityMutexes[e.id].get()->unlock();
 	}
 }
 
@@ -133,6 +138,7 @@ void NetworkEntityManager::setupFromServerPacket(ServerPacket& p, uint32_t curre
 			newEnt->transform.position = e.transform.position;
 			newEnt->transform.rotation = e.transform.rotation;
 			entities[e.id] = newEnt;
+			entityMutexes.emplace(e.id, std::make_unique<std::mutex>());
 			ids.push_back(e.id);
 		}
 	}
@@ -148,7 +154,9 @@ void NetworkEntityManager::update() {
 	if (entities.size() > 0) {
 		std::vector<glm::mat4> entityPositions;
 		for (const auto& id : ids) {
+			entityMutexes[id].get()->lock();
 			entityPositions.push_back(entities[id]->transform.getMatrix());
+			entityMutexes[id].get()->unlock();
 		}
 		size_t entityBufferSize = entityPositions.size() * sizeof(glm::mat4);
 		memcpy(entityPositionBuffer.pMappedData, entityPositions.data(), entityBufferSize);

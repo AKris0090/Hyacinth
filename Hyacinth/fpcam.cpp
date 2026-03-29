@@ -72,14 +72,10 @@ void Camera::update(float deltaTime, bool moveMouse) {
     //     m_dirtyMovement = true;
     // }
 
-    if (m_dirtyProj) {
-        setProjectionMatrix();
-	}
+    setProjectionMatrix();
 
-    if (m_dirtyView) {
-        setViewMatrix();
-        GetFrustumPlanes(m_frustumPlanes.planes, m_proj * m_view);
-    }
+    setViewMatrix();
+    GetFrustumPlanes(m_frustumPlanes.planes, m_proj * m_view);
 }
 
 Camera::Camera(float aspect, float fov, float nearC, float farC) {
