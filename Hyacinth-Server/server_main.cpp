@@ -10,6 +10,7 @@
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <queue>
 #include <unordered_map>
@@ -25,12 +26,13 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "Hyacinth-Common.lib")
-#pragma comment(lib, "Hyacinth-Physics.lib");
+#pragma comment(lib, "Hyacinth-Physics.lib")
 
-#define TIMEOUT_MSEC = 5000;
+constexpr long long CLIENT_TIMEOUT = 3000;
 
 uint32_t currentClientID = -1;
 EntityManager entityManager;
+std::mutex entityManagerMutex;
 std::vector<LightObject*> staticPhysicsObjects;
 PhysicsManager physicsManager;
 int currentNumConnections = 0;
@@ -135,6 +137,26 @@ void serverListenForClients(SOCKET* tcpSocket) {
     }
 }
 
+void timeoutWatchdog() {
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        using namespace std::chrono;
+        long long now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        entityManagerMutex.lock();
+        std::vector<uint32_t> idsToErase;
+        for (auto& [id, client] : entityManager.clients) {
+            if (now - client->heartBeat > CLIENT_TIMEOUT) {
+                idsToErase.push_back(id);
+            }
+        }
+        for (auto& id : idsToErase) {
+            physicsManager.removeCharacterController(id);
+            entityManager.clients.erase(id);
+        }
+        entityManagerMutex.unlock();
+    }
+}
+
 void serverListenForUDPPackets(SOCKET* udpSocket) {
     char recvBuff[DEFAULT_LEN];
     sockaddr_in clientAddr;
@@ -145,6 +167,7 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         int bytesReceived = recvfrom(*udpSocket, recvBuff, sizeof(recvBuff) - 1, 0, (sockaddr*)&clientAddr, &clientAddrSize);
 
         if (bytesReceived == SOCKET_ERROR) {
+            int err = WSAGetLastError();
             std::cout << "[NETWORK] recvfrom failed: " << WSAGetLastError() << std::endl;
             break;
         }
@@ -153,9 +176,50 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
 
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
         entityManager.clients[p.id]->bufferedPackets.addPacket(p);
+        using namespace std::chrono;
+        entityManager.clients[p.id]->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
     }
 
     closesocket(*udpSocket);
+}
+
+bool firstPrint = true;
+
+void printPhysicsTick() {
+    entityManagerMutex.lock();
+    if (!firstPrint) {
+        int linesToClear = 3 + entityManager.clients.size();
+        for (int i = 0; i < linesToClear; i++) {
+            std::cout << "\033[A\033[2K";
+        }
+    }
+    firstPrint = false;
+
+    std::cout << "=== SERVER STATUS ===\n";
+    std::cout << std::left
+        << std::setw(6) << "ID"
+        << std::setw(20) << "Address"
+        << std::setw(12) << "Last Seen"
+        << "\n";
+    std::cout << std::string(48, '-') << "\n";
+
+    using namespace std::chrono;
+    long long now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+
+    for (auto& [id, client] : entityManager.clients) {
+        long long msSince = now - client->heartBeat;
+        char ipbuff[16];
+        inet_ntop(AF_INET, (void*)&client->clientAddr.sin_addr, ipbuff, 16);
+
+        std::cout << std::left
+            << std::setw(6) << id
+            << std::setw(20) << ipbuff
+            << std::setw(12) << (std::to_string(msSince) + "ms")
+            << "\n";
+    }
+    entityManagerMutex.unlock();
+
+    std::cout.flush();
 }
 
 void updateTick() {
@@ -166,18 +230,25 @@ void updateTick() {
     while (true) {
         physicsManager.updatePhysics(&entityManager);
 
+        entityManagerMutex.lock();
         for (const auto& [id, client] : entityManager.clients) {
             client->bufferedPackets.reset();
         }
+        entityManagerMutex.unlock();
 
         ServerPacket p;
+        entityManagerMutex.lock();
         for (const auto& [id, client] : entityManager.clients) {
             p.entities.push_back(client->entity);
         }
+        entityManagerMutex.unlock();
         std::string packetString = p.toString();
+        entityManagerMutex.lock();
         for (const auto& [id, client] : entityManager.clients) {
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
+        entityManagerMutex.unlock();
+        printPhysicsTick();
         std::this_thread::sleep_for(7.1825ms);
     }
 }
@@ -276,7 +347,7 @@ int main()
         char localIP[INET_ADDRSTRLEN];
         struct sockaddr_in* ipv4 = (struct sockaddr_in*)localResult->ai_addr;
         InetNtopA(AF_INET, &(ipv4->sin_addr), localIP, sizeof(localIP));
-        std::cout << "[NETWORK] Connect from other devices using: " << localIP << ":" << DEFAULT_PORT << std::endl;
+        std::cout << "[NETWORK] Connect from other devices using: " << localIP << ":" << DEFAULT_PORT << std::endl << std::endl;
         freeaddrinfo(localResult);
     }
 
@@ -285,9 +356,12 @@ int main()
 
     std::thread tickThread(updateTick);
 
+    std::thread watchdogThread(timeoutWatchdog);
+
     tickThread.join();
     tcpSocketThread.join();
     udpSocketThread.join();
+    watchdogThread.join();
 
     WSACleanup();
     return 0;

@@ -74,6 +74,13 @@ void PhysicsManager::addCharacterController(uint32_t cId) {
 	clientControllers[cId] = playerController;
 }
 
+void PhysicsManager::removeCharacterController(uint32_t cId) {
+	controllerArrayMutex.lock();
+	clientControllers[cId]->release();
+	clientControllers.erase(cId);
+	controllerArrayMutex.unlock();
+}
+
 std::vector<physx::PxShape*> PhysicsManager::createPhysicsFromMesh(LightObject* object) {
 	std::vector<physx::PxShape*> shapes;
 
@@ -198,6 +205,7 @@ void PhysicsManager::updatePlayerMovement(Entity* e, SimulateStruct& s) {
 }
 
 void PhysicsManager::updatePhysics(EntityManager* entityManager) {
+	controllerArrayMutex.lock();
 	for (const auto& [id, sSClient] : entityManager->clients) {
 		if (clientControllers[id] == NULL) continue;
  		SimulateStruct& simS = sSClient->bufferedPackets;
@@ -207,4 +215,5 @@ void PhysicsManager::updatePhysics(EntityManager* entityManager) {
 
 	pScene->simulate(0.0078125);
 	pScene->fetchResults(true);
+	controllerArrayMutex.unlock();
 }

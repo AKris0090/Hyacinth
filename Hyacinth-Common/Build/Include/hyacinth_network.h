@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include "transform.h"
 #include "entity.h"
+#include <chrono>
 #include <sstream>
 
 #pragma comment(lib, "Ws2_32.lib")
@@ -63,6 +64,7 @@ struct ServersideClient {
 	SimulateStruct bufferedPackets;
 	uint32_t id;
 	sockaddr_in clientAddr;
+	long long heartBeat;
 	int clientAddrLen;
 };
 
