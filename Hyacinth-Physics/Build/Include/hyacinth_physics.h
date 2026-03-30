@@ -49,9 +49,11 @@ private:
 public:
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
+	std::mutex controllerArrayMutex;
 
 	void initPhysics();
 	void addCharacterController(uint32_t cId);
+	void removeCharacterController(uint32_t cId);
 	void addStaticPhysicsObject(LightObject* object);
 	void updatePhysics(EntityManager* entityManager);
 	void updatePlayerMovement(Entity* e, SimulateStruct& s);
