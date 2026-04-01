@@ -58,8 +58,6 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
 
         newClient->clientAddr.sin_port = htons(p.port);
 
-        std::cout << "[NETWORK] client added with port: " << newClient->clientAddr.sin_port << std::endl;
-
         ClientRequestConnectionPacket response;
         response.port = newClient->id;
 
@@ -71,7 +69,6 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
             entityManager.clients.erase(newClient->id);
             return;
         }
-        std::cout << "[NETWORK] client requested connection, sent acknowledgement with id: " << newClient->id << std::endl;
 
         ServerPacket sp;
         for (const auto& [id, client] : entityManager.clients) {
@@ -85,8 +82,6 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
             entityManager.clients.erase(newClient->id);
             return;
         }
-
-        std::cout << "[NETWORK] sent client entity list!" << std::endl;
 
         shutdown(socket, SD_BOTH);
 
@@ -175,33 +170,37 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         recvBuff[bytesReceived] = '\0';
 
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
-        entityManager.clients[p.id]->bufferedPackets.addPacket(p);
-        using namespace std::chrono;
-        entityManager.clients[p.id]->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        entityManagerMutex.lock();
+        if ((entityManager.clients.find(p.id) != entityManager.clients.end()) && (entityManager.clients[p.id] != NULL)) {
+            entityManager.clients[p.id]->bufferedPackets.addPacket(p);
+            using namespace std::chrono;
+            entityManager.clients[p.id]->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+        }
+        entityManagerMutex.unlock();
     }
 
     closesocket(*udpSocket);
 }
 
 bool firstPrint = true;
+int prevLinesToClear = 0;
 
 void printPhysicsTick() {
-    entityManagerMutex.lock();
     if (!firstPrint) {
-        int linesToClear = 3 + entityManager.clients.size();
-        for (int i = 0; i < linesToClear; i++) {
+        for (int i = 0; i < prevLinesToClear; i++) {
             std::cout << "\033[A\033[2K";
         }
     }
+    else {
+        std::cout << "=== SERVER STATUS ===\n";
+        std::cout << std::left
+            << std::setw(6) << "ID"
+            << std::setw(20) << "Address"
+            << std::setw(12) << "Last Seen"
+            << "\n";
+        std::cout << std::string(48, '-') << "\n";
+    }
     firstPrint = false;
-
-    std::cout << "=== SERVER STATUS ===\n";
-    std::cout << std::left
-        << std::setw(6) << "ID"
-        << std::setw(20) << "Address"
-        << std::setw(12) << "Last Seen"
-        << "\n";
-    std::cout << std::string(48, '-') << "\n";
 
     using namespace std::chrono;
     long long now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
@@ -211,13 +210,16 @@ void printPhysicsTick() {
         char ipbuff[16];
         inet_ntop(AF_INET, (void*)&client->clientAddr.sin_addr, ipbuff, 16);
 
+        std::string ipPort = std::string(ipbuff) + ":" + std::to_string(ntohs(client->clientAddr.sin_port));
+
         std::cout << std::left
             << std::setw(6) << id
-            << std::setw(20) << ipbuff
+            << std::setw(20) << ipPort
             << std::setw(12) << (std::to_string(msSince) + "ms")
             << "\n";
     }
-    entityManagerMutex.unlock();
+
+    prevLinesToClear = entityManager.clients.size();
 
     std::cout.flush();
 }
@@ -234,16 +236,12 @@ void updateTick() {
         for (const auto& [id, client] : entityManager.clients) {
             client->bufferedPackets.reset();
         }
-        entityManagerMutex.unlock();
 
         ServerPacket p;
-        entityManagerMutex.lock();
         for (const auto& [id, client] : entityManager.clients) {
             p.entities.push_back(client->entity);
         }
-        entityManagerMutex.unlock();
         std::string packetString = p.toString();
-        entityManagerMutex.lock();
         for (const auto& [id, client] : entityManager.clients) {
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }

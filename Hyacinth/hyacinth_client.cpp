@@ -188,18 +188,20 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     return 0;
 }
 
-void HyacinthNetworkClient::updateServerTick() {
+void HyacinthNetworkClient::updateServerTick(bool mouseLocked) {
     auto [dx, dy] = InputManager::getTickMouseMotion();
     std::array<int8_t, 3> movement = InputManager::getMovement();
 
     ClientUpdatePacket p;
     p.id = clientID;
     p.tDelta = Time::getDeltaTime();
-    p.movementFB = movement[0];
-    p.movementLR = movement[1];
-    p.movementUD = movement[2];
-    p.xRelMouse = dx;
-    p.yRelMouse = dy;
+    if (mouseLocked) {
+        p.movementFB = movement[0];
+        p.movementLR = movement[1];
+        p.movementUD = movement[2];
+        p.xRelMouse = dx;
+        p.yRelMouse = dy;
+    }
          
     std::string s = p.toString();
     const char* msg = s.c_str();

@@ -33,6 +33,6 @@ public:
 	NetworkEntityManager netEntManager;
 
 	int setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout);
-	void updateServerTick();
+	void updateServerTick(bool mouseLocked);
 	void shutdownNet();
 };
