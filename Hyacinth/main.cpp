@@ -19,11 +19,11 @@ void simulationTick(HyacinthEngine* engine) {
 		if (engine->p_netEntManager->self != NULL) {
 			engine->camMutex.lock();
 			engine->m_camera.m_transform = engine->p_netEntManager->self->transform;
-			engine->p_netEntManager->selfMutex.unlock();
 			engine->m_camera.m_transform.position.y += 1.85f;
 			engine->m_camera.update(0.0071825f, engine->mouseLocked);
 			engine->camMutex.unlock();
 		}
+		engine->p_netEntManager->selfMutex.unlock();
 		std::this_thread::sleep_for(7.1825ms);
 	}
 }
@@ -63,9 +63,7 @@ int main() {
 			}
 		}
 		hyacinthEngine.draw();
-		if (hyacinthEngine.mouseLocked) {
-			netClient.updateServerTick();
-		}
+		netClient.updateServerTick(hyacinthEngine.mouseLocked);
 
 		Time::updateTime();
 	}
