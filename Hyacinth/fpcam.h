@@ -39,7 +39,7 @@ public:
 
     Camera() {};
     Camera(float aspect, float fov, float nearC, float farC);
-    void update(float deltaTime, bool moveMouse);
+    void update();
 
     static void GetFrustumPlanes(glm::vec4* planes, glm::mat4 matrix);
 };

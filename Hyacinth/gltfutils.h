@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tiny_gltf.h"
+#include "stb_image.h"
 #include "vkmeshutils.h"
 #include "vkimageutils.h"
 #include "vkdescriptorutils.h"

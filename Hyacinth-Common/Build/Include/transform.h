@@ -43,6 +43,17 @@ struct Transform {
 		up = glm::normalize(glm::cross(right, forward));
 	}
 
+	Transform lerpTo(Transform& other, float delta) {
+		Transform t;
+		t.position = glm::mix(position, other.position, delta);
+		t.rotation = glm::mix(rotation, other.rotation, delta);
+		t.scale = glm::mix(scale, other.scale, delta);
+		t.pitch = glm::mix(pitch, other.pitch, delta);
+		t.yaw = glm::mix(yaw, other.yaw, delta);
+		t.setRotationPitchYaw();
+		return t;
+	}
+
 	Transform() {};
 	Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale) : position(position), rotation(rotation), scale(scale) {}
 };

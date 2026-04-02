@@ -55,6 +55,8 @@ public:
 	void addCharacterController(uint32_t cId);
 	void removeCharacterController(uint32_t cId);
 	void addStaticPhysicsObject(LightObject* object);
-	void updatePhysics(EntityManager* entityManager);
-	void updatePlayerMovement(Entity* e, SimulateStruct& s);
+	void updatePhysicsServer(EntityManager* entityManager);
+	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, float timeDelta);
+	void updateSingleEntity(uint32_t cId, float camSpeed, Transform& eTransform, SimulateStruct& simS, float timeStep, float camTimeStep = 1.f);
+	void updatePlayerMovement(uint32_t eId, Transform& t, SimulateStruct& s, float timeStep);
 };
