@@ -18,13 +18,16 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
 
         ServerPacket sp;
         sp = ServerPacket::fromString(std::string(recvBuff));
-        netEntManager.updateEntitiesFromPacket(sp, clientID);
+        sp.clientTime = Time::getCurrentTime();
+        netEntManager.packetBuffer.newPacket(sp);
     }
 
     closesocket(udpReceiverSocket);
 }
 
 int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout) {
+    netEntManager.self = new Entity();
+
     WSADATA wsaData;
     int iResult;
 

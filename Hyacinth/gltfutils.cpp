@@ -1,7 +1,3 @@
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
 #include "gltfutils.h"
 #include "vkimageutils.h"
 #include <glm/gtc/type_ptr.hpp>

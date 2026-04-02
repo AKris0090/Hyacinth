@@ -110,7 +110,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Lib;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;C:\VulkanSDK\1.4.335.0\Lib;Ws2_32.lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\bin\win.x86_64.vc143.mt\debug;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Lib;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;C:\VulkanSDK\1.4.335.0\Lib;Ws2_32.lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
@@ -133,7 +133,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Lib;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;Ws2_32.lib;C:\VulkanSDK\1.4.335.0\Lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\bin\win.x86_64.vc143.mt\release;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Lib;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;Ws2_32.lib;C:\VulkanSDK\1.4.335.0\Lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL3.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>

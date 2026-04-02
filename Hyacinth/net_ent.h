@@ -6,6 +6,49 @@
 #include <unordered_map>
 #include "fpcam.h"
 #include <mutex>
+#include <utility>
+
+class PacketBuffer {
+public:
+	float timeAggregate;
+	float timeWindowSeconds;
+	std::pair<ServerPacket, ServerPacket> packetBuffer;
+
+	void newPacket(ServerPacket p) {
+		packetBuffer.first = packetBuffer.second;
+		packetBuffer.second = p;
+		timeWindowSeconds = std::chrono::duration_cast<std::chrono::milliseconds>(p.clientTime - packetBuffer.first.clientTime).count() / 1000.f;
+		timeAggregate = 0.f;
+	}
+
+	ServerPacket getInterpolatedSimPacket(float timeDelta) {
+		timeAggregate += timeDelta;
+		if (timeAggregate > timeWindowSeconds) {
+			timeAggregate = timeWindowSeconds;
+		}
+		float t = timeAggregate / timeWindowSeconds;
+
+		ServerPacket p;
+		for (auto& e : packetBuffer.first.entities) {
+			Entity secondEnt;
+			secondEnt.id = 150;
+			for (auto& e2 : packetBuffer.second.entities) {
+				if (e2.id == e.id) {
+					secondEnt = e2;
+				}
+			}
+			if (secondEnt.id == 150) continue;
+			Entity nE;
+			nE.camSpeed = e.camSpeed;
+			nE.moveSpeed = e.moveSpeed;
+			nE.id = e.id;
+			nE.transform = e.transform.lerpTo(secondEnt.transform, t);
+			p.entities.push_back(nE);
+		}
+
+		return p;
+	}
+};
 
 struct gltfObject;
 
@@ -32,6 +75,7 @@ public:
 	std::unordered_map<uint32_t, std::unique_ptr<std::mutex>> entityMutexes;
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
+	PacketBuffer packetBuffer;
 
 	void setupFromServerPacket(ServerPacket& p, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerPacket& p, uint32_t currentClientID);
