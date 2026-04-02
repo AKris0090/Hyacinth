@@ -148,7 +148,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Physics\Build\Lib;C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\bin\win.x86_64.vc143.mt\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\ajnkr\Documents\DEV\PhysX-107.3-omni-and-physx-5.6.1\PhysX-107.3-omni-and-physx-5.6.1\physx\bin\win.x86_64.vc143.mt\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>

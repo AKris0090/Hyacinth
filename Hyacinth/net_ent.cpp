@@ -128,8 +128,6 @@ void NetworkEntityManager::setupRenderingUtils() {
 }
 
 void NetworkEntityManager::setupFromServerPacket(ServerPacket& p, uint32_t currentClientID) {
-	self = new Entity();
-
 	if (p.entities.size() > 0) {
 		for (const auto& e : p.entities) {
 			if (e.id == currentClientID) continue;

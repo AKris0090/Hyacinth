@@ -119,6 +119,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
             continue;
         }
 
+        entityManagerMutex.lock();
         currentClientID++;
         ServersideClient* newClient = new ServersideClient();
         newClient->id = currentClientID;
@@ -126,6 +127,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
         newClient->clientAddr = clientAddr;
         newClient->clientAddrLen = clientAddrSize;
         entityManager.clients[currentClientID] = newClient;
+        entityManagerMutex.unlock();
 
         std::thread newClientThread(handleNewClient, clientSocket, newClient);
         newClientThread.detach();
@@ -134,7 +136,6 @@ void serverListenForClients(SOCKET* tcpSocket) {
 
 void timeoutWatchdog() {
     while (true) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
         using namespace std::chrono;
         long long now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
         entityManagerMutex.lock();
@@ -149,6 +150,7 @@ void timeoutWatchdog() {
             entityManager.clients.erase(id);
         }
         entityManagerMutex.unlock();
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 
@@ -172,7 +174,7 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
         entityManagerMutex.lock();
         if ((entityManager.clients.find(p.id) != entityManager.clients.end()) && (entityManager.clients[p.id] != NULL)) {
-            entityManager.clients[p.id]->bufferedPackets.addPacket(p);
+            entityManager.clients[p.id]->bufferedPacket.addPacket(p);
             using namespace std::chrono;
             entityManager.clients[p.id]->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
         }
@@ -225,16 +227,14 @@ void printPhysicsTick() {
 }
 
 void updateTick() {
-    using namespace std::chrono_literals;
-
     SOCKET serverSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
     while (true) {
-        physicsManager.updatePhysics(&entityManager);
+        physicsManager.updatePhysicsServer(&entityManager);
 
         entityManagerMutex.lock();
         for (const auto& [id, client] : entityManager.clients) {
-            client->bufferedPackets.reset();
+            client->bufferedPacket.reset();
         }
 
         ServerPacket p;
@@ -247,7 +247,7 @@ void updateTick() {
         }
         entityManagerMutex.unlock();
         printPhysicsTick();
-        std::this_thread::sleep_for(7.1825ms);
+        std::this_thread::sleep_for(SERVER_TIMESTEP_MS);
     }
 }
 

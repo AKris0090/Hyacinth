@@ -18,8 +18,19 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
+using namespace std::chrono_literals;
+
 constexpr int DEFAULT_LEN = 512;
 constexpr int MAX_CONNECTIONS = 12;
+
+// constexpr float SERVER_TIMESTEP = 0.0078125f;
+// constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
+
+// constexpr float SERVER_TIMESTEP = 0.016667f;
+// constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 16.6667ms;
+
+constexpr float SERVER_TIMESTEP = 0.1f;
+constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 100.0ms;
 
 struct ClientRequestConnectionPacket {
 	uint32_t port;
@@ -45,7 +56,7 @@ struct SimulateStruct {
 	uint32_t id;
 	float xRelMouse = 0.f;
 	float yRelMouse = 0.f;
-	int8_t movementFB = 0;
+	int8_t movementFB = 0; // TODO: might need to be cast to larger values
 	int8_t movementLR = 0;
 	int8_t movementUD = 0;
 
@@ -61,7 +72,7 @@ struct SimulateStruct {
 
 struct ServersideClient {
 	Entity entity;
-	SimulateStruct bufferedPackets;
+	SimulateStruct bufferedPacket;
 	uint32_t id;
 	sockaddr_in clientAddr;
 	long long heartBeat;
@@ -70,6 +81,7 @@ struct ServersideClient {
 
 struct ServerPacket {
 	std::vector<Entity> entities;
+	std::chrono::time_point<std::chrono::system_clock> clientTime;
 
 	std::string toString();
 	static ServerPacket fromString(std::string s);
