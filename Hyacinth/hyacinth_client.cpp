@@ -173,6 +173,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     ClientRequestConnectionPacket serverResponse;
     serverResponse.fromString(std::string(recvbuf));
     clientID = serverResponse.port;
+    netEntManager.self->id = clientID;
 
     ServerPacket sp;
     sp = ServerPacket::fromString(std::string(entityBuff));
