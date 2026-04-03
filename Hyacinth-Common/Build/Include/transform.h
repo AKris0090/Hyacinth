@@ -4,6 +4,7 @@
 #include "glm/gtx/quaternion.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/string_cast.hpp"
+#include "glm/gtx/compatibility.hpp"
 
 struct Transform {
 	glm::vec3 position{ 0.f, 0.f, 0.f };
@@ -43,14 +44,16 @@ struct Transform {
 		up = glm::normalize(glm::cross(right, forward));
 	}
 
-	Transform lerpTo(Transform& other, float delta) {
+	Transform lerpTo(const Transform& other, float delta) {
 		Transform t;
 		t.position = glm::mix(position, other.position, delta);
-		t.rotation = glm::mix(rotation, other.rotation, delta);
+		t.rotation = glm::slerp(rotation, other.rotation, delta);
 		t.scale = glm::mix(scale, other.scale, delta);
-		t.pitch = glm::mix(pitch, other.pitch, delta);
-		t.yaw = glm::mix(yaw, other.yaw, delta);
-		t.setRotationPitchYaw();
+
+		glm::vec3 fwd = t.rotation * glm::vec3(1.f, 0.f, 0.f);
+		t.pitch = glm::degrees(glm::asin(fwd.y));
+		t.yaw = glm::degrees(glm::atan2(fwd.z, fwd.x));
+
 		return t;
 	}
 

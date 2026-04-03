@@ -11,22 +11,20 @@
 class PacketBuffer {
 public:
 	float timeAggregate;
-	float timeWindowSeconds;
 	std::pair<ServerPacket, ServerPacket> packetBuffer;
 
 	void newPacket(ServerPacket p) {
 		packetBuffer.first = packetBuffer.second;
 		packetBuffer.second = p;
-		timeWindowSeconds = std::chrono::duration_cast<std::chrono::milliseconds>(p.clientTime - packetBuffer.first.clientTime).count() / 1000.f;
 		timeAggregate = 0.f;
 	}
 
 	ServerPacket getInterpolatedSimPacket(float timeDelta) {
 		timeAggregate += timeDelta;
-		if (timeAggregate > timeWindowSeconds) {
-			timeAggregate = timeWindowSeconds;
+		if (timeAggregate > SERVER_TIMESTEP) {
+			timeAggregate = SERVER_TIMESTEP;
 		}
-		float t = timeAggregate / timeWindowSeconds;
+		float t = timeAggregate / SERVER_TIMESTEP;
 
 		ServerPacket p;
 		for (auto& e : packetBuffer.first.entities) {

@@ -163,13 +163,7 @@ void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& 
 		if (t.yaw < -360.f) t.yaw += 360.f;
 		t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
 
-		t.forward = glm::normalize(glm::vec3(
-			cos(glm::radians(t.yaw)) * cos(glm::radians(t.pitch)),
-			sin(glm::radians(t.pitch)),
-			sin(glm::radians(t.yaw)) * cos(glm::radians(t.pitch))
-		));
-		t.right = glm::normalize(glm::cross(t.forward, glm::vec3(0.f, 1.f, 0.f)));
-		t.up = glm::normalize(glm::cross(t.right, t.forward));
+		t.setRotationPitchYaw();
 
 		glm::quat qYaw = glm::angleAxis(glm::radians(t.yaw), glm::vec3(0, -1, 0));
 		glm::quat qPitch = glm::angleAxis(glm::radians(t.pitch), glm::vec3(0, 0, 1));
