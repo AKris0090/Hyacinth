@@ -18,7 +18,6 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
 
         ServerPacket sp;
         sp = ServerPacket::fromString(std::string(recvBuff));
-        sp.clientTime = Time::getCurrentTime();
         netEntManager.packetBuffer.newPacket(sp);
     }
 
