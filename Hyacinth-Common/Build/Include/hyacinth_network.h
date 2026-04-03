@@ -81,7 +81,6 @@ struct ServersideClient {
 
 struct ServerPacket {
 	std::vector<Entity> entities;
-	std::chrono::time_point<std::chrono::system_clock> clientTime;
 
 	std::string toString();
 	static ServerPacket fromString(std::string s);
