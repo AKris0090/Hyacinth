@@ -36,6 +36,7 @@ std::mutex entityManagerMutex;
 std::vector<LightObject*> staticPhysicsObjects;
 PhysicsManager physicsManager;
 int currentNumConnections = 0;
+std::atomic<uint32_t> tickCount{ 0 };
 
 std::filesystem::path getExeDir()
 {
@@ -74,6 +75,7 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
         for (const auto& [id, client] : entityManager.clients) {
             sp.entities.push_back(client->entity);
         }
+        sp.processedTickNum = tickCount;
         std::string spString = sp.toString();
         entityMessage = send(socket, spString.c_str(), spString.length(), 0);
         if (entityMessage == SOCKET_ERROR) {
@@ -119,6 +121,8 @@ void serverListenForClients(SOCKET* tcpSocket) {
             continue;
         }
 
+        using namespace std::chrono;
+
         entityManagerMutex.lock();
         currentClientID++;
         ServersideClient* newClient = new ServersideClient();
@@ -126,6 +130,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
         newClient->entity.id = currentClientID;
         newClient->clientAddr = clientAddr;
         newClient->clientAddrLen = clientAddrSize;
+        newClient->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
         entityManager.clients[currentClientID] = newClient;
         entityManagerMutex.unlock();
 
@@ -229,7 +234,10 @@ void printPhysicsTick() {
 void updateTick() {
     SOCKET serverSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
+    auto nextTick = std::chrono::steady_clock::now();
     while (true) {
+        nextTick += std::chrono::duration_cast<std::chrono::steady_clock::duration>(SERVER_TIMESTEP_MS);
+
         physicsManager.updatePhysicsServer(&entityManager);
 
         entityManagerMutex.lock();
@@ -241,13 +249,16 @@ void updateTick() {
         for (const auto& [id, client] : entityManager.clients) {
             p.entities.push_back(client->entity);
         }
+        p.processedTickNum = tickCount;
         std::string packetString = p.toString();
         for (const auto& [id, client] : entityManager.clients) {
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
         entityManagerMutex.unlock();
         printPhysicsTick();
-        std::this_thread::sleep_for(SERVER_TIMESTEP_MS);
+
+        std::this_thread::sleep_until(nextTick);
+        tickCount++;
     }
 }
 
