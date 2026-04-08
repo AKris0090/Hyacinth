@@ -41,12 +41,11 @@ struct ClientRequestConnectionPacket {
 
 struct ClientUpdatePacket {
 	uint32_t id;
-	float tDelta = 0.f;
-	float xRelMouse = 0.f;
-	float yRelMouse = 0.f;
-	int8_t movementFB = 0;
-	int8_t movementLR = 0;
-	int8_t movementUD = 0;
+	float pitch = 0.f;
+	float yaw = 0.f;
+	float movementFB = 0;
+	float movementLR = 0;
+	float movementUD = 0;
 
 	std::string toString();
 	static ClientUpdatePacket fromString(std::string s);
@@ -54,16 +53,16 @@ struct ClientUpdatePacket {
 
 struct SimulateStruct {
 	uint32_t id;
-	float xRelMouse = 0.f;
-	float yRelMouse = 0.f;
-	int8_t movementFB = 0; // TODO: might need to be cast to larger values
-	int8_t movementLR = 0;
-	int8_t movementUD = 0;
+	float pitch = 0.f;
+	float yaw = 0.f;
+	float movementFB = 0; // TODO: might need to be cast to larger values
+	float movementLR = 0;
+	float movementUD = 0;
 
 	void addPacket(ClientUpdatePacket pack);
 	void reset() {
-		xRelMouse = 0.f;
-		yRelMouse = 0.f;
+		pitch = 0.f;
+		yaw = 0.f;
 		movementFB = 0;
 		movementLR = 0;
 		movementUD = 0;
@@ -75,12 +74,14 @@ struct ServersideClient {
 	SimulateStruct bufferedPacket;
 	uint32_t id;
 	sockaddr_in clientAddr;
+	uint32_t tickOffset;
 	long long heartBeat;
 	int clientAddrLen;
 };
 
 struct ServerPacket {
 	std::vector<Entity> entities;
+	uint32_t processedTickNum = 0;
 
 	std::string toString();
 	static ServerPacket fromString(std::string s);

@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include "transform.h"
 
-constexpr float CAM_LOOK_SPEED = 70.f;
+constexpr float CAM_LOOK_SPEED = 35.f;
 constexpr float MOVE_SPEED = 3.5f;
 
 struct Entity {

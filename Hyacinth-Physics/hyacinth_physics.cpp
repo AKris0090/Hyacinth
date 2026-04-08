@@ -151,30 +151,36 @@ void PhysicsManager::addStaticPhysicsObject(LightObject* object) {
 	pScene->addActor(*body);
 }
 
-void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, float timeDelta) {
-	if (glm::abs(p.xRelMouse) > 0.f || glm::abs(p.yRelMouse) > 0.f) {
-		float mouseX = p.xRelMouse * camSpeed * timeDelta;
-		float mouseY = p.yRelMouse * camSpeed * timeDelta;
+// if serverSide is true, then simulateStruct has absolute pitch and yaw values
+// if false, then simulateStruct has delta xRel and yRel mouse raw input values
+void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime) {
+	if (serverSide) {
+		t.pitch = p.pitch;
+		t.yaw = p.yaw;
+	} else {
+		if (glm::abs(p.pitch) > 0.f || glm::abs(p.yaw) > 0.f) { // simulate struct pitch and yaw are DELTA VALUES
+			float mouseX = p.pitch * camSpeed * deltaTime;
+			float mouseY = p.yaw * camSpeed * deltaTime;
 
-		t.yaw += mouseX;
-		t.pitch -= mouseY;
+			t.yaw += mouseX;
+			t.pitch -= mouseY;
 
-		if (t.yaw > 360.f)  t.yaw -= 360.f;
-		if (t.yaw < -360.f) t.yaw += 360.f;
-		t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
-
-		t.setRotationPitchYaw();
-
-		glm::quat qYaw = glm::angleAxis(glm::radians(t.yaw), glm::vec3(0, -1, 0));
-		glm::quat qPitch = glm::angleAxis(glm::radians(t.pitch), glm::vec3(0, 0, 1));
-
-		t.rotation = qYaw * qPitch;
+			if (t.yaw > 360.f)  t.yaw -= 360.f;
+			if (t.yaw < -360.f) t.yaw += 360.f;
+			t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
+		}
 	}
+
+	t.setRotationPitchYaw();
+	
+	glm::quat qYaw = glm::angleAxis(glm::radians(t.yaw), glm::vec3(0, -1, 0));
+	glm::quat qPitch = glm::angleAxis(glm::radians(t.pitch), glm::vec3(0, 0, 1));
+	
+	t.rotation = qYaw * qPitch;
 }
 
-void PhysicsManager::updatePlayerMovement(uint32_t eId, Transform& t, SimulateStruct& s, float timeStep) {
+void PhysicsManager::updatePlayerMovement(uint32_t eId, Transform& t, SimulateStruct& s) {
 	glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
-
 	glm::vec3 flatForward = glm::normalize(glm::vec3(t.forward.x, 0.0f, t.forward.z));
 	glm::vec3 flatRight = glm::normalize(glm::vec3(t.right.x, 0.0f, t.right.z));
 
@@ -193,21 +199,20 @@ void PhysicsManager::updatePlayerMovement(uint32_t eId, Transform& t, SimulateSt
 	physx::PxControllerFilters data;
 	data.mFilterData = &filterData;
 
-	clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, -t.position.y, localDisplacement.z), 0.001f, timeStep, data);
+	if (clientControllers.find(eId) == clientControllers.end()) {
+		return;
+	}
+	clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, -t.position.y, localDisplacement.z), 0.001f, SERVER_TIMESTEP, data);
 	physx::PxExtendedVec3 p = clientControllers[eId]->getFootPosition();
 	t.position = glm::vec3(p.x, p.y, p.z);
-}
-
-void PhysicsManager::updateSingleEntity(uint32_t cId, float camSpeed, Transform& eTransform, SimulateStruct& simS, float timeStep, float camTimeStep) {
-	updateCamera(cId, camSpeed, simS, eTransform, camTimeStep);
-	updatePlayerMovement(cId, eTransform, simS, timeStep);
 }
 
 void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
 	controllerArrayMutex.lock();
 	for (const auto& [id, sSClient] : entityManager->clients) {
 		if (clientControllers[id] == NULL) continue;
-		updateSingleEntity(id, sSClient->entity.camSpeed, sSClient->entity.transform, sSClient->bufferedPacket, SERVER_TIMESTEP);
+		updateCamera(id, sSClient->entity.camSpeed, sSClient->bufferedPacket, sSClient->entity.transform, true, -FLT_MAX);
+		updatePlayerMovement(id, sSClient->entity.transform, sSClient->bufferedPacket);
 	}
 
 	pScene->simulate(SERVER_TIMESTEP);

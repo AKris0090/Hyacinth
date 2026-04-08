@@ -56,7 +56,6 @@ public:
 	void removeCharacterController(uint32_t cId);
 	void addStaticPhysicsObject(LightObject* object);
 	void updatePhysicsServer(EntityManager* entityManager);
-	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, float timeDelta);
-	void updateSingleEntity(uint32_t cId, float camSpeed, Transform& eTransform, SimulateStruct& simS, float timeStep, float camTimeStep = 1.f);
-	void updatePlayerMovement(uint32_t eId, Transform& t, SimulateStruct& s, float timeStep);
+	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime);
+	void updatePlayerMovement(uint32_t eId, Transform& t, SimulateStruct& s);
 };

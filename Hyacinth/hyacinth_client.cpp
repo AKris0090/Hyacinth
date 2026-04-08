@@ -16,9 +16,26 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
 
         recvBuff[bytesReceived] = '\0';
 
+        netEntManager.selfMutex.lock();
+
         ServerPacket sp;
         sp = ServerPacket::fromString(std::string(recvBuff));
+
+        if (!tickOffsetSet) {
+            tickOffsetSet = true;
+            tickOffset = sp.processedTickNum;
+        }
+
+        sp.processedTickNum -= tickOffset;
         netEntManager.packetBuffer.newPacket(sp);
+
+        Transform t;
+        if (netEntManager.rB.checkPacketNeedsRewind(netEntManager.self, t, sp, netEntManager.self->id)) { // checkRewind also actually rewinds the transform
+            std::cout << "rewinded" << std::endl;
+            netEntManager.selfSimBuffer.fixServerRecon(netEntManager.self, t.position);
+        }
+
+        netEntManager.selfMutex.unlock();
     }
 
     closesocket(udpReceiverSocket);
@@ -191,20 +208,9 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     return 0;
 }
 
-void HyacinthNetworkClient::updateServerTick(bool mouseLocked) {
+void HyacinthNetworkClient::updateServerTick(ClientUpdatePacket& p, bool mouseLocked) {
     auto [dx, dy] = InputManager::getTickMouseMotion();
     std::array<int8_t, 3> movement = InputManager::getMovement();
-
-    ClientUpdatePacket p;
-    p.id = clientID;
-    p.tDelta = Time::getDeltaTime();
-    if (mouseLocked) {
-        p.movementFB = movement[0];
-        p.movementLR = movement[1];
-        p.movementUD = movement[2];
-        p.xRelMouse = dx;
-        p.yRelMouse = dy;
-    }
          
     std::string s = p.toString();
     const char* msg = s.c_str();

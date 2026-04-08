@@ -4,7 +4,12 @@
 
 std::string ClientUpdatePacket::toString() {
 	std::ostringstream oss;
-	oss << (int) id << "," << (float) tDelta << "," << (float) xRelMouse << "," << (float) yRelMouse << "," << (int) movementFB << "," << (int) movementLR << "," << (int) movementUD;
+	oss << (int) id << "," 
+		<< pitch << "," 
+		<< yaw << "," 
+		<< movementFB << ","
+		<< movementLR << "," 
+		<< movementUD;
 	return oss.str();
 }
 
@@ -14,27 +19,31 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	std::stringstream es(s);
 	std::string field;
 	std::getline(es, field, ','); p.id = std::stoi(field);
-	std::getline(es, field, ','); p.tDelta = std::stof(field);
-	std::getline(es, field, ','); p.xRelMouse = std::stof(field);
-	std::getline(es, field, ','); p.yRelMouse = std::stof(field);
-	std::getline(es, field, ','); p.movementFB = std::stoi(field);
-	std::getline(es, field, ','); p.movementLR = std::stoi(field);
-	std::getline(es, field, ','); p.movementUD = std::stoi(field);
+	std::getline(es, field, ','); p.pitch = std::stof(field);
+	std::getline(es, field, ','); p.yaw = std::stof(field);
+	std::getline(es, field, ','); p.movementFB = std::stof(field);
+	std::getline(es, field, ','); p.movementLR = std::stof(field);
+	std::getline(es, field, ','); p.movementUD = std::stof(field);
 
 	return p;
 }
 
 std::string ClientRequestConnectionPacket::toString() {
-	return std::string("myport:") + std::to_string(port);
+	std::ostringstream oss;
+	oss << port << ",";
+	return oss.str();
 }
 
 void ClientRequestConnectionPacket::fromString(std::string s) {
-	size_t start = s.find("myport:") + 7;
-	port = static_cast<uint32_t>(stoi(s.substr(start, s.length() - start)));
+	std::stringstream es(s);
+	std::string field;
+
+	std::getline(es, field, ','); port = std::stoi(field);
 }
 
 std::string ServerPacket::toString() {
 	std::ostringstream oss;
+	oss << processedTickNum << ",";
 	for (size_t i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
 		oss << e.id << "," << e.transform.position.x
@@ -56,6 +65,9 @@ ServerPacket ServerPacket::fromString(std::string s) {
 
 	std::stringstream ss(s);
 	std::string entityStr;
+
+	std::string tickField;
+	std::getline(ss, tickField, ','); packet.processedTickNum = std::stoi(tickField);
 
 	while (std::getline(ss, entityStr, '|')) {
 		std::stringstream es(entityStr);
@@ -81,8 +93,8 @@ ServerPacket ServerPacket::fromString(std::string s) {
 
 void SimulateStruct::addPacket(ClientUpdatePacket pack) {
 	id = pack.id;
-	xRelMouse += pack.xRelMouse * pack.tDelta;
-	yRelMouse += pack.yRelMouse * pack.tDelta;
+	pitch = pack.pitch;
+	yaw = pack.yaw;
 	movementFB = pack.movementFB;
 	movementLR = pack.movementLR;
 	movementUD = pack.movementUD;
