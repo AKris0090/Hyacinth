@@ -51,8 +51,11 @@ struct Transform {
 		t.scale = glm::mix(scale, other.scale, delta);
 
 		glm::vec3 fwd = t.rotation * glm::vec3(1.f, 0.f, 0.f);
+
 		t.pitch = glm::degrees(glm::asin(fwd.y));
 		t.yaw = glm::degrees(glm::atan2(fwd.z, fwd.x));
+
+		t.setRotationPitchYaw();
 
 		return t;
 	}

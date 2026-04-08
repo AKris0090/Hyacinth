@@ -4,13 +4,6 @@
 void NetworkEntityManager::updateEntitiesFromPacket(ServerPacket& p, uint32_t currentClientID) {
 	for (const auto& e : p.entities) {
 		if (e.id == currentClientID) {
-			selfMutex.lock();
-			self->transform.position = e.transform.position;
-			self->transform.rotation = e.transform.rotation;
-			self->transform.yaw = e.transform.yaw;
-			self->transform.pitch = e.transform.pitch;
-			self->transform.setRotationPitchYaw();
-			selfMutex.unlock();
 			continue;
 		}
 		auto findit = entities.find(e.id);
@@ -196,7 +189,6 @@ void NetworkEntityManager::drawFPCharacter(VkCommandBuffer& cmd, VkDescriptorSet
 
 	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(entityBufferPC), &pc);
 
-	std::cout << entities.size() << std::endl;
 	vkCmdDrawIndexed(cmd, indexCount, entities.size(), 0, 0, 0);
 }
 

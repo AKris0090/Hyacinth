@@ -20,6 +20,8 @@ class HyacinthNetworkClient {
 private:
 	bool connected;
 	uint32_t clientID;
+	bool tickOffsetSet;
+	uint32_t tickOffset;
 	SOCKET connectSocket;
 	SOCKET udpReceiverSocket;
 	int receiverPort;
@@ -33,6 +35,6 @@ public:
 	NetworkEntityManager netEntManager;
 
 	int setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout);
-	void updateServerTick(bool mouseLocked);
+	void updateServerTick(ClientUpdatePacket& p, bool mouseLocked);
 	void shutdownNet();
 };
