@@ -179,7 +179,7 @@ void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& 
 	t.rotation = qYaw * qPitch;
 }
 
-void PhysicsManager::updatePlayerMovement(uint32_t eId, Transform& t, SimulateStruct& s) {
+void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s) {
 	glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
 	glm::vec3 flatForward = glm::normalize(glm::vec3(t.forward.x, 0.0f, t.forward.z));
 	glm::vec3 flatRight = glm::normalize(glm::vec3(t.right.x, 0.0f, t.right.z));
@@ -191,7 +191,7 @@ void PhysicsManager::updatePlayerMovement(uint32_t eId, Transform& t, SimulateSt
 
 	if (glm::length(localDisplacement) > 0) {
 		localDisplacement = glm::normalize(localDisplacement);
-		localDisplacement *= 0.5f;
+		localDisplacement *= moveSpeed;
 	}
 
 	physx::PxFilterData filterData;
@@ -212,7 +212,7 @@ void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
 	for (const auto& [id, sSClient] : entityManager->clients) {
 		if (clientControllers[id] == NULL) continue;
 		updateCamera(id, sSClient->entity.camSpeed, sSClient->bufferedPacket, sSClient->entity.transform, true, -FLT_MAX);
-		updatePlayerMovement(id, sSClient->entity.transform, sSClient->bufferedPacket);
+		updatePlayerMovement(id, sSClient->entity.moveSpeed, sSClient->entity.transform, sSClient->bufferedPacket);
 	}
 
 	pScene->simulate(SERVER_TIMESTEP);

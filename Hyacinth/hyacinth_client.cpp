@@ -16,32 +16,21 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
 
         recvBuff[bytesReceived] = '\0';
 
-        netEntManager.selfMutex.lock();
-
         ServerPacket sp;
         sp = ServerPacket::fromString(std::string(recvBuff));
 
-        if (!tickOffsetSet) {
-            tickOffsetSet = true;
-            tickOffset = sp.processedTickNum;
-        }
-
-        sp.processedTickNum -= tickOffset;
+        // sp.processedTickNum -= tickOffset;
         netEntManager.packetBuffer.newPacket(sp);
 
-        Transform t;
-        if (netEntManager.rB.checkPacketNeedsRewind(netEntManager.self, t, sp, netEntManager.self->id)) { // checkRewind also actually rewinds the transform
-            std::cout << "rewinded" << std::endl;
-            netEntManager.selfSimBuffer.fixServerRecon(netEntManager.self, t.position);
-        }
-
-        netEntManager.selfMutex.unlock();
+        netEntManager.rB.pendingPacketsMutex.lock();
+        netEntManager.rB.pendingPackets.push(sp);
+        netEntManager.rB.pendingPacketsMutex.unlock();
     }
 
     closesocket(udpReceiverSocket);
 }
 
-int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout) {
+int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout, int& tickOffsetOut) {
     netEntManager.self = new Entity();
 
     WSADATA wsaData;
@@ -190,7 +179,10 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     ClientRequestConnectionPacket serverResponse;
     serverResponse.fromString(std::string(recvbuf));
     clientID = serverResponse.port;
+    tickOffsetOut = serverResponse.tick;
     netEntManager.self->id = clientID;
+
+    std::cout << "tick offset: " << tickOffsetOut << std::endl;
 
     ServerPacket sp;
     sp = ServerPacket::fromString(std::string(entityBuff));
@@ -212,6 +204,7 @@ void HyacinthNetworkClient::updateServerTick(ClientUpdatePacket& p, bool mouseLo
     auto [dx, dy] = InputManager::getTickMouseMotion();
     std::array<int8_t, 3> movement = InputManager::getMovement();
          
+    p.time = getNowMs();
     std::string s = p.toString();
     const char* msg = s.c_str();
     sendto(serverUDPSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);

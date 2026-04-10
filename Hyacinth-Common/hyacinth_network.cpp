@@ -5,6 +5,8 @@
 std::string ClientUpdatePacket::toString() {
 	std::ostringstream oss;
 	oss << (int) id << "," 
+		<< tick << ","
+		<< time << ","
 		<< pitch << "," 
 		<< yaw << "," 
 		<< movementFB << ","
@@ -19,6 +21,8 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	std::stringstream es(s);
 	std::string field;
 	std::getline(es, field, ','); p.id = std::stoi(field);
+	std::getline(es, field, ','); p.tick = std::stoi(field);
+	std::getline(es, field, ','); p.time = std::stoi(field);
 	std::getline(es, field, ','); p.pitch = std::stof(field);
 	std::getline(es, field, ','); p.yaw = std::stof(field);
 	std::getline(es, field, ','); p.movementFB = std::stof(field);
@@ -30,7 +34,7 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 
 std::string ClientRequestConnectionPacket::toString() {
 	std::ostringstream oss;
-	oss << port << ",";
+	oss << port << "," << tick << ",";
 	return oss.str();
 }
 
@@ -39,11 +43,12 @@ void ClientRequestConnectionPacket::fromString(std::string s) {
 	std::string field;
 
 	std::getline(es, field, ','); port = std::stoi(field);
+	std::getline(es, field, ','); tick = std::stoi(field);
 }
 
 std::string ServerPacket::toString() {
 	std::ostringstream oss;
-	oss << processedTickNum << ",";
+	oss << processedTickNum << "," << time << ",";
 	for (size_t i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
 		oss << e.id << "," << e.transform.position.x
@@ -68,6 +73,7 @@ ServerPacket ServerPacket::fromString(std::string s) {
 
 	std::string tickField;
 	std::getline(ss, tickField, ','); packet.processedTickNum = std::stoi(tickField);
+	std::getline(ss, tickField, ','); packet.time = std::stoi(tickField);
 
 	while (std::getline(ss, entityStr, '|')) {
 		std::stringstream es(entityStr);
@@ -85,6 +91,8 @@ ServerPacket ServerPacket::fromString(std::string s) {
 		std::getline(es, field, ','); e.transform.pitch = std::stof(field);
 		std::getline(es, field, ','); e.transform.yaw = std::stof(field);
 
+		e.transform.setRotationPitchYaw();
+
 		packet.entities.push_back(e);
 	}
 
@@ -93,6 +101,7 @@ ServerPacket ServerPacket::fromString(std::string s) {
 
 void SimulateStruct::addPacket(ClientUpdatePacket pack) {
 	id = pack.id;
+	tick = pack.tick;
 	pitch = pack.pitch;
 	yaw = pack.yaw;
 	movementFB = pack.movementFB;
