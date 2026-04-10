@@ -14,22 +14,19 @@ class PacketBuffer {
 public:
 	float timeAggregate;
 	std::pair<ServerPacket, ServerPacket> packetBuffer;
+	std::mutex packetBufferMutex;
 
-	void newPacket(ServerPacket p) {
+	void newPacket(ServerPacket p, bool resetTime = true) {
+		packetBufferMutex.lock();
 		packetBuffer.first = packetBuffer.second;
 		packetBuffer.second = p;
-		timeAggregate = 0.f;
+		if (resetTime) timeAggregate = 0.f;
+		packetBufferMutex.unlock();
 	}
 
-	void fixServerRecon(Entity* e, glm::vec3 newPos) {
-		ServerPacket sP;
-		sP.entities.push_back(*e);
-		sP.entities[0].transform = e->transform;
-		sP.entities[0].transform.position = newPos;
-		newPacket(sP);
-		newPacket(sP);
-
-		std::cout << "reset" << std::endl;
+	void fixServerRecon(Entity* e, std::pair<Transform, Transform> newPacketBuffer) {
+		packetBuffer.first.entities[0].transform = newPacketBuffer.first;
+		packetBuffer.second.entities[0].transform = newPacketBuffer.second;
 	}
 
 	ServerPacket getInterpolatedSimPacket(float timeDelta) {
@@ -39,6 +36,7 @@ public:
 		}
 		float t = timeAggregate / SERVER_TIMESTEP;
 
+		packetBufferMutex.lock();
 		ServerPacket p;
 		for (auto& e : packetBuffer.first.entities) {
 			Entity secondEnt;
@@ -56,7 +54,7 @@ public:
 			nE.transform = e.transform.lerpTo(secondEnt.transform, t);
 			p.entities.push_back(nE);
 		}
-
+		packetBufferMutex.unlock();
 		return p;
 	}
 };
@@ -72,6 +70,9 @@ public:
 	using PhysicsPosFn = std::function<void(glm::vec3 p)>;
 	using PhysicsStepFn = std::function<void(Transform& t, float fb, float lr)>;
 	std::deque<StateStorage> ringBuffer;
+	std::mutex rBMutex;
+	std::queue<ServerPacket> pendingPackets;
+	std::mutex pendingPacketsMutex;
 
 	void setPhysicsPosition(PhysicsPosFn fn) {
 		physicsPosition = fn;
@@ -82,6 +83,7 @@ public:
 	}
 
 	void addState(Transform t, float fb, float lr, uint32_t tickNum) {
+		rBMutex.lock();
 		StateStorage sS;
 		sS.tickNum = tickNum;
 		sS.state = t;
@@ -89,44 +91,74 @@ public:
 		sS.lr = lr;
 		ringBuffer.push_back(sS);
 
-		if (ringBuffer.size() > 15) {
+		if (ringBuffer.size() > 5) {
 			ringBuffer.pop_front();
 		}
+		rBMutex.unlock();
 	}
 
-	Transform rewindState(Transform newTransform, uint32_t tickNum) {
+	std::pair<Transform, Transform> rewindState(Transform newTransform, uint32_t tickNum) {
+		rBMutex.lock();
 		physicsPosition(newTransform.position);
 
+		Transform prev;
 
 		bool skip = true;
-		for (const auto& sS : ringBuffer) {
-			if (sS.tickNum == tickNum) { skip = false; continue; }
-			if (skip) continue;
-			physicsStep(newTransform, sS.fb, sS.lr);
+		std::cout << "rewinded ticks: ";
+		for (int i = 0; i < ringBuffer.size(); i++) {
+			StateStorage& sS = ringBuffer[i];
+			if (sS.tickNum == tickNum) { skip = false; sS.state = newTransform; continue; }
+		 	if (skip) continue;
+			std::cout << sS.tickNum << " ";
+			newTransform.pitch = sS.state.pitch;
+			newTransform.yaw = sS.state.yaw;
+			newTransform.setRotationPitchYaw();
+		 	physicsStep(newTransform, sS.fb, sS.lr);
+		 	sS.state = newTransform;
+			if (i == ringBuffer.size() - 2) {
+				prev = newTransform;
+			}
 		}
+		std::cout << std::endl;
 
-		return newTransform;
+		rBMutex.unlock();
+		return std::pair<Transform, Transform>(prev, newTransform);
 	}
 
 	// sp.processedTickNum is translated to client local tick
-	bool checkPacketNeedsRewind(Entity* self, Transform& outTransform, ServerPacket& sp, uint32_t selfId) {
-		while (!ringBuffer.empty() && (ringBuffer.front().tickNum < sp.processedTickNum)) ringBuffer.pop_front();
+	bool checkPacketNeedsRewind(Entity* self, std::pair<Transform, Transform>& outTransform, Transform serverTransform, uint32_t processedTickNum) {
+		// std::cout << "tick: " << sp.processedTickNum << " | ";
+		// for (auto& pack : ringBuffer) {
+		// 	std::cout << "|" << pack.tickNum << ":" << (glm::length(pack.state.position - t.position) <= DIFF_THRESHOLD);
+		// }
+		// std::cout << "|" << std::endl;
+
 		if (ringBuffer.empty()) return false;
 
-		Transform t;
-		for (auto& e : sp.entities) {
-			if (e.id == selfId) {
-				t = e.transform;
+		int ind = -1;
+		int index = 0;
+		for (auto& pack : ringBuffer) {
+			if (pack.tickNum == processedTickNum) {
+				ind = index;
+				break;
 			}
+			index++;
 		}
+		
+		float diffPitch = serverTransform.pitch - ringBuffer[ind].state.pitch;
+		float diffYaw = serverTransform.yaw - ringBuffer[ind].state.yaw;
+		// std::cout << "tick: " << processedTickNum << " | " << "serv: " << serverTransform.pitch << ", " << serverTransform.yaw << " | " << "client: " << ringBuffer[ind].state.pitch << ", " << ringBuffer[ind].state.yaw << " | " << "diff: " << diffPitch << ", " << diffYaw << std::endl;
 
-		// std::cout << "f: " << ringBuffer.front().state.position.x << "," << ringBuffer.front().state.position.y << "," << ringBuffer.front().state.position.z;
-		// std::cout << "s: " << t.position.x << "," << t.position.y << "," << t.position.z << std::endl;
-		if (glm::length(ringBuffer.front().state.position - t.position) > DIFF_THRESHOLD) {
-			std::cout << "off by: " << glm::length(ringBuffer.front().state.position - t.position) << std::endl;
-			outTransform.position = rewindState(t, sp.processedTickNum).position;
+		if (glm::length(ringBuffer[ind].state.position - serverTransform.position) > DIFF_THRESHOLD) {
+			// std::cout << "rewinded!" << std::endl;
+			outTransform = rewindState(serverTransform, processedTickNum);
 			return true;
 		}
+		else {
+			// std::cout << "length: " << glm::length(ringBuffer[ind].state.position - t.position) << std::endl;
+		}
+		
+		// std::cout << "passed!" << std::endl;
 		
 		return false;
 	}
@@ -156,6 +188,7 @@ class NetworkEntityManager {
 public:
 	Entity* self;
 	SimulateStruct inputAccumulator;
+	std::mutex inputAccumulatorMutex;
 	PacketBuffer selfSimBuffer;
 	std::mutex selfMutex;
 	std::vector<uint32_t> ids;
@@ -172,4 +205,42 @@ public:
 	void drawEntities(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
 	void drawFPCharacter(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
 	void shutdown();
+
+	void clearPendingPackets(Entity* self) {
+		//std::cout << "ringBuffer: ";
+		//for (auto& r : rB.ringBuffer) {
+		//	std::cout << r.tickNum << " | ";
+		//}
+		//std::cout << std::endl;
+		//std::cout << "packets pending: ";
+		while (!rB.pendingPackets.empty()) {
+			auto& pending = rB.pendingPackets.front();
+			//std::cout << pending.processedTickNum << " | ";
+
+			if (pending.processedTickNum < rB.ringBuffer.front().tickNum) {
+				rB.pendingPackets.pop();
+				continue;
+			}
+
+			bool found = false;
+			StateStorage sS;
+			for (auto& s : rB.ringBuffer)
+				if (s.tickNum == pending.processedTickNum) { found = true; sS = s; break; }
+			if (!found) break;
+
+			Transform serverTransform;
+			for (auto& e : pending.entities) {
+				if (e.id == self->id) {
+					serverTransform = e.transform;
+				}
+			}
+
+			std::pair<Transform, Transform> t;
+			if (rB.checkPacketNeedsRewind(self, t, serverTransform, sS.tickNum)) {
+				selfSimBuffer.fixServerRecon(self, t);
+			}
+			rB.pendingPackets.pop();
+		}
+		//std::cout << std::endl;
+	}
 };

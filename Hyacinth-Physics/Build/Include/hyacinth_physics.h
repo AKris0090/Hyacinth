@@ -41,12 +41,12 @@ private:
 	physx::PxDefaultCpuDispatcher* pDispatcher;
 	physx::PxTolerancesScale pTolerancesScale;
 	physx::PxMaterial* pMaterial = NULL;
-	physx::PxScene* pScene = NULL;
 
 	physx::PxControllerManager* pCManager = NULL;
 	physx::PxCapsuleControllerDesc controllerDesc;
 
 public:
+	physx::PxScene* pScene = NULL;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
 	std::mutex controllerArrayMutex;
@@ -57,5 +57,5 @@ public:
 	void addStaticPhysicsObject(LightObject* object);
 	void updatePhysicsServer(EntityManager* entityManager);
 	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime);
-	void updatePlayerMovement(uint32_t eId, Transform& t, SimulateStruct& s);
+	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
 };
