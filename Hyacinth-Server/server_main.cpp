@@ -29,6 +29,7 @@
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
 constexpr long long CLIENT_TIMEOUT = 3000;
+constexpr int SERVER_PACKET_BUFFER_LENGTH = 2;
 
 uint32_t currentClientID = -1;
 EntityManager entityManager;
@@ -36,7 +37,7 @@ std::mutex entityManagerMutex;
 std::vector<LightObject*> staticPhysicsObjects;
 PhysicsManager physicsManager;
 int currentNumConnections = 0;
-std::atomic<uint32_t> tickCount{ 0 };
+std::atomic<uint32_t> currentTick{ 0 };
 
 std::filesystem::path getExeDir()
 {
@@ -61,6 +62,7 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
 
         ClientRequestConnectionPacket response;
         response.port = newClient->id;
+        response.tick = currentTick + SERVER_PACKET_BUFFER_LENGTH;
 
         std::string msg = response.toString();
         serverAck = send(socket, msg.c_str(), msg.length(), 0);
@@ -75,7 +77,7 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
         for (const auto& [id, client] : entityManager.clients) {
             sp.entities.push_back(client->entity);
         }
-        sp.processedTickNum = tickCount;
+        sp.processedTickNum = currentTick;
         std::string spString = sp.toString();
         entityMessage = send(socket, spString.c_str(), spString.length(), 0);
         if (entityMessage == SOCKET_ERROR) {
@@ -179,9 +181,13 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
         entityManagerMutex.lock();
         if ((entityManager.clients.find(p.id) != entityManager.clients.end()) && (entityManager.clients[p.id] != NULL)) {
-            entityManager.clients[p.id]->bufferedPacket.addPacket(p);
+            if (p.tick < currentTick) {
+                std::cout << "dropped packet" << std::endl;
+            }
+            entityManager.clients[p.id]->clientPacketBuffer.push(p);
             using namespace std::chrono;
             entityManager.clients[p.id]->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+            entityManager.clients[p.id]->ping = getNowMs() - p.time;
         }
         entityManagerMutex.unlock();
     }
@@ -203,7 +209,7 @@ void printPhysicsTick() {
         std::cout << std::left
             << std::setw(6) << "ID"
             << std::setw(20) << "Address"
-            << std::setw(12) << "Last Seen"
+            << std::setw(12) << "Ping"
             << "\n";
         std::cout << std::string(48, '-') << "\n";
     }
@@ -213,7 +219,6 @@ void printPhysicsTick() {
     long long now = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
     for (auto& [id, client] : entityManager.clients) {
-        long long msSince = now - client->heartBeat;
         char ipbuff[16];
         inet_ntop(AF_INET, (void*)&client->clientAddr.sin_addr, ipbuff, 16);
 
@@ -222,7 +227,7 @@ void printPhysicsTick() {
         std::cout << std::left
             << std::setw(6) << id
             << std::setw(20) << ipPort
-            << std::setw(12) << (std::to_string(msSince) + "ms")
+            << std::setw(12) << (std::to_string(client->ping) + "ms")
             << "\n";
     }
 
@@ -234,14 +239,25 @@ void printPhysicsTick() {
 void updateTick() {
     SOCKET serverSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-    auto nextTick = std::chrono::steady_clock::now();
-    while (true) {
-        nextTick += std::chrono::duration_cast<std::chrono::steady_clock::duration>(SERVER_TIMESTEP_MS);
+    auto epoch = std::chrono::steady_clock::now();
 
-        physicsManager.updatePhysicsServer(&entityManager);
+    while (true) {
+        auto nextTick = epoch + (currentTick + 1) * SERVER_TIMESTEP_MS;
 
         entityManagerMutex.lock();
         for (const auto& [id, client] : entityManager.clients) {
+            client->getPacketFor(currentTick);
+            // if (!client->clientPacketBuffer.empty()) std::cout << currentTick << ", " << client->clientPacketBuffer.size() << std::endl;
+        }
+        physicsManager.updatePhysicsServer(&entityManager);
+
+        for (const auto& [id, client] : entityManager.clients) {
+            /*if (client->bufferedPacket.tick != currentTick) {
+                std::cout << "mismatch: " << client->bufferedPacket.tick << ", " << currentTick << std::endl;
+            }
+            else {
+                std::cout << std::endl;
+            }*/
             client->bufferedPacket.reset();
         }
 
@@ -249,7 +265,7 @@ void updateTick() {
         for (const auto& [id, client] : entityManager.clients) {
             p.entities.push_back(client->entity);
         }
-        p.processedTickNum = tickCount;
+        p.processedTickNum = currentTick;
         std::string packetString = p.toString();
         for (const auto& [id, client] : entityManager.clients) {
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
@@ -258,7 +274,7 @@ void updateTick() {
         printPhysicsTick();
 
         std::this_thread::sleep_until(nextTick);
-        tickCount++;
+        currentTick++;
     }
 }
 
