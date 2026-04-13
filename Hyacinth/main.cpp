@@ -11,10 +11,8 @@
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
-uint32_t initialTickOffset = 0;
 std::atomic<uint32_t> tickNum{ 0 };
 bool dontEnd = true;
-bool startLoop = false;
 
 std::filesystem::path getExeDir()
 {
@@ -26,12 +24,7 @@ std::filesystem::path getExeDir()
 void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, PhysicsManager* physicsManager) {
 	auto epoch = std::chrono::steady_clock::now();
 	while (dontEnd) {
-		auto nextTick = epoch + ((tickNum - initialTickOffset) + 1) * SERVER_TIMESTEP_MS;
-		if (!startLoop) {
-			std::this_thread::sleep_until(nextTick);
-			tickNum++;
-			continue;
-		}
+		auto nextTick = epoch + (tickNum + 1) * SERVER_TIMESTEP_MS;
 
 		engine->p_netEntManager->inputAccumulatorMutex.lock();
 		// update physics
@@ -94,13 +87,9 @@ int main() {
 	HyacinthNetworkClient netClient;
 	Entity* thisEnt;
 	std::string ip;
-	int tickOffset;
 	std::cout << "Enter server IP: ";
 	// std::getline(std::cin, ip);
-	if (CONNECT_SERVER) std::cout << (netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout, tickOffset) ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
-	tickNum = tickOffset;
-	initialTickOffset = tickOffset;
-	std::thread tickThread = std::thread(simulationTick, &hyacinthEngine, &netClient, &physicsManager);
+	if (CONNECT_SERVER) std::cout << (netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout) ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	thisEnt = netClient.netEntManager.self;
@@ -122,8 +111,9 @@ int main() {
 
 	Time::setInitialTime();
 
+	std::thread tickThread = std::thread(simulationTick, &hyacinthEngine, &netClient, &physicsManager);
+
 	while(sdlwindow.running) {
-		if (!startLoop) startLoop = true;
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			ImGui_ImplSDL3_ProcessEvent(&event);

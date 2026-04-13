@@ -181,11 +181,7 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         }
 
         recvBuff[bytesReceived] = '\0';
-        // std::cout << std::string(recvBuff) << std::endl;
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
-        if (p.tick < currentTick) {
-            std::cout << "dropped packet: " << p.tick << ", " << currentTick << std::endl << std::endl;
-        }
         std::unique_lock l(bufferedClientPacketMutex);
         bufferedClientPackets.push(p);
     }
@@ -208,8 +204,9 @@ void printPhysicsTick() {
             << std::setw(6) << "ID"
             << std::setw(20) << "Address"
             << std::setw(12) << "Ping"
+            << std::setw(22) << "Tick offset"
             << "\n";
-        std::cout << std::string(48, '-') << "\n";
+        std::cout << std::string(60, '-') << "\n";
     }
     firstPrint = false;
 
@@ -225,6 +222,7 @@ void printPhysicsTick() {
             << std::setw(6) << id
             << std::setw(20) << ipPort
             << std::setw(12) << (std::to_string(client->heartBeat) + "ms")
+            << std::setw(22) << (std::to_string(client->tickBasis))
             << "\n";
     }
 
@@ -271,8 +269,14 @@ void updateTick() {
             while (!bufferedClientPackets.empty()) {
                 ClientUpdatePacket p = bufferedClientPackets.front();
                 if (entityManager.clients.find(p.id) != entityManager.clients.end()) {
-                    entityManager.clients[p.id]->clientPacketBuffer.push(p);
-                    entityManager.clients[p.id]->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+                    auto& client = entityManager.clients[p.id];
+
+                    if (!client->tickOffsetSet) {
+                        client->tickBasis = currentTick;
+                        client->tickOffsetSet = true;
+                    }
+                    client->clientPacketBuffer.push(p);
+                    client->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
                 }
                 bufferedClientPackets.pop();
             }
@@ -288,9 +292,9 @@ void updateTick() {
             client->bufferedPacket.reset();
             p->entities.push_back(client->entity);
         }
-        p->processedTickNum = currentTick;
-        std::string packetString = p->toString();
         for (const auto& [id, client] : entityManager.clients) {
+            p->processedTickNum = currentTick - client->tickBasis;
+            std::string packetString = p->toString();
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
         currentSnapshot.store(p, std::memory_order_release);
