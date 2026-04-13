@@ -42,6 +42,11 @@ struct Transform {
 		));
 		right = glm::normalize(glm::cross(forward, glm::vec3(0.f, 1.f, 0.f)));
 		up = glm::normalize(glm::cross(right, forward));
+
+		glm::quat qYaw = glm::angleAxis(glm::radians(yaw), glm::vec3(0, -1, 0));
+		glm::quat qPitch = glm::angleAxis(glm::radians(pitch), glm::vec3(0, 0, 1));
+
+		rotation = qYaw * qPitch;
 	}
 
 	Transform lerpTo(const Transform& other, float delta) {

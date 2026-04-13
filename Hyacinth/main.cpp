@@ -13,7 +13,8 @@
 
 uint32_t initialTickOffset = 0;
 std::atomic<uint32_t> tickNum{ 0 };
-std::atomic<int> dontEnd{ 1 };
+bool dontEnd = true;
+bool startLoop = false;
 
 std::filesystem::path getExeDir()
 {
@@ -22,10 +23,15 @@ std::filesystem::path getExeDir()
 	return std::filesystem::path(buffer).parent_path();
 }
 
-void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, PhysicsManager* physicsManager, Entity* thisEnt) {
+void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, PhysicsManager* physicsManager) {
 	auto epoch = std::chrono::steady_clock::now();
 	while (dontEnd) {
 		auto nextTick = epoch + ((tickNum - initialTickOffset) + 1) * SERVER_TIMESTEP_MS;
+		if (!startLoop) {
+			std::this_thread::sleep_until(nextTick);
+			tickNum++;
+			continue;
+		}
 
 		engine->p_netEntManager->inputAccumulatorMutex.lock();
 		// update physics
@@ -39,9 +45,7 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		// update physics
 		engine->p_netEntManager->selfMutex.lock();
 		if (engine->mouseLocked) {
-			physicsManager->controllerArrayMutex.lock();
 			physicsManager->updatePlayerMovement(0, netClient->netEntManager.self->moveSpeed, netClient->netEntManager.self->transform, netClient->netEntManager.inputAccumulator);
-			physicsManager->controllerArrayMutex.unlock();
 		}
 		engine->p_netEntManager->inputAccumulatorMutex.unlock();
 
@@ -60,8 +64,8 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		engine->p_netEntManager->inputAccumulatorMutex.unlock();
 
 		engine->p_netEntManager->selfMutex.lock();
-		ServerPacket sP;
-		sP.entities.push_back(*thisEnt);
+		ServerSnapshot sP;
+		sP.entities.push_back(*engine->p_netEntManager->self);
 		engine->p_netEntManager->selfSimBuffer.newPacket(sP);
 		engine->p_netEntManager->selfMutex.unlock();
 
@@ -96,10 +100,12 @@ int main() {
 	if (CONNECT_SERVER) std::cout << (netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout, tickOffset) ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 	tickNum = tickOffset;
 	initialTickOffset = tickOffset;
+	std::thread tickThread = std::thread(simulationTick, &hyacinthEngine, &netClient, &physicsManager);
+
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	thisEnt = netClient.netEntManager.self;
 	netClient.netEntManager.inputAccumulator.id = 0;
-	ServerPacket sP;
+	ServerSnapshot sP;
 	sP.entities.push_back(*thisEnt);
 	netClient.netEntManager.selfSimBuffer.newPacket(sP);
 	netClient.netEntManager.selfSimBuffer.newPacket(sP);
@@ -111,16 +117,13 @@ int main() {
 		s.id = 0;
 		s.movementFB = fb;
 		s.movementLR = lr;
-		physicsManager.controllerArrayMutex.lock();
 		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self->moveSpeed, t, s);
-		physicsManager.controllerArrayMutex.unlock();
 	});
 
 	Time::setInitialTime();
 
-	std::thread tickThread = std::thread(simulationTick, &hyacinthEngine, &netClient, &physicsManager, thisEnt);
-
 	while(sdlwindow.running) {
+		if (!startLoop) startLoop = true;
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			ImGui_ImplSDL3_ProcessEvent(&event);
@@ -166,7 +169,7 @@ int main() {
 			netClient.netEntManager.self->transform.yaw = hyacinthEngine.m_camera.m_transform.yaw;
 			hyacinthEngine.p_netEntManager->selfMutex.unlock();
 
-			ServerPacket selfInterp = netClient.netEntManager.selfSimBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
+			ServerSnapshot selfInterp = netClient.netEntManager.selfSimBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
 			hyacinthEngine.m_camera.m_transform.position = selfInterp.entities[0].transform.position;
 			hyacinthEngine.m_camera.m_transform.position.y += 1.85f;
 
@@ -175,7 +178,7 @@ int main() {
 		}
 
 		// read packets from the server
-		ServerPacket interp = netClient.netEntManager.packetBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
+		ServerSnapshot interp = netClient.netEntManager.packetBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
 		// use packet to determine object transforms
 		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id);
 
@@ -183,7 +186,7 @@ int main() {
 		InputManager::resetMouseMotion();
 	}
 
-	dontEnd--;
+	dontEnd = false;
 	tickThread.join();
 
 	netClient.shutdownNet();

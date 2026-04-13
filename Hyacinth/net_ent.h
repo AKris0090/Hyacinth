@@ -13,10 +13,10 @@ constexpr float DIFF_THRESHOLD = 0.01f;
 class PacketBuffer {
 public:
 	float timeAggregate;
-	std::pair<ServerPacket, ServerPacket> packetBuffer;
+	std::pair<ServerSnapshot, ServerSnapshot> packetBuffer;
 	std::mutex packetBufferMutex;
 
-	void newPacket(ServerPacket p, bool resetTime = true) {
+	void newPacket(ServerSnapshot p, bool resetTime = true) {
 		packetBufferMutex.lock();
 		packetBuffer.first = packetBuffer.second;
 		packetBuffer.second = p;
@@ -29,7 +29,7 @@ public:
 		packetBuffer.second.entities[0].transform = newPacketBuffer.second;
 	}
 
-	ServerPacket getInterpolatedSimPacket(float timeDelta) {
+	ServerSnapshot getInterpolatedSimPacket(float timeDelta) {
 		timeAggregate += timeDelta;
 		if (timeAggregate > SERVER_TIMESTEP) {
 			timeAggregate = SERVER_TIMESTEP;
@@ -37,7 +37,7 @@ public:
 		float t = timeAggregate / SERVER_TIMESTEP;
 
 		packetBufferMutex.lock();
-		ServerPacket p;
+		ServerSnapshot p;
 		for (auto& e : packetBuffer.first.entities) {
 			Entity secondEnt;
 			secondEnt.id = 150;
@@ -71,7 +71,7 @@ public:
 	using PhysicsStepFn = std::function<void(Transform& t, float fb, float lr)>;
 	std::deque<StateStorage> ringBuffer;
 	std::mutex rBMutex;
-	std::queue<ServerPacket> pendingPackets;
+	std::queue<ServerSnapshot> pendingPackets;
 	std::mutex pendingPacketsMutex;
 
 	void setPhysicsPosition(PhysicsPosFn fn) {
@@ -90,10 +90,6 @@ public:
 		sS.fb = fb;
 		sS.lr = lr;
 		ringBuffer.push_back(sS);
-
-		if (ringBuffer.size() > 5) {
-			ringBuffer.pop_front();
-		}
 		rBMutex.unlock();
 	}
 
@@ -127,11 +123,9 @@ public:
 
 	// sp.processedTickNum is translated to client local tick
 	bool checkPacketNeedsRewind(Entity* self, std::pair<Transform, Transform>& outTransform, Transform serverTransform, uint32_t processedTickNum) {
-		// std::cout << "tick: " << sp.processedTickNum << " | ";
-		// for (auto& pack : ringBuffer) {
-		// 	std::cout << "|" << pack.tickNum << ":" << (glm::length(pack.state.position - t.position) <= DIFF_THRESHOLD);
-		// }
-		// std::cout << "|" << std::endl;
+		while (!ringBuffer.empty() && ringBuffer.front().tickNum != processedTickNum) {
+			ringBuffer.pop_front();
+		}
 
 		if (ringBuffer.empty()) return false;
 
@@ -151,6 +145,13 @@ public:
 
 		if (glm::length(ringBuffer[ind].state.position - serverTransform.position) > DIFF_THRESHOLD) {
 			// std::cout << "rewinded!" << std::endl;
+			// 
+			std::cout << "tick: " << processedTickNum << " | ";
+			for (auto& pack : ringBuffer) {
+				std::cout << "|" << pack.tickNum << ":" << (glm::length(pack.state.position - serverTransform.position) <= DIFF_THRESHOLD);
+			}
+			std::cout << "|" << std::endl;
+			std::cout << "diff: " << glm::length(ringBuffer[ind].state.position - serverTransform.position) << std::endl;
 			outTransform = rewindState(serverTransform, processedTickNum);
 			return true;
 		}
@@ -198,24 +199,19 @@ public:
 	VkDescriptorSetLayout* uniformSetLayout;
 	PacketBuffer packetBuffer;
 	RewindBuffer rB;
+	int tickOffset;
 
-	void setupFromServerPacket(ServerPacket& p, uint32_t currentClientID);
-	void updateEntitiesFromPacket(ServerPacket& p, uint32_t currentClientID);
+
+	void setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID);
+	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID);
 	void update();
 	void drawEntities(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
 	void drawFPCharacter(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
 	void shutdown();
 
 	void clearPendingPackets(Entity* self) {
-		//std::cout << "ringBuffer: ";
-		//for (auto& r : rB.ringBuffer) {
-		//	std::cout << r.tickNum << " | ";
-		//}
-		//std::cout << std::endl;
-		//std::cout << "packets pending: ";
 		while (!rB.pendingPackets.empty()) {
 			auto& pending = rB.pendingPackets.front();
-			//std::cout << pending.processedTickNum << " | ";
 
 			if (pending.processedTickNum < rB.ringBuffer.front().tickNum) {
 				rB.pendingPackets.pop();
@@ -241,6 +237,5 @@ public:
 			}
 			rB.pendingPackets.pop();
 		}
-		//std::cout << std::endl;
 	}
 };

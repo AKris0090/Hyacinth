@@ -547,14 +547,14 @@ void HyacinthEngine::loadScene() {
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto characterPath = vkdebugutils::getExeDir() / "objects" / "char.glb";
     // auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp.glb";
-    auto firstPersonCharacterPath = "C:/users/ajnkr/Documents/Hyacinth/Hyacinth/objects/char_fp.glb";
+    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp.glb";
     // auto path = "C:/Users/ajnkr/Documents/Orchid/Sandbox/trainStation/station.gltf";
     // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
 
     m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true, false, false));
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(characterPath.string(), false, true, false));
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath, false, true, true));
+    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath.string(), false, true, true));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
 
     m_scene.buildSceneGraph();

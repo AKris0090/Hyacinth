@@ -16,10 +16,8 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
 
         recvBuff[bytesReceived] = '\0';
 
-        ServerPacket sp;
-        sp = ServerPacket::fromString(std::string(recvBuff));
+        ServerSnapshot sp = ServerSnapshot::fromString(std::string(recvBuff));
 
-        // sp.processedTickNum -= tickOffset;
         netEntManager.packetBuffer.newPacket(sp);
 
         netEntManager.rB.pendingPacketsMutex.lock();
@@ -137,6 +135,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     myRequest.port = static_cast<uint32_t>(receiverPort);
     std::string requestString = myRequest.toString();
 
+    uint64_t timeStampPing = getNowMs();
     int sendResult = send(connectSocket, requestString.c_str(), requestString.length(), 0);
     if (sendResult == SOCKET_ERROR) {
         std::cout << "request failed to send?" << std::endl;
@@ -155,6 +154,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
         WSACleanup();
         return 1;
     }
+    uint64_t timeStampPong = getNowMs();
     recvbuf[iResult] = '\0';
 
     // get the entity list from the server
@@ -176,16 +176,23 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
         WSACleanup();
         return 1;
     }
+
+    uint64_t rtt = timeStampPong - timeStampPing;
+    uint64_t halfRtt = rtt / 2;
+    uint64_t ticksInFlight = halfRtt / (SERVER_TIMESTEP * 1000.f);
+
+    std::cout << "RTT / 2: " << halfRtt << std::endl;
+
     ClientRequestConnectionPacket serverResponse;
     serverResponse.fromString(std::string(recvbuf));
     clientID = serverResponse.port;
-    tickOffsetOut = serverResponse.tick;
+    tickOffsetOut = serverResponse.tick + ticksInFlight + SERVER_PACKET_BUFFER_LENGTH;
     netEntManager.self->id = clientID;
 
     std::cout << "tick offset: " << tickOffsetOut << std::endl;
 
-    ServerPacket sp;
-    sp = ServerPacket::fromString(std::string(entityBuff));
+    ServerSnapshot sp;
+    sp = ServerSnapshot::fromString(std::string(entityBuff));
     netEntManager.imageFormat = swImageFormat;
     netEntManager.uniformSetLayout = &uniformLayout;
     netEntManager.setupFromServerPacket(sp, clientID);
@@ -201,13 +208,9 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
 }
 
 void HyacinthNetworkClient::updateServerTick(ClientUpdatePacket& p, bool mouseLocked) {
-    auto [dx, dy] = InputManager::getTickMouseMotion();
-    std::array<int8_t, 3> movement = InputManager::getMovement();
-         
-    p.time = getNowMs();
     std::string s = p.toString();
     const char* msg = s.c_str();
-    sendto(serverUDPSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);
+    sendto(udpReceiverSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);
 }
 
 void HyacinthNetworkClient::shutdownNet() {

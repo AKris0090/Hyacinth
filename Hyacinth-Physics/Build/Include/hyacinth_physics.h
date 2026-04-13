@@ -49,7 +49,7 @@ public:
 	physx::PxScene* pScene = NULL;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
-	std::mutex controllerArrayMutex;
+	SPSCQueue<Event> physicsEventQueue;
 
 	void initPhysics();
 	void addCharacterController(uint32_t cId);

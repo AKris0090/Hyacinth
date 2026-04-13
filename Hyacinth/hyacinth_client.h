@@ -15,6 +15,7 @@
 #include "net_ent.h"
 #include "input.h"
 #include "time.h"
+#include <cmath>
 
 class HyacinthNetworkClient {
 private:

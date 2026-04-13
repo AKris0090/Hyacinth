@@ -16,6 +16,9 @@
 #include "entity.h"
 #include <chrono>
 #include <sstream>
+#include <thread>
+#include <shared_mutex>
+#include <mutex>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -24,14 +27,15 @@ using namespace std::chrono_literals;
 constexpr int DEFAULT_LEN = 512;
 constexpr int MAX_CONNECTIONS = 12;
 
-//constexpr float SERVER_TIMESTEP = 0.0078125f;
-//constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
+constexpr float SERVER_TIMESTEP = 0.0078125f;
+constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
+constexpr int SERVER_PACKET_BUFFER_LENGTH = 0;
 
 //constexpr float SERVER_TIMESTEP = 0.01f;
 //constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 10.0ms;
 
-constexpr float SERVER_TIMESTEP = 0.015625f;
-constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 15.625ms;
+//constexpr float SERVER_TIMESTEP = 0.015625f;
+//constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 15.625ms;
 
 static auto now() {
 	return std::chrono::steady_clock::now();
@@ -54,12 +58,11 @@ struct ClientRequestConnectionPacket {
 struct ClientUpdatePacket {
 	uint32_t id;
 	uint32_t tick = 0;
-	uint64_t time = 0;
 	float pitch = 0.f;
 	float yaw = 0.f;
-	float movementFB = 0;
-	float movementLR = 0;
-	float movementUD = 0;
+	int8_t movementFB = 0;
+	int8_t movementLR = 0;
+	int8_t movementUD = 0;
 
 	std::string toString();
 	static ClientUpdatePacket fromString(std::string s);
@@ -71,12 +74,12 @@ const auto clientPacketCmp = [](const ClientUpdatePacket& a, const ClientUpdateP
 
 struct SimulateStruct {
 	uint32_t id;
-	float tick = 0.f;
+	uint32_t tick = 0;
 	float pitch = 0.f;
 	float yaw = 0.f;
-	float movementFB = 0; // TODO: might need to be cast to larger values
-	float movementLR = 0;
-	float movementUD = 0;
+	int8_t movementFB = 0;
+	int8_t movementLR = 0;
+	int8_t movementUD = 0;
 
 	void addPacket(ClientUpdatePacket pack);
 	void reset() {
@@ -95,31 +98,73 @@ struct ServersideClient {
 	long long heartBeat;
 	uint64_t ping;
 	int clientAddrLen;
+	uint32_t tickOffset = 0;
+	bool tickOffsetSet = false;
 
 	void getPacketFor(uint32_t tickNum) {
-		 if (clientPacketBuffer.empty()) return;
-		 while (!clientPacketBuffer.empty() && (clientPacketBuffer.top().tick < tickNum)) {
-		 	clientPacketBuffer.pop();
-		 }
-		 if (!clientPacketBuffer.empty() && clientPacketBuffer.top().tick == tickNum) {
-		 	bufferedPacket.addPacket(clientPacketBuffer.top());
-		 	clientPacketBuffer.pop();
-		 }
-		 else {
-		 	bufferedPacket.addPacket(ClientUpdatePacket{});
-		 }
+		ClientUpdatePacket prev{};
+		if (clientPacketBuffer.empty()) return;
+		while (!clientPacketBuffer.empty() && (clientPacketBuffer.top().tick < tickNum)) {
+			prev = clientPacketBuffer.top();
+			clientPacketBuffer.pop();
+		}
+		if (!clientPacketBuffer.empty() && clientPacketBuffer.top().tick == tickNum) {
+			bufferedPacket.addPacket(clientPacketBuffer.top());
+			clientPacketBuffer.pop();
+		}
+		else {
+			bufferedPacket.addPacket(prev);
+		}
 	}
 };
 
-struct ServerPacket {
+struct ServerSnapshot {
 	std::vector<Entity> entities;
 	uint32_t processedTickNum = 0;
 	uint64_t time = 0;
 
 	std::string toString();
-	static ServerPacket fromString(std::string s);
+	static ServerSnapshot fromString(std::string s);
 };
 
 struct EntityManager {
+	static constexpr uint8_t MAX = 10;
+	std::shared_mutex clientsMutex;
 	std::unordered_map<uint32_t, ServersideClient*> clients;
+};
+
+enum SERVER_EVENT {
+	CLIENT_JOIN,
+	CLIENT_DISCONNECT,
+};
+
+struct Event {
+	SERVER_EVENT eventType;
+	uint32_t clientID;
+	ServersideClient* newClient;
+};
+
+template<typename T>
+class SPSCQueue {
+private:
+	std::mutex lock;
+	std::queue<T> queue;
+
+public:
+	void push(const T& object) {
+		std::lock_guard<std::mutex> l(lock);
+		queue.push(object);
+	}
+
+	bool pop(T& objOut) {
+		std::unique_lock<std::mutex> unL(lock);
+
+		if (queue.empty()) {
+			return false;
+		}
+
+		objOut = queue.front();
+		queue.pop();
+		return true;
+	}
 };
