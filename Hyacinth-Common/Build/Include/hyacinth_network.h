@@ -98,11 +98,12 @@ struct ServersideClient {
 	long long heartBeat;
 	uint64_t ping;
 	int clientAddrLen;
-	uint32_t tickOffset = 0;
+	uint32_t tickBasis = 0;
 	bool tickOffsetSet = false;
 
 	void getPacketFor(uint32_t tickNum) {
 		ClientUpdatePacket prev{};
+		tickNum -= tickBasis;
 		if (clientPacketBuffer.empty()) return;
 		while (!clientPacketBuffer.empty() && (clientPacketBuffer.top().tick < tickNum)) {
 			prev = clientPacketBuffer.top();

@@ -28,7 +28,7 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
     closesocket(udpReceiverSocket);
 }
 
-int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout, int& tickOffsetOut) {
+int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout) {
     netEntManager.self = new Entity();
 
     WSADATA wsaData;
@@ -186,10 +186,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     ClientRequestConnectionPacket serverResponse;
     serverResponse.fromString(std::string(recvbuf));
     clientID = serverResponse.port;
-    tickOffsetOut = serverResponse.tick + ticksInFlight + SERVER_PACKET_BUFFER_LENGTH;
     netEntManager.self->id = clientID;
-
-    std::cout << "tick offset: " << tickOffsetOut << std::endl;
 
     ServerSnapshot sp;
     sp = ServerSnapshot::fromString(std::string(entityBuff));
