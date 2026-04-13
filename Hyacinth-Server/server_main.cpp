@@ -135,7 +135,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
         newClient->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
         std::thread newClientThread(handleNewClient, clientSocket, newClient);
-        newClientThread.detach();
+        newClientThread.join();
     }
 }
 
@@ -272,7 +272,7 @@ void updateTick() {
                     auto& client = entityManager.clients[p.id];
 
                     if (!client->tickOffsetSet) {
-                        client->tickBasis = currentTick;
+                        client->tickBasis = currentTick + SERVER_INPUT_BUFFER;
                         client->tickOffsetSet = true;
                     }
                     client->clientPacketBuffer.push(p);
@@ -294,6 +294,9 @@ void updateTick() {
         }
         for (const auto& [id, client] : entityManager.clients) {
             p->processedTickNum = currentTick - client->tickBasis;
+            if (client->tickBasis > currentTick) {
+                continue;
+            }
             std::string packetString = p->toString();
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
