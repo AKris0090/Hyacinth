@@ -52,14 +52,14 @@ void PhysicsManager::initPhysics() {
 		pvdSceneClient->setScenePvdFlag(physx::PxPvdSceneFlag::eTRANSMIT_CONTACTS, true);
 		pvdSceneClient->setScenePvdFlag(physx::PxPvdSceneFlag::eTRANSMIT_SCENEQUERIES, true);
 	}
-	pMaterial = pPhysics->createMaterial(0.5f, 0.5f, 0.15f);
+	pMaterial = pPhysics->createMaterial(0.f, 0.f, 0.f);
 
 	pCManager = PxCreateControllerManager(*pScene);
 	controllerDesc.radius = 0.5f;
 	controllerDesc.height = 1.f;
-	controllerDesc.position = physx::PxExtendedVec3(0.0, (double)((controllerDesc.height / 2) + (controllerDesc.radius * 2)), 0.0);
+	controllerDesc.position = physx::PxExtendedVec3(0.0, 0.2, 0.0);
 	controllerDesc.material = pMaterial;
-	controllerDesc.stepOffset = 0.5f;
+	controllerDesc.stepOffset = 0.f;
 	controllerDesc.contactOffset = 0.001;
 	controllerDesc.scaleCoeff = .99f;
 
@@ -75,10 +75,8 @@ void PhysicsManager::addCharacterController(uint32_t cId) {
 }
 
 void PhysicsManager::removeCharacterController(uint32_t cId) {
-	controllerArrayMutex.lock();
 	clientControllers[cId]->release();
 	clientControllers.erase(cId);
-	controllerArrayMutex.unlock();
 }
 
 std::vector<physx::PxShape*> PhysicsManager::createPhysicsFromMesh(LightObject* object) {
@@ -172,11 +170,6 @@ void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& 
 	}
 
 	t.setRotationPitchYaw();
-	
-	glm::quat qYaw = glm::angleAxis(glm::radians(t.yaw), glm::vec3(0, -1, 0));
-	glm::quat qPitch = glm::angleAxis(glm::radians(t.pitch), glm::vec3(0, 0, 1));
-	
-	t.rotation = qYaw * qPitch;
 }
 
 void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s) {
@@ -202,20 +195,25 @@ void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transfo
 	if (clientControllers.find(eId) == clientControllers.end()) {
 		return;
 	}
-	clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, -t.position.y, localDisplacement.z), 0.001f, SERVER_TIMESTEP, data);
+	clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, -9.81f, localDisplacement.z), 0.001f, SERVER_TIMESTEP, data);
 	physx::PxExtendedVec3 p = clientControllers[eId]->getFootPosition();
 	t.position = glm::vec3(p.x, p.y, p.z);
 }
 
 void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
-	controllerArrayMutex.lock();
 	for (const auto& [id, sSClient] : entityManager->clients) {
 		if (clientControllers[id] == NULL) continue;
 		updateCamera(id, sSClient->entity.camSpeed, sSClient->bufferedPacket, sSClient->entity.transform, true, -FLT_MAX);
 		updatePlayerMovement(id, sSClient->entity.moveSpeed, sSClient->entity.transform, sSClient->bufferedPacket);
 	}
-
 	pScene->simulate(SERVER_TIMESTEP);
 	pScene->fetchResults(true);
-	controllerArrayMutex.unlock();
+
+	// flush physics events
+	Event e;
+	while (physicsEventQueue.pop(e)) {
+		if (e.eventType == SERVER_EVENT::CLIENT_DISCONNECT) {
+			removeCharacterController(e.clientID);
+		}
+	}
 }
