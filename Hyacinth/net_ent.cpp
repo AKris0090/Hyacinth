@@ -1,7 +1,7 @@
 #include "net_ent.h"
 #include "gltfutils.h"
 
-void NetworkEntityManager::updateEntitiesFromPacket(ServerPacket& p, uint32_t currentClientID) {
+void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID) {
 	for (const auto& e : p.entities) {
 		if (e.id == currentClientID) {
 			continue;
@@ -120,7 +120,7 @@ void NetworkEntityManager::setupRenderingUtils() {
 	pipelineUtil.buildPipeline();
 }
 
-void NetworkEntityManager::setupFromServerPacket(ServerPacket& p, uint32_t currentClientID) {
+void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID) {
 	if (p.entities.size() > 0) {
 		for (const auto& e : p.entities) {
 			if (e.id == currentClientID) continue;
