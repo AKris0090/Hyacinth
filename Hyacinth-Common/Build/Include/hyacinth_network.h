@@ -26,16 +26,19 @@ using namespace std::chrono_literals;
 
 constexpr int DEFAULT_LEN = 512;
 constexpr int MAX_CONNECTIONS = 12;
+constexpr int SERVER_INPUT_BUFFER = 2;
 
 constexpr float SERVER_TIMESTEP = 0.0078125f;
 constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
-constexpr int SERVER_PACKET_BUFFER_LENGTH = 0;
 
 //constexpr float SERVER_TIMESTEP = 0.01f;
 //constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 10.0ms;
 
 //constexpr float SERVER_TIMESTEP = 0.015625f;
 //constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 15.625ms;
+
+//constexpr float SERVER_TIMESTEP = 0.1f;
+//constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 100.0ms;
 
 static auto now() {
 	return std::chrono::steady_clock::now();
