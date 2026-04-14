@@ -60,8 +60,8 @@ void PhysicsManager::initPhysics() {
 	controllerDesc.position = physx::PxExtendedVec3(0.0, 0.2, 0.0);
 	controllerDesc.material = pMaterial;
 	controllerDesc.stepOffset = 0.f;
-	controllerDesc.contactOffset = 0.001;
-	controllerDesc.scaleCoeff = .99f;
+	controllerDesc.contactOffset = 0.1;
+	controllerDesc.scaleCoeff = 1.f;
 
 	std::cout << "[PHYSICS] Physics created!" << std::endl << std::endl;
 }
