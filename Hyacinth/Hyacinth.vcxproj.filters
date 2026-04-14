@@ -112,6 +112,9 @@
     <Filter Include="Source Files\shaders\visualization">
       <UniqueIdentifier>{c69f709a-01f3-4965-8c25-49c89f103570}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\utils\animation">
+      <UniqueIdentifier>{a9b7bf78-bd98-4e41-8174-3c32b5c63198}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -209,6 +212,9 @@
     </ClCompile>
     <ClCompile Include="net_ent.cpp">
       <Filter>Source Files\network\network_entities</Filter>
+    </ClCompile>
+    <ClCompile Include="animation.cpp">
+      <Filter>Source Files\renderer\utils\animation</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -313,6 +319,12 @@
     </ClInclude>
     <ClInclude Include="net_ent.h">
       <Filter>Source Files\network\network_entities</Filter>
+    </ClInclude>
+    <ClInclude Include="animation.h">
+      <Filter>Source Files\renderer\utils\animation</Filter>
+    </ClInclude>
+    <ClInclude Include="gltfcommon.h">
+      <Filter>Source Files\renderer\utils\gltfutils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

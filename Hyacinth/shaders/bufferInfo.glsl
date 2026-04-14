@@ -88,3 +88,7 @@ layout(buffer_reference, std430) buffer OutputIndirectDraws {
 layout(buffer_reference, std430) readonly buffer VolumeDataBuffer {
 	VolumeData data[];
 };
+
+layout(buffer_reference, std430) readonly buffer JointMatricesBuffer {
+	mat4 jointMatrices[];
+};
