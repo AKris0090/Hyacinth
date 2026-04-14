@@ -4,7 +4,13 @@
 
 std::string ClientUpdatePacket::toString() {
 	std::ostringstream oss;
-	oss << (int) id << "," << (float) tDelta << "," << (float) xRelMouse << "," << (float) yRelMouse << "," << (int) movementFB << "," << (int) movementLR << "," << (int) movementUD;
+	oss << id << "," 
+		<< tick << ","
+		<< pitch << "," 
+		<< yaw << "," 
+		<< static_cast<int>(movementFB) << ","
+		<< static_cast<int>(movementLR) << ","
+		<< static_cast<int>(movementUD) << ",";
 	return oss.str();
 }
 
@@ -14,9 +20,9 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	std::stringstream es(s);
 	std::string field;
 	std::getline(es, field, ','); p.id = std::stoi(field);
-	std::getline(es, field, ','); p.tDelta = std::stof(field);
-	std::getline(es, field, ','); p.xRelMouse = std::stof(field);
-	std::getline(es, field, ','); p.yRelMouse = std::stof(field);
+	std::getline(es, field, ','); p.tick = std::stoi(field);
+	std::getline(es, field, ','); p.pitch = std::stof(field);
+	std::getline(es, field, ','); p.yaw = std::stof(field);
 	std::getline(es, field, ','); p.movementFB = std::stoi(field);
 	std::getline(es, field, ','); p.movementLR = std::stoi(field);
 	std::getline(es, field, ','); p.movementUD = std::stoi(field);
@@ -25,35 +31,43 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 }
 
 std::string ClientRequestConnectionPacket::toString() {
-	return std::string("myport:") + std::to_string(port);
+	std::ostringstream oss;
+	oss << port << "," << tick << ",";
+	return oss.str();
 }
 
 void ClientRequestConnectionPacket::fromString(std::string s) {
-	size_t start = s.find("myport:") + 7;
-	port = static_cast<uint32_t>(stoi(s.substr(start, s.length() - start)));
+	std::stringstream es(s);
+	std::string field;
+
+	std::getline(es, field, ','); port = std::stoi(field);
+	std::getline(es, field, ','); tick = std::stoi(field);
 }
 
-std::string ServerPacket::toString() {
+std::string ServerSnapshot::toString() {
 	std::ostringstream oss;
+	oss << processedTickNum << "," << time << ",";
 	for (size_t i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
 		oss << e.id << "," << e.transform.position.x
-			<< "," << e.transform.position.y 
-			<< "," << e.transform.position.z 
-			<< "," << e.transform.rotation.x 
-			<< "," << e.transform.rotation.y 
-			<< "," << e.transform.rotation.z
-			<< "," << e.transform.rotation.w;
+			<< "," << e.transform.position.y
+			<< "," << e.transform.position.z
+			<< "," << e.transform.pitch
+			<< "," << e.transform.yaw;
 		if (i + 1 < entities.size()) oss << "|";
 	}
 	return oss.str();
 }
 
-ServerPacket ServerPacket::fromString(std::string s) {
-	ServerPacket packet;
+ServerSnapshot ServerSnapshot::fromString(std::string s) {
+	ServerSnapshot packet;
 
 	std::stringstream ss(s);
 	std::string entityStr;
+
+	std::string tickField;
+	std::getline(ss, tickField, ','); packet.processedTickNum = std::stoi(tickField);
+	std::getline(ss, tickField, ','); packet.time = std::stoi(tickField);
 
 	while (std::getline(ss, entityStr, '|')) {
 		std::stringstream es(entityStr);
@@ -64,13 +78,23 @@ ServerPacket ServerPacket::fromString(std::string s) {
 		std::getline(es, field, ','); e.transform.position.x = std::stof(field);
 		std::getline(es, field, ','); e.transform.position.y = std::stof(field);
 		std::getline(es, field, ','); e.transform.position.z = std::stof(field);
-		std::getline(es, field, ','); e.transform.rotation.x = std::stof(field);
-		std::getline(es, field, ','); e.transform.rotation.y = std::stof(field);
-		std::getline(es, field, ','); e.transform.rotation.z = std::stof(field);
-		std::getline(es, field, ','); e.transform.rotation.w = std::stof(field);
+		std::getline(es, field, ','); e.transform.pitch = std::stof(field);
+		std::getline(es, field, ','); e.transform.yaw = std::stof(field);
+
+		e.transform.setRotationPitchYaw();
 
 		packet.entities.push_back(e);
 	}
 
 	return packet;
+}
+
+void SimulateStruct::addPacket(ClientUpdatePacket pack) {
+	id = pack.id;
+	tick = pack.tick;
+	pitch = pack.pitch;
+	yaw = pack.yaw;
+	movementFB = pack.movementFB;
+	movementLR = pack.movementLR;
+	movementUD = pack.movementUD;
 }

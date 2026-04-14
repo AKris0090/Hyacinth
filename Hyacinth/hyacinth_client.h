@@ -15,6 +15,7 @@
 #include "net_ent.h"
 #include "input.h"
 #include "time.h"
+#include <cmath>
 
 class HyacinthNetworkClient {
 private:
@@ -27,12 +28,14 @@ private:
 	sockaddr serverAddress;
 	int serverAddressLen;
 
+	uint32_t tickTracker;
+
 	void listenForServer(SOCKET udpReceiverSocket);
 
 public:
 	NetworkEntityManager netEntManager;
 
 	int setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout);
-	void updateServerTick();
+	void updateServerTick(ClientUpdatePacket& p, bool mouseLocked);
 	void shutdownNet();
 };

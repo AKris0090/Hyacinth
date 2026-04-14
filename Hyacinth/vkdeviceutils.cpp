@@ -227,13 +227,14 @@ namespace vkdeviceutils {
         vmaDestroyBuffer(allocator, buffer.buffer, buffer.allocation);
     }
 
-    void uploadToBuffer(VulkanBuffer& buffer, size_t size, void* data) {
+    void uploadToBuffer(VulkanBuffer& buffer, size_t size, void* data, size_t offset) {
         VulkanBuffer stagingBuffer = createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
         memcpy(stagingBuffer.info.pMappedData, data, size);
 
         executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
             VkBufferCopy copyRegion{};
             copyRegion.size = size;
+            copyRegion.dstOffset = offset;
             vkCmdCopyBuffer(cmd, stagingBuffer.buffer, buffer.buffer, 1, &copyRegion);
             });
 
