@@ -546,13 +546,17 @@ void HyacinthEngine::loadScene() {
     // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto characterPath = vkdebugutils::getExeDir() / "objects" / "char.glb";
+    // auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp.glb";
+    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp.glb";
     // auto path = "C:/Users/ajnkr/Documents/Orchid/Sandbox/trainStation/station.gltf";
     // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
 
-    m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true));
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(characterPath.string(), false, true));
+    m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true, false, false));
+    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(characterPath.string(), false, true, false));
+    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath.string(), false, true, true));
     // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
+
     m_scene.buildSceneGraph();
 
     m_meshBuffers = vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
@@ -573,8 +577,11 @@ void HyacinthEngine::createBuffers() {
 	vkdeviceutils::uploadToBuffer(m_staticIndirectDrawBuffer, drawCmdBufferSize, m_scene.staticDrawCommands.data());
 
     size_t dynamicDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.dynamicDrawCommands.size();
-    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
+    size_t characterDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.characterDrawCommands.size();
+    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize + characterDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
     vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, dynamicDrawCmdSize, m_scene.dynamicDrawCommands.data());
+    characterDrawOffset = m_scene.dynamicDrawCommands.size();
+    vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, characterDrawCmdSize, m_scene.characterDrawCommands.data(), dynamicDrawCmdSize);
     
     vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer cmd) {
         for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
@@ -751,7 +758,6 @@ void HyacinthEngine::update() {
 		m_showImGui = !m_showImGui;
     }
 
-    m_camera.update(Time::getDeltaTime(), mouseLocked, m_frameIndex);
     m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
     p_netEntManager->update();
@@ -766,14 +772,28 @@ void HyacinthEngine::update() {
     volumeData[1].spacing.w = volBViewBias;
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
-    if (p_netEntManager->entities.size() > 0) {
-        glm::mat4 entityMatrix = p_netEntManager->entities[p_netEntManager->ids[0]]->transform.getMatrix();
+    // first object (self) 
+    std::vector<glm::mat4> characterMatrices;
+    for(int i = 0; i < m_scene.dynamicObjects[1].numMatrices; i++) {
+        camMutex.lock();
+        glm::mat4 selfMatrix = m_camera.m_transform.getMatrix();
+        camMutex.unlock();
+        characterMatrices.push_back(selfMatrix * m_scene.dynamicTransformMatrices[i + m_scene.dynamicObjects[1].firstMatrix]);
+    }
+    size_t offset = sizeof(glm::mat4) * m_scene.dynamicObjects[1].firstMatrix;
+    memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, characterMatrices.data(), sizeof(glm::mat4) * characterMatrices.size());
+
+    // TODO: eventually bring this up to making it for more clients
+    for (int i = 0; i < p_netEntManager->ids.size(); i++) {
+        p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->lock();
+        glm::mat4 entityMatrix = p_netEntManager->entities[p_netEntManager->ids[i]]->transform.getMatrix();
         std::vector<glm::mat4> newMatrices;
-        for(int i = 0; i < m_scene.dynamicTransformMatrices.size(); i++) {
+        for (int i = 0; i < m_scene.dynamicObjects[0].numMatrices; i++) {
             newMatrices.push_back(entityMatrix * m_scene.dynamicTransformMatrices[i]);
         }
-
-        memcpy(m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData, newMatrices.data(), sizeof(glm::mat4) * newMatrices.size());
+        offset = sizeof(glm::mat4) * m_scene.dynamicObjects[i].firstMatrix;
+        memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, newMatrices.data(), sizeof(glm::mat4) * newMatrices.size());
+        p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->unlock();
     }
 
     std::vector<glm::mat4> matrices;
@@ -784,6 +804,7 @@ void HyacinthEngine::update() {
 	}
     m_owDDGIHelper.m_volumeVis.update(matrices, m_frameIndex);
 
+    camMutex.lock();
     UBO newuniform{};
     newuniform.proj = m_camera.m_proj;
     newuniform.view = m_camera.m_view;
@@ -795,6 +816,7 @@ void HyacinthEngine::update() {
     }
 
     memcpy(m_frameData[m_frameIndex].mappedUniformBuffer, &newuniform, sizeof(UBO));
+    camMutex.unlock();
 }
 
 void HyacinthEngine::setupDraw()
@@ -979,7 +1001,12 @@ void HyacinthEngine::draw()
     pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
     vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-    vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+    if (p_netEntManager->ids.size() > 0) {
+        vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+    }
+
+    // draw character separately
+    vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, characterDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.characterDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
     vkCmdEndRendering(cmd);
     VK_LABEL_END(cmd);
@@ -1043,14 +1070,14 @@ void HyacinthEngine::draw()
     VK_LABEL_END(cmd);
 
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-    // VK_LABEL(cmd, "Network Entity Pass");
-    // VkRenderingAttachmentInfo netColorInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-    // VkRenderingAttachmentInfo netDepthInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
-    // VkRenderingInfo netRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netColorInfo, &netDepthInfo);
-    // vkCmdBeginRendering(cmd, &netRenderingInfo);
-    // p_netEntManager->drawEntities(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
-    // vkCmdEndRendering(cmd);
-    // VK_LABEL_END(cmd);
+    VK_LABEL(cmd, "Network Entity Pass");
+    VkRenderingAttachmentInfo netColorInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+    VkRenderingAttachmentInfo netDepthInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
+    VkRenderingInfo netRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netColorInfo, &netDepthInfo);
+    vkCmdBeginRendering(cmd, &netRenderingInfo);
+    p_netEntManager->drawEntities(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
+    vkCmdEndRendering(cmd);
+    VK_LABEL_END(cmd);
 
     if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
         VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
@@ -1168,6 +1195,7 @@ void HyacinthEngine::cleanup()
 	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);
 	vkdeviceutils::destroyBuffer(m_meshBuffers.aabbBuffer);
 	vkdeviceutils::destroyBuffer(m_staticIndirectDrawBuffer);
+    vkdeviceutils::destroyBuffer(m_dynamicIndirectDrawBuffer);
 	vkdeviceutils::destroyBuffer(m_staticWorldMatrixBuffer);
     vkdeviceutils::destroyBuffer(m_drawDataBuffer);
     vkdeviceutils::destroyBuffer(m_materialBuffer);
@@ -1191,6 +1219,11 @@ void HyacinthEngine::cleanup()
             vkdeviceutils::destroyBuffer(node.get()->accelStructureIndexBuffer);
             vkdeviceutils::destroyBuffer(node.get()->accelStructureVertexBuffer);
         }
+        for (auto& tex : obj.textures) {
+            vkimageutils::destroyImage(tex);
+        }
+    }
+    for (auto& obj : m_scene.dynamicObjects) {
         for (auto& tex : obj.textures) {
             vkimageutils::destroyImage(tex);
         }

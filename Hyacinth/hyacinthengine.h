@@ -75,6 +75,7 @@ public:
 	SWChainImageFormat				m_swImageFormat{};
 	VkDescriptorSetLayout			m_descriptorSetLayout{ VK_NULL_HANDLE };
 	NetworkEntityManager* p_netEntManager;
+	std::mutex camMutex;
 	Camera m_camera;
 
 	HyacinthEngine() {};
@@ -104,6 +105,7 @@ private:
 	bool ambientToggle = false;
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
+	uint32_t characterDrawOffset = 0;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkInstance						m_instance				{ VK_NULL_HANDLE };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tiny_gltf.h"
+#include "stb_image.h"
 #include "vkmeshutils.h"
 #include "vkimageutils.h"
 #include "vkdescriptorutils.h"
@@ -23,6 +24,7 @@ static std::string getFilePathExtension(const std::string& FileName) {
 
 struct gltfDrawCommand {
     bool dynamic;
+    bool isCharacter;
     uint32_t    indexCount;
     uint32_t    firstIndex;
     int32_t     vertexOffset;
@@ -54,6 +56,9 @@ struct gltfNode {
 
 struct gltfObject {
     bool dynamic;
+    bool isCharacter;
+    uint32_t firstMatrix = 0;
+    uint32_t numMatrices = -1;
 	std::vector<std::unique_ptr<gltfNode>> nodes;
     uint32_t nodeCounter;
 
@@ -72,9 +77,12 @@ struct DrawData {
 struct SceneGraph {
     std::vector<gltfObject> staticObjects;
     std::vector<gltfObject> dynamicObjects;
+
     std::vector<gltfObject*> combinedObjects;
+
     std::vector<glm::mat4> staticTransformMatrices;
     std::vector<glm::mat4> dynamicTransformMatrices;
+
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     std::vector<VulkanImage> dummyTextures;
@@ -89,6 +97,7 @@ struct SceneGraph {
 
     std::vector<VkDrawIndexedIndirectCommand> staticDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> dynamicDrawCommands;
+    std::vector<VkDrawIndexedIndirectCommand> characterDrawCommands;
 
     std::vector<DrawData> drawData;
     std::vector<GPUMaterialIndices> materialObjects;
@@ -104,5 +113,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false);
+    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false);
 }

@@ -93,10 +93,13 @@ namespace InputManager {
 		return tabKey;
 	}
 
-	std::pair<float, float> getMouseMotion() {
-		std::pair<float, float> motion(xrel, yrel);
+	void resetMouseMotion() {
 		xrel = 0.0;
 		yrel = 0.0;
+	}
+
+	std::pair<float, float> getMouseMotion() {
+		std::pair<float, float> motion(xrel, yrel);
 		return motion;
 	}
 
