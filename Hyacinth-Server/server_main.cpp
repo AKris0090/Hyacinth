@@ -272,7 +272,7 @@ void updateTick() {
                     auto& client = entityManager.clients[p.id];
 
                     if (!client->tickOffsetSet) {
-                        client->tickBasis = currentTick + SERVER_INPUT_BUFFER;
+                        client->tickBasis = currentTick + SERVER_INPUT_BUFFER; // reducing jitter for packets arriving at server
                         client->tickOffsetSet = true;
                     }
                     client->clientPacketBuffer.push(p);
