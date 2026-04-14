@@ -1,12 +1,6 @@
 #pragma once
 
-#include "tiny_gltf.h"
-#include "stb_image.h"
-#include "vkmeshutils.h"
-#include "vkimageutils.h"
-#include "vkdescriptorutils.h"
-#include "fullscreen_quad.h"
-#include <unordered_set>
+#include "animation.h"
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
 constexpr int DUMMY_METALROUGH_TEX_INDEX = 1;
@@ -22,6 +16,11 @@ static std::string getFilePathExtension(const std::string& FileName) {
     return "";
 }
 
+struct DrawData {
+    uint32_t transformIndex;
+    uint32_t materialIndex;
+};
+
 struct gltfDrawCommand {
     bool dynamic;
     bool isCharacter;
@@ -33,45 +32,25 @@ struct gltfDrawCommand {
     AABB        boundingBox;
 };
 
-struct gltfPrimitive {
-    uint32_t indexCount = 0;
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
-    int materialIndex = -1;
-};
-
-struct gltfNode {
-    std::vector<std::unique_ptr<gltfPrimitive>> primitives;
-	glm::mat4 worldTransform = glm::mat4(1.0f);
-    std::vector<uint32_t> childrenIndices;
-    int32_t parentIndex = -1;
-    bool includeInAccel = false;
-    bool dynamic = false;
-
-    std::vector<Vertex> vertices;
-    VulkanBuffer accelStructureVertexBuffer;
-    std::vector<uint32_t> indices;
-    VulkanBuffer accelStructureIndexBuffer;
-};
-
 struct gltfObject {
     bool dynamic;
     bool isCharacter;
     uint32_t firstMatrix = 0;
-    uint32_t numMatrices = -1;
-	std::vector<std::unique_ptr<gltfNode>> nodes;
+    uint32_t numMatrices = 0;
+    std::vector<gltfNode*> allNodes;
+    std::vector<gltfNode*> parentNodes;
     uint32_t nodeCounter;
+    std::vector<Animation> animations;
+    std::vector<Skin> skins;
 
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;
     std::vector<MaterialInstance> materials;
 
     std::unordered_set<uint32_t>* imageIsSRGB;
-};
 
-struct DrawData {
-    uint32_t transformIndex;
-    uint32_t materialIndex;
+    glm::mat4 getNodeMatrix(gltfNode* node);
+    void updateJoints(gltfNode* node);
 };
 
 struct SceneGraph {

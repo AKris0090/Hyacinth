@@ -33,20 +33,40 @@ layout( push_constant ) uniform constants
 	DrawDataBuffer drawDataBuffer;
     VolumeDataBuffer volumeDataBuffer;
     int volumeIndex;
+	// JointMatricesBuffer jmBuffer;
+	// bool isAnimated;
 } pc;
 
 void main() 
 {
+	vec4 position = vec4(inPosition.xyz, 1.0);
+	vec4 normal = vec4(inNormal.xyz, 1.0);
+	vec4 tangent = inTangent;
+
+	// if (pc.isAnimated) {
+	// 	mat4 skinMatrix =
+	// 	    v.jointWeight.x * jointMatrices[int(v.jointIndex.x)] +
+	// 	    v.jointWeight.y * jointMatrices[int(v.jointIndex.y)] +
+	// 	    v.jointWeight.z * jointMatrices[int(v.jointIndex.z)] +
+	// 	    v.jointWeight.w * jointMatrices[int(v.jointIndex.w)];
+	// 
+	// 	position = vec4((skinMatrix * position).xyz, 1.0);
+	// 
+	// 	mat3 skinMatrix3 = mat3(skinMatrix);
+	// 	normal.xyz = skinMatrix3 * normal.xyz;
+	// 	tangent.xyz = skinMatrix3 * tangent.xyz;
+	// }
+
 	DrawData draw = pc.drawDataBuffer.draws[gl_InstanceIndex];
 	mat4 model = pc.transformBuffer.model[draw.transformIndex];
-	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0f);
+	gl_Position = ubo.proj * ubo.view * model * position;
 
-	fragPos = model * vec4(inPosition.xyz, 1.0);
+	fragPos = model * position;
 
-	vec4 biTangent = vec4(normalize(cross(inNormal.xyz, inTangent.xyz)), 0.0);
-	vec3 T = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));
+	vec4 biTangent = vec4(normalize(cross(normal.xyz, tangent.xyz)), 0.0);
+	vec3 T = normalize(vec3(model * vec4(tangent.xyz, 0.0)));
 	vec3 B = normalize(vec3(model * biTangent));
-	vec3 N = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));
+	vec3 N = normalize(vec3(model * vec4(normal.xyz, 0.0)));
 	TBNMatrix = mat3(T, B, N);
 
 	Material mat = pc.materialBuffer.mats[draw.materialIndex];
@@ -56,7 +76,7 @@ void main()
 	metalRoughSamplerIndex = mat.metalRoughIndex;
 
 	viewPos = (ubo.view * vec4(fragPos.xyz, 1.0));
-	outNormal = inNormal;
+	outNormal = normal;
 
 	outUV.x		= inPosition.w;
 	outUV.y		= inNormal.w;

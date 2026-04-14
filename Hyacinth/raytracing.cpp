@@ -125,14 +125,14 @@ void rtHelper::createBottomLevelAS(SceneGraph& scene) {
 
     uint32_t id = 0;
     for(const auto& obj : scene.staticObjects) {
-        for (const auto& node : obj.nodes) {
-            if (!node.get()->includeInAccel || node.get()->vertices.empty() || node.get()->indices.empty()) {
+        for (const auto& node : obj.allNodes) {
+            if (!node->includeInAccel || node->vertices.empty() || node->indices.empty()) {
                 std::cerr << "Warning: Node " << id << " has no geometry, skipping BLAS creation." << std::endl;
                 continue;
 			}
             VkAccelerationStructureGeometryKHR       asGeometry{};
             VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
-            primitiveToGeometry(node.get(), asGeometry, asBuildRangeInfo);
+            primitiveToGeometry(node, asGeometry, asBuildRangeInfo);
             createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR, m_blAccelStructures[id], asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
             id++;
         }
@@ -153,13 +153,13 @@ void rtHelper::createTopLevelAS(SceneGraph& scene) {
 
     uint32_t meshIndex = 0;
     for(const auto& obj : scene.staticObjects) {
-        for (const auto& node : obj.nodes) {
+        for (const auto& node : obj.allNodes) {
             if (node->includeInAccel == false || node->vertices.empty() || node->indices.empty()) {
                 std::cerr << "Warning: Node " << meshIndex << " is marked as not included in acceleration structure or has no geometry, skipping TLAS instance creation." << std::endl;
                 continue;
 			}
             VkAccelerationStructureInstanceKHR asInstance{};
-            asInstance.transform = toTransformMatrixKHR(node.get()->worldTransform);
+            asInstance.transform = toTransformMatrixKHR(node->worldTransform);
             asInstance.instanceCustomIndex = meshIndex;                       // gl_InstanceCustomIndexEXT
             asInstance.accelerationStructureReference = m_blAccelStructures[meshIndex].address;
             asInstance.instanceShaderBindingTableRecordOffset = 0;
