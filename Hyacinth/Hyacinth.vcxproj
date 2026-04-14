@@ -149,6 +149,7 @@
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_draw.cpp" />
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_tables.cpp" />
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_widgets.cpp" />
+    <ClCompile Include="animation.cpp" />
     <ClCompile Include="csm.cpp" />
     <ClCompile Include="fpcam.cpp" />
     <ClCompile Include="frustumcull.cpp" />
@@ -184,10 +185,12 @@
     <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_rectpack.h" />
     <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_textedit.h" />
     <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_truetype.h" />
+    <ClInclude Include="animation.h" />
     <ClInclude Include="csm.h" />
     <ClInclude Include="fpcam.h" />
     <ClInclude Include="frustumcull.h" />
     <ClInclude Include="fullscreen_quad.h" />
+    <ClInclude Include="gltfcommon.h" />
     <ClInclude Include="gltfutils.h" />
     <ClInclude Include="hyacinth_client.h" />
     <ClInclude Include="imguihelper.h" />

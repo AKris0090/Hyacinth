@@ -3,47 +3,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "tangentHelper.h"
 
-static void generateTangents(gltfPrimitive* p, SMikkTSpaceContext& mikktContext) {
-    //UNPACK VERTICES
-    std::vector<Vertex> unpacked(p->indices.size());
-    uint32_t newInd = 0;
-    for (uint32_t index : p->indices) {
-        unpacked[newInd] = p->vertices[static_cast<std::vector<Vertex, std::allocator<Vertex>>::size_type>(index)];
-        newInd++;
-    }
-    p->vertices = std::move(unpacked);
-    p->indices.clear();
-
-    // GEN TANGENT SPACE
-    MikkTSpaceHelper::MikkTContext context{ p };
-    mikktContext.m_pUserData = &context;
-    genTangSpaceDefault(&mikktContext);
-
-    //WELD VERTICES
-    p->indices.clear();
-    p->indices.reserve(p->vertices.size());
-    std::unordered_map<Vertex, uint32_t> uniqueVertices;
-
-    size_t oldVertexCount = p->vertices.size();
-    uint32_t postTVertexCount = 0;
-    for (size_t i = 0; i < oldVertexCount; ++i) {
-        Vertex v = p->vertices[i];
-
-        auto index = uniqueVertices.find(v);
-        if (index == uniqueVertices.end()) {
-            uint32_t vertIndex = postTVertexCount;
-            postTVertexCount++;
-            uniqueVertices.insert(std::make_pair(v, vertIndex));
-            p->vertices[vertIndex] = v;
-            p->indices.push_back(vertIndex);
-        }
-        else {
-            p->indices.push_back(index->second);
-        }
-    }
-    p->vertices.resize(postTVertexCount);
-}
-
 AABB getBoundingBox(std::vector<Vertex>& vertices) {
     AABB bounds;
     bounds.min = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
@@ -54,13 +13,47 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
     return bounds;
 }
 
-static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
+glm::mat4 gltfObject::getNodeMatrix(gltfNode* node)
+{
+    glm::mat4 nodeMatrix = getAnimatedMatrix(node->matComponents, node->worldTransform);
+    gltfNode* currentParent = node->parent;
+    while (currentParent)
+    {
+        nodeMatrix = getAnimatedMatrix(currentParent->matComponents, currentParent->worldTransform) * nodeMatrix;
+        currentParent = currentParent->parent;
+    }
+    return nodeMatrix;
+}
+
+void gltfObject::updateJoints(gltfNode* node)
+{
+    if (node->skinIndex > -1)
+    {
+        // Update the joint matrices
+        glm::mat4              inverseTransform = glm::inverse(getNodeMatrix(node));
+        Skin                   skin = skins[node->skinIndex];
+        size_t                 numJoints = (uint32_t)skin.joints.size();
+        for (size_t i = 0; i < numJoints; i++)
+        {
+            skin.finalJointMatrices[i] = inverseTransform * (getNodeMatrix(skin.joints[i]) * skin.inverseBindMatrices[i]);
+        }
+    }
+
+    for (auto& child : node->children)
+    {
+        updateJoints(child);
+    }
+}
+
+static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, uint32_t nodeIndex, gltfNode* parent, std::vector<gltfNode*>& nodes) {
     SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
 
-    auto node = std::make_unique<gltfNode>();
-    node->parentIndex = parent;
+    auto node = new gltfNode();
+    node->parent = parent;
+    node->index = nodeIndex;
 	node->includeInAccel = includeInAccel;
     node->dynamic = dynamic;
+    obj.allNodes.push_back(node);
 
     if (nodeIn.matrix.size() == 16) {
         node->worldTransform = glm::make_mat4x4(nodeIn.matrix.data());
@@ -78,18 +71,9 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
         }
     }
 
-    uint32_t nodeIndex = obj.nodeCounter++;
-    obj.nodes.push_back(std::move(node));
-
-    gltfNode* nodePtr = obj.nodes[nodeIndex].get();
-    if (parent >= 0) {
-        obj.nodes[parent]->childrenIndices.push_back(nodeIndex);
-        nodePtr->worldTransform = obj.nodes[parent]->worldTransform * nodePtr->worldTransform;
-    }
-
     if (nodeIn.children.size() > 0) {
         for (size_t i = 0; i < nodeIn.children.size(); i++) {
-            loadGLTFNode(obj, includeInAccel, dynamic, model, model->nodes[nodeIn.children[i]], nodeIndex);
+            loadGLTFNode(obj, includeInAccel, dynamic, model, model->nodes[nodeIn.children[i]], nodeIn.children[i], node, nodes);
         }
     }
 
@@ -97,9 +81,8 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
         const tinygltf::Mesh mesh = model->meshes[nodeIn.mesh];
         for (size_t i = 0; i < mesh.primitives.size(); i++) {
             const tinygltf::Primitive& gltfPrim = mesh.primitives[i];
-			auto prim = std::make_unique<gltfPrimitive>();
-			nodePtr->primitives.push_back(std::move(prim));
-			gltfPrimitive* p = obj.nodes[nodeIndex]->primitives.back().get();
+			auto p = new gltfPrimitive();
+			node->primitives.push_back(std::move(p));
             p->materialIndex = gltfPrim.material;
 
             uint32_t currentNumIndices = 0;
@@ -110,6 +93,8 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
             const float* normalsBuff = nullptr;
             const float* uvBuff = nullptr;
             const float* tangentsBuff = nullptr;
+            const uint16_t* jointIndicesBuffer = nullptr;
+            const float* jointWeightsBuffer = nullptr;
 
             if (gltfPrim.attributes.find("POSITION") != gltfPrim.attributes.end()) {
                 const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("POSITION")->second];
@@ -131,6 +116,18 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
                 const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("TANGENT")->second];
                 const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
                 tangentsBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+            }
+            if (gltfPrim.attributes.find("JOINTS_0") != gltfPrim.attributes.end())
+            {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("JOINTS_0")->second];
+                const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
+                jointIndicesBuffer = reinterpret_cast<const uint16_t*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+            }
+            if (gltfPrim.attributes.find("WEIGHTS_0") != gltfPrim.attributes.end())
+            {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("WEIGHTS_0")->second];
+                const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
+                jointWeightsBuffer = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
             }
 
             for (size_t vert = 0; vert < currentNumVertices; vert++) {
@@ -260,7 +257,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     const tinygltf::Scene& scene = model->scenes[model->defaultScene];
     for (size_t i = 0; i < scene.nodes.size(); i++) {
         const tinygltf::Node node = model->nodes[scene.nodes[i]];
-        loadGLTFNode(object, includeInAccel, dynamic, model, node, -1);
+        loadGLTFNode(object, includeInAccel, dynamic, model, node, -1, nullptr, object.parentNodes);
     }
 
     object.textureIndices.resize(model->textures.size());
@@ -288,6 +285,18 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     for (uint32_t i = 0; i < model->images.size(); i++) {
         VkFormat format = (object.imageIsSRGB->find(i) == object.imageIsSRGB->end()) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
         loadTexture(object, model, format, i);
+    }
+
+    Skin::loadSkins(model, object.parentNodes, object.skins);
+    Animation::loadAnimations(model, object.parentNodes, object.animations);
+
+    for (auto& skin : object.skins) {
+        skin.finalJointMatrices.resize(skin.inverseBindMatrices.size());
+    }
+     
+    for (auto node : object.parentNodes)
+    {
+        object.updateJoints(node);
     }
 
 	delete model;
@@ -335,12 +344,12 @@ void SceneGraph::buildNodeBuffers(gltfNode* node) {
 void addUnitCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
     auto cubePath = vkdebugutils::getExeDir() / "objects" / "cube.glb";
     gltfObject boxObject = gltfutils::loadFromFile(cubePath.string(), false);
-    gltfNode* node = boxObject.nodes[0].get();
+    gltfNode* node = boxObject.allNodes[0];
     for (const auto& p : node->primitives) {
-        for (const auto& v : p.get()->vertices) {
+        for (const auto& v : p->vertices) {
             node->vertices.push_back(v);
         }
-        for (const auto& index : p.get()->indices) {
+        for (const auto& index : p->indices) {
             node->indices.push_back(index);
         }
     }
@@ -370,26 +379,26 @@ void SceneGraph::buildSceneGraph() {
     for (const auto& obj : combinedObjects) {
         obj->firstMatrix = obj->dynamic ? dynamicTransformMatrices.size() : staticTransformMatrices.size();
         uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
-        for (const auto& node: obj->nodes) {
+        for (const auto& node: obj->allNodes) {
             if (obj->dynamic) {
-                dynamicTransformMatrices.push_back(node.get()->worldTransform);
+                dynamicTransformMatrices.push_back(node->worldTransform);
             }
             else {
-                staticTransformMatrices.push_back(node.get()->worldTransform);
+                staticTransformMatrices.push_back(node->worldTransform);
             }
             obj->numMatrices++;
-            for (const auto& prim : node.get()->primitives) {
+            for (const auto& prim : node->primitives) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
-				uint32_t matIndex = prim.get()->materialIndex + mat_offset;
+				uint32_t matIndex = prim->materialIndex + mat_offset;
 
                 gltfDrawCommand draw{};
                 draw.isCharacter = obj->isCharacter;
                 draw.dynamic = obj->dynamic;
                 draw.firstIndex = firstIndex;
-                draw.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
-                draw.vertexCount = prim.get()->vertices.size();
-                draw.boundingBox = getBoundingBox(prim.get()->vertices);
+                draw.indexCount = static_cast<uint32_t>(prim->indices.size());
+                draw.vertexCount = prim->vertices.size();
+                draw.boundingBox = getBoundingBox(prim->vertices);
                 if (obj->dynamic) {
                     draw.transformIndex = dynamicTransformMatrices.size() - 1;
                 }
@@ -397,20 +406,20 @@ void SceneGraph::buildSceneGraph() {
                     draw.transformIndex = staticTransformMatrices.size() - 1;
                 }
 
-                for (const auto& v : prim.get()->vertices) {
+                for (const auto& v : prim->vertices) {
                     vertices.push_back(v);
                 }
-                for (const auto& index : prim.get()->indices) {
+                for (const auto& index : prim->indices) {
                     indices.push_back(index + firstVertex);
 				}
 
                 // acceleration structure-specific
-                uint32_t nodeVertOffset = node.get()->vertices.size();
-                for (const auto& v : prim.get()->vertices) {
-                    node.get()->vertices.push_back(v);
+                uint32_t nodeVertOffset = node->vertices.size();
+                for (const auto& v : prim->vertices) {
+                    node->vertices.push_back(v);
                 }
-                for (const auto& i : prim.get()->indices) {
-                    node.get()->indices.push_back(i + nodeVertOffset);
+                for (const auto& i : prim->indices) {
+                    node->indices.push_back(i + nodeVertOffset);
                 }
 
                 sortedDrawCalls[matIndex].push_back(draw);
@@ -422,7 +431,7 @@ void SceneGraph::buildSceneGraph() {
             }
 
             // for acceleration structures
-            buildNodeBuffers(node.get());
+            buildNodeBuffers(node);
 		}
         
         for (const auto& mat : obj->materials) {

@@ -12,6 +12,8 @@ struct Vertex {
 	glm::vec4 pos;		// uvX is in w component
 	glm::vec4 normal;	// uvY is in w component
 	glm::vec4 tangent;
+	glm::vec4 jointIndices;
+	glm::vec4 jointWeights;
 
 	// for hashing for tangent generation
 	bool operator==(const Vertex& other) const {
@@ -81,6 +83,8 @@ struct GPUDrawPushConstants {
 	VkDeviceAddress drawDataAddress;
 	VkDeviceAddress volumeDataAddress;
 	uint32_t volumeIndex;
+	// VkDeviceAddress jointBufferAddress;
+	// bool isAnimated = false;
 };
 
 namespace vkmeshutils {
