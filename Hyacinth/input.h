@@ -19,6 +19,7 @@ namespace InputManager {
 	bool mouseDown();
 	bool tabKeyDown();
 
+	void resetMouseMotion();
 	std::pair<float, float> getMouseMotion();
 	std::pair<float, float> getTickMouseMotion();
 	std::array<int8_t, 3> getMovement();

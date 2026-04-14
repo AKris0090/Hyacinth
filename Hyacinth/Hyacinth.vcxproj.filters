@@ -363,9 +363,6 @@
     <None Include="shaders\ddgiStencil.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
-    <None Include="shaders\ddgi.frag">
-      <Filter>Source Files\shaders</Filter>
-    </None>
     <None Include="shaders\netFrag.frag">
       <Filter>Source Files\shaders\net</Filter>
     </None>
@@ -388,6 +385,9 @@
       <Filter>Source Files\shaders\visualization</Filter>
     </None>
     <None Include="shaders\probeVis.vert">
+      <Filter>Source Files\shaders\visualization</Filter>
+    </None>
+    <None Include="shaders\ddgi.frag">
       <Filter>Source Files\shaders\visualization</Filter>
     </None>
   </ItemGroup>

@@ -1,7 +1,3 @@
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
 #include "gltfutils.h"
 #include "vkimageutils.h"
 #include <glm/gtc/type_ptr.hpp>
@@ -234,11 +230,12 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
     std::cout << "created image: " << curImage.name << std::endl;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
     object.dynamic = dynamic;
+    object.isCharacter = isCharacter;
     object.imageIsSRGB = new std::unordered_set<uint32_t>();
     tinygltf::Model* model;
     model = new tinygltf::Model();
@@ -371,6 +368,7 @@ void SceneGraph::buildSceneGraph() {
     }
 
     for (const auto& obj : combinedObjects) {
+        obj->firstMatrix = obj->dynamic ? dynamicTransformMatrices.size() : staticTransformMatrices.size();
         uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
         for (const auto& node: obj->nodes) {
             if (obj->dynamic) {
@@ -379,12 +377,14 @@ void SceneGraph::buildSceneGraph() {
             else {
                 staticTransformMatrices.push_back(node.get()->worldTransform);
             }
+            obj->numMatrices++;
             for (const auto& prim : node.get()->primitives) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
 				uint32_t matIndex = prim.get()->materialIndex + mat_offset;
 
                 gltfDrawCommand draw{};
+                draw.isCharacter = obj->isCharacter;
                 draw.dynamic = obj->dynamic;
                 draw.firstIndex = firstIndex;
                 draw.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
@@ -451,7 +451,12 @@ void SceneGraph::buildSceneGraph() {
             primDrawData.transformIndex = gltfDraw.transformIndex;
 
             drawData.push_back(primDrawData);
-            gltfDraw.dynamic ? dynamicDrawCommands.push_back(drawCmd) : staticDrawCommands.push_back(drawCmd);
+            if (gltfDraw.isCharacter) {
+                characterDrawCommands.push_back(drawCmd);
+            }
+            else {
+                gltfDraw.dynamic ? dynamicDrawCommands.push_back(drawCmd) : staticDrawCommands.push_back(drawCmd);
+            }
             boundingBoxes.push_back(gltfDraw.boundingBox);
 
             drawCounter++;
