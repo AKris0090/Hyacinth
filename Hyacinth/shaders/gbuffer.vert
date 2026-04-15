@@ -34,9 +34,9 @@ layout( push_constant ) uniform constants
 	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
     VolumeDataBuffer volumeDataBuffer;
-    int volumeIndex;
 	JointMatricesBuffer jmBuffer;
-	bool isAnimated;
+    int volumeIndex;
+	uint isAnimated;
 } pc;
 
 void main() 
@@ -45,7 +45,7 @@ void main()
 	vec4 normal = vec4(inNormal.xyz, 1.0);
 	vec4 tangent = inTangent;
 
-	if (pc.isAnimated) {
+	if (pc.isAnimated != 0u) {
 		mat4 skinMatrix =
 		    jointWeight.x * pc.jmBuffer.jointMatrices[int(jointIndex.x)] +
 		    jointWeight.y * pc.jmBuffer.jointMatrices[int(jointIndex.y)] +
