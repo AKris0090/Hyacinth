@@ -318,7 +318,7 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	m_pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    m_pipelineUtil.setDefaultAttributes();
+    m_pipelineUtil.setAnimatedAttribute();
 	m_pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
 	m_pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	m_pipelineUtil.setColorAttachmentFormat(m_swImageFormat.format, 2);
@@ -789,6 +789,8 @@ void HyacinthEngine::update() {
         p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->unlock();
     }
 
+    m_scene.dynamicObjects[0].updateAnimation(0, 0);
+
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
         Transform t = m_owDDGIHelper.m_probeVolumes[i].transform;
@@ -992,14 +994,18 @@ void HyacinthEngine::draw()
 	vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.staticDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
     pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
+    pushConstants.isAnimated = true;
+    pushConstants.jointBufferAddress = m_scene.dynamicObjects[0].skins[0].jointMatrixBuffer.gpuAddress;
+
     vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-    // pushConstants.isAnimated = true;
-    // pushConstants.
-
+    // TODO: under the assumption that there is only one other network entity. expand for more.
     if (p_netEntManager->ids.size() > 0) {
         vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
     }
+
+    pushConstants.isAnimated = false;
+    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
     // draw character separately
     vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, characterDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.characterDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
