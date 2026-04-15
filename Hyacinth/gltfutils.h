@@ -37,6 +37,8 @@ struct gltfObject {
     bool isCharacter;
     uint32_t firstMatrix = 0;
     uint32_t numMatrices = 0;
+    uint32_t activeAnimation = 0;
+    uint32_t currentBuffer = 0;
     std::vector<gltfNode*> allNodes;
     std::vector<gltfNode*> parentNodes;
     uint32_t nodeCounter;
@@ -51,6 +53,7 @@ struct gltfObject {
 
     glm::mat4 getNodeMatrix(gltfNode* node);
     void updateJoints(gltfNode* node);
+    void updateAnimation(float deltaTime, uint32_t currentBuffer);
 };
 
 struct SceneGraph {
