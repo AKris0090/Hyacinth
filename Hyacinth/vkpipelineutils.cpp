@@ -80,12 +80,17 @@ void VulkanPipelineBuilder::buildPipeline() {
     auto bindings = Vertex::getBindingDescription();
     auto attributesNormal = Vertex::getAttributeDescriptions();
     auto attributesPosOnly = Vertex::getPositionAttributeDescription();
+    auto attributesAnimated = Vertex::getAnimatedAttributeDescriptions();
 
     m_vertexInputInfo.vertexBindingDescriptionCount = 1;
     m_vertexInputInfo.pVertexBindingDescriptions = &bindings;
     if (depthPass) {
         m_vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributesPosOnly.size());
         m_vertexInputInfo.pVertexAttributeDescriptions = attributesPosOnly.data();
+    }
+    else if (animated){
+        m_vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributesAnimated.size());
+        m_vertexInputInfo.pVertexAttributeDescriptions = attributesAnimated.data();
     }
     else {
         m_vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributesNormal.size());
@@ -210,6 +215,11 @@ void VulkanPipelineBuilder::setDefaultAttributes() {
 void VulkanPipelineBuilder::setPositionAttribute() {
     depthPass = true;
 }
+
+void VulkanPipelineBuilder::setAnimatedAttribute() {
+    animated = true;
+}
+
 
 void VulkanPipelineBuilder::destroyPipeline() {
     m_pipeline.destroy();

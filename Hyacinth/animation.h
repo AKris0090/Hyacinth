@@ -3,7 +3,7 @@
 #include "gltfcommon.h"
 
 static glm::mat4 getAnimatedMatrix(Transform& matP, glm::mat4& matrix) {
-	return glm::translate(glm::mat4(1.0f), matP.position) * glm::mat4(matP.rotation) * glm::scale(glm::mat4(1.0f), matP.scale) * matrix;
+	return glm::translate(glm::mat4(1.0f), matP.position) * glm::mat4(matP.rotation) * glm::scale(glm::mat4(1.0f), matP.scale);// *matrix;
 }
 
 struct Skin
@@ -12,7 +12,6 @@ struct Skin
 	gltfNode* skeletonRoot =	nullptr;
 	std::vector<glm::mat4>		inverseBindMatrices;
 	std::vector<gltfNode*>		joints;
-	std::vector<glm::mat4>		finalJointMatrices;
 	VulkanBuffer				jointMatrixBuffer;
 
 	static void loadSkins(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std::vector<Skin>& skinsOut);
