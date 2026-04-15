@@ -595,7 +595,6 @@ void gltfObject::updateAnimation(float deltaTime, uint32_t currentBuffer)
     {
         animation.currentTime -= animation.end;
     }
-    animation.currentTime = animation.start;
 
     for (auto& channel : animation.channels)
     {

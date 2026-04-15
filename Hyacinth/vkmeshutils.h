@@ -107,9 +107,9 @@ struct GPUDrawPushConstants {
 	VkDeviceAddress materialAddress;
 	VkDeviceAddress drawDataAddress;
 	VkDeviceAddress volumeDataAddress;
-	uint32_t volumeIndex;
 	VkDeviceAddress jointBufferAddress;
-	bool isAnimated = false;
+	int32_t volumeIndex;
+	uint32_t isAnimated = 0;
 };
 
 namespace vkmeshutils {

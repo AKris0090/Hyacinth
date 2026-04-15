@@ -789,7 +789,7 @@ void HyacinthEngine::update() {
         p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->unlock();
     }
 
-    m_scene.dynamicObjects[0].updateAnimation(0, 0);
+    m_scene.dynamicObjects[0].updateAnimation(Time::getDeltaTime(), 0);
 
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
@@ -924,6 +924,8 @@ void HyacinthEngine::draw()
     pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
     pushConstants.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
     pushConstants.volumeIndex = 0;
+    pushConstants.isAnimated = 0;
+    pushConstants.jointBufferAddress = m_scene.dynamicObjects[0].skins[0].jointMatrixBuffer.gpuAddress;
 
     ComputePushConstant ddgiPushConstant{};
     ddgiPushConstant.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
@@ -994,17 +996,18 @@ void HyacinthEngine::draw()
 	vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.staticDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
     pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
-    pushConstants.isAnimated = true;
-    pushConstants.jointBufferAddress = m_scene.dynamicObjects[0].skins[0].jointMatrixBuffer.gpuAddress;
-
-    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
     // TODO: under the assumption that there is only one other network entity. expand for more.
     if (p_netEntManager->ids.size() > 0) {
+        pushConstants.isAnimated = 1;
+
+        vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+
         vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+
+        pushConstants.isAnimated = 0;
     }
 
-    pushConstants.isAnimated = false;
     vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
     // draw character separately
@@ -1228,6 +1231,11 @@ void HyacinthEngine::cleanup()
     for (auto& obj : m_scene.dynamicObjects) {
         for (auto& tex : obj.textures) {
             vkimageutils::destroyImage(tex);
+        }
+        if (obj.skins.size() > 0) {
+            for (auto& s : obj.skins) {
+                vkdeviceutils::destroyBuffer(s.jointMatrixBuffer);
+            }
         }
     }
 

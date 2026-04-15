@@ -31,7 +31,9 @@ layout( push_constant ) uniform constants
 	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
     VolumeDataBuffer volumeDataBuffer;
+	JointMatricesBuffer jmBuffer;
     int volumeIndex;
+	uint isAnimated;
 } pc;
 
 layout(set = 2, binding = 0) uniform sampler2D globalTextures2D[];
