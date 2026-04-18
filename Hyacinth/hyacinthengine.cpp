@@ -789,7 +789,15 @@ void HyacinthEngine::update() {
         p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->unlock();
     }
 
-    m_scene.dynamicObjects[0].updateAnimation(Time::getDeltaTime(), 0);
+    uint32_t id = 0;
+    for (const auto& i : p_netEntManager->ids) {
+        if (i != p_netEntManager->self->id) {
+            id = i;
+        }
+    }
+    if (id != 0) {
+        m_scene.dynamicObjects[0].updateAnimation(p_netEntManager->entities[id], Time::getDeltaTime(), 0);
+    }
 
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
@@ -879,6 +887,21 @@ void HyacinthEngine::drawImGui() {
     auto framesPerSecond = 1.0f / Time::getDeltaTime();
     ImGui::Text("rfps: %.0f", framesPerSecond);
     ImGui::Text("ft: %.2f ms", Time::getDeltaTime() * 1000.0f);
+
+    std::stringstream s;
+    AnimationStateMachine& anim = m_scene.dynamicObjects[0].animStateMachine;
+    s << anim.lbrState << ", " << anim.yawDelta;
+    switch (anim.motionState) {
+    case MOVING:
+        s << ", MOVING";
+        break;
+    case STILL:
+        s << ", STILL";
+        break;
+    }
+    
+    ImGui::Text(s.str().c_str());
+
     ImGui::End();
 
     ImGui::Begin("Properties");
@@ -1163,6 +1186,12 @@ void HyacinthEngine::endDraw()
     }
 
     m_frameIndex = (m_frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+// TODO: should not be gltfObject, should be for the entity object
+void HyacinthEngine::setObjectPitchYaw(int gltfObjectIndex, float pitch, float yaw) {
+    m_scene.dynamicObjects[gltfObjectIndex].lookDirectionPitch = pitch;
+    m_scene.dynamicObjects[gltfObjectIndex].lookDirectionYaw = yaw;
 }
 
 void HyacinthEngine::recreateSwapchain() {

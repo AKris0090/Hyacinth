@@ -15,10 +15,11 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 		}
 		entityMutexes[e.id].get()->lock();
 		entities[e.id]->transform.position = e.transform.position;
-		entities[e.id]->transform.rotation = e.transform.rotation;
-		entities[e.id]->transform.pitch = e.transform.pitch;
-		entities[e.id]->transform.yaw = e.transform.yaw;
-		entities[e.id]->transform.setRotationPitchYaw();
+		// entities[e.id]->transform.rotation = e.transform.rotation;
+		// entities[e.id]->transform.pitch = e.transform.pitch;
+		// entities[e.id]->transform.yaw = e.transform.yaw;
+		// entities[e.id]->transform.setRotationPitchYaw();
+		entities[e.id]->isMoving = e.isMoving;
 		entityMutexes[e.id].get()->unlock();
 	}
 }

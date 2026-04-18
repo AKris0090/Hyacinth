@@ -27,6 +27,8 @@ struct gltfNode {
     bool dynamic = false;
     glm::mat4 getLocalMatrix();
     uint32_t index;
+    bool upperBody = false;
+    bool lowerBody = false;
 
     std::vector<Vertex> vertices;
     VulkanBuffer accelStructureVertexBuffer;
@@ -64,4 +66,30 @@ static gltfNode* nodeFromIndex(std::vector<gltfNode*>& nodes, uint32_t index)
         }
     }
     return nodeFound;
+}
+
+static glm::mat4 getAnimatedMatrix(Transform& matP, glm::mat4& matrix) {
+    return glm::translate(glm::mat4(1.0f), matP.position) * glm::mat4(matP.rotation) * glm::scale(glm::mat4(1.0f), matP.scale);// *matrix;
+}
+
+static glm::mat4 getNodeMatrix(gltfNode* node)
+{
+    glm::mat4 nodeMatrix = getAnimatedMatrix(node->matComponents, node->worldTransform);
+    gltfNode* currentParent = node->parent;
+    while (currentParent)
+    {
+        nodeMatrix = getAnimatedMatrix(currentParent->matComponents, currentParent->worldTransform) * nodeMatrix;
+        currentParent = currentParent->parent;
+    }
+    return nodeMatrix;
+}
+
+static bool isParentOf(gltfNode* search, gltfNode* target) {
+    if (search == nullptr) {
+        return false;
+    }
+    if (search == target) {
+        return true;
+    }
+    return isParentOf(search->parent, target);
 }

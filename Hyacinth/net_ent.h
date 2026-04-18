@@ -52,6 +52,7 @@ public:
 			nE.moveSpeed = e.moveSpeed;
 			nE.id = e.id;
 			nE.transform = e.transform.lerpTo(secondEnt.transform, t);
+			nE.isMoving = e.isMoving || secondEnt.isMoving;
 			p.entities.push_back(nE);
 		}
 		packetBufferMutex.unlock();

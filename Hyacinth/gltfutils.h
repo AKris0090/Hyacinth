@@ -1,6 +1,7 @@
 #pragma once
 
 #include "animation.h"
+#include "entity.h"
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
 constexpr int DUMMY_METALROUGH_TEX_INDEX = 1;
@@ -45,15 +46,18 @@ struct gltfObject {
     std::vector<Animation> animations;
     std::vector<Skin> skins;
 
+    float lookDirectionPitch, lookDirectionYaw;
+
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;
     std::vector<MaterialInstance> materials;
 
     std::unordered_set<uint32_t>* imageIsSRGB;
 
-    glm::mat4 getNodeMatrix(gltfNode* node);
+    AnimationStateMachine animStateMachine;
+
     void updateJoints(gltfNode* node);
-    void updateAnimation(float deltaTime, uint32_t currentBuffer);
+    void updateAnimation(Entity* e, float deltaTime, uint32_t currentBuffer);
 };
 
 struct SceneGraph {
