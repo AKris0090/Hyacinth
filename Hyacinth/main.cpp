@@ -171,6 +171,17 @@ int main() {
 		ServerSnapshot interp = netClient.netEntManager.packetBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
 		// use packet to determine object transforms
 		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id);
+		if (interp.entities.size() > 1) {
+			Entity* e = nullptr;
+			for (auto& ent : interp.entities) {
+				if (ent.id != netClient.netEntManager.self->id) {
+					e = &ent;
+				}
+			}
+			if (e) {
+				hyacinthEngine.setObjectPitchYaw(0, e->transform.pitch, e->transform.yaw);
+			}
+		}
 
 		Time::updateTime();
 		InputManager::resetMouseMotion();

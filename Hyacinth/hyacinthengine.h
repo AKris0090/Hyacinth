@@ -83,6 +83,7 @@ public:
 
 	void init();
 	void draw();
+	void setObjectPitchYaw(int gltfObjectIndex, float pitch, float yaw);
 	void cleanup();
 
 private:
