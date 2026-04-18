@@ -11,4 +11,5 @@ struct Entity {
 	float moveSpeed = MOVE_SPEED;
 	float camSpeed = CAM_LOOK_SPEED;
 	Transform transform;
+	bool isMoving = false;
 };

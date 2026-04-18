@@ -13,23 +13,10 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
     return bounds;
 }
 
-glm::mat4 gltfObject::getNodeMatrix(gltfNode* node)
-{
-    glm::mat4 nodeMatrix = getAnimatedMatrix(node->matComponents, node->worldTransform);
-    gltfNode* currentParent = node->parent;
-    while (currentParent)
-    {
-        nodeMatrix = getAnimatedMatrix(currentParent->matComponents, currentParent->worldTransform) * nodeMatrix;
-        currentParent = currentParent->parent;
-    }
-    return nodeMatrix;
-}
-
 void gltfObject::updateJoints(gltfNode* node)
 {
     if (node->skinIndex > -1)
     {
-        // Update the joint matrices
         glm::mat4              inverseTransform = glm::inverse(getNodeMatrix(node));
         Skin&                  skin = skins[node->skinIndex];
         size_t                 numJoints = (uint32_t)skin.joints.size();
@@ -352,9 +339,50 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     Skin::loadSkins(model, object.parentNodes, object.skins);
     Animation::loadAnimations(model, object.parentNodes, object.animations);
 
+    // TODO: change this because first person model can be animated as well
+    if (object.animations.size() > 0) {
+        object.animStateMachine.idleAnimation = &object.animations[0];
+        object.animStateMachine.runningAnimation = &object.animations[1];
+        object.animStateMachine.leftTurnAnimation = &object.animations[2];
+        object.animStateMachine.rightTurnAnimation = &object.animations[2];
+
+        object.animStateMachine.currentUpperBodyAnim = object.animStateMachine.idleAnimation;
+        object.animStateMachine.currentLowerBodyAnim = object.animStateMachine.idleAnimation;
+    }
+
     for (auto& skin : object.skins) {
         size_t skinJointMatrixSize = skin.joints.size() * sizeof(glm::mat4);
         skin.jointMatrixBuffer = vkdeviceutils::createBuffer(skinJointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
+    }
+
+    if (object.skins.size() >= 1) {
+        tinygltf::Skin glTFSkin = model->skins[0];
+        for (int j = 0; j < glTFSkin.joints.size(); j++) {
+            int jointIndex = glTFSkin.joints[j];
+            if (model->nodes[jointIndex].name == "spine.005") {
+                object.animStateMachine.spine005 = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "upper_arm.L") {
+                object.animStateMachine.upperArmL = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "upper_arm.R") {
+                object.animStateMachine.upperArmR = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "spine.007") {
+                object.animStateMachine.spine007 = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "spine.003") {
+                object.animStateMachine.spine003 = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "spine") {
+                object.animStateMachine.spine = nodeFromIndex(object.allNodes, jointIndex);
+                object.animStateMachine.spineDefaultRot = object.animStateMachine.spine->matComponents.rotation;
+            }
+        }
+        for (auto& node : object.allNodes) {
+            if (isParentOf(node, object.animStateMachine.spine003)) {
+                node->upperBody = true;
+            }
+            else if (isParentOf(node, object.animStateMachine.spine007)) {
+                node->lowerBody = true;
+            }
+        }
+
     }
      
     for (auto node : object.parentNodes)
@@ -580,57 +608,10 @@ void SceneGraph::uploadTextures(VkDescriptorSet& descriptor) {
 	vkdescriptorutils::flushDescriptorWrites();
 }
 
-void gltfObject::updateAnimation(float deltaTime, uint32_t currentBuffer)
+void gltfObject::updateAnimation(Entity* e, float deltaTime, uint32_t currentBuffer)
 {
-    this->currentBuffer = currentBuffer;
+    animStateMachine.updateAnimationState(deltaTime, e->isMoving ? 1.f : 0.f, 0.f, lookDirectionPitch, lookDirectionYaw);
 
-    if (activeAnimation > static_cast<uint32_t>(animations.size()) - 1)
-    {
-        std::cout << "No animation with index " << activeAnimation << std::endl;
-        return;
-    }
-    Animation& animation = animations[activeAnimation];
-    animation.currentTime += deltaTime;
-    if (animation.currentTime > animation.end)
-    {
-        animation.currentTime -= animation.end;
-    }
-
-    for (auto& channel : animation.channels)
-    {
-        AnimationSampler& sampler = animation.samplers[channel.samplerIndex];
-        for (size_t i = 0; i < sampler.inputs.size() - 1; i++)
-        {
-            if ((animation.currentTime >= sampler.inputs[i]) && (animation.currentTime <= sampler.inputs[i + 1]))
-            {
-                float a = (animation.currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
-                if (channel.path == "translation")
-                {
-                    channel.node->matComponents.position = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
-                }
-                if (channel.path == "rotation")
-                {
-                    glm::quat q1;
-                    q1.x = sampler.outputsVec4[i].x;
-                    q1.y = sampler.outputsVec4[i].y;
-                    q1.z = sampler.outputsVec4[i].z;
-                    q1.w = sampler.outputsVec4[i].w;
-
-                    glm::quat q2;
-                    q2.x = sampler.outputsVec4[i + 1].x;
-                    q2.y = sampler.outputsVec4[i + 1].y;
-                    q2.z = sampler.outputsVec4[i + 1].z;
-                    q2.w = sampler.outputsVec4[i + 1].w;
-
-                    channel.node->matComponents.rotation = glm::normalize(glm::slerp(q1, q2, a));
-                }
-                if (channel.path == "scale")
-                {
-                    channel.node->matComponents.scale = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
-                }
-            }
-        }
-    }
     for (auto& node : parentNodes)
     {
         updateJoints(node);

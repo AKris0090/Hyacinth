@@ -289,6 +289,12 @@ void updateTick() {
 
         auto p = std::make_shared<ServerSnapshot>();
         for (const auto& [id, client] : entityManager.clients) {
+            if (glm::abs(client->bufferedPacket.movementFB) > 0.f || glm::abs(client->bufferedPacket.movementLR) > 0.f) {
+                client->entity.isMoving = true;
+            }
+            else {
+                client->entity.isMoving = false;
+            }
             client->bufferedPacket.reset();
             p->entities.push_back(client->entity);
         }
