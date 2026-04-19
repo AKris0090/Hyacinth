@@ -34,6 +34,10 @@ struct gltfNode {
     VulkanBuffer accelStructureVertexBuffer;
     std::vector<uint32_t> indices;
     VulkanBuffer accelStructureIndexBuffer;
+
+    std::vector<float> queuedYawShifts;
+    std::vector<float> queuedPitchShifts;
+    glm::quat queuedQuatRotation;
 };
 
 static gltfNode* findNode(std::vector<gltfNode*>& nodes, gltfNode* parent, uint32_t index)
