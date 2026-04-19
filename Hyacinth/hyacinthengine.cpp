@@ -318,7 +318,7 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	m_pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    m_pipelineUtil.setDefaultAttributes();
+    m_pipelineUtil.setAnimatedAttribute();
 	m_pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
 	m_pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	m_pipelineUtil.setColorAttachmentFormat(m_swImageFormat.format, 2);
@@ -542,20 +542,13 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadScene() {
-    // auto path = "C:/Users/ajnkr/Documents/Hyacinth/Hyacinth/objects/test_scene.glb";
-    // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
-    auto characterPath = vkdebugutils::getExeDir() / "objects" / "char.glb";
-    // auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp.glb";
+    auto characterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp.glb";
-    // auto path = "C:/Users/ajnkr/Documents/Orchid/Sandbox/trainStation/station.gltf";
-    // auto path2 = vkdebugutils::getExeDir() / "objects" / "SM_Deccer_Cubes_Textured_Complex.glb";
-    // auto path = vkdebugutils::getExeDir() / "objects" / "bistro.glb";
 
     m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true, false, false));
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(characterPath.string(), false, true, false));
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath.string(), false, true, true));
-    // m_scene.objects.push_back(gltfutils::loadFromFile(path2.string(), m_devContext));
 
     m_scene.buildSceneGraph();
 
@@ -796,6 +789,16 @@ void HyacinthEngine::update() {
         p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->unlock();
     }
 
+    uint32_t id = 0;
+    for (const auto& i : p_netEntManager->ids) {
+        if (i != p_netEntManager->self->id) {
+            id = i;
+        }
+    }
+    if (id != 0) {
+        m_scene.dynamicObjects[0].updateAnimation(p_netEntManager->entities[id], Time::getDeltaTime(), 0);
+    }
+
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
         Transform t = m_owDDGIHelper.m_probeVolumes[i].transform;
@@ -884,6 +887,20 @@ void HyacinthEngine::drawImGui() {
     auto framesPerSecond = 1.0f / Time::getDeltaTime();
     ImGui::Text("rfps: %.0f", framesPerSecond);
     ImGui::Text("ft: %.2f ms", Time::getDeltaTime() * 1000.0f);
+
+    std::stringstream s;
+    AnimationStateMachine& anim = m_scene.dynamicObjects[0].animStateMachine;
+    switch (anim.motionState) {
+    case MOVING:
+        s << ", MOVING";
+        break;
+    case STILL:
+        s << ", STILL";
+        break;
+    }
+    
+    ImGui::Text(s.str().c_str());
+
     ImGui::End();
 
     ImGui::Begin("Properties");
@@ -929,6 +946,8 @@ void HyacinthEngine::draw()
     pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
     pushConstants.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
     pushConstants.volumeIndex = 0;
+    pushConstants.isAnimated = 0;
+    pushConstants.jointBufferAddress = m_scene.dynamicObjects[0].skins[0].jointMatrixBuffer.gpuAddress;
 
     ComputePushConstant ddgiPushConstant{};
     ddgiPushConstant.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
@@ -999,11 +1018,19 @@ void HyacinthEngine::draw()
 	vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.staticDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
     pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
-    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
+    // TODO: under the assumption that there is only one other network entity. expand for more.
     if (p_netEntManager->ids.size() > 0) {
+        pushConstants.isAnimated = 1;
+
+        vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+
         vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+
+        pushConstants.isAnimated = 0;
     }
+
+    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
     // draw character separately
     vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, characterDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.characterDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
@@ -1160,6 +1187,12 @@ void HyacinthEngine::endDraw()
     m_frameIndex = (m_frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
+// TODO: should not be gltfObject, should be for the entity object
+void HyacinthEngine::setObjectPitchYaw(int gltfObjectIndex, float pitch, float yaw) {
+    m_scene.dynamicObjects[gltfObjectIndex].lookDirectionPitch = pitch;
+    m_scene.dynamicObjects[gltfObjectIndex].lookDirectionYaw = yaw;
+}
+
 void HyacinthEngine::recreateSwapchain() {
     vkDeviceWaitIdle(m_device);
 
@@ -1215,9 +1248,9 @@ void HyacinthEngine::cleanup()
         vkimageutils::destroyImage(tex);
     }
     for (auto& obj : m_scene.staticObjects) {
-        for (auto& node : obj.nodes) {
-            vkdeviceutils::destroyBuffer(node.get()->accelStructureIndexBuffer);
-            vkdeviceutils::destroyBuffer(node.get()->accelStructureVertexBuffer);
+        for (auto& node : obj.allNodes) {
+            vkdeviceutils::destroyBuffer(node->accelStructureIndexBuffer);
+            vkdeviceutils::destroyBuffer(node->accelStructureVertexBuffer);
         }
         for (auto& tex : obj.textures) {
             vkimageutils::destroyImage(tex);
@@ -1226,6 +1259,11 @@ void HyacinthEngine::cleanup()
     for (auto& obj : m_scene.dynamicObjects) {
         for (auto& tex : obj.textures) {
             vkimageutils::destroyImage(tex);
+        }
+        if (obj.skins.size() > 0) {
+            for (auto& s : obj.skins) {
+                vkdeviceutils::destroyBuffer(s.jointMatrixBuffer);
+            }
         }
     }
 

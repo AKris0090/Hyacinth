@@ -60,3 +60,44 @@ static SMikkTSpaceInterface MikkTInterface = { .m_getNumFaces = MikkTSpaceHelper
 											   .m_getTexCoord = MikkTSpaceHelper::MikkTGetTexCoord,
 											   .m_setTSpaceBasic = MikkTSpaceHelper::MikkTSetTSpaceBasic,
 											   .m_setTSpace = nullptr };
+
+static void generateTangents(gltfPrimitive* p, SMikkTSpaceContext& mikktContext) {
+	//UNPACK VERTICES
+	std::vector<Vertex> unpacked(p->indices.size());
+	uint32_t newInd = 0;
+	for (uint32_t index : p->indices) {
+		unpacked[newInd] = p->vertices[static_cast<std::vector<Vertex, std::allocator<Vertex>>::size_type>(index)];
+		newInd++;
+	}
+	p->vertices = std::move(unpacked);
+	p->indices.clear();
+
+	// GEN TANGENT SPACE
+	MikkTSpaceHelper::MikkTContext context{ p };
+	mikktContext.m_pUserData = &context;
+	genTangSpaceDefault(&mikktContext);
+
+	//WELD VERTICES
+	p->indices.clear();
+	p->indices.reserve(p->vertices.size());
+	std::unordered_map<Vertex, uint32_t> uniqueVertices;
+
+	size_t oldVertexCount = p->vertices.size();
+	uint32_t postTVertexCount = 0;
+	for (size_t i = 0; i < oldVertexCount; ++i) {
+		Vertex v = p->vertices[i];
+
+		auto index = uniqueVertices.find(v);
+		if (index == uniqueVertices.end()) {
+			uint32_t vertIndex = postTVertexCount;
+			postTVertexCount++;
+			uniqueVertices.insert(std::make_pair(v, vertIndex));
+			p->vertices[vertIndex] = v;
+			p->indices.push_back(vertIndex);
+		}
+		else {
+			p->indices.push_back(index->second);
+		}
+	}
+	p->vertices.resize(postTVertexCount);
+}

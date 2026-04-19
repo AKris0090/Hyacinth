@@ -15,10 +15,11 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 		}
 		entityMutexes[e.id].get()->lock();
 		entities[e.id]->transform.position = e.transform.position;
-		entities[e.id]->transform.rotation = e.transform.rotation;
-		entities[e.id]->transform.pitch = e.transform.pitch;
-		entities[e.id]->transform.yaw = e.transform.yaw;
-		entities[e.id]->transform.setRotationPitchYaw();
+		// entities[e.id]->transform.rotation = e.transform.rotation;
+		// entities[e.id]->transform.pitch = e.transform.pitch;
+		// entities[e.id]->transform.yaw = e.transform.yaw;
+		// entities[e.id]->transform.setRotationPitchYaw();
+		entities[e.id]->isMoving = e.isMoving;
 		entityMutexes[e.id].get()->unlock();
 	}
 }
@@ -26,13 +27,13 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 void NetworkEntityManager::setupRenderingUtils() {
 	auto spherePath = vkdebugutils::getExeDir() / "objects" / "cubeOrigin.glb";
 	sphereObject = std::make_unique<gltfObject>(gltfutils::loadFromFile(spherePath.string(), false));
-	gltfNode* node = sphereObject.get()->nodes[0].get();
+	gltfNode* node = sphereObject.get()->allNodes[0];
 	for (const auto& p : node->primitives) {
-		for (const auto& v : p.get()->vertices) {
+		for (const auto& v : p->vertices) {
 			Vertex upV = v;
 			node->vertices.push_back(upV);
 		}
-		for (const auto& index : p.get()->indices) {
+		for (const auto& index : p->indices) {
 			node->indices.push_back(index);
 		}
 	}
