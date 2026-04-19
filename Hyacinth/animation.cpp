@@ -114,54 +114,70 @@ void Animation::loadAnimations(tinygltf::Model* input, std::vector<gltfNode*>& n
 	}
 }
 
-void AnimationStateMachine::applyGlobalPitchShift(gltfNode* node, float degrees)
-{
-	glm::mat4 parentWorldMat = node->parent ? getNodeMatrix(node->parent) : glm::mat4(1.0f);
+void AnimationStateMachine::flushQueuedNodeTransforms() {
+	for (auto& node : { spine, spine003, upperArmL, upperArmR, spine005 }) {
+		glm::quat finalPitch{ 1.f, 0.f, 0.f, 0.f };
+		glm::quat finalYaw{ 1.f, 0.f, 0.f, 0.f };
 
-	glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
-	glm::quat qPitchGlobal = glm::angleAxis(glm::radians(degrees), glm::vec3(0, 0, 1));
-	glm::quat qPitchLocal = glm::inverse(parentWorldRot) * qPitchGlobal * parentWorldRot;
+		for (const auto f : node->queuedYawShifts) {
+			glm::quat yawQuat = glm::angleAxis(glm::radians(f), glm::vec3(0, -1, 0));
+			finalYaw = yawQuat * finalYaw;
+		}
+		for (const auto f : node->queuedPitchShifts) {
+			glm::quat pitchQuat = glm::angleAxis(glm::radians(f), glm::vec3(0, 0, 1));
+			finalPitch = pitchQuat * finalPitch;
+		}
 
-	node->matComponents.rotation = qPitchLocal * node->matComponents.rotation;
+		glm::quat finalGlobal = finalPitch * finalYaw;
+
+		glm::mat4 parentWorldMat = node->parent ? getNodeMatrix(node->parent) : glm::mat4(1.0f);
+		glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
+		glm::quat qRotLocal = glm::inverse(parentWorldRot) * finalGlobal * parentWorldRot;
+
+		node->queuedQuatRotation = qRotLocal;
+
+		node->queuedPitchShifts.clear();
+		node->queuedYawShifts.clear();
+	}
+	for (auto& node : { spine, spine003, upperArmL, upperArmR, spine005 }) {
+		node->matComponents.rotation = node->queuedQuatRotation * node->matComponents.rotation;
+	}
 }
 
-void AnimationStateMachine::applyGlobalYawShift(gltfNode* node, float degrees)
-{
-	glm::mat4 parentWorldMat = node->parent ? getNodeMatrix(node->parent) : glm::mat4(1.0f);
-
-	glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
-	glm::quat qYawGlobal = glm::angleAxis(glm::radians(degrees), glm::vec3(0, -1, 0));
-	glm::quat qYawLocal = glm::inverse(parentWorldRot) * qYawGlobal * parentWorldRot;
-
-	node->matComponents.rotation = qYawLocal * node->matComponents.rotation;
-}
-
-void AnimationStateMachine::updateFromPlayerState(float pitch, float yaw, float alpha) {
+void AnimationStateMachine::updateFromPlayerState(float pitch, float yaw, float alpha, bool isMoving) {
 	glm::quat trueAngleQuat = glm::slerp(prevBasisRotation, basisRotation, alpha);
 	float bodyAngle = yawFromQuaternion(trueAngleQuat);
 
-	applyGlobalYawShift(spine, bodyAngle);
+	spine->queuedYawShifts.push_back(bodyAngle);
 
-	glm::quat yawQuaternion = glm::angleAxis(glm::radians(yaw), glm::vec3(0, 1, 0));
+	if (!isMoving) {
+		glm::quat yawQuaternion = glm::angleAxis(glm::radians(yaw), glm::vec3(0, 1, 0));
 
-	// get delta quaternion
-	glm::quat delta = yawQuaternion * glm::inverse(trueAngleQuat);
-	float deltaAngle = yawFromQuaternion(delta);
+		// get delta quaternion
+		glm::quat delta = yawQuaternion * glm::inverse(trueAngleQuat);
+		float deltaAngle = yawFromQuaternion(delta);
 
-	if (deltaAngle < -90.f) {
-		turnLeft();
-		turnState = NEEDS_TURN_LEFT;
+		if (deltaAngle < -120.f) {
+			turn(yaw);
+			turnState = NEEDS_TURN_LEFT;
+			delta = yawQuaternion * glm::inverse(basisRotation);
+			deltaAngle = yawFromQuaternion(delta);
+		}
+		else if (deltaAngle > 120.f) {
+			turn(yaw);
+			turnState = NEEDS_TURN_RIGHT;
+			delta = yawQuaternion * glm::inverse(basisRotation);
+			deltaAngle = yawFromQuaternion(delta);
+		}
+
+		spine003->queuedYawShifts.push_back(deltaAngle);
 	}
-	else if (deltaAngle > 90.f) {
-		turnRight();
-		turnState = NEEDS_TURN_RIGHT;
-	}
-
-	applyGlobalYawShift(spine003, deltaAngle);
 
 	for (auto& node : { upperArmL, upperArmR, spine005 }) {
-		applyGlobalPitchShift(node, pitch);
+		node->queuedPitchShifts.push_back(pitch);
 	}
+
+	flushQueuedNodeTransforms(); // flush all at once so that rotations do not cause weird interactions with each other
 }
 
 void AnimationStateMachine::updateSamplers(Animation* animation, AnimationChannel* channel) {
@@ -248,6 +264,7 @@ void AnimationStateMachine::updateAnimationState(float deltaTime, float motionFB
 			currentLowerBodyAnim = runningAnimation;
 			motionState = MOVING;
 		}
+		setNewBasis(yaw);
 	}
 
 	currentLowerBodyAnim->currentTime += deltaTime;
@@ -269,6 +286,6 @@ void AnimationStateMachine::updateAnimationState(float deltaTime, float motionFB
 	updateUpperAnimation(deltaTime);
 	updateLowerAnimation(deltaTime);
 
-	updateFromPlayerState(pitch, yaw, alpha);
+	updateFromPlayerState(pitch, yaw, alpha, playerInMotion);
 }
 
