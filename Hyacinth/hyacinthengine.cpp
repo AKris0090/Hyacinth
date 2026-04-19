@@ -890,7 +890,6 @@ void HyacinthEngine::drawImGui() {
 
     std::stringstream s;
     AnimationStateMachine& anim = m_scene.dynamicObjects[0].animStateMachine;
-    s << anim.lbrState << ", " << anim.yawDelta;
     switch (anim.motionState) {
     case MOVING:
         s << ", MOVING";
