@@ -63,8 +63,6 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
         ClientRequestConnectionPacket p;
         p.fromString(std::string(recvbuf));
 
-        newClient->clientAddr.sin_port = htons(p.port);
-
         ClientRequestConnectionPacket response;
         response.port = newClient->id;
         response.tick = currentTick;
@@ -130,8 +128,6 @@ void serverListenForClients(SOCKET* tcpSocket) {
         ServersideClient* newClient = new ServersideClient();
         newClient->id = currentClientID;
         newClient->entity.id = currentClientID;
-        newClient->clientAddr = clientAddr;
-        newClient->clientAddrLen = clientAddrSize;
         newClient->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
         std::thread newClientThread(handleNewClient, clientSocket, newClient);
@@ -181,6 +177,17 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         }
 
         recvBuff[bytesReceived] = '\0';
+        size_t found = std::string(recvBuff).find("tryping");
+        if (found != std::string::npos) {
+            Event e;
+            e.eventType = SERVER_EVENT::CLIENT_UPDATE_ADDR;
+            e.clientID = std::stoi(std::string(recvBuff).substr(found + 7));
+            e.clientAddr = clientAddr;
+            e.clientAddrSize = clientAddrSize;
+            serverEvents.push(e);
+            continue;
+        }
+
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
         std::unique_lock l(bufferedClientPacketMutex);
         bufferedClientPackets.push(p);
@@ -258,6 +265,13 @@ void updateTick() {
             case SERVER_EVENT::CLIENT_DISCONNECT:
                 entityManager.clients.erase(e.clientID);
                 break;
+            case SERVER_EVENT::CLIENT_UPDATE_ADDR:
+                entityManager.clients[e.clientID]->clientAddr = e.clientAddr;
+                entityManager.clients[e.clientID]->clientAddrLen = e.clientAddrSize;
+                entityManager.clients[e.clientID]->addressSet = true;
+                
+                sendto(serverSendSocket, "pong", 4, 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
+                break;
             default:
                 break;
             }
@@ -270,6 +284,10 @@ void updateTick() {
                 ClientUpdatePacket p = bufferedClientPackets.front();
                 if (entityManager.clients.find(p.id) != entityManager.clients.end()) {
                     auto& client = entityManager.clients[p.id];
+
+                    if (!client->addressSet) {
+
+                    }
 
                     if (!client->tickOffsetSet) {
                         client->tickBasis = currentTick + SERVER_INPUT_BUFFER; // reducing jitter for packets arriving at server
@@ -299,10 +317,9 @@ void updateTick() {
             p->entities.push_back(client->entity);
         }
         for (const auto& [id, client] : entityManager.clients) {
+            if (!client->addressSet) continue;
             p->processedTickNum = currentTick - client->tickBasis;
-            if (client->tickBasis > currentTick) {
-                continue;
-            }
+            if (client->tickBasis > currentTick) continue;
             std::string packetString = p->toString();
             sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }

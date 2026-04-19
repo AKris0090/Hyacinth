@@ -58,4 +58,5 @@ public:
 	void updatePhysicsServer(EntityManager* entityManager);
 	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime);
 	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
+	void addNetworkEntityCapsuleCollider(uint32_t cId);
 };
