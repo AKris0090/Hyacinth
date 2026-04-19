@@ -3,47 +3,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "tangentHelper.h"
 
-static void generateTangents(gltfPrimitive* p, SMikkTSpaceContext& mikktContext) {
-    //UNPACK VERTICES
-    std::vector<Vertex> unpacked(p->indices.size());
-    uint32_t newInd = 0;
-    for (uint32_t index : p->indices) {
-        unpacked[newInd] = p->vertices[static_cast<std::vector<Vertex, std::allocator<Vertex>>::size_type>(index)];
-        newInd++;
-    }
-    p->vertices = std::move(unpacked);
-    p->indices.clear();
-
-    // GEN TANGENT SPACE
-    MikkTSpaceHelper::MikkTContext context{ p };
-    mikktContext.m_pUserData = &context;
-    genTangSpaceDefault(&mikktContext);
-
-    //WELD VERTICES
-    p->indices.clear();
-    p->indices.reserve(p->vertices.size());
-    std::unordered_map<Vertex, uint32_t> uniqueVertices;
-
-    size_t oldVertexCount = p->vertices.size();
-    uint32_t postTVertexCount = 0;
-    for (size_t i = 0; i < oldVertexCount; ++i) {
-        Vertex v = p->vertices[i];
-
-        auto index = uniqueVertices.find(v);
-        if (index == uniqueVertices.end()) {
-            uint32_t vertIndex = postTVertexCount;
-            postTVertexCount++;
-            uniqueVertices.insert(std::make_pair(v, vertIndex));
-            p->vertices[vertIndex] = v;
-            p->indices.push_back(vertIndex);
-        }
-        else {
-            p->indices.push_back(index->second);
-        }
-    }
-    p->vertices.resize(postTVertexCount);
-}
-
 AABB getBoundingBox(std::vector<Vertex>& vertices) {
     AABB bounds;
     bounds.min = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
@@ -54,42 +13,81 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
     return bounds;
 }
 
-static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
+void gltfObject::updateJoints(gltfNode* node)
+{
+    if (node->skinIndex > -1)
+    {
+        glm::mat4              inverseTransform = glm::inverse(getNodeMatrix(node));
+        Skin&                  skin = skins[node->skinIndex];
+        size_t                 numJoints = (uint32_t)skin.joints.size();
+        std::vector<glm::mat4> finalJointMatrices(numJoints);
+        for (size_t i = 0; i < numJoints; i++)
+        {
+            finalJointMatrices[i] = inverseTransform * (getNodeMatrix(skin.joints[i]) * skin.inverseBindMatrices[i]);
+        }
+
+        memcpy(skin.jointMatrixBuffer.pMappedData, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
+    }
+
+    for (auto& child : node->children)
+    {
+        updateJoints(child);
+    }
+}
+
+static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, uint32_t nodeIndex, gltfNode* parent, std::vector<gltfNode*>& parentNodes) {
     SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
 
-    auto node = std::make_unique<gltfNode>();
-    node->parentIndex = parent;
+    auto node = new gltfNode();
+    node->parent = parent;
+    node->index = nodeIndex;
+    node->skinIndex = nodeIn.skin;
 	node->includeInAccel = includeInAccel;
     node->dynamic = dynamic;
 
     if (nodeIn.matrix.size() == 16) {
-        node->worldTransform = glm::make_mat4x4(nodeIn.matrix.data());
+        glm::mat4 m = glm::make_mat4x4(nodeIn.matrix.data());
+        node->worldTransform = m;
+        
+        // decompose for matComponents
+        glm::vec3 translation = glm::vec3(m[3]);
+        glm::vec3 scale;
+        scale.x = glm::length(glm::vec3(m[0]));
+        scale.y = glm::length(glm::vec3(m[1]));
+        scale.z = glm::length(glm::vec3(m[2]));
+
+        glm::mat4 rotMat = m;
+        if (scale.x != 0.0f) rotMat[0] /= scale.x;
+        if (scale.y != 0.0f) rotMat[1] /= scale.y;
+        if (scale.z != 0.0f) rotMat[2] /= scale.z;
+
+        glm::quat rotation = glm::quat_cast(rotMat);
+
+        node->matComponents.position = translation;
+        node->matComponents.rotation = rotation;
+        node->matComponents.scale = scale;
     }
     else {
         if (nodeIn.translation.size() == 3) {
-            node->worldTransform = glm::translate(node->worldTransform, glm::vec3(glm::make_vec3(nodeIn.translation.data())));
+            glm::vec3 translation = glm::make_vec3(nodeIn.translation.data());
+            node->worldTransform = glm::translate(node->worldTransform, translation);
+            node->matComponents.position = translation;
         }
         if (nodeIn.rotation.size() == 4) {
             glm::quat q = glm::make_quat(nodeIn.rotation.data());
             node->worldTransform *= glm::mat4(q);
+            node->matComponents.rotation = q;
         }
         if (nodeIn.scale.size() == 3) {
-            node->worldTransform = glm::scale(node->worldTransform, glm::vec3(glm::make_vec3(nodeIn.scale.data())));
+            glm::vec3 scale = glm::make_vec3(nodeIn.scale.data());
+            node->worldTransform = glm::scale(node->worldTransform, scale);
+            node->matComponents.scale = scale;
         }
-    }
-
-    uint32_t nodeIndex = obj.nodeCounter++;
-    obj.nodes.push_back(std::move(node));
-
-    gltfNode* nodePtr = obj.nodes[nodeIndex].get();
-    if (parent >= 0) {
-        obj.nodes[parent]->childrenIndices.push_back(nodeIndex);
-        nodePtr->worldTransform = obj.nodes[parent]->worldTransform * nodePtr->worldTransform;
     }
 
     if (nodeIn.children.size() > 0) {
         for (size_t i = 0; i < nodeIn.children.size(); i++) {
-            loadGLTFNode(obj, includeInAccel, dynamic, model, model->nodes[nodeIn.children[i]], nodeIndex);
+            loadGLTFNode(obj, includeInAccel, dynamic, model, model->nodes[nodeIn.children[i]], nodeIn.children[i], node, parentNodes);
         }
     }
 
@@ -97,10 +95,10 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
         const tinygltf::Mesh mesh = model->meshes[nodeIn.mesh];
         for (size_t i = 0; i < mesh.primitives.size(); i++) {
             const tinygltf::Primitive& gltfPrim = mesh.primitives[i];
-			auto prim = std::make_unique<gltfPrimitive>();
-			nodePtr->primitives.push_back(std::move(prim));
-			gltfPrimitive* p = obj.nodes[nodeIndex]->primitives.back().get();
+			auto p = new gltfPrimitive();
+			node->primitives.push_back(std::move(p));
             p->materialIndex = gltfPrim.material;
+            bool hasSkin = false;
 
             uint32_t currentNumIndices = 0;
             uint32_t currentNumVertices = 0;
@@ -110,6 +108,8 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
             const float* normalsBuff = nullptr;
             const float* uvBuff = nullptr;
             const float* tangentsBuff = nullptr;
+            const void* jointIndicesBuffer = nullptr;
+            const float* jointWeightsBuffer = nullptr;
 
             if (gltfPrim.attributes.find("POSITION") != gltfPrim.attributes.end()) {
                 const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("POSITION")->second];
@@ -132,6 +132,22 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
                 const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
                 tangentsBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
             }
+            int jointType;
+            if (gltfPrim.attributes.find("JOINTS_0") != gltfPrim.attributes.end())
+            {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("JOINTS_0")->second];
+                jointType = accessor.componentType;
+                const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
+                jointIndicesBuffer = reinterpret_cast<const void*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+            }
+            if (gltfPrim.attributes.find("WEIGHTS_0") != gltfPrim.attributes.end())
+            {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("WEIGHTS_0")->second];
+                const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
+                jointWeightsBuffer = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+            }
+
+            hasSkin = (jointIndicesBuffer && jointWeightsBuffer);
 
             for (size_t vert = 0; vert < currentNumVertices; vert++) {
                 Vertex v{};
@@ -142,6 +158,28 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
                 v.pos = glm::vec4(glm::make_vec3(&positionBuff[vert * 3]), uv.x);
                 v.normal = glm::vec4(normal, uv.y);
                 v.tangent = tangentsBuff ? glm::make_vec4(&tangentsBuff[vert * 4]) : glm::vec4(0.0f);
+
+                if (hasSkin) {
+                    switch (jointType) {
+                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
+                        const uint16_t* buffer = static_cast<const uint16_t*>(jointIndicesBuffer);
+                        v.jointIndices = glm::vec4(glm::make_vec4(&buffer[vert * 4]));
+                        break;
+                    }
+                    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: {
+                        const uint8_t* buffer = static_cast<const uint8_t*>(jointIndicesBuffer);
+                        v.jointIndices = glm::vec4(glm::make_vec4(&buffer[vert * 4]));
+                        break;
+                    }
+                    default:
+                        std::cout << "Joint component type not supported" << std::endl;
+                        break;
+                    }
+                }
+                else {
+                    v.jointIndices = glm::vec4(0.0f);
+                }
+                v.jointWeights = hasSkin ? glm::make_vec4(&jointWeightsBuffer[vert * 4]) : glm::vec4(0.0f);
                 p->vertices.push_back(v);
             }
 
@@ -181,6 +219,14 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
             }
         }
     }
+
+    if (parent) {
+        parent->children.push_back(node);
+    }
+    else {
+        parentNodes.push_back(node);
+    }
+    obj.allNodes.push_back(node);
 }
 
 void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat format, uint32_t imageIndex) {
@@ -260,7 +306,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     const tinygltf::Scene& scene = model->scenes[model->defaultScene];
     for (size_t i = 0; i < scene.nodes.size(); i++) {
         const tinygltf::Node node = model->nodes[scene.nodes[i]];
-        loadGLTFNode(object, includeInAccel, dynamic, model, node, -1);
+        loadGLTFNode(object, includeInAccel, dynamic, model, node, -1, nullptr, object.parentNodes);
     }
 
     object.textureIndices.resize(model->textures.size());
@@ -288,6 +334,61 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     for (uint32_t i = 0; i < model->images.size(); i++) {
         VkFormat format = (object.imageIsSRGB->find(i) == object.imageIsSRGB->end()) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
         loadTexture(object, model, format, i);
+    }
+
+    Skin::loadSkins(model, object.parentNodes, object.skins);
+    Animation::loadAnimations(model, object.parentNodes, object.animations);
+
+    // TODO: change this because first person model can be animated as well
+    if (object.animations.size() > 0) {
+        object.animStateMachine.idleAnimation = &object.animations[0];
+        object.animStateMachine.runningAnimation = &object.animations[1];
+        object.animStateMachine.leftTurnAnimation = &object.animations[2];
+        object.animStateMachine.rightTurnAnimation = &object.animations[2];
+
+        object.animStateMachine.currentUpperBodyAnim = object.animStateMachine.idleAnimation;
+        object.animStateMachine.currentLowerBodyAnim = object.animStateMachine.idleAnimation;
+    }
+
+    for (auto& skin : object.skins) {
+        size_t skinJointMatrixSize = skin.joints.size() * sizeof(glm::mat4);
+        skin.jointMatrixBuffer = vkdeviceutils::createBuffer(skinJointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
+    }
+
+    if (object.skins.size() >= 1) {
+        tinygltf::Skin glTFSkin = model->skins[0];
+        for (int j = 0; j < glTFSkin.joints.size(); j++) {
+            int jointIndex = glTFSkin.joints[j];
+            if (model->nodes[jointIndex].name == "spine.005") {
+                object.animStateMachine.spine005 = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "upper_arm.L") {
+                object.animStateMachine.upperArmL = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "upper_arm.R") {
+                object.animStateMachine.upperArmR = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "spine.007") {
+                object.animStateMachine.spine007 = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "spine.003") {
+                object.animStateMachine.spine003 = nodeFromIndex(object.allNodes, jointIndex);
+            } else if (model->nodes[jointIndex].name == "spine") {
+                object.animStateMachine.spine = nodeFromIndex(object.allNodes, jointIndex);
+                object.animStateMachine.spineDefaultRot = object.animStateMachine.spine->matComponents.rotation;
+                object.animStateMachine.spine->lowerBody = true;
+            }
+        }
+        for (auto& node : object.allNodes) {
+            if (isParentOf(node, object.animStateMachine.spine003)) {
+                node->upperBody = true;
+            }
+            else if (isParentOf(node, object.animStateMachine.spine007)) {
+                node->lowerBody = true;
+            }
+        }
+
+    }
+     
+    for (auto node : object.parentNodes)
+    {
+        object.updateJoints(node);
     }
 
 	delete model;
@@ -335,12 +436,12 @@ void SceneGraph::buildNodeBuffers(gltfNode* node) {
 void addUnitCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
     auto cubePath = vkdebugutils::getExeDir() / "objects" / "cube.glb";
     gltfObject boxObject = gltfutils::loadFromFile(cubePath.string(), false);
-    gltfNode* node = boxObject.nodes[0].get();
+    gltfNode* node = boxObject.allNodes[0];
     for (const auto& p : node->primitives) {
-        for (const auto& v : p.get()->vertices) {
+        for (const auto& v : p->vertices) {
             node->vertices.push_back(v);
         }
-        for (const auto& index : p.get()->indices) {
+        for (const auto& index : p->indices) {
             node->indices.push_back(index);
         }
     }
@@ -370,26 +471,26 @@ void SceneGraph::buildSceneGraph() {
     for (const auto& obj : combinedObjects) {
         obj->firstMatrix = obj->dynamic ? dynamicTransformMatrices.size() : staticTransformMatrices.size();
         uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
-        for (const auto& node: obj->nodes) {
+        for (const auto& node: obj->allNodes) {
             if (obj->dynamic) {
-                dynamicTransformMatrices.push_back(node.get()->worldTransform);
+                dynamicTransformMatrices.push_back(node->worldTransform);
             }
             else {
-                staticTransformMatrices.push_back(node.get()->worldTransform);
+                staticTransformMatrices.push_back(node->worldTransform);
             }
             obj->numMatrices++;
-            for (const auto& prim : node.get()->primitives) {
+            for (const auto& prim : node->primitives) {
                 uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
                 uint32_t firstIndex = static_cast<uint32_t>(indices.size());
-				uint32_t matIndex = prim.get()->materialIndex + mat_offset;
+				uint32_t matIndex = prim->materialIndex + mat_offset;
 
                 gltfDrawCommand draw{};
                 draw.isCharacter = obj->isCharacter;
                 draw.dynamic = obj->dynamic;
                 draw.firstIndex = firstIndex;
-                draw.indexCount = static_cast<uint32_t>(prim.get()->indices.size());
-                draw.vertexCount = prim.get()->vertices.size();
-                draw.boundingBox = getBoundingBox(prim.get()->vertices);
+                draw.indexCount = static_cast<uint32_t>(prim->indices.size());
+                draw.vertexCount = prim->vertices.size();
+                draw.boundingBox = getBoundingBox(prim->vertices);
                 if (obj->dynamic) {
                     draw.transformIndex = dynamicTransformMatrices.size() - 1;
                 }
@@ -397,20 +498,20 @@ void SceneGraph::buildSceneGraph() {
                     draw.transformIndex = staticTransformMatrices.size() - 1;
                 }
 
-                for (const auto& v : prim.get()->vertices) {
+                for (const auto& v : prim->vertices) {
                     vertices.push_back(v);
                 }
-                for (const auto& index : prim.get()->indices) {
+                for (const auto& index : prim->indices) {
                     indices.push_back(index + firstVertex);
 				}
 
                 // acceleration structure-specific
-                uint32_t nodeVertOffset = node.get()->vertices.size();
-                for (const auto& v : prim.get()->vertices) {
-                    node.get()->vertices.push_back(v);
+                uint32_t nodeVertOffset = node->vertices.size();
+                for (const auto& v : prim->vertices) {
+                    node->vertices.push_back(v);
                 }
-                for (const auto& i : prim.get()->indices) {
-                    node.get()->indices.push_back(i + nodeVertOffset);
+                for (const auto& i : prim->indices) {
+                    node->indices.push_back(i + nodeVertOffset);
                 }
 
                 sortedDrawCalls[matIndex].push_back(draw);
@@ -422,7 +523,7 @@ void SceneGraph::buildSceneGraph() {
             }
 
             // for acceleration structures
-            buildNodeBuffers(node.get());
+            buildNodeBuffers(node);
 		}
         
         for (const auto& mat : obj->materials) {
@@ -506,4 +607,14 @@ void SceneGraph::uploadTextures(VkDescriptorSet& descriptor) {
         }
     }
 	vkdescriptorutils::flushDescriptorWrites();
+}
+
+void gltfObject::updateAnimation(Entity* e, float deltaTime, uint32_t currentBuffer)
+{
+    animStateMachine.updateAnimationState(deltaTime, e->isMoving ? 1.f : 0.f, 0.f, lookDirectionPitch, lookDirectionYaw);
+
+    for (auto& node : parentNodes)
+    {
+        updateJoints(node);
+    }
 }

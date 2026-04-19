@@ -3,12 +3,12 @@
 void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkDescriptorSetLayout& irradianceVisSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples) {
 	auto spherePath = vkdebugutils::getExeDir() / "objects" / "sphere.glb";
 	sphereObject = gltfutils::loadFromFile(spherePath.string(), false);
-	gltfNode* node = sphereObject.nodes[0].get();
+	gltfNode* node = sphereObject.allNodes[0];
 	for (const auto& p : node->primitives) {
-		for (const auto& v : p.get()->vertices) {
+		for (const auto& v : p->vertices) {
 			node->vertices.push_back(v);
 		}
-		for (const auto& index : p.get()->indices) {
+		for (const auto& index : p->indices) {
 			node->indices.push_back(index);
 		}
 	}

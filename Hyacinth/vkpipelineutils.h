@@ -51,10 +51,12 @@ public:
 	void enableDepthTest(bool depthWrite, VkCompareOp op);
     void setDefaultAttributes();
     void setPositionAttribute();
+    void setAnimatedAttribute();
     void destroyPipeline();
 
 private:
-    bool depthPass;
+    bool depthPass = false;
+    bool animated = false;
 };
 
 namespace vkpipelineutils {

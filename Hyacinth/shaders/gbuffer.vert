@@ -7,6 +7,8 @@
 layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
+layout  (location = 3) in vec4 jointIndex;
+layout  (location = 4) in vec4 jointWeight;
 
 layout	(location = 0) flat out int colorSamplerIndex;
 layout	(location = 1) flat out int normalSamplerIndex;
@@ -32,21 +34,41 @@ layout( push_constant ) uniform constants
 	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
     VolumeDataBuffer volumeDataBuffer;
+	JointMatricesBuffer jmBuffer;
     int volumeIndex;
+	uint isAnimated;
 } pc;
 
 void main() 
 {
+	vec4 position = vec4(inPosition.xyz, 1.0);
+	vec4 normal = vec4(inNormal.xyz, 1.0);
+	vec4 tangent = inTangent;
+
+	if (pc.isAnimated != 0u) {
+		mat4 skinMatrix =
+		    jointWeight.x * pc.jmBuffer.jointMatrices[int(jointIndex.x)] +
+		    jointWeight.y * pc.jmBuffer.jointMatrices[int(jointIndex.y)] +
+		    jointWeight.z * pc.jmBuffer.jointMatrices[int(jointIndex.z)] +
+		    jointWeight.w * pc.jmBuffer.jointMatrices[int(jointIndex.w)];
+	
+		position = vec4((skinMatrix * position).xyz, 1.0);
+	
+		mat3 skinMatrix3 = mat3(skinMatrix);
+		normal.xyz = skinMatrix3 * normal.xyz;
+		tangent.xyz = skinMatrix3 * tangent.xyz;
+	}
+
 	DrawData draw = pc.drawDataBuffer.draws[gl_InstanceIndex];
 	mat4 model = pc.transformBuffer.model[draw.transformIndex];
-	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0f);
+	gl_Position = ubo.proj * ubo.view * model * position;
 
-	fragPos = model * vec4(inPosition.xyz, 1.0);
+	fragPos = model * position;
 
-	vec4 biTangent = vec4(normalize(cross(inNormal.xyz, inTangent.xyz)), 0.0);
-	vec3 T = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));
+	vec4 biTangent = vec4(normalize(cross(normal.xyz, tangent.xyz)), 0.0);
+	vec3 T = normalize(vec3(model * vec4(tangent.xyz, 0.0)));
 	vec3 B = normalize(vec3(model * biTangent));
-	vec3 N = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));
+	vec3 N = normalize(vec3(model * vec4(normal.xyz, 0.0)));
 	TBNMatrix = mat3(T, B, N);
 
 	Material mat = pc.materialBuffer.mats[draw.materialIndex];
@@ -56,7 +78,7 @@ void main()
 	metalRoughSamplerIndex = mat.metalRoughIndex;
 
 	viewPos = (ubo.view * vec4(fragPos.xyz, 1.0));
-	outNormal = inNormal;
+	outNormal = normal;
 
 	outUV.x		= inPosition.w;
 	outUV.y		= inNormal.w;

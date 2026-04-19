@@ -314,7 +314,7 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 	std::vector<DDGIVertex> vertices;
 	std::vector<uint32_t> indices;
 	for (const auto& object : m_scene.staticObjects) {
-		for (const auto& node : object.nodes) {
+		for (const auto& node : object.allNodes) {
 			if (!node->includeInAccel) continue;
 
 			uint32_t startIndex = static_cast<uint32_t>(vertices.size());
