@@ -372,6 +372,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
             } else if (model->nodes[jointIndex].name == "spine") {
                 object.animStateMachine.spine = nodeFromIndex(object.allNodes, jointIndex);
                 object.animStateMachine.spineDefaultRot = object.animStateMachine.spine->matComponents.rotation;
+                object.animStateMachine.spine->lowerBody = true;
             }
         }
         for (auto& node : object.allNodes) {

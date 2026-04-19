@@ -213,7 +213,6 @@ void AnimationStateMachine::updateSamplers(Animation* animation, AnimationChanne
 			}
 		}
 	}
-	spine->matComponents.rotation = spineDefaultRot;
 }
 
 void AnimationStateMachine::updateUpperAnimation(float deltaTime) {
