@@ -147,29 +147,12 @@ void AnimationStateMachine::flushQueuedNodeTransforms() {
 void AnimationStateMachine::updateFromPlayerState(float pitch, float yaw, float alpha, bool isMoving) {
 	glm::quat trueAngleQuat = glm::slerp(prevBasisRotation, basisRotation, alpha);
 	float bodyAngle = yawFromQuaternion(trueAngleQuat);
-
 	spine->queuedYawShifts.push_back(bodyAngle);
 
 	if (!isMoving) {
-		glm::quat yawQuaternion = glm::angleAxis(glm::radians(yaw), glm::vec3(0, 1, 0));
-
-		// get delta quaternion
+		glm::quat yawQuaternion = glm::angleAxis(glm::radians(yaw), glm::vec3(0, 1, 0));	
 		glm::quat delta = yawQuaternion * glm::inverse(trueAngleQuat);
 		float deltaAngle = yawFromQuaternion(delta);
-
-		if (deltaAngle < -120.f) {
-			turn(yaw);
-			turnState = NEEDS_TURN_LEFT;
-			delta = yawQuaternion * glm::inverse(basisRotation);
-			deltaAngle = yawFromQuaternion(delta);
-		}
-		else if (deltaAngle > 120.f) {
-			turn(yaw);
-			turnState = NEEDS_TURN_RIGHT;
-			delta = yawQuaternion * glm::inverse(basisRotation);
-			deltaAngle = yawFromQuaternion(delta);
-		}
-
 		spine003->queuedYawShifts.push_back(deltaAngle);
 	}
 
@@ -237,20 +220,27 @@ void AnimationStateMachine::updateAnimationState(float deltaTime, float motionFB
 		playerInMotion = true;
 	}
 
-	float alpha = 1.f;
 	if (!playerInMotion) {
-		if (turnState == NEEDS_TURN_LEFT) {
-			currentLowerBodyAnim = leftTurnAnimation;
-			leftTurnAnimation->currentTime = leftTurnAnimation->start;
-			turnState = TURNING;
-		}
-		else if (turnState == NEEDS_TURN_RIGHT) {
-			currentLowerBodyAnim = rightTurnAnimation;
-			rightTurnAnimation->currentTime = rightTurnAnimation->start;
-			turnState = TURNING;
-		}
-		else {
-			if (motionState == MOVING) {
+		if (turnState == IDLE || turnState == TURNING) {
+			glm::quat yawQuaternion = glm::angleAxis(glm::radians(yaw), glm::vec3(0, 1, 0));
+
+			// get delta quaternion
+			glm::quat delta = yawQuaternion * glm::inverse(basisRotation);
+			float deltaAngle = yawFromQuaternion(delta);
+
+			if (deltaAngle < -90.f) {
+				turn(yaw);
+				currentLowerBodyAnim = leftTurnAnimation;
+				leftTurnAnimation->currentTime = leftTurnAnimation->start;
+				turnState = TURNING;
+			}
+			else if (deltaAngle > 90.f) {
+				turn(yaw);
+				currentLowerBodyAnim = rightTurnAnimation;
+				rightTurnAnimation->currentTime = rightTurnAnimation->start;
+				turnState = TURNING;
+			}
+			else if (motionState == MOVING) {
 				currentLowerBodyAnim = idleAnimation;
 				idleAnimation->currentTime = idleAnimation->start;
 				motionState = STILL;
@@ -261,6 +251,7 @@ void AnimationStateMachine::updateAnimationState(float deltaTime, float motionFB
 		if (motionState != MOVING) {
 			runningAnimation->currentTime = runningAnimation->start;
 			currentLowerBodyAnim = runningAnimation;
+			currentUpperBodyAnim = runningAnimation;
 			motionState = MOVING;
 		}
 		setNewBasis(yaw);
@@ -270,14 +261,17 @@ void AnimationStateMachine::updateAnimationState(float deltaTime, float motionFB
 	if (currentLowerBodyAnim == rightTurnAnimation || currentLowerBodyAnim == leftTurnAnimation) {
 		if (currentLowerBodyAnim->currentTime >= currentLowerBodyAnim->end) {
 			currentLowerBodyAnim = idleAnimation;
-			currentLowerBodyAnim->currentTime = 0.f;
+			currentLowerBodyAnim->currentTime = currentLowerBodyAnim->start;
 			turnState = IDLE;
 		}
 	}
 	currentLowerBodyAnim->currentTime = fmod(currentLowerBodyAnim->currentTime, currentLowerBodyAnim->end);
-	currentUpperBodyAnim->currentTime += deltaTime;
-	currentUpperBodyAnim->currentTime = fmod(currentUpperBodyAnim->currentTime, currentUpperBodyAnim->end);
+	if (currentLowerBodyAnim != currentUpperBodyAnim) {
+		currentUpperBodyAnim->currentTime += deltaTime;
+		currentUpperBodyAnim->currentTime = fmod(currentUpperBodyAnim->currentTime, currentUpperBodyAnim->end);
+	}
 
+	float alpha = 1.f;
 	if (currentLowerBodyAnim == leftTurnAnimation || currentLowerBodyAnim == rightTurnAnimation) {
 		alpha = currentLowerBodyAnim->currentTime / currentLowerBodyAnim->end;
 	}

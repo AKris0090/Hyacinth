@@ -202,7 +202,6 @@ public:
 	RewindBuffer rB;
 	int tickOffset;
 
-
 	void setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID);
 	void update();
@@ -212,9 +211,11 @@ public:
 
 	void clearPendingPackets(Entity* self) {
 		while (!rB.pendingPackets.empty()) {
+			uint32_t checkTick = rB.ringBuffer.front().tickNum;
+
 			auto& pending = rB.pendingPackets.front();
 
-			if (pending.processedTickNum < rB.ringBuffer.front().tickNum) {
+			if (pending.processedTickNum < checkTick) {
 				rB.pendingPackets.pop();
 				continue;
 			}
