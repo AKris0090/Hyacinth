@@ -68,11 +68,7 @@ void PhysicsManager::initPhysics() {
 
 // TODO: add capsule colliders on client for physics preds
 // void PhysicsManager::addNetworkEntityCapsuleCollider(uint32_t cId) {
-// 	physx::PxCapsuleGeometry cap;
-// 	cap.radius = 0.5f;
-// 	cap.halfHeight = 0.5f;
-// 	physx::PxShape* capsuleShape = pPhysics->createShape(cap, *pMaterial);
-// 
+
 // }
 
 void PhysicsManager::addCharacterController(uint32_t cId) {

@@ -89,7 +89,13 @@ int main() {
 	std::string ip;
 	std::cout << "Enter server IP: ";
 	// std::getline(std::cin, ip);
-	if (CONNECT_SERVER) std::cout << (netClient.setup("192.168.1.12", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout) ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
+	if (CONNECT_SERVER) {
+		int res = netClient.setup("192.168.1.12", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
+		if (res > 0) {
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	thisEnt = netClient.netEntManager.self;

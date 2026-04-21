@@ -61,12 +61,8 @@ static float yawFromQuaternion(glm::quat q) {
 class AnimationStateMachine {
 private:
 	void setNewBasis(float basis) {
-		yawDelta = basis;
-		yawDelta = fmod(yawDelta, 360);
-		if (yawDelta < 0.f) {
-			yawDelta += 360.f;
-		}
-		basisRotation = glm::angleAxis(glm::radians(yawDelta), glm::vec3(0, 1, 0));
+		basis = fmod(basis, 360);
+		basisRotation = glm::angleAxis(glm::radians(basis), glm::vec3(0, 1, 0));
 	}
 
 	void turn(float absolute) {
@@ -104,7 +100,6 @@ public:
 	Animation* currentUpperBodyAnim;
 
 	CURRENT_PLAYER_MOTION_STATE motionState = STILL;
-	float yawDelta = 0.f;
 	glm::quat spineDefaultRot;
 
 	void updateFromPlayerState(float pitch, float yaw, float alpha, bool isMoving);
