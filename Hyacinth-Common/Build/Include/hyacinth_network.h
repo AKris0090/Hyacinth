@@ -102,6 +102,7 @@ struct ServersideClient {
 	uint64_t ping;
 	int clientAddrLen;
 	uint32_t tickBasis = 0;
+	uint32_t tickBasisOffset = SERVER_INPUT_BUFFER;
 	bool tickOffsetSet = false;
 	bool addressSet = false;
 
