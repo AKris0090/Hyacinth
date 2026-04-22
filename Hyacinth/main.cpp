@@ -88,9 +88,9 @@ int main() {
 	Entity* thisEnt;
 	std::string ip;
 	std::cout << "Enter server IP: ";
-	// std::getline(std::cin, ip);
+	std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
-		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		int res = netClient.setup(ip, hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
 		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 		if (res > 0) {
 			exit(EXIT_FAILURE);
