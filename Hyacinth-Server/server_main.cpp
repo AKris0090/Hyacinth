@@ -3,7 +3,6 @@
 #endif
 
 #define DEFAULT_PORT "6767"
-#define CLIENT_PORT "6769"
 #define PACKET_PORT "6969"
 
 #include <windows.h>
@@ -62,8 +61,6 @@ void handleNewClient(SOCKET socket, ServersideClient* newClient) {
         recvbuf[initialReq] = '\0';
         ClientRequestConnectionPacket p;
         p.fromString(std::string(recvbuf));
-
-        newClient->clientAddr.sin_port = htons(p.port);
 
         ClientRequestConnectionPacket response;
         response.port = newClient->id;
@@ -130,8 +127,6 @@ void serverListenForClients(SOCKET* tcpSocket) {
         ServersideClient* newClient = new ServersideClient();
         newClient->id = currentClientID;
         newClient->entity.id = currentClientID;
-        newClient->clientAddr = clientAddr;
-        newClient->clientAddrLen = clientAddrSize;
         newClient->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
         std::thread newClientThread(handleNewClient, clientSocket, newClient);
@@ -181,6 +176,17 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         }
 
         recvBuff[bytesReceived] = '\0';
+        size_t found = std::string(recvBuff).find("tryping");
+        if (found != std::string::npos) {
+            Event e;
+            e.eventType = SERVER_EVENT::CLIENT_UPDATE_ADDR;
+            e.clientID = std::stoi(std::string(recvBuff).substr(found + 7));
+            e.clientAddr = clientAddr;
+            e.clientAddrSize = clientAddrSize;
+            serverEvents.push(e);
+            continue;
+        }
+
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
         std::unique_lock l(bufferedClientPacketMutex);
         bufferedClientPackets.push(p);
@@ -231,16 +237,8 @@ void printPhysicsTick() {
     std::cout.flush();
 }
 
-void updateTick() {
+void updateTick(SOCKET* udpSendSocket) {
     SetThreadDescription(GetCurrentThread(), L"SimulationTick");
-
-    SOCKET serverSendSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    sockaddr_in sendAddr{};
-    sendAddr.sin_family = AF_INET;
-    sendAddr.sin_addr.s_addr = INADDR_ANY;
-    sendAddr.sin_port = htons(6769);
-    bind(serverSendSocket, (sockaddr*)&sendAddr, sizeof(sendAddr));
-
     auto epoch = std::chrono::steady_clock::now();
 
     while (true) {
@@ -258,6 +256,16 @@ void updateTick() {
             case SERVER_EVENT::CLIENT_DISCONNECT:
                 entityManager.clients.erase(e.clientID);
                 break;
+            case SERVER_EVENT::CLIENT_UPDATE_ADDR:
+                if (entityManager.clients.find(e.clientID) != entityManager.clients.end()) {
+                    entityManager.clients[e.clientID]->clientAddr = e.clientAddr;
+                    entityManager.clients[e.clientID]->clientAddrLen = e.clientAddrSize;
+                    entityManager.clients[e.clientID]->addressSet = true;
+
+                    sendto(*udpSendSocket, "pong", 4, 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
+                }
+
+                break;
             default:
                 break;
             }
@@ -271,8 +279,12 @@ void updateTick() {
                 if (entityManager.clients.find(p.id) != entityManager.clients.end()) {
                     auto& client = entityManager.clients[p.id];
 
+                    if (!client->addressSet) {
+
+                    }
+
                     if (!client->tickOffsetSet) {
-                        client->tickBasis = currentTick + SERVER_INPUT_BUFFER; // reducing jitter for packets arriving at server
+                        client->tickBasis = currentTick + client->tickBasisOffset; // reducing jitter for packets arriving at server
                         client->tickOffsetSet = true;
                     }
                     client->clientPacketBuffer.push(p);
@@ -299,12 +311,11 @@ void updateTick() {
             p->entities.push_back(client->entity);
         }
         for (const auto& [id, client] : entityManager.clients) {
+            if (!client->addressSet) continue;
             p->processedTickNum = currentTick - client->tickBasis;
-            if (client->tickBasis > currentTick) {
-                continue;
-            }
+            if (client->tickBasis > currentTick) continue;
             std::string packetString = p->toString();
-            sendto(serverSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
+            sendto(*udpSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
         currentSnapshot.store(p, std::memory_order_release);
 
@@ -415,7 +426,7 @@ int main()
     // listen on the udp thread
     std::thread udpSocketThread(serverListenForUDPPackets, &udpListenSocket);
 
-    std::thread tickThread(updateTick);
+    std::thread tickThread(updateTick, &udpListenSocket);
 
     std::thread watchdogThread(timeoutWatchdog);
 

@@ -51,7 +51,7 @@ static uint64_t getNowMs() {
 }
 
 struct ClientRequestConnectionPacket {
-	uint32_t port;
+	uint32_t port = 0;
 	uint32_t tick = 0;
 
 	std::string toString();
@@ -102,7 +102,9 @@ struct ServersideClient {
 	uint64_t ping;
 	int clientAddrLen;
 	uint32_t tickBasis = 0;
+	uint32_t tickBasisOffset = SERVER_INPUT_BUFFER;
 	bool tickOffsetSet = false;
+	bool addressSet = false;
 
 	void getPacketFor(uint32_t tickNum) {
 		ClientUpdatePacket prev{};
@@ -140,12 +142,15 @@ struct EntityManager {
 enum SERVER_EVENT {
 	CLIENT_JOIN,
 	CLIENT_DISCONNECT,
+	CLIENT_UPDATE_ADDR
 };
 
 struct Event {
 	SERVER_EVENT eventType;
 	uint32_t clientID;
 	ServersideClient* newClient;
+	sockaddr_in clientAddr;
+	int clientAddrSize;
 };
 
 template<typename T>

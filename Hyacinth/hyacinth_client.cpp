@@ -9,12 +9,22 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
     while (true) {
         int bytesReceived = recvfrom(udpReceiverSocket, recvBuff, sizeof(recvBuff) - 1, 0, NULL, NULL);
 
+        if (bytesReceived <= 0) {
+            if (errno == EWOULDBLOCK || errno == EAGAIN) {
+                std::cout << "network error, not receiving packets from server (last 5 seconds)" << std::endl;
+            }
+            continue;
+        }
+
         if (bytesReceived == SOCKET_ERROR) {
             std::cout << "recvfrom failed: " << WSAGetLastError() << std::endl;
             break;
         }
 
         recvBuff[bytesReceived] = '\0';
+        if (std::string(recvBuff) == "pong") {
+            continue;
+        }
 
         ServerSnapshot sp = ServerSnapshot::fromString(std::string(recvBuff));
 
@@ -195,6 +205,30 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     netEntManager.setupFromServerPacket(sp, clientID);
 
     std::cout << "my id is: " << clientID << std::endl;
+
+    struct timeval tv;
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+
+    if (setsockopt(udpReceiverSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv)) < 0) {
+        std::cout << "socket timeout set error" << std::endl;
+        return 1;
+    }
+
+    std::stringstream ss;
+    ss << "tryping" << clientID;
+    while (true) {
+        sendto(udpReceiverSocket, ss.str().c_str(), ss.str().length(), 0, (sockaddr*)&serverAddress, serverAddressLen);
+        std::cout << "SENT PING" << std::endl;
+
+        int res = recvfrom(udpReceiverSocket, entityBuff, entityBuffLen, 0, NULL, NULL);
+        if (res != 4) { // received should be "pong"
+            continue;
+        } 
+
+        std::cout << "SERVER ACK, starting now..." << std::endl;
+        break;
+    }
 
     connected = true;
 

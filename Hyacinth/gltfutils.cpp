@@ -344,7 +344,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
         object.animStateMachine.idleAnimation = &object.animations[0];
         object.animStateMachine.runningAnimation = &object.animations[1];
         object.animStateMachine.leftTurnAnimation = &object.animations[2];
-        object.animStateMachine.rightTurnAnimation = &object.animations[2];
+        object.animStateMachine.rightTurnAnimation = &object.animations[3];
 
         object.animStateMachine.currentUpperBodyAnim = object.animStateMachine.idleAnimation;
         object.animStateMachine.currentLowerBodyAnim = object.animStateMachine.idleAnimation;
