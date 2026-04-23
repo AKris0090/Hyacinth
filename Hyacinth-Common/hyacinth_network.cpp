@@ -10,7 +10,7 @@ std::string ClientUpdatePacket::toString() {
 		<< yaw << "," 
 		<< static_cast<int>(movementFB) << ","
 		<< static_cast<int>(movementLR) << ","
-		<< static_cast<int>(movementUD) << ",";
+		<< jump << ",";
 	return oss.str();
 }
 
@@ -25,7 +25,7 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	std::getline(es, field, ','); p.yaw = std::stof(field);
 	std::getline(es, field, ','); p.movementFB = std::stoi(field);
 	std::getline(es, field, ','); p.movementLR = std::stoi(field);
-	std::getline(es, field, ','); p.movementUD = std::stoi(field);
+	std::getline(es, field, ','); p.jump = std::stoi(field);
 
 	return p;
 }
@@ -98,5 +98,5 @@ void SimulateStruct::addPacket(ClientUpdatePacket pack) {
 	yaw = pack.yaw;
 	movementFB = pack.movementFB;
 	movementLR = pack.movementLR;
-	movementUD = pack.movementUD;
+	jump = pack.jump;
 }

@@ -65,7 +65,7 @@ struct ClientUpdatePacket {
 	float yaw = 0.f;
 	int8_t movementFB = 0;
 	int8_t movementLR = 0;
-	int8_t movementUD = 0;
+	bool jump = false;
 
 	std::string toString();
 	static ClientUpdatePacket fromString(std::string s);
@@ -82,13 +82,13 @@ struct SimulateStruct {
 	float yaw = 0.f;
 	int8_t movementFB = 0;
 	int8_t movementLR = 0;
-	int8_t movementUD = 0;
+	bool jump = false;
 
 	void addPacket(ClientUpdatePacket pack);
 	void reset() {
 		movementFB = 0;
 		movementLR = 0;
-		movementUD = 0;
+		jump = false;
 	}
 };
 

@@ -78,10 +78,16 @@ private:
 	glm::quat prevBasisRotation{ 1.f, 0.f, 0.f, 0.f };
 	glm::quat basisRotation{ 1.f, 0.f, 0.f, 0.f };
 
+	float						  fadeTimer = 0.f;
+	float						  fadeLength = 0.15f;
+	bool						  transitioning = false;
+
 	void flushQueuedNodeTransforms();
-	void updateSamplers(Animation* animation, AnimationChannel* channel);
-	void updateUpperAnimation(float deltaTime);
-	void updateLowerAnimation(float deltaTime);
+	void updateSamplers(Animation* animation, AnimationChannel* channel, Transform* t);
+	void updateUpperAnimation();
+	void updateLowerAnimation();
+	void updatePreviousWholeBodyAnimation();
+	void lerpPreviousCurrentAnimations();
 
 public:
 	gltfNode* upperArmL;    // left arm (pitch) controller
@@ -96,6 +102,9 @@ public:
 	Animation* idleAnimation;
 	Animation* runningAnimation;
 
+	std::vector<Transform> previousAnimationTransforms;
+	Animation* previousAnimation;
+
 	Animation* currentLowerBodyAnim;
 	Animation* currentUpperBodyAnim;
 
@@ -104,4 +113,5 @@ public:
 
 	void updateFromPlayerState(float pitch, float yaw, float alpha, bool isMoving);
 	void updateAnimationState(float deltaTime, float motionFB, float motionLR, float pitch, float yaw);
+	void transitionToNewAnimation(Animation* current, Animation* next);
 };

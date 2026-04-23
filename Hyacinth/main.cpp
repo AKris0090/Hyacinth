@@ -33,7 +33,7 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		p.tick = tickNum;
 		p.movementFB = netClient->netEntManager.inputAccumulator.movementFB;
 		p.movementLR = netClient->netEntManager.inputAccumulator.movementLR;
-		p.movementUD = netClient->netEntManager.inputAccumulator.movementUD;
+		p.jump = netClient->netEntManager.inputAccumulator.jump;
 
 		// update physics
 		engine->p_netEntManager->selfMutex.lock();
@@ -65,7 +65,6 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		std::this_thread::sleep_until(nextTick);
 
 		tickNum++;
-		// std::cout << tickNum << ", " << (netClient->netEntManager.rB.ringBuffer.empty() ? std::string("") : std::to_string(netClient->netEntManager.rB.ringBuffer[netClient->netEntManager.rB.ringBuffer.size() - 1].tickNum)) << std::endl;
 	}
 }
 
@@ -88,9 +87,9 @@ int main() {
 	Entity* thisEnt;
 	std::string ip;
 	std::cout << "Enter server IP: ";
-	std::getline(std::cin, ip);
+	// std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
-		int res = netClient.setup(ip, hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
 		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 		if (res > 0) {
 			exit(EXIT_FAILURE);
@@ -143,7 +142,7 @@ int main() {
 		p.id = netClient.netEntManager.self->id;
 		p.movementFB = m[0];
 		p.movementLR = m[1];
-		p.movementUD = m[2];
+		p.jump = InputManager::getSpaceButton();
 		p.pitch = mo.first;
 		p.yaw = mo.second;
 

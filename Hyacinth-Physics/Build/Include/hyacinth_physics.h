@@ -27,6 +27,8 @@
 
 using namespace physx;
 
+constexpr float JUMP_VELOCITY = 3.75f;
+
 class PhysicsManager {
 private:
 	bool recordMemoryAllocations = true;
@@ -48,6 +50,7 @@ private:
 public:
 	physx::PxScene* pScene = NULL;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
+	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
 	SPSCQueue<Event> physicsEventQueue;
 

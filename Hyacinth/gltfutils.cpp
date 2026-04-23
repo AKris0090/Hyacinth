@@ -383,7 +383,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
                 node->lowerBody = true;
             }
         }
-
+        object.animStateMachine.previousAnimationTransforms.resize(object.allNodes.size());
     }
      
     for (auto node : object.parentNodes)

@@ -13,3 +13,12 @@ struct Entity {
 	Transform transform;
 	bool isMoving = false;
 };
+
+struct PhysicsEnt {
+	float yVel = 0.f;
+	bool isGrounded = true;
+
+	float yPosAddVelocity(float yPos, float dT) {
+		return (yPos + (yVel * dT));
+	}
+};

@@ -65,6 +65,14 @@ struct Transform {
 		return t;
 	}
 
+	Transform lerpToNoSet(const Transform& other, float delta) {
+		Transform t;
+		t.position = glm::mix(position, other.position, delta);
+		t.rotation = glm::slerp(rotation, other.rotation, delta);
+		t.scale = glm::mix(scale, other.scale, delta);
+		return t;
+	}
+
 	Transform() {};
 	Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale) : position(position), rotation(rotation), scale(scale) {}
 };

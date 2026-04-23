@@ -77,10 +77,12 @@ void PhysicsManager::addCharacterController(uint32_t cId) {
 	}
 	physx::PxController* playerController = pCManager->createController(controllerDesc);
 	clientControllers[cId] = playerController;
+	clientPhysicsObjects[cId] = PhysicsEnt{};
 }
 
 void PhysicsManager::removeCharacterController(uint32_t cId) {
 	clientControllers[cId]->release();
+	clientPhysicsObjects.erase(cId);
 	clientControllers.erase(cId);
 }
 
@@ -178,6 +180,10 @@ void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& 
 }
 
 void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s) {
+	if (clientControllers.find(eId) == clientControllers.end()) {
+		return;
+	}
+
 	glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
 	glm::vec3 flatForward = glm::normalize(glm::vec3(t.forward.x, 0.0f, t.forward.z));
 	glm::vec3 flatRight = glm::normalize(glm::vec3(t.right.x, 0.0f, t.right.z));
@@ -187,20 +193,30 @@ void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transfo
 	if (s.movementLR > 0)       localDisplacement += flatRight;
 	if (s.movementLR < 0)       localDisplacement -= flatRight;
 
+	glm::vec3 pos{ 0.f, 0.f, 0.f };
 	if (glm::length(localDisplacement) > 0) {
 		localDisplacement = glm::normalize(localDisplacement);
 		localDisplacement *= moveSpeed;
 	}
 
-	physx::PxFilterData filterData;
-	filterData.word0 = 0;
-	physx::PxControllerFilters data;
-	data.mFilterData = &filterData;
+	PhysicsEnt& phys = clientPhysicsObjects[eId];
 
-	if (clientControllers.find(eId) == clientControllers.end()) {
-		return;
+	if (phys.isGrounded) {
+		if (s.jump) {
+			phys.yVel = JUMP_VELOCITY;
+		}
+		else {
+			phys.yVel = 0.f;
+		}
 	}
-	clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, -9.81f, localDisplacement.z), 0.001f, SERVER_TIMESTEP, data);
+	else {
+		phys.yVel -= 9.81f * SERVER_TIMESTEP;
+	}
+
+	float yDisplacement = phys.yVel * SERVER_TIMESTEP;
+
+	const physx::PxControllerCollisionFlags flags = clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, yDisplacement, localDisplacement.z), 0.001f, SERVER_TIMESTEP, nullptr);
+	phys.isGrounded = flags.isSet(physx::PxControllerCollisionFlag::eCOLLISION_DOWN);
 	physx::PxExtendedVec3 p = clientControllers[eId]->getFootPosition();
 	t.position = glm::vec3(p.x, p.y, p.z);
 }
