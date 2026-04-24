@@ -279,10 +279,6 @@ void updateTick(SOCKET* udpSendSocket) {
                 if (entityManager.clients.find(p.id) != entityManager.clients.end()) {
                     auto& client = entityManager.clients[p.id];
 
-                    if (!client->addressSet) {
-
-                    }
-
                     if (!client->tickOffsetSet) {
                         client->tickBasis = currentTick + client->tickBasisOffset; // reducing jitter for packets arriving at server
                         client->tickOffsetSet = true;
@@ -307,6 +303,18 @@ void updateTick(SOCKET* udpSendSocket) {
             else {
                 client->entity.isMoving = false;
             }
+
+            if (client->bufferedPacket.shooting) {
+                hitReg h = physicsManager.playerShooting(client->id, client->entity.transform, p.get());
+                if (h.hit) {
+                    std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl;
+                    client->entity.shotAck = true;
+                }
+                else {
+                    std::cout << "airball" << std::endl;
+                }
+            }
+
             client->bufferedPacket.reset();
             p->entities.push_back(client->entity);
         }
@@ -319,7 +327,7 @@ void updateTick(SOCKET* udpSendSocket) {
         }
         currentSnapshot.store(p, std::memory_order_release);
 
-        printPhysicsTick();
+        // printPhysicsTick();
 
         std::this_thread::sleep_until(nextTick);
         currentTick++;
@@ -330,7 +338,7 @@ void startPhysics() {
     LightLoader loader;
     auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
 
-    physicsManager.initPhysics();
+    physicsManager.initPhysics(true);
     physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 }
 

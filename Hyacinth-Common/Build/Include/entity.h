@@ -12,6 +12,7 @@ struct Entity {
 	float camSpeed = CAM_LOOK_SPEED;
 	Transform transform;
 	bool isMoving = false;
+	bool shotAck = false;
 };
 
 struct PhysicsEnt {
@@ -20,5 +21,38 @@ struct PhysicsEnt {
 
 	float yPosAddVelocity(float yPos, float dT) {
 		return (yPos + (yVel * dT));
+	}
+};
+
+// left-right strafe
+struct BotBehavior {
+	bool active = false;
+
+	enum BEHAVIOR {
+		STRAFE_LEFT,
+		STRAFE_RIGHT
+	};
+	float strafeTimer = 0.f;
+	float strafeDuration = 3.f;
+	BEHAVIOR currentBehavior = BEHAVIOR::STRAFE_LEFT;
+
+	int8_t update(float dT) {
+		strafeTimer += dT;
+		if (strafeTimer >= strafeDuration) {
+			strafeTimer = fmod(strafeTimer, strafeDuration);
+			if (currentBehavior == BEHAVIOR::STRAFE_LEFT) {
+				currentBehavior = BEHAVIOR::STRAFE_RIGHT;
+			}
+			else {
+				currentBehavior = BEHAVIOR::STRAFE_LEFT;
+			}
+		}
+
+		if (currentBehavior == BEHAVIOR::STRAFE_LEFT) {
+			return -1;
+		}
+		else {
+			return 1;
+		}
 	}
 };

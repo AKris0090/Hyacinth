@@ -20,7 +20,7 @@
 	exit(1);							\
 }										\
 
-void PhysicsManager::initPhysics() {
+void PhysicsManager::initPhysics(bool debug) {
 	std::cout << "[PHYSICS] Initiating Physics engine" << std::endl;
 
 	pFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, defaultAllocatorCallback, defaultErrorCallback);
@@ -29,9 +29,11 @@ void PhysicsManager::initPhysics() {
 	}
 
 #ifndef NDEBUG
-	pVirtDebug = PxCreatePvd(*pFoundation);
-	PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
-	pVirtDebug->connect(*transport, PxPvdInstrumentationFlag::eALL);
+	if (debug) {
+		pVirtDebug = PxCreatePvd(*pFoundation);
+		PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
+		pVirtDebug->connect(*transport, PxPvdInstrumentationFlag::eALL);
+	}
 #endif
 
 	pPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *pFoundation, PxTolerancesScale(), recordMemoryAllocations, pVirtDebug);
@@ -63,13 +65,15 @@ void PhysicsManager::initPhysics() {
 	controllerDesc.contactOffset = 0.1;
 	controllerDesc.scaleCoeff = 1.f;
 
+	capGeom = physx::PxCapsuleGeometry(0.5f, 1.f);
+
 	std::cout << "[PHYSICS] Physics created!" << std::endl << std::endl;
 }
 
-// TODO: add capsule colliders on client for physics preds
-// void PhysicsManager::addNetworkEntityCapsuleCollider(uint32_t cId) {
-
-// }
+// TODO: add capsule colliders on client for physics preds and shooting
+void PhysicsManager::addNetworkEntityCapsuleCollider(uint32_t cId) {
+	
+}
 
 void PhysicsManager::addCharacterController(uint32_t cId) {
 	if (auto search = clientControllers.find(cId); search != clientControllers.end()) {
@@ -148,6 +152,7 @@ std::vector<physx::PxShape*> PhysicsManager::createPhysicsFromMesh(LightObject* 
 
 void PhysicsManager::addStaticPhysicsObject(LightObject* object) {
 	std::vector<physx::PxShape*> shapes = createPhysicsFromMesh(object);
+
 	physx::PxRigidStatic* body = pPhysics->createRigidStatic(physx::PxTransform(physx::PxVec3(0, 0, 0)));
 	for (auto& shape : shapes) {
 		body->attachShape(*shape);
@@ -237,4 +242,38 @@ void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
 			removeCharacterController(e.clientID);
 		}
 	}
+}
+
+static physx::PxVec3 physxVec(glm::vec3 v) {
+	return physx::PxVec3(v.x, v.y, v.z);
+}
+
+hitReg PhysicsManager::playerShooting(uint32_t eId, Transform& currentEntityTransform, ServerSnapshot* snapshotToTrace) {
+	hitReg h = hitReg{ false, INT_MAX };
+
+	// return hitreg struct that reports if the shooter hit anything, or if hit nothing
+	physx::PxVec3 origin = physxVec(currentEntityTransform.position + glm::vec3(0.f, 1.85f, 0.f));
+	currentEntityTransform.setRotationPitchYaw();
+	physx::PxVec3 dir = physxVec(glm::normalize(currentEntityTransform.forward));
+	physx::PxReal maxDist = 100.f;
+	physx::PxRaycastHit rayHit;
+
+	for (const auto& e : snapshotToTrace->entities) {
+		if (e.id == eId) continue;
+		bool hit = physx::PxGeometryQuery::raycast(origin + (dir * 0.35f),
+			dir,
+			capGeom,
+			physx::PxTransform(physxVec(e.transform.position)),
+			maxDist,
+			physx::PxHitFlag::eDEFAULT,
+			1,
+			&rayHit
+		);
+		if (hit) {
+			h.hit = true;
+			h.entityHitId = e.id;
+		}
+	}
+
+	return h;
 }

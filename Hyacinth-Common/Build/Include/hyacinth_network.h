@@ -66,6 +66,7 @@ struct ClientUpdatePacket {
 	int8_t movementFB = 0;
 	int8_t movementLR = 0;
 	bool jump = false;
+	bool lmb = false;
 
 	std::string toString();
 	static ClientUpdatePacket fromString(std::string s);
@@ -83,12 +84,14 @@ struct SimulateStruct {
 	int8_t movementFB = 0;
 	int8_t movementLR = 0;
 	bool jump = false;
+	bool shooting = false;
 
 	void addPacket(ClientUpdatePacket pack);
 	void reset() {
 		movementFB = 0;
 		movementLR = 0;
 		jump = false;
+		shooting = false;
 	}
 };
 

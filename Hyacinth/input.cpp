@@ -7,7 +7,7 @@ namespace InputManager {
 	float xrel, yrel;
 	float xTickRel, yTickRel;
 	bool mouseLeft;
-	bool tabKey, space;
+	bool tabKey, space, b;
 
 	void handleSDLInput(SDL_Event& e) {
 		if (e.type == SDL_EVENT_KEY_DOWN) {
@@ -24,6 +24,8 @@ namespace InputManager {
 			if (e.key.scancode == SDL_SCANCODE_Q) { down = true; }
 
 			if (e.key.scancode == SDL_SCANCODE_SPACE) { space = true; }
+
+			if (e.key.scancode == SDL_SCANCODE_B) { b = true; }
 		}
 
 		if (e.type == SDL_EVENT_KEY_UP) {
@@ -42,6 +44,8 @@ namespace InputManager {
 			if (e.key.scancode == SDL_SCANCODE_TAB) { tabKey = false; }
 
 			if (e.key.scancode == SDL_SCANCODE_SPACE) { space = false; }
+
+			if (e.key.scancode == SDL_SCANCODE_B) { b = false; }
 		}
 
 		if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat)
@@ -99,6 +103,10 @@ namespace InputManager {
 
 	bool spaceKeyDown() {
 		return space;
+	}
+
+	bool botKeyDown() {
+		return b;
 	}
 
 	void resetMouseMotion() {

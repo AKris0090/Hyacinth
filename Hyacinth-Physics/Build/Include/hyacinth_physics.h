@@ -20,6 +20,8 @@
 #include "characterkinematic/PxController.h"
 #include "characterkinematic/PxControllerManager.h"
 #include "characterkinematic/PxCapsuleController.h"
+#include "geometry/PxGeometryQuery.h"
+#include "geometry/PxGeometryHit.h"
 
 #include <unordered_map>
 #include "light_loader.h"
@@ -28,6 +30,11 @@
 using namespace physx;
 
 constexpr float JUMP_VELOCITY = 3.75f;
+
+struct hitReg {
+	bool hit;
+	uint32_t entityHitId;
+};
 
 class PhysicsManager {
 private:
@@ -49,12 +56,13 @@ private:
 
 public:
 	physx::PxScene* pScene = NULL;
+	physx::PxCapsuleGeometry capGeom;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
 	SPSCQueue<Event> physicsEventQueue;
 
-	void initPhysics();
+	void initPhysics(bool debug);
 	void addCharacterController(uint32_t cId);
 	void removeCharacterController(uint32_t cId);
 	void addStaticPhysicsObject(LightObject* object);
@@ -62,4 +70,6 @@ public:
 	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime);
 	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
 	void addNetworkEntityCapsuleCollider(uint32_t cId);
+
+	hitReg playerShooting(uint32_t eId, Transform& t, ServerSnapshot* snapshotToTrace);
 };

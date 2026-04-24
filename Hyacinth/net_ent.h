@@ -230,6 +230,7 @@ public:
 			for (auto& e : pending.entities) {
 				if (e.id == self->id) {
 					serverTransform = e.transform;
+					self->shotAck = e.shotAck;
 				}
 			}
 

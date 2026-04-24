@@ -12,6 +12,7 @@
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
 std::atomic<uint32_t> tickNum{ 0 };
+BotBehavior b;
 bool dontEnd = true;
 
 std::filesystem::path getExeDir()
@@ -34,6 +35,16 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		p.movementFB = netClient->netEntManager.inputAccumulator.movementFB;
 		p.movementLR = netClient->netEntManager.inputAccumulator.movementLR;
 		p.jump = netClient->netEntManager.inputAccumulator.jump;
+
+		if (b.active) {
+			p.movementLR = b.update(SERVER_TIMESTEP);
+			p.movementFB = 0;
+			p.jump = false;
+		}
+
+		if (InputManager::mouseDown()) {
+			p.lmb = true;
+		}
 
 		// update physics
 		engine->p_netEntManager->selfMutex.lock();
@@ -60,6 +71,10 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		ServerSnapshot sP;
 		sP.entities.push_back(*engine->p_netEntManager->self);
 		engine->p_netEntManager->selfSimBuffer.newPacket(sP);
+
+		if (engine->p_netEntManager->self->shotAck) {
+			std::cout << "shooting: " << tickNum << std::endl;
+		}
 		engine->p_netEntManager->selfMutex.unlock();
 
 		std::this_thread::sleep_until(nextTick);
@@ -77,7 +92,7 @@ int main() {
 	hyacinthEngine.init();
 
 	PhysicsManager physicsManager;
-	physicsManager.initPhysics();
+	physicsManager.initPhysics(false);
 	LightLoader loader;
 	auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
@@ -132,6 +147,11 @@ int main() {
 				SDL_SetWindowRelativeMouseMode(hyacinthEngine.m_window, hyacinthEngine.mouseLocked);
 			}
 		}
+
+		if (InputManager::botKeyDown()) {
+			b.active = true;
+		}
+
 		hyacinthEngine.draw();
 
 		// sample/accumulate input 
