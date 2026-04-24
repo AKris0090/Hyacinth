@@ -71,10 +71,6 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		ServerSnapshot sP;
 		sP.entities.push_back(*engine->p_netEntManager->self);
 		engine->p_netEntManager->selfSimBuffer.newPacket(sP);
-
-		if (engine->p_netEntManager->self->shotAck) {
-			std::cout << "shooting: " << tickNum << std::endl;
-		}
 		engine->p_netEntManager->selfMutex.unlock();
 
 		std::this_thread::sleep_until(nextTick);

@@ -80,6 +80,7 @@ void PhysicsManager::addCharacterController(uint32_t cId) {
 		std::cout << "[PHYSICS] That client already has a character controller?" << std::endl;
 	}
 	physx::PxController* playerController = pCManager->createController(controllerDesc);
+	playerController->getActor()->userData = new controllerUserData{ cId };
 	clientControllers[cId] = playerController;
 	clientPhysicsObjects[cId] = PhysicsEnt{};
 }
@@ -158,6 +159,7 @@ void PhysicsManager::addStaticPhysicsObject(LightObject* object) {
 		body->attachShape(*shape);
 		shape->release();
 	}
+	body->userData = new controllerUserData{ 150 }; // TODO: find better
 	pScene->addActor(*body);
 }
 
@@ -248,7 +250,11 @@ static physx::PxVec3 physxVec(glm::vec3 v) {
 	return physx::PxVec3(v.x, v.y, v.z);
 }
 
-hitReg PhysicsManager::playerShooting(uint32_t eId, Transform& currentEntityTransform, ServerSnapshot* snapshotToTrace) {
+static physx::PxExtendedVec3 physxEVec(glm::vec3 v) {
+	return physx::PxExtendedVec3(v.x, v.y, v.z);
+}
+
+hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEntityTransform, ServerSnapshot* snapshotToTrace) {
 	hitReg h = hitReg{ false, INT_MAX };
 
 	// return hitreg struct that reports if the shooter hit anything, or if hit nothing
@@ -256,23 +262,29 @@ hitReg PhysicsManager::playerShooting(uint32_t eId, Transform& currentEntityTran
 	currentEntityTransform.setRotationPitchYaw();
 	physx::PxVec3 dir = physxVec(glm::normalize(currentEntityTransform.forward));
 	physx::PxReal maxDist = 100.f;
-	physx::PxRaycastHit rayHit;
+	physx::PxRaycastBuffer rayHit;
 
+	std::unordered_map<uint32_t, physx::PxExtendedVec3> previousPositions;
 	for (const auto& e : snapshotToTrace->entities) {
-		if (e.id == eId) continue;
-		bool hit = physx::PxGeometryQuery::raycast(origin + (dir * 0.35f),
-			dir,
-			capGeom,
-			physx::PxTransform(physxVec(e.transform.position)),
-			maxDist,
-			physx::PxHitFlag::eDEFAULT,
-			1,
-			&rayHit
-		);
-		if (hit) {
-			h.hit = true;
-			h.entityHitId = e.id;
+		if (e.id == shooterId) continue;
+		previousPositions[e.id] = clientControllers[e.id]->getFootPosition();
+		clientControllers[e.id]->setFootPosition(physxEVec(e.transform.position));
+	}
+
+	bool hit = pScene->raycast(origin + (dir * 0.6f), dir, maxDist, rayHit);
+	if (hit) {
+		for (const auto& [id, cont] : clientControllers) {
+			if (static_cast<controllerUserData*>(rayHit.block.actor->userData)->id == id) {
+				h.hit = true;
+				h.entityHitId = id;
+				return h;
+			}
 		}
+	}
+
+	// bring controller positions back
+	for (const auto& [id, pos] : previousPositions) {
+		clientControllers[id]->setFootPosition(pos);
 	}
 
 	return h;

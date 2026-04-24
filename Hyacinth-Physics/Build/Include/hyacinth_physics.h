@@ -22,6 +22,7 @@
 #include "characterkinematic/PxCapsuleController.h"
 #include "geometry/PxGeometryQuery.h"
 #include "geometry/PxGeometryHit.h"
+#include "PxRigidDynamic.h"
 
 #include <unordered_map>
 #include "light_loader.h"
@@ -30,6 +31,10 @@
 using namespace physx;
 
 constexpr float JUMP_VELOCITY = 3.75f;
+
+struct controllerUserData {
+	uint32_t id;
+};
 
 struct hitReg {
 	bool hit;
