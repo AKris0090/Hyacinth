@@ -7,17 +7,13 @@
 layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
-layout  (location = 3) in vec4 jointIndex;
-layout  (location = 4) in vec4 jointWeight;
 
-layout	(location = 0) flat out int colorSamplerIndex;
-layout	(location = 1) flat out int normalSamplerIndex;
-layout	(location = 2) flat out int metalRoughSamplerIndex;
-layout  (location = 3) out vec4 viewPos;
-layout  (location = 4) out vec4 outNormal;
-layout	(location = 5) out vec4 fragPos;
-layout	(location = 6) out mat3 TBNMatrix;
-layout	(location = 9) out vec2 outUV;
+layout	(location = 0) flat out int matIndex;
+layout  (location = 1) out vec4 viewPos;
+layout  (location = 2) out vec4 outNormal;
+layout	(location = 3) out vec4 fragPos;
+layout	(location = 4) out mat3 TBNMatrix;
+layout	(location = 7) out vec2 outUV;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 view;
@@ -30,55 +26,32 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 
 layout( push_constant ) uniform constants
 {
+	mat4 entityTransformMatrix;
 	TransformBuffer transformBuffer;
-	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
-    VolumeDataBuffer volumeDataBuffer;
 	JointMatricesBuffer jmBuffer;
-    int volumeIndex;
-	uint isAnimated;
+	MaterialBuffer materialBuffer;
+    VolumeDataBuffer volumeDataBuffer;
 } pc;
 
 void main() 
 {
-	vec4 position = vec4(inPosition.xyz, 1.0);
-	vec4 normal = vec4(inNormal.xyz, 1.0);
-	vec4 tangent = inTangent;
-
-	if (pc.isAnimated != 0u) {
-		mat4 skinMatrix =
-		    jointWeight.x * pc.jmBuffer.jointMatrices[int(jointIndex.x)] +
-		    jointWeight.y * pc.jmBuffer.jointMatrices[int(jointIndex.y)] +
-		    jointWeight.z * pc.jmBuffer.jointMatrices[int(jointIndex.z)] +
-		    jointWeight.w * pc.jmBuffer.jointMatrices[int(jointIndex.w)];
-	
-		position = vec4((skinMatrix * position).xyz, 1.0);
-	
-		mat3 skinMatrix3 = mat3(skinMatrix);
-		normal.xyz = skinMatrix3 * normal.xyz;
-		tangent.xyz = skinMatrix3 * tangent.xyz;
-	}
-
 	DrawData draw = pc.drawDataBuffer.draws[gl_InstanceIndex];
 	mat4 model = pc.transformBuffer.model[draw.transformIndex];
-	gl_Position = ubo.proj * ubo.view * model * position;
+	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0);
 
-	fragPos = model * position;
+	fragPos = model * vec4(inPosition.xyz, 1.0);
 
-	vec4 biTangent = vec4(normalize(cross(normal.xyz, tangent.xyz)), 0.0);
-	vec3 T = normalize(vec3(model * vec4(tangent.xyz, 0.0)));
+	vec4 biTangent = vec4(normalize(cross(inNormal.xyz, inTangent.xyz)), 0.0);
+	vec3 T = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));
 	vec3 B = normalize(vec3(model * biTangent));
-	vec3 N = normalize(vec3(model * vec4(normal.xyz, 0.0)));
+	vec3 N = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));
 	TBNMatrix = mat3(T, B, N);
 
-	Material mat = pc.materialBuffer.mats[draw.materialIndex];
-
-	colorSamplerIndex = mat.baseColorIndex;
-	normalSamplerIndex = mat.normalIndex;
-	metalRoughSamplerIndex = mat.metalRoughIndex;
+	matIndex = draw.materialIndex;
 
 	viewPos = (ubo.view * vec4(fragPos.xyz, 1.0));
-	outNormal = normal;
+	outNormal = vec4(inNormal.xyz, 1.0);
 
 	outUV.x		= inPosition.w;
 	outUV.y		= inNormal.w;

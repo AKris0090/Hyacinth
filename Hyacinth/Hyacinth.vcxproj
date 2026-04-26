@@ -227,10 +227,9 @@
     <None Include="shaders\depth.vert" />
     <None Include="shaders\frustumCull.comp" />
     <None Include="shaders\fsQuad.vert" />
+    <None Include="shaders\gbufferSkinned.vert" />
     <None Include="shaders\irradianceBuild.comp" />
     <None Include="shaders\miss.rmiss" />
-    <None Include="shaders\netFrag.frag" />
-    <None Include="shaders\netVert.vert" />
     <None Include="shaders\probeCommon.glsl" />
     <None Include="shaders\probeMiss.rmiss" />
     <None Include="shaders\probeVis.frag" />

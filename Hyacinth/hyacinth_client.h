@@ -5,7 +5,6 @@
 #define DEFAULT_PORT "6767"
 #define SERVER_UDP_PORT "6969"
 
-#include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>

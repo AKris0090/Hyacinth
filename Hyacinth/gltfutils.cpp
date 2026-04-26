@@ -13,7 +13,7 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
     return bounds;
 }
 
-void gltfObject::updateJoints(gltfNode* node)
+void gltfObject::updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer)
 {
     if (node->skinIndex > -1)
     {
@@ -26,12 +26,12 @@ void gltfObject::updateJoints(gltfNode* node)
             finalJointMatrices[i] = inverseTransform * (getNodeMatrix(skin.joints[i]) * skin.inverseBindMatrices[i]);
         }
 
-        memcpy(skin.jointMatrixBuffer.pMappedData, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
+        memcpy(pMappedJointMatrixBuffer, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
     }
 
     for (auto& child : node->children)
     {
-        updateJoints(child);
+        updateJoints(child, pMappedJointMatrixBuffer);
     }
 }
 
@@ -341,54 +341,42 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
 
     // TODO: change this because first person model can be animated as well
     if (object.animations.size() > 0) {
-        object.animStateMachine.idleAnimation = &object.animations[0];
-        object.animStateMachine.runningAnimation = &object.animations[1];
-        object.animStateMachine.leftTurnAnimation = &object.animations[2];
-        object.animStateMachine.rightTurnAnimation = &object.animations[3];
-
-        object.animStateMachine.currentUpperBodyAnim = object.animStateMachine.idleAnimation;
-        object.animStateMachine.currentLowerBodyAnim = object.animStateMachine.idleAnimation;
-    }
-
-    for (auto& skin : object.skins) {
-        size_t skinJointMatrixSize = skin.joints.size() * sizeof(glm::mat4);
-        skin.jointMatrixBuffer = vkdeviceutils::createBuffer(skinJointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
+        object.idleAnimation = &object.animations[0];
+        object.runningAnimation = &object.animations[1];
+        object.leftTurnAnimation = &object.animations[2];
+        object.rightTurnAnimation = &object.animations[3];
     }
 
     if (object.skins.size() >= 1) {
+        Skin& skin = object.skins[0];
+        object.skinSize = skin.joints.size() * sizeof(glm::mat4);
+
         tinygltf::Skin glTFSkin = model->skins[0];
         for (int j = 0; j < glTFSkin.joints.size(); j++) {
             int jointIndex = glTFSkin.joints[j];
             if (model->nodes[jointIndex].name == "spine.005") {
-                object.animStateMachine.spine005 = nodeFromIndex(object.allNodes, jointIndex);
+                object.spine005 = nodeFromIndex(object.allNodes, jointIndex);
             } else if (model->nodes[jointIndex].name == "upper_arm.L") {
-                object.animStateMachine.upperArmL = nodeFromIndex(object.allNodes, jointIndex);
+                object.upperArmL = nodeFromIndex(object.allNodes, jointIndex);
             } else if (model->nodes[jointIndex].name == "upper_arm.R") {
-                object.animStateMachine.upperArmR = nodeFromIndex(object.allNodes, jointIndex);
+                object.upperArmR = nodeFromIndex(object.allNodes, jointIndex);
             } else if (model->nodes[jointIndex].name == "spine.007") {
-                object.animStateMachine.spine007 = nodeFromIndex(object.allNodes, jointIndex);
+                object.spine007 = nodeFromIndex(object.allNodes, jointIndex);
             } else if (model->nodes[jointIndex].name == "spine.003") {
-                object.animStateMachine.spine003 = nodeFromIndex(object.allNodes, jointIndex);
+                object.spine003 = nodeFromIndex(object.allNodes, jointIndex);
             } else if (model->nodes[jointIndex].name == "spine") {
-                object.animStateMachine.spine = nodeFromIndex(object.allNodes, jointIndex);
-                object.animStateMachine.spineDefaultRot = object.animStateMachine.spine->matComponents.rotation;
-                object.animStateMachine.spine->lowerBody = true;
+                object.spine = nodeFromIndex(object.allNodes, jointIndex);
+                object.spine->lowerBody = true;
             }
         }
         for (auto& node : object.allNodes) {
-            if (isParentOf(node, object.animStateMachine.spine003)) {
+            if (isParentOf(node, object.spine003)) {
                 node->upperBody = true;
             }
-            else if (isParentOf(node, object.animStateMachine.spine007)) {
+            else if (isParentOf(node, object.spine007)) {
                 node->lowerBody = true;
             }
         }
-        object.animStateMachine.previousAnimationTransforms.resize(object.allNodes.size());
-    }
-     
-    for (auto node : object.parentNodes)
-    {
-        object.updateJoints(node);
     }
 
 	delete model;
@@ -460,7 +448,6 @@ void SceneGraph::buildSceneGraph() {
     FullscreenQuad::addFullscreenQuad(vertices, indices);
     addUnitCube(vertices, indices);
 
-    // TODO: REALLY FUCKING INEFFICIENT, find some other way
     for (auto& o : staticObjects) {
         combinedObjects.push_back(&o);
     }
@@ -609,12 +596,12 @@ void SceneGraph::uploadTextures(VkDescriptorSet& descriptor) {
 	vkdescriptorutils::flushDescriptorWrites();
 }
 
-void gltfObject::updateAnimation(Entity* e, float deltaTime, uint32_t currentBuffer)
+void gltfObject::updateAnimation(Entity* e, gltfObject* obj, AnimationStateMachine& animMachine, AnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer)
 {
-    animStateMachine.updateAnimationState(deltaTime, e->isMoving ? 1.f : 0.f, 0.f, lookDirectionPitch, lookDirectionYaw);
+    animMachine.updateAnimationState(c, deltaTime, e->isMoving ? 1.f : 0.f, 0.f, e->transform.pitch, e->transform.yaw);
 
-    for (auto& node : parentNodes)
+    for (auto& node : obj->parentNodes)
     {
-        updateJoints(node);
+        obj->updateJoints(node, pMappedJointMatrixBuffer);
     }
 }

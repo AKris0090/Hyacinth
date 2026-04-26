@@ -70,9 +70,22 @@ void PhysicsManager::initPhysics(bool debug) {
 	std::cout << "[PHYSICS] Physics created!" << std::endl << std::endl;
 }
 
-// TODO: add capsule colliders on client for physics preds and shooting
+// Client function for adding capsules to properly predict player-player collision
 void PhysicsManager::addNetworkEntityCapsuleCollider(uint32_t cId) {
-	
+	physx::PxController* entityController = pCManager->createController(controllerDesc);
+	clientControllers[cId] = entityController;
+}
+
+void PhysicsManager::setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId) {
+	charLock.lock();
+	for (const auto& e : s->entities) {
+		if (e.id == selfId) continue;
+		if (clientControllers.find(e.id) == clientControllers.end()) {
+			addNetworkEntityCapsuleCollider(e.id);
+		}
+		clientControllers[e.id]->setFootPosition(physxEVec(e.transform.position));
+	}
+	charLock.unlock();
 }
 
 void PhysicsManager::addCharacterController(uint32_t cId) {
@@ -159,7 +172,6 @@ void PhysicsManager::addStaticPhysicsObject(LightObject* object) {
 		body->attachShape(*shape);
 		shape->release();
 	}
-	body->userData = new controllerUserData{ 150 }; // TODO: find better
 	pScene->addActor(*body);
 }
 
@@ -222,7 +234,9 @@ void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transfo
 
 	float yDisplacement = phys.yVel * SERVER_TIMESTEP;
 
+	charLock.lock();
 	const physx::PxControllerCollisionFlags flags = clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, yDisplacement, localDisplacement.z), 0.001f, SERVER_TIMESTEP, nullptr);
+	charLock.unlock();
 	phys.isGrounded = flags.isSet(physx::PxControllerCollisionFlag::eCOLLISION_DOWN);
 	physx::PxExtendedVec3 p = clientControllers[eId]->getFootPosition();
 	t.position = glm::vec3(p.x, p.y, p.z);
@@ -246,15 +260,7 @@ void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
 	}
 }
 
-static physx::PxVec3 physxVec(glm::vec3 v) {
-	return physx::PxVec3(v.x, v.y, v.z);
-}
-
-static physx::PxExtendedVec3 physxEVec(glm::vec3 v) {
-	return physx::PxExtendedVec3(v.x, v.y, v.z);
-}
-
-hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEntityTransform, ServerSnapshot* snapshotToTrace) {
+hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEntityTransform, rewindSnapshot* snapshotToTrace) {
 	hitReg h = hitReg{ false, INT_MAX };
 
 	// return hitreg struct that reports if the shooter hit anything, or if hit nothing
@@ -265,19 +271,25 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 	physx::PxRaycastBuffer rayHit;
 
 	std::unordered_map<uint32_t, physx::PxExtendedVec3> previousPositions;
-	for (const auto& e : snapshotToTrace->entities) {
+	for (const auto& e : snapshotToTrace->entityPositions) {
 		if (e.id == shooterId) continue;
 		previousPositions[e.id] = clientControllers[e.id]->getFootPosition();
-		clientControllers[e.id]->setFootPosition(physxEVec(e.transform.position));
+		clientControllers[e.id]->setFootPosition(physxEVec(e.pos));
 	}
 
 	bool hit = pScene->raycast(origin + (dir * 0.6f), dir, maxDist, rayHit);
 	if (hit) {
 		for (const auto& [id, cont] : clientControllers) {
-			if (static_cast<controllerUserData*>(rayHit.block.actor->userData)->id == id) {
-				h.hit = true;
-				h.entityHitId = id;
-				return h;
+			void* data = rayHit.block.actor->userData;
+			if (!data) {
+				continue;
+			}
+			else {
+				if (static_cast<controllerUserData*>(rayHit.block.actor->userData)->id == id) {
+					h.hit = true;
+					h.entityHitId = id;
+					break;
+				}
 			}
 		}
 	}

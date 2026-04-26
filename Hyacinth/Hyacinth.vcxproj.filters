@@ -103,9 +103,6 @@
     <Filter Include="Source Files\network\network_entities">
       <UniqueIdentifier>{053aada3-44ab-4d1a-936d-98dd5c0d70e5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\shaders\net">
-      <UniqueIdentifier>{5ff772ea-c5be-4120-898b-e903554b18df}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\shaders\common">
       <UniqueIdentifier>{098dc222-7420-4ee4-a9a2-3e956438305e}</UniqueIdentifier>
     </Filter>
@@ -375,12 +372,6 @@
     <None Include="shaders\ddgiStencil.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
-    <None Include="shaders\netFrag.frag">
-      <Filter>Source Files\shaders\net</Filter>
-    </None>
-    <None Include="shaders\netVert.vert">
-      <Filter>Source Files\shaders\net</Filter>
-    </None>
     <None Include="shaders\bufferInfo.glsl">
       <Filter>Source Files\shaders\common</Filter>
     </None>
@@ -401,6 +392,9 @@
     </None>
     <None Include="shaders\ddgi.frag">
       <Filter>Source Files\shaders\visualization</Filter>
+    </None>
+    <None Include="shaders\gbufferSkinned.vert">
+      <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

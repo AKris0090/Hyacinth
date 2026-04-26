@@ -180,3 +180,89 @@ public:
 		return true;
 	}
 };
+
+struct entityPositionSnapshot {
+	uint32_t id;
+	glm::vec3 pos;
+};
+
+struct rewindSnapshot {
+	uint32_t tickNum;
+	std::vector<entityPositionSnapshot> entityPositions;
+};
+
+// max rewind is 140 ms (from official valorant servers)
+constexpr int MAX_REWIND = (140 + static_cast<int>(SERVER_TIMESTEP * 1000.f) - 1) / static_cast<int>(SERVER_TIMESTEP * 1000.f);
+
+class RewindRingBuffer {
+private:
+	struct arrItem {
+		arrItem* prev = nullptr;
+		arrItem* next = nullptr;
+		rewindSnapshot item;
+	};
+
+	arrItem* head = nullptr;
+	arrItem* tail = nullptr;
+	int length = 0;
+
+	void pop() {
+		if (length == 0) return;
+
+		if (length == 1) {
+			delete head;
+			head = tail = nullptr;
+			length = 0;
+			return;
+		}
+
+		arrItem* placeholder = head->next;
+		head->next->prev = nullptr;
+		delete head;
+		head = placeholder;
+
+		length--;
+	}
+
+public:
+	void push(rewindSnapshot item) {
+		arrItem* t = new arrItem();
+		t->item = item;
+
+		if (length == 0) {
+			head = tail = t;
+			length++;
+			return;
+		}
+
+		tail->next = t;
+		t->prev = tail;
+		tail = t;
+		length++;
+
+		if (length >= MAX_REWIND) {
+			pop();
+		}
+	}
+
+	rewindSnapshot getSnapshotFromTick(uint32_t tickNum) {
+		if (!head) {
+			rewindSnapshot r;
+			r.tickNum = INT_MAX;
+			return r;
+		}
+
+		arrItem* t = head;
+		while (t != tail && t->item.tickNum != tickNum) {
+			t = t->next;
+		}
+		if (t->item.tickNum == tickNum) {
+			return t->item;
+		}
+		else {
+			rewindSnapshot r;
+			r.tickNum = INT_MAX;
+			return r;
+		}
+	}
+};

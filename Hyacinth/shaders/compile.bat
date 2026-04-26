@@ -8,8 +8,7 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./fsQuad.vert -o quadVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./probeVis.vert -o probeVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./probeVis.frag -o probeFrag.spv
 
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./netVert.vert -o netEntVert.spv
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./netFrag.frag -o netEntFrag.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./gbufferSkinned.vert -o skinnedVert.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./volumeVis.vert -o volumeVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./volumeVis.frag -o volumeFrag.spv

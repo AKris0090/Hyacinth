@@ -1,6 +1,7 @@
 #pragma once
 
 #include "animation.h"
+#include "vkmeshutils.h"
 #include "entity.h"
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
@@ -45,8 +46,19 @@ struct gltfObject {
     uint32_t nodeCounter;
     std::vector<Animation> animations;
     std::vector<Skin> skins;
+    size_t skinSize;
 
-    float lookDirectionPitch, lookDirectionYaw;
+    gltfNode* upperArmL;    // left arm (pitch) controller
+    gltfNode* upperArmR;    // right arm (pitch) controller
+    gltfNode* spine005;     // head neck (pitch) controller
+    gltfNode* spine007;     // lower body yaw controller
+    gltfNode* spine003;     // upper body yaw controller
+    gltfNode* spine;		// full body yaw controller
+
+    Animation* leftTurnAnimation;
+    Animation* rightTurnAnimation;
+    Animation* idleAnimation;
+    Animation* runningAnimation;
 
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;
@@ -54,10 +66,10 @@ struct gltfObject {
 
     std::unordered_set<uint32_t>* imageIsSRGB;
 
-    AnimationStateMachine animStateMachine;
+    AnimationStateMachine* animStateMachine;
 
-    void updateJoints(gltfNode* node);
-    void updateAnimation(Entity* e, float deltaTime, uint32_t currentBuffer);
+    void updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer);
+    static void updateAnimation(Entity* e, gltfObject* obj, AnimationStateMachine& animMachine, AnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
 };
 
 struct SceneGraph {

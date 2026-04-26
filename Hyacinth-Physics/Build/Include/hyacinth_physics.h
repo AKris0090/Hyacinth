@@ -41,9 +41,19 @@ struct hitReg {
 	uint32_t entityHitId;
 };
 
+static physx::PxVec3 physxVec(glm::vec3 v) {
+	return physx::PxVec3(v.x, v.y, v.z);
+}
+
+static physx::PxExtendedVec3 physxEVec(glm::vec3 v) {
+	return physx::PxExtendedVec3(v.x, v.y, v.z);
+}
+
 class PhysicsManager {
 private:
 	bool recordMemoryAllocations = true;
+
+	std::mutex charLock;
 
 	PxDefaultErrorCallback defaultErrorCallback;
 	PxDefaultAllocator defaultAllocatorCallback;
@@ -75,6 +85,7 @@ public:
 	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime);
 	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
 	void addNetworkEntityCapsuleCollider(uint32_t cId);
+	void setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId);
 
-	hitReg playerShooting(uint32_t eId, Transform& t, ServerSnapshot* snapshotToTrace);
+	hitReg playerShooting(uint32_t eId, Transform& t, rewindSnapshot* snapshotToTrace);
 };

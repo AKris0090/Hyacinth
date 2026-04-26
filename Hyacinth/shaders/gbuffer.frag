@@ -1,18 +1,16 @@
 #version 460
 #extension GL_EXT_nonuniform_qualifier : require
-#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference2 : require
 
 #include "shadowCommon.glsl"
 #include "bufferInfo.glsl"
 
-layout	(location = 0) flat in int colorSamplerIndex;
-layout	(location = 1) flat in int normalSamplerIndex;
-layout	(location = 2) flat in int metalRoughSamplerIndex;
-layout  (location = 3) in vec4 viewPos;
-layout  (location = 4) in vec4 inNormal;
-layout	(location = 5) in vec4 fragPos;
-layout	(location = 6) in mat3 TBNMatrix;
-layout	(location = 9) in vec2 inUV;
+layout	(location = 0) flat in int matIndex;
+layout  (location = 1) in vec4 viewPos;
+layout  (location = 2) in vec4 inNormal;
+layout	(location = 3) in vec4 fragPos;
+layout	(location = 4) in mat3 TBNMatrix;
+layout	(location = 7) in vec2 inUV;
 
 layout (set = 1, binding = 0) uniform sampler2DArray shadowDepthMap;
 
@@ -27,13 +25,12 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 
 layout( push_constant ) uniform constants
 {
+	mat4 entityTransformMatrix;
 	TransformBuffer transformBuffer;
-	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
-    VolumeDataBuffer volumeDataBuffer;
 	JointMatricesBuffer jmBuffer;
-    int volumeIndex;
-	uint isAnimated;
+	MaterialBuffer materialBuffer;
+    VolumeDataBuffer volumeDataBuffer;
 } pc;
 
 layout(set = 2, binding = 0) uniform sampler2D globalTextures2D[];
@@ -85,10 +82,11 @@ float filterPCF(vec4 sc, uint cascadeIndex)
 }
 
 void main() {
-    vec4 sampledColor = texture(globalTextures2D[colorSamplerIndex], inUV);
-    vec4 metalRough = texture(globalTextures2D[metalRoughSamplerIndex], inUV);
+	Material m = pc.materialBuffer.mats[matIndex];
+    vec4 sampledColor = texture(globalTextures2D[m.baseColorIndex], inUV);
+    vec4 metalRough = texture(globalTextures2D[m.metalRoughIndex], inUV);
 
-    vec3 N = texture(globalTextures2D[normalSamplerIndex], inUV).xyz;
+    vec3 N = texture(globalTextures2D[m.normalIndex], inUV).xyz;
     N = normalize(N * 2.0 - 1.0);
     N = normalize(TBNMatrix * N) * 0.5 + 0.5;
 

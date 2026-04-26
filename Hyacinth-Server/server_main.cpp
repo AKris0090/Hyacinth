@@ -35,6 +35,7 @@ PhysicsManager physicsManager;
 SPSCQueue<Event> serverEvents;
 std::mutex bufferedClientPacketMutex;
 std::queue<ClientUpdatePacket> bufferedClientPackets;
+RewindRingBuffer rewindBuffer;
 std::atomic<uint32_t> currentClientID{ 0 };
 std::atomic<uint32_t> currentTick{ 0 };
 std::atomic<std::shared_ptr<ServerSnapshot>> currentSnapshot;
@@ -296,6 +297,8 @@ void updateTick(SOCKET* udpSendSocket) {
         physicsManager.updatePhysicsServer(&entityManager);
 
         auto p = std::make_shared<ServerSnapshot>();
+        rewindSnapshot r;
+        r.tickNum = currentTick;
         for (const auto& [id, client] : entityManager.clients) {
             if (glm::abs(client->bufferedPacket.movementFB) > 0.f || glm::abs(client->bufferedPacket.movementLR) > 0.f) {
                 client->entity.isMoving = true;
@@ -305,19 +308,33 @@ void updateTick(SOCKET* udpSendSocket) {
             }
 
             if (client->bufferedPacket.shooting) {
-                hitReg h = physicsManager.playerShooting(client->id, client->entity.transform, p.get());
-                if (h.hit) {
-                    std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl;
-                    client->entity.shotAck = true;
+                // usually, it would be Current Server Time - Packet Latency - Client View Interpolation. In this case, RTT / 2 = 0 because everything is being run locally.
+                // TODO: find a way to estimate the client's ping. By figuring that out, add that value to SERVER_INPUT_BUFFER. 
+                // if using the method explained here: https://vercidium.com/blog/lag-compensation/, you can calculate sub-tick positions using a transform lerp
+                // subtract the sub-tick offset at the end.
+                uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER;
+                rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind);
+                if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer
+                    std::cout << "couldn't find the right snapshot, for some reason" << std::endl;
                 }
                 else {
-                    std::cout << "airball" << std::endl;
+                    hitReg h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
+                    if (h.hit) {
+                        std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl;
+                        client->entity.shotAck = true;
+                    }
+                    else {
+                        std::cout << "airball" << std::endl;
+                    }
                 }
             }
 
             client->bufferedPacket.reset();
             p->entities.push_back(client->entity);
+
+            r.entityPositions.push_back(entityPositionSnapshot{ id, client->entity.transform.position });
         }
+        rewindBuffer.push(r);
         for (const auto& [id, client] : entityManager.clients) {
             if (!client->addressSet) continue;
             p->processedTickNum = currentTick - client->tickBasis;

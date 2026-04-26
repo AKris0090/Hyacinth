@@ -84,7 +84,7 @@ struct Vertex {
 
 struct AABB {
 	glm::vec4 min = glm::vec4(0.f), max = glm::vec4(0.f);
-	void grow(Vertex p) { min = glm::min(min, glm::vec4(glm::vec3(p.pos), 1.f)), max = glm::max(max, glm::vec4(glm::vec3(p.pos), 1.f)); }
+	void grow(Vertex p) { min = (glm::min)(min, glm::vec4(glm::vec3(p.pos), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p.pos), 1.f)); }
 };
 
 namespace std {
@@ -100,16 +100,6 @@ struct GPUMeshBuffers {
 	VulkanBuffer indexBuffer;
 	VulkanBuffer aabbBuffer;
 	uint32_t indexCount;
-};
-
-struct GPUDrawPushConstants {
-	VkDeviceAddress transformAddress;
-	VkDeviceAddress materialAddress;
-	VkDeviceAddress drawDataAddress;
-	VkDeviceAddress volumeDataAddress;
-	VkDeviceAddress jointBufferAddress;
-	int32_t volumeIndex;
-	uint32_t isAnimated = 0;
 };
 
 namespace vkmeshutils {

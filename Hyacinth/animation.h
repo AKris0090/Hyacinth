@@ -2,43 +2,6 @@
 
 #include "gltfcommon.h"
 
-struct Skin
-{
-	std::string					name;
-	gltfNode* skeletonRoot =	nullptr;
-	std::vector<glm::mat4>		inverseBindMatrices;
-	std::vector<gltfNode*>		joints;
-	VulkanBuffer				jointMatrixBuffer;
-
-	static void loadSkins(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std::vector<Skin>& skinsOut);
-};
-
-struct AnimationSampler
-{
-	std::string            interpolation;
-	std::vector<float>     inputs;
-	std::vector<glm::vec4> outputsVec4;
-};
-
-struct AnimationChannel
-{
-	std::string path;
-	gltfNode*	node;
-	uint32_t    samplerIndex;
-};
-
-struct Animation
-{
-	std::string                   name;
-	std::vector<AnimationSampler> samplers;
-	std::vector<AnimationChannel> channels;
-	float                         start = std::numeric_limits<float>::max();
-	float                         end = std::numeric_limits<float>::min();
-	float                         currentTime = 0.0f;
-
-	static void loadAnimations(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std::vector<Animation>& animsOut);
-};
-
 enum TURN_ANIM_STATE {
 	NEEDS_TURN_LEFT,
 	NEEDS_TURN_RIGHT,
@@ -58,38 +21,7 @@ static float yawFromQuaternion(glm::quat q) {
 	));
 }
 
-class AnimationStateMachine {
-private:
-	void setNewBasis(float basis) {
-		basis = fmod(basis, 360);
-		basisRotation = glm::angleAxis(glm::radians(basis), glm::vec3(0, 1, 0));
-	}
-
-	void turn(float absolute) {
-		prevBasisRotation = basisRotation;
-		setNewBasis(absolute);
-	}
-
-	TURN_ANIM_STATE turnState = IDLE;
-	void stageTurnAnim(bool leftRight) {
-		turnState = leftRight ? NEEDS_TURN_LEFT : NEEDS_TURN_RIGHT;
-	}
-
-	glm::quat prevBasisRotation{ 1.f, 0.f, 0.f, 0.f };
-	glm::quat basisRotation{ 1.f, 0.f, 0.f, 0.f };
-
-	float						  fadeTimer = 0.f;
-	float						  fadeLength = 0.15f;
-	bool						  transitioning = false;
-
-	void flushQueuedNodeTransforms();
-	void updateSamplers(Animation* animation, AnimationChannel* channel, Transform* t);
-	void updateUpperAnimation();
-	void updateLowerAnimation();
-	void updatePreviousWholeBodyAnimation();
-	void lerpPreviousCurrentAnimations();
-
-public:
+struct AnimationController {
 	gltfNode* upperArmL;    // left arm (pitch) controller
 	gltfNode* upperArmR;    // right arm (pitch) controller
 	gltfNode* spine005;     // head neck (pitch) controller
@@ -102,16 +34,76 @@ public:
 	Animation* idleAnimation;
 	Animation* runningAnimation;
 
-	std::vector<Transform> previousAnimationTransforms;
+	float currentTime = 0.f;
+	float previousTime = 0.f;
+
 	Animation* previousAnimation;
+	std::vector<Transform> previousAnimationTransforms;
 
 	Animation* currentLowerBodyAnim;
 	Animation* currentUpperBodyAnim;
 
-	CURRENT_PLAYER_MOTION_STATE motionState = STILL;
-	glm::quat spineDefaultRot;
+	glm::quat prevBasisRotation{ 1.f, 0.f, 0.f, 0.f };
+	glm::quat basisRotation{ 1.f, 0.f, 0.f, 0.f };
 
-	void updateFromPlayerState(float pitch, float yaw, float alpha, bool isMoving);
-	void updateAnimationState(float deltaTime, float motionFB, float motionLR, float pitch, float yaw);
-	void transitionToNewAnimation(Animation* current, Animation* next);
+	float						  fadeTimer = 0.f;
+	float						  fadeLength = 0.15f;
+	bool						  transitioning = false;
+
+	CURRENT_PLAYER_MOTION_STATE motionState = STILL;
+	TURN_ANIM_STATE turnState = IDLE;
+
+	AnimationController() {
+		upperArmL = upperArmR = spine005 = spine007 = spine003 = spine = nullptr;
+		idleAnimation = leftTurnAnimation = rightTurnAnimation = runningAnimation = currentLowerBodyAnim = currentUpperBodyAnim = previousAnimation = nullptr;
+	};
+
+	AnimationController(gltfNode* upperL, gltfNode* upperR, gltfNode* spine5, gltfNode* spine7, gltfNode* spine3, gltfNode* sp, Animation* idle, Animation* leftTurn, Animation* rightTurn, Animation* run, std::vector<gltfNode*> allNodes) {
+		upperArmL = upperL;
+		upperArmR = upperR;
+		spine005 = spine5;
+		spine007 = spine7;
+		spine003 = spine3;
+		spine = sp;
+
+		idleAnimation = idle;
+		leftTurnAnimation = leftTurn;
+		rightTurnAnimation = rightTurn;
+		runningAnimation = run;
+
+		currentLowerBodyAnim = idle;
+		currentUpperBodyAnim = idle;
+		previousAnimation = nullptr;
+
+		previousAnimationTransforms.resize(allNodes.size());
+	}
+};
+
+class AnimationStateMachine {
+private:
+	void setNewBasis(AnimationController& c, float basis) {
+		basis = fmod(basis, 360);
+		c.basisRotation = glm::angleAxis(glm::radians(basis), glm::vec3(0, 1, 0));
+	}
+
+	void turn(AnimationController& c, float absolute) {
+		c.prevBasisRotation = c.basisRotation;
+		setNewBasis(c, absolute);
+	}
+
+	void stageTurnAnim(AnimationController& c, bool leftRight) {
+		c.turnState = leftRight ? NEEDS_TURN_LEFT : NEEDS_TURN_RIGHT;
+	}
+
+	void flushQueuedNodeTransforms(AnimationController& c);
+	void updateSamplers(AnimationController& c, Animation* animation, AnimationChannel* channel, Transform* t);
+	void updateUpperAnimation(AnimationController& c);
+	void updateLowerAnimation(AnimationController& c);
+	void updatePreviousWholeBodyAnimation(AnimationController& c);
+	void lerpPreviousCurrentAnimations(AnimationController& c);
+	void updateFromPlayerState(AnimationController& c, float pitch, float yaw, float alpha, bool isMoving);
+	void transitionToNewAnimation(AnimationController& c, Animation* current, Animation* next);
+
+public:
+	void updateAnimationState(AnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw);
 };

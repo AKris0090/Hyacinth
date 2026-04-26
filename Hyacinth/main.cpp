@@ -95,8 +95,9 @@ int main() {
 	physicsManager.addCharacterController(0);
 
 	HyacinthNetworkClient netClient;
+	netClient.netEntManager.characterObject = &hyacinthEngine.m_scene.dynamicObjects[0];
 	Entity* thisEnt;
-	std::string ip;
+	std::string ip; 
 	std::cout << "Enter server IP: ";
 	// std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
@@ -191,18 +192,8 @@ int main() {
 		// read packets from the server
 		ServerSnapshot interp = netClient.netEntManager.packetBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
 		// use packet to determine object transforms
-		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id);
-		if (interp.entities.size() > 1) {
-			Entity* e = nullptr;
-			for (auto& ent : interp.entities) {
-				if (ent.id != netClient.netEntManager.self->id) {
-					e = &ent;
-				}
-			}
-			if (e) {
-				hyacinthEngine.setObjectPitchYaw(0, e->transform.pitch, e->transform.yaw);
-			}
-		}
+		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id, Time::getDeltaTime());
+		physicsManager.setNetworkEntityCapColliderPosition(&interp, netClient.netEntManager.self->id);
 
 		Time::updateTime();
 		InputManager::resetMouseMotion();

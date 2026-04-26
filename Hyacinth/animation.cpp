@@ -114,8 +114,8 @@ void Animation::loadAnimations(tinygltf::Model* input, std::vector<gltfNode*>& n
 	}
 }
 
-void AnimationStateMachine::flushQueuedNodeTransforms() {
-	for (auto& node : { spine, spine003, upperArmL, upperArmR, spine005 }) {
+void AnimationStateMachine::flushQueuedNodeTransforms(AnimationController& c) {
+	for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
 		glm::quat finalPitch{ 1.f, 0.f, 0.f, 0.f };
 		glm::quat finalYaw{ 1.f, 0.f, 0.f, 0.f };
 
@@ -139,37 +139,37 @@ void AnimationStateMachine::flushQueuedNodeTransforms() {
 		node->queuedPitchShifts.clear();
 		node->queuedYawShifts.clear();
 	}
-	for (auto& node : { spine, spine003, upperArmL, upperArmR, spine005 }) {
+	for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
 		node->matComponents.rotation = node->queuedQuatRotation * node->matComponents.rotation;
 	}
 }
 
-void AnimationStateMachine::updateFromPlayerState(float pitch, float yaw, float alpha, bool isMoving) {
-	glm::quat trueAngleQuat = glm::slerp(prevBasisRotation, basisRotation, alpha);
+void AnimationStateMachine::updateFromPlayerState(AnimationController& c, float pitch, float yaw, float alpha, bool isMoving) {
+	glm::quat trueAngleQuat = glm::slerp(c.prevBasisRotation, c.basisRotation, alpha);
 	float bodyAngle = yawFromQuaternion(trueAngleQuat);
-	spine->queuedYawShifts.push_back(bodyAngle);
+	c.spine->queuedYawShifts.push_back(bodyAngle);
 
 	if (!isMoving) {
 		glm::quat yawQuaternion = glm::angleAxis(glm::radians(yaw), glm::vec3(0, 1, 0));	
 		glm::quat delta = yawQuaternion * glm::inverse(trueAngleQuat);
 		float deltaAngle = yawFromQuaternion(delta);
-		spine003->queuedYawShifts.push_back(deltaAngle);
+		c.spine003->queuedYawShifts.push_back(deltaAngle);
 	}
 
-	for (auto& node : { upperArmL, upperArmR, spine005 }) {
+	for (auto& node : { c.upperArmL, c.upperArmR, c.spine005 }) {
 		node->queuedPitchShifts.push_back(pitch);
 	}
 
-	flushQueuedNodeTransforms(); // flush all at once so that rotations do not cause weird interactions with each other
+	flushQueuedNodeTransforms(c); // flush all at once so that rotations do not cause weird interactions with each other
 }
 
-void AnimationStateMachine::updateSamplers(Animation* animation, AnimationChannel* channel, Transform* t) {
+void AnimationStateMachine::updateSamplers(AnimationController& c, Animation* animation, AnimationChannel* channel, Transform* t) {
 	AnimationSampler& sampler = animation->samplers[channel->samplerIndex];
 	for (size_t i = 0; i < sampler.inputs.size() - 1; i++)
 	{
-		if ((animation->currentTime >= sampler.inputs[i]) && (animation->currentTime <= sampler.inputs[i + 1]))
+		if ((c.currentTime >= sampler.inputs[i]) && (c.currentTime <= sampler.inputs[i + 1]))
 		{
-			float a = (animation->currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
+			float a = (c.currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
 			if (channel->path == "translation")
 			{
 				t->position = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
@@ -198,124 +198,125 @@ void AnimationStateMachine::updateSamplers(Animation* animation, AnimationChanne
 	}
 }
 
-void AnimationStateMachine::updateUpperAnimation() {
-	for (auto& channel : currentUpperBodyAnim->channels)
+void AnimationStateMachine::updateUpperAnimation(AnimationController& c) {
+	for (auto& channel : c.currentUpperBodyAnim->channels)
 	{
 		if (!channel.node->upperBody) continue;
-		updateSamplers(currentUpperBodyAnim, &channel, &channel.node->matComponents);
+		updateSamplers(c, c.currentUpperBodyAnim, &channel, &channel.node->matComponents);
 	}
 }
 
-void AnimationStateMachine::updateLowerAnimation() {
-	for (auto& channel : currentLowerBodyAnim->channels)
+void AnimationStateMachine::updateLowerAnimation(AnimationController& c) {
+	for (auto& channel : c.currentLowerBodyAnim->channels)
 	{
 		if (!channel.node->lowerBody) continue;
-		updateSamplers(currentLowerBodyAnim, &channel, &channel.node->matComponents);
+		updateSamplers(c, c.currentLowerBodyAnim, &channel, &channel.node->matComponents);
 	}
 }
 
-void AnimationStateMachine::updatePreviousWholeBodyAnimation() {
-	for (auto& channel : previousAnimation->channels)
+void AnimationStateMachine::updatePreviousWholeBodyAnimation(AnimationController& c) {
+	for (auto& channel : c.previousAnimation->channels)
 	{
-		updateSamplers(previousAnimation, &channel, &previousAnimationTransforms[channel.node->index]);
+		Transform& t = c.previousAnimationTransforms[channel.node->index];
+		updateSamplers(c, c.previousAnimation, &channel, &t);
 	}
 }
 
-void AnimationStateMachine::transitionToNewAnimation(Animation* current, Animation* next) {
-	previousAnimation = current;
-	transitioning = true;
-	fadeTimer = 0.f;
-	currentLowerBodyAnim = next;
-	currentUpperBodyAnim = next;
-	next->currentTime = next->start;
+void AnimationStateMachine::transitionToNewAnimation(AnimationController& c, Animation* current, Animation* next) {
+	c.previousAnimation = current;
+	c.transitioning = true;
+	c.fadeTimer = 0.f;
+	c.currentLowerBodyAnim = next;
+	c.currentUpperBodyAnim = next;
+	c.currentTime = next->start;
 }
 
-void AnimationStateMachine::lerpPreviousCurrentAnimations() {
-	float alpha = fadeTimer / fadeLength;
-	for (auto& channel : currentLowerBodyAnim->channels)
+void AnimationStateMachine::lerpPreviousCurrentAnimations(AnimationController& c) {
+	float alpha = c.fadeTimer / c.fadeLength;
+	for (auto& channel : c.currentLowerBodyAnim->channels)
 	{
-		Transform& t = previousAnimationTransforms[channel.node->index];
+		Transform& t = c.previousAnimationTransforms[channel.node->index];
 		channel.node->matComponents = t.lerpToNoSet(channel.node->matComponents, alpha);
 	}
 }
 
-void AnimationStateMachine::updateAnimationState(float deltaTime, float motionFB, float motionLR, float pitch, float yaw) {
+void AnimationStateMachine::updateAnimationState(AnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw) {
 	bool playerInMotion = false;
 	if (motionFB != 0.f || motionLR != 0.f) {
 		playerInMotion = true;
 	}
 
 	if (!playerInMotion) {
-		if (turnState == IDLE || turnState == TURNING) {
+		if (c.turnState == IDLE || c.turnState == TURNING) {
 			glm::quat yawQuaternion = glm::angleAxis(glm::radians(yaw), glm::vec3(0, 1, 0));
 
 			// get delta quaternion
-			glm::quat delta = yawQuaternion * glm::inverse(basisRotation);
+			glm::quat delta = yawQuaternion * glm::inverse(c.basisRotation);
 			float deltaAngle = yawFromQuaternion(delta);
 
 			if (deltaAngle < -90.f) {
-				turn(yaw);
-				currentLowerBodyAnim = leftTurnAnimation;
-				leftTurnAnimation->currentTime = leftTurnAnimation->start;
-				turnState = TURNING;
+				turn(c, yaw);
+				c.currentLowerBodyAnim = c.leftTurnAnimation;
+				c.currentTime = c.leftTurnAnimation->start;
+				c.turnState = TURNING;
 			}
 			else if (deltaAngle > 90.f) {
-				turn(yaw);
-				currentLowerBodyAnim = rightTurnAnimation;
-				rightTurnAnimation->currentTime = rightTurnAnimation->start;
-				turnState = TURNING;
+				turn(c, yaw);
+				c.currentLowerBodyAnim = c.rightTurnAnimation;
+				c.currentTime = c.rightTurnAnimation->start;
+				c.turnState = TURNING;
 			}
-			else if (motionState == MOVING) {
-				transitionToNewAnimation(runningAnimation, idleAnimation); // TODO: once implemented other motion, update this
-				motionState = STILL;
+			else if (c.motionState == MOVING) {
+				transitionToNewAnimation(c, c.runningAnimation, c.idleAnimation); // TODO: once implemented other motion, update this
+				c.motionState = STILL;
 			}
 		}
 	}
 	else {
-		if (motionState != MOVING) {
-			transitionToNewAnimation(idleAnimation, runningAnimation); // TODO: once implemented other motion, update this
-			motionState = MOVING;
+		if (c.motionState != MOVING) {
+			transitionToNewAnimation(c, c.idleAnimation, c.runningAnimation); // TODO: once implemented other motion, update this
+			c.motionState = MOVING;
 		}
-		setNewBasis(yaw);
+		setNewBasis(c, yaw);
 	}
 
-	currentLowerBodyAnim->currentTime += deltaTime;
-	if (currentLowerBodyAnim == rightTurnAnimation || currentLowerBodyAnim == leftTurnAnimation) {
-		if (currentLowerBodyAnim->currentTime >= currentLowerBodyAnim->end) {
-			currentLowerBodyAnim = idleAnimation;
-			currentLowerBodyAnim->currentTime = currentLowerBodyAnim->start;
-			turnState = IDLE;
+	c.currentTime += deltaTime;
+	if (c.currentLowerBodyAnim == c.rightTurnAnimation || c.currentLowerBodyAnim == c.leftTurnAnimation) {
+		if (c.currentTime >= c.currentLowerBodyAnim->end) {
+			c.currentLowerBodyAnim = c.idleAnimation;
+			c.currentTime = c.currentLowerBodyAnim->start;
+			c.turnState = IDLE;
 		}
 	}
-	currentLowerBodyAnim->currentTime = fmod(currentLowerBodyAnim->currentTime, currentLowerBodyAnim->end);
-	if (currentLowerBodyAnim != currentUpperBodyAnim) {
-		currentUpperBodyAnim->currentTime += deltaTime;
-		currentUpperBodyAnim->currentTime = fmod(currentUpperBodyAnim->currentTime, currentUpperBodyAnim->end);
+	c.currentTime = fmod(c.currentTime, c.currentLowerBodyAnim->end);
+	if (c.currentLowerBodyAnim != c.currentUpperBodyAnim) {
+		c.currentTime += deltaTime;
+		c.currentTime = fmod(c.currentTime, c.currentUpperBodyAnim->end);
 	}
 
 	float alpha = 1.f;
-	if (currentLowerBodyAnim == leftTurnAnimation || currentLowerBodyAnim == rightTurnAnimation) {
-		alpha = currentLowerBodyAnim->currentTime / currentLowerBodyAnim->end;
+	if (c.currentLowerBodyAnim == c.leftTurnAnimation || c.currentLowerBodyAnim == c.rightTurnAnimation) {
+		alpha = c.currentTime / c.currentLowerBodyAnim->end;
 	}
 
-	updateUpperAnimation();
-	updateLowerAnimation();
+	updateUpperAnimation(c);
+	updateLowerAnimation(c);
 
-	if (transitioning) {
-		fadeTimer += deltaTime;
-		if (fadeTimer > fadeLength) {
-			transitioning = false;
+	if (c.transitioning) {
+		c.fadeTimer += deltaTime;
+		if (c.fadeTimer > c.fadeLength) {
+			c.transitioning = false;
 		}
 		else {
-			previousAnimation->currentTime += deltaTime;
-			previousAnimation->currentTime = fmod(previousAnimation->currentTime, previousAnimation->end);
-			updatePreviousWholeBodyAnimation();
+			c.previousTime += deltaTime;
+			c.previousTime = fmod(c.previousTime, c.previousAnimation->end);
+			updatePreviousWholeBodyAnimation(c);
 
 			// lerp between animation channel nodes and previous animation transforms
-			lerpPreviousCurrentAnimations();
+			lerpPreviousCurrentAnimations(c);
 		}
 	}
 
-	updateFromPlayerState(pitch, yaw, alpha, playerInMotion);
+	updateFromPlayerState(c, pitch, yaw, alpha, playerInMotion);
 }
 

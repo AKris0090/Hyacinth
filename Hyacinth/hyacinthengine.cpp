@@ -317,18 +317,30 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.addShader("shaders/vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
     m_pipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
+    m_skinnedPipelineUtil.addShader("shaders/skinnedVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    m_skinnedPipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
 	m_pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    m_pipelineUtil.setAnimatedAttribute();
+    m_pipelineUtil.setDefaultAttributes();
 	m_pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
 	m_pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	m_pipelineUtil.setColorAttachmentFormat(m_swImageFormat.format, 2);
     m_pipelineUtil.setMultisampling(m_msaaSamples);
 	m_pipelineUtil.disableBlending();
-
     m_pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
     m_pipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
-
     m_pipelineUtil.numColorAttachments = 2;
+
+    m_skinnedPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    m_skinnedPipelineUtil.setAnimatedAttribute();
+    m_skinnedPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
+    m_skinnedPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    m_skinnedPipelineUtil.setColorAttachmentFormat(m_swImageFormat.format, 2);
+    m_skinnedPipelineUtil.setMultisampling(m_msaaSamples);
+    m_skinnedPipelineUtil.disableBlending();
+    m_skinnedPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
+    m_skinnedPipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
+    m_skinnedPipelineUtil.numColorAttachments = 2;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -352,22 +364,27 @@ void HyacinthEngine::createGraphicsPipeline()
 	m_pipelineUtil.m_viewportState.pViewports = &viewport;
     m_pipelineUtil.m_viewportState.pScissors = &scissor;
 
-    VkPushConstantRange bufferRange{};
-    bufferRange.offset = 0;
-    bufferRange.size = sizeof(GPUDrawPushConstants);
-    bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    m_skinnedPipelineUtil.m_viewportState.pViewports = &viewport;
+    m_skinnedPipelineUtil.m_viewportState.pScissors = &scissor;
+
+    VkPushConstantRange range{};
+    range.offset = 0;
+    range.size = sizeof(GPUDrawPushConstants);
+    range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
     std::array<VkDescriptorSetLayout, 3> sets = { m_descriptorSetLayout, m_shadowSetLayout, m_textureSetLayout };
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCInfo { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pipelineLayoutCInfo.pushConstantRangeCount = 1;
-    pipelineLayoutCInfo.pPushConstantRanges = &bufferRange;
+    pipelineLayoutCInfo.pPushConstantRanges = &range;
 	pipelineLayoutCInfo.setLayoutCount = sets.size();
 	pipelineLayoutCInfo.pSetLayouts = sets.data();
 
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
+    VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_skinnedPipelineUtil.m_pipeline.layout));
 
 	m_pipelineUtil.buildPipeline();
+    m_skinnedPipelineUtil.buildPipeline();
 }
 
 void HyacinthEngine::createCompositePipeline()
@@ -491,7 +508,6 @@ void HyacinthEngine::createDDGIPipeline()
     m_ddgiPipelineUtil.setMultisampling(m_msaaSamples);
     m_ddgiPipelineUtil.disableBlending();
     m_ddgiPipelineUtil.setStencilAttachmentFormat(VK_FORMAT_S8_UINT);
-
     m_ddgiPipelineUtil.m_depthStencil.stencilTestEnable = true;
     m_ddgiPipelineUtil.m_depthStencil.front.compareMask = CURRENT_BIT;
     m_ddgiPipelineUtil.m_depthStencil.front.writeMask = ANY_BIT | CURRENT_BIT;
@@ -753,7 +769,6 @@ void HyacinthEngine::update() {
 
     m_shadowHelper.update(m_camera, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
-    p_netEntManager->update();
 
     std::vector<VolumeData> volumeData;
     for (auto& vol : m_owDDGIHelper.m_probeVolumes) {
@@ -774,30 +789,7 @@ void HyacinthEngine::update() {
         characterMatrices.push_back(selfMatrix * m_scene.dynamicTransformMatrices[i + m_scene.dynamicObjects[1].firstMatrix]);
     }
     size_t offset = sizeof(glm::mat4) * m_scene.dynamicObjects[1].firstMatrix;
-    memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, characterMatrices.data(), sizeof(glm::mat4) * characterMatrices.size());
-
-    // TODO: eventually bring this up to making it for more clients
-    for (int i = 0; i < p_netEntManager->ids.size(); i++) {
-        p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->lock();
-        glm::mat4 entityMatrix = p_netEntManager->entities[p_netEntManager->ids[i]]->transform.getMatrix();
-        std::vector<glm::mat4> newMatrices;
-        for (int i = 0; i < m_scene.dynamicObjects[0].numMatrices; i++) {
-            newMatrices.push_back(entityMatrix * m_scene.dynamicTransformMatrices[i]);
-        }
-        offset = sizeof(glm::mat4) * m_scene.dynamicObjects[i].firstMatrix;
-        memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, newMatrices.data(), sizeof(glm::mat4) * newMatrices.size());
-        p_netEntManager->entityMutexes[p_netEntManager->ids[i]].get()->unlock();
-    }
-
-    uint32_t id = 0;
-    for (const auto& i : p_netEntManager->ids) {
-        if (i != p_netEntManager->self->id) {
-            id = i;
-        }
-    }
-    if (id != 0) {
-        m_scene.dynamicObjects[0].updateAnimation(p_netEntManager->entities[id], Time::getDeltaTime(), 0);
-    }
+    memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, characterMatrices.data(), sizeof(glm::mat4) * characterMatrices.size());\
 
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
@@ -889,15 +881,7 @@ void HyacinthEngine::drawImGui() {
     ImGui::Text("ft: %.2f ms", Time::getDeltaTime() * 1000.0f);
 
     std::stringstream s;
-    AnimationStateMachine& anim = m_scene.dynamicObjects[0].animStateMachine;
-    switch (anim.motionState) {
-    case MOVING:
-        s << ", MOVING";
-        break;
-    case STILL:
-        s << ", STILL";
-        break;
-    }
+    s << "ID: " << p_netEntManager->self->id;
     
     ImGui::Text(s.str().c_str());
 
@@ -945,9 +929,8 @@ void HyacinthEngine::draw()
     pushConstants.materialAddress = m_materialBuffer.gpuAddress;
     pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
     pushConstants.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
-    pushConstants.volumeIndex = 0;
-    pushConstants.isAnimated = 0;
-    pushConstants.jointBufferAddress = m_scene.dynamicObjects[0].skins[0].jointMatrixBuffer.gpuAddress;
+    pushConstants.jointBufferAddress = 0;
+    pushConstants.entityMatrix = glm::mat4{ 1.0f };
 
     ComputePushConstant ddgiPushConstant{};
     ddgiPushConstant.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
@@ -974,137 +957,134 @@ void HyacinthEngine::draw()
     setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
 
-    VK_LABEL(cmd, "Compute Cull Main");
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
-    m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_staticIndirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
-    VK_LABEL_END(cmd);
-    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-        VK_LABEL(cmd, "Compute Cull Shadow");
-        m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
+    {
+        VK_LABEL(cmd, "Compute Cull Main");
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
+        m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_staticIndirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
         VK_LABEL_END(cmd);
+        for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+            VK_LABEL(cmd, "Compute Cull Shadow");
+            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
+            VK_LABEL_END(cmd);
+        }
     }
 
     // shadows
-    m_shadowHelper.drawShadowMaps(cmd, numStaticDraws, m_frameIndex, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress);
+    {
+        m_shadowHelper.drawShadowMaps(cmd, numStaticDraws, m_frameIndex, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress);
+    }
 
     // main render pass
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
-    VkRenderingAttachmentInfo albedoAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].albedo.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    VkRenderingAttachmentInfo normalAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].normal.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView);
-	std::array<VkRenderingAttachmentInfo, 2> colorAttachments = { albedoAttachment, normalAttachment };
-	VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 2, colorAttachments.data(), &depthAttachment);
-    VK_LABEL(cmd, "G Buffer Pass");
-    vkCmdBeginRendering(cmd, &renderingInfo);
+    {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
+        VkRenderingAttachmentInfo albedoAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].albedo.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo normalAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].normal.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView);
+        std::array<VkRenderingAttachmentInfo, 2> colorAttachments = { albedoAttachment, normalAttachment };
+        VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 2, colorAttachments.data(), &depthAttachment);
+        VK_LABEL(cmd, "G Buffer Pass");
+        vkCmdBeginRendering(cmd, &renderingInfo);
 
-    std::array<VkDescriptorSet, 3> sets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_frameData[m_frameIndex].shadowDescriptorSet, m_textureSet };
+        std::array<VkDescriptorSet, 3> sets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_frameData[m_frameIndex].shadowDescriptorSet, m_textureSet };
 
-    vkCmdBindDescriptorSets(
-        cmd,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        m_pipelineUtil.m_pipeline.layout,
-        0,
-        sets.size(),
-        sets.data(),
-        0,
-        nullptr
-    );
-
-    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-	vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.staticDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
-
-    pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
-
-    // TODO: under the assumption that there is only one other network entity. expand for more.
-    if (p_netEntManager->ids.size() > 0) {
-        pushConstants.isAnimated = 1;
+        vkCmdBindDescriptorSets(
+            cmd,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            m_pipelineUtil.m_pipeline.layout,
+            0,
+            sets.size(),
+            sets.data(),
+            0,
+            nullptr
+        );
 
         vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-        vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-        pushConstants.isAnimated = 0;
+        vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.staticDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+
+        pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
+
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skinnedPipelineUtil.m_pipeline.pipeline);
+
+        // draw animated network entities
+        p_netEntManager->drawEntities(cmd, m_skinnedPipelineUtil, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), m_dynamicIndirectDrawBuffer, pushConstants);
+
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline); // TODO: remove when skinned fp character
+        vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+
+        // draw character separately
+        vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, characterDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.characterDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+
+        vkCmdEndRendering(cmd);
+        VK_LABEL_END(cmd);
     }
-
-    vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-
-    // draw character separately
-    vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, characterDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.characterDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
-
-    vkCmdEndRendering(cmd);
-    VK_LABEL_END(cmd);
 
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].albedo.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].normal.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-    VK_LABEL(cmd, "DDGI Pass");
-    bool shouldClear = true;
-    for (int i = m_owDDGIHelper.m_probeVolumes.size() - 1; i >= 0; i--) {
-        ddgiPushConstant.volumeIndex = i;
-        vsPushConstant.volumeIndex = i;
+    {
+        VK_LABEL(cmd, "DDGI Pass");
+        bool shouldClear = true;
+        for (int i = m_owDDGIHelper.m_probeVolumes.size() - 1; i >= 0; i--) {
+            ddgiPushConstant.volumeIndex = i;
+            vsPushConstant.volumeIndex = i;
 
-        VK_LABEL(cmd, "Stencil Volume");
-        // bind stencil pipeline
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.pipeline);
-        VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_frameIndex].stencilDepth.imageView, shouldClear);
-        VkRenderingInfo volumeStencilRenderingInfo = vkdeviceutils::createStencilRenderingInfo(m_swImageFormat.extent, &stencilAttachmentInfo);
-        vkCmdBeginRendering(cmd, &volumeStencilRenderingInfo);
-        vkCmdSetViewport(cmd, 0, 1, &viewport);
-        vkCmdSetScissor(cmd, 0, 1, &scissor);
-        std::array<VkDescriptorSet, 2> stencilSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_frameIndex].m_compositeSet };
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.layout, 0, stencilSets.size(), stencilSets.data(), 0, nullptr);
-        vkCmdPushConstants(cmd, m_volumeStencilPipeline.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &vsPushConstant);
-        // draw volume to stencil buffer
-        vkCmdDrawIndexed(cmd, UNIT_CUBE_INDEX_COUNT, 1, QUAD_INDEX_COUNT, QUAD_VERTEX_COUNT, 0);
-        vkCmdEndRendering(cmd);
+            VK_LABEL(cmd, "Stencil Volume");
+            // bind stencil pipeline
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.pipeline);
+            VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_frameIndex].stencilDepth.imageView, shouldClear);
+            VkRenderingInfo volumeStencilRenderingInfo = vkdeviceutils::createStencilRenderingInfo(m_swImageFormat.extent, &stencilAttachmentInfo);
+            vkCmdBeginRendering(cmd, &volumeStencilRenderingInfo);
+            vkCmdSetViewport(cmd, 0, 1, &viewport);
+            vkCmdSetScissor(cmd, 0, 1, &scissor);
+            std::array<VkDescriptorSet, 2> stencilSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_frameIndex].m_compositeSet };
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.layout, 0, stencilSets.size(), stencilSets.data(), 0, nullptr);
+            vkCmdPushConstants(cmd, m_volumeStencilPipeline.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &vsPushConstant);
+            // draw volume to stencil buffer
+            vkCmdDrawIndexed(cmd, UNIT_CUBE_INDEX_COUNT, 1, QUAD_INDEX_COUNT, QUAD_VERTEX_COUNT, 0);
+            vkCmdEndRendering(cmd);
+            VK_LABEL_END(cmd);
+
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.pipeline);
+            VkRenderingAttachmentInfo ddgiAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].ddgiImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, shouldClear);
+            VkRenderingAttachmentInfo stencilAttachment = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_frameIndex].stencilDepth.imageView, false);
+            VkRenderingInfo ddgiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &ddgiAttachment, nullptr);
+            ddgiRenderingInfo.pStencilAttachment = &stencilAttachment;
+            vkCmdBeginRendering(cmd, &ddgiRenderingInfo);
+            vkCmdSetViewport(cmd, 0, 1, &viewport);
+            vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+            std::array<VkDescriptorSet, 3> ddgiSets = { m_gBuffers[m_frameIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet };
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.layout, 0, ddgiSets.size(), ddgiSets.data(), 0, nullptr);
+            vkCmdPushConstants(cmd, m_ddgiPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &ddgiPushConstant);
+            vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
+            vkCmdEndRendering(cmd);
+
+            shouldClear = false;
+        }
         VK_LABEL_END(cmd);
+    }
 
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.pipeline);
-        VkRenderingAttachmentInfo ddgiAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].ddgiImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, shouldClear);
-        VkRenderingAttachmentInfo stencilAttachment = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_frameIndex].stencilDepth.imageView, false);
-        VkRenderingInfo ddgiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &ddgiAttachment, nullptr);
-        ddgiRenderingInfo.pStencilAttachment = &stencilAttachment;
-        vkCmdBeginRendering(cmd, &ddgiRenderingInfo);
+    {
+        VK_LABEL(cmd, "Composite Pass");
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.pipeline);
+        std::array<VkDescriptorSet, 2> compositeSets = { m_gBuffers[m_frameIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet };
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.layout, 0, compositeSets.size(), compositeSets.data(), 0, nullptr);
+        VkRenderingAttachmentInfo compositeAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingInfo compositeRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &compositeAttachment, nullptr);
+        vkCmdBeginRendering(cmd, &compositeRenderingInfo);
         vkCmdSetViewport(cmd, 0, 1, &viewport);
         vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-        std::array<VkDescriptorSet, 3> ddgiSets = { m_gBuffers[m_frameIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet };
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.layout, 0, ddgiSets.size(), ddgiSets.data(), 0, nullptr);
-        vkCmdPushConstants(cmd, m_ddgiPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &ddgiPushConstant);
         vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
         vkCmdEndRendering(cmd);
-
-        shouldClear = false;
+        VK_LABEL_END(cmd);
     }
-    VK_LABEL_END(cmd);
-
-	VK_LABEL(cmd, "Composite Pass");
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.pipeline);
-    std::array<VkDescriptorSet, 2> compositeSets = { m_gBuffers[m_frameIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet };
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.layout, 0, compositeSets.size(), compositeSets.data(), 0, nullptr);
-    VkRenderingAttachmentInfo compositeAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo compositeRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &compositeAttachment, nullptr);
-	vkCmdBeginRendering(cmd, &compositeRenderingInfo);
-	vkCmdSetViewport(cmd, 0, 1, &viewport);
-	vkCmdSetScissor(cmd, 0, 1, &scissor);
-	vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
-    vkCmdEndRendering(cmd);
-    VK_LABEL_END(cmd);
 
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-    VK_LABEL(cmd, "Network Entity Pass");
-    VkRenderingAttachmentInfo netColorInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-    VkRenderingAttachmentInfo netDepthInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
-    VkRenderingInfo netRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netColorInfo, &netDepthInfo);
-    vkCmdBeginRendering(cmd, &netRenderingInfo);
-    p_netEntManager->drawEntities(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
-    vkCmdEndRendering(cmd);
-    VK_LABEL_END(cmd);
 
     if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
         VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
@@ -1187,12 +1167,6 @@ void HyacinthEngine::endDraw()
     m_frameIndex = (m_frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-// TODO: should not be gltfObject, should be for the entity object
-void HyacinthEngine::setObjectPitchYaw(int gltfObjectIndex, float pitch, float yaw) {
-    m_scene.dynamicObjects[gltfObjectIndex].lookDirectionPitch = pitch;
-    m_scene.dynamicObjects[gltfObjectIndex].lookDirectionYaw = yaw;
-}
-
 void HyacinthEngine::recreateSwapchain() {
     vkDeviceWaitIdle(m_device);
 
@@ -1243,6 +1217,7 @@ void HyacinthEngine::cleanup()
     m_compositePipelineUtil.destroyPipeline();
     m_ddgiPipelineUtil.destroyPipeline();
     m_volumeStencilPipeline.destroyPipeline();
+    m_skinnedPipelineUtil.destroyPipeline();
 
     for (auto& tex : m_scene.dummyTextures) {
         vkimageutils::destroyImage(tex);
@@ -1259,11 +1234,6 @@ void HyacinthEngine::cleanup()
     for (auto& obj : m_scene.dynamicObjects) {
         for (auto& tex : obj.textures) {
             vkimageutils::destroyImage(tex);
-        }
-        if (obj.skins.size() > 0) {
-            for (auto& s : obj.skins) {
-                vkdeviceutils::destroyBuffer(s.jointMatrixBuffer);
-            }
         }
     }
 
