@@ -35,15 +35,12 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		p.movementFB = netClient->netEntManager.inputAccumulator.movementFB;
 		p.movementLR = netClient->netEntManager.inputAccumulator.movementLR;
 		p.jump = netClient->netEntManager.inputAccumulator.jump;
+		p.lmb = netClient->netEntManager.inputAccumulator.shooting;
 
 		if (b.active) {
 			p.movementLR = b.update(SERVER_TIMESTEP);
 			p.movementFB = 0;
 			p.jump = false;
-		}
-
-		if (InputManager::mouseDown()) {
-			p.lmb = true;
 		}
 
 		// update physics
@@ -99,9 +96,9 @@ int main() {
 	Entity* thisEnt;
 	std::string ip; 
 	std::cout << "Enter server IP: ";
-	// std::getline(std::cin, ip);
+	std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
-		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		int res = netClient.setup(ip, hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
 		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 		if (res > 0) {
 			exit(EXIT_FAILURE);
@@ -162,6 +159,7 @@ int main() {
 		p.jump = InputManager::getSpaceButton();
 		p.pitch = mo.first;
 		p.yaw = mo.second;
+		p.lmb = InputManager::mouseDown();
 
 		netClient.netEntManager.inputAccumulatorMutex.lock();
 		netClient.netEntManager.inputAccumulator.addPacket(p);

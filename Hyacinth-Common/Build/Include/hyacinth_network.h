@@ -28,6 +28,8 @@ constexpr int DEFAULT_LEN = 512;
 constexpr int MAX_CONNECTIONS = 12;
 constexpr int SERVER_INPUT_BUFFER = 2;
 
+constexpr int SERVER_FRAME_LAG = 100;
+
 constexpr float SERVER_TIMESTEP = 0.0078125f;
 constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
 
@@ -265,4 +267,12 @@ public:
 			return r;
 		}
 	}
+};
+
+// layer on top of network to simulate lag
+class LagSimulator {
+public:
+	// map<deliver_time, packet>
+	std::unordered_map<uint32_t, std::queue<ClientUpdatePacket>> lagPacketBuffer;
+	std::mutex buffLock;
 };

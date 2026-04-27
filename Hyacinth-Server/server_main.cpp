@@ -28,11 +28,12 @@
 #pragma comment(lib, "Hyacinth-Common.lib")
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
-constexpr long long CLIENT_TIMEOUT = 3000;
+constexpr long long CLIENT_TIMEOUT = 15000;
 
 EntityManager entityManager;
 PhysicsManager physicsManager;
 SPSCQueue<Event> serverEvents;
+LagSimulator lagSim;
 std::mutex bufferedClientPacketMutex;
 std::queue<ClientUpdatePacket> bufferedClientPackets;
 RewindRingBuffer rewindBuffer;
@@ -170,10 +171,8 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
 
         int bytesReceived = recvfrom(*udpSocket, recvBuff, sizeof(recvBuff) - 1, 0, (sockaddr*)&clientAddr, &clientAddrSize);
 
-        if (bytesReceived == SOCKET_ERROR) {
-            int err = WSAGetLastError();
-            std::cout << "[NETWORK] recvfrom failed: " << WSAGetLastError() << std::endl;
-            break;
+        if (bytesReceived == SOCKET_ERROR) { // usually client disconnect
+            continue;
         }
 
         recvBuff[bytesReceived] = '\0';
@@ -189,6 +188,13 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         }
 
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
+        // std::unique_lock l(lagSim.buffLock);
+        // if (p.id == 1) {
+        //     lagSim.lagPacketBuffer[currentTick + 1].push(p);
+        // }
+        // else {
+        //     lagSim.lagPacketBuffer[currentTick + SERVER_FRAME_LAG].push(p);
+        // }
         std::unique_lock l(bufferedClientPacketMutex);
         bufferedClientPackets.push(p);
     }
@@ -272,9 +278,19 @@ void updateTick(SOCKET* udpSendSocket) {
             }
         }
 
-        // flush buffered packets
         {
+            // scroll through lag sim buffer, and push all packets into bufferedClientPackets
             std::unique_lock l(bufferedClientPacketMutex);
+            // std::unique_lock lock(lagSim.buffLock);
+            // if (lagSim.lagPacketBuffer.find(currentTick) != lagSim.lagPacketBuffer.end()) {
+            //     while (lagSim.lagPacketBuffer[currentTick].size() > 0) {
+            //         bufferedClientPackets.push(lagSim.lagPacketBuffer[currentTick].front());
+            //         lagSim.lagPacketBuffer[currentTick].pop();
+            //     }
+            //     lagSim.lagPacketBuffer.erase(currentTick);
+            // }
+
+            // flush buffered packets
             while (!bufferedClientPackets.empty()) {
                 ClientUpdatePacket p = bufferedClientPackets.front();
                 if (entityManager.clients.find(p.id) != entityManager.clients.end()) {
@@ -315,16 +331,16 @@ void updateTick(SOCKET* udpSendSocket) {
                 uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER;
                 rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind);
                 if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer
-                    std::cout << "couldn't find the right snapshot, for some reason" << std::endl;
+                    std::cout << "couldn't find the right snapshot, too far in the past" << std::endl;
                 }
                 else {
                     hitReg h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
                     if (h.hit) {
-                        std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl;
+                        std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl << std::endl;
                         client->entity.shotAck = true;
                     }
                     else {
-                        std::cout << "airball" << std::endl;
+                        std::cout << "airball" << std::endl << std::endl;
                     }
                 }
             }
