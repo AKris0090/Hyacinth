@@ -188,15 +188,15 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         }
 
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
-        // std::unique_lock l(lagSim.buffLock);
-        // if (p.id == 1) {
-        //     lagSim.lagPacketBuffer[currentTick + 1].push(p);
-        // }
-        // else {
-        //     lagSim.lagPacketBuffer[currentTick + SERVER_FRAME_LAG].push(p);
-        // }
-        std::unique_lock l(bufferedClientPacketMutex);
-        bufferedClientPackets.push(p);
+        std::unique_lock l(lagSim.buffLock);
+        if (p.id == 1) {
+            lagSim.lagPacketBuffer[currentTick + 1].push(p);
+        }
+        else {
+            lagSim.lagPacketBuffer[currentTick + SERVER_FRAME_LAG].push(p);
+        }
+        // std::unique_lock l(bufferedClientPacketMutex);
+        // bufferedClientPackets.push(p);
     }
 
     closesocket(*udpSocket);
@@ -281,14 +281,14 @@ void updateTick(SOCKET* udpSendSocket) {
         {
             // scroll through lag sim buffer, and push all packets into bufferedClientPackets
             std::unique_lock l(bufferedClientPacketMutex);
-            // std::unique_lock lock(lagSim.buffLock);
-            // if (lagSim.lagPacketBuffer.find(currentTick) != lagSim.lagPacketBuffer.end()) {
-            //     while (lagSim.lagPacketBuffer[currentTick].size() > 0) {
-            //         bufferedClientPackets.push(lagSim.lagPacketBuffer[currentTick].front());
-            //         lagSim.lagPacketBuffer[currentTick].pop();
-            //     }
-            //     lagSim.lagPacketBuffer.erase(currentTick);
-            // }
+            std::unique_lock lock(lagSim.buffLock);
+            if (lagSim.lagPacketBuffer.find(currentTick) != lagSim.lagPacketBuffer.end()) {
+                while (lagSim.lagPacketBuffer[currentTick].size() > 0) {
+                    bufferedClientPackets.push(lagSim.lagPacketBuffer[currentTick].front());
+                    lagSim.lagPacketBuffer[currentTick].pop();
+                }
+                lagSim.lagPacketBuffer.erase(currentTick);
+            }
 
             // flush buffered packets
             while (!bufferedClientPackets.empty()) {
@@ -323,18 +323,24 @@ void updateTick(SOCKET* udpSendSocket) {
                 client->entity.isMoving = false;
             }
 
+            hitReg h;
+            bool shooting = false;
             if (client->bufferedPacket.shooting) {
+                shooting = true;
                 // usually, it would be Current Server Time - Packet Latency - Client View Interpolation. In this case, RTT / 2 = 0 because everything is being run locally.
-                // TODO: find a way to estimate the client's ping. By figuring that out, add that value to SERVER_INPUT_BUFFER. 
+                // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
                 // if using the method explained here: https://vercidium.com/blog/lag-compensation/, you can calculate sub-tick positions using a transform lerp
                 // subtract the sub-tick offset at the end.
-                uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER;
-                rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind);
+                uint32_t tickRewind = currentTick - 2;
+                if (client->id == 2) {
+                    tickRewind -= SERVER_FRAME_LAG; // since entity 2 is the lagging one, offset the tick. this simulates estimated ping (RTT / 2)
+                }
+                rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind); 
                 if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer
                     std::cout << "couldn't find the right snapshot, too far in the past" << std::endl;
                 }
                 else {
-                    hitReg h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
+                    h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
                     if (h.hit) {
                         std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl << std::endl;
                         client->entity.shotAck = true;
@@ -347,6 +353,14 @@ void updateTick(SOCKET* udpSendSocket) {
 
             client->bufferedPacket.reset();
             p->entities.push_back(client->entity);
+
+            if (shooting) {
+                for (auto& ent : p->entities) {
+                    if (ent.id == 1) {
+                        ent.transform.position = h.footPosHit;
+                    }
+                }
+            }
 
             r.entityPositions.push_back(entityPositionSnapshot{ id, client->entity.transform.position });
         }
@@ -463,6 +477,8 @@ int main()
         std::cout << "[NETWORK] Connect from other devices using: " << localIP << ":" << DEFAULT_PORT << std::endl << std::endl;
         freeaddrinfo(localResult);
     }
+
+    std::cout << "MAX FRAME PING: " << MAX_REWIND << "\n";
 
     // listen on the udp thread
     std::thread udpSocketThread(serverListenForUDPPackets, &udpListenSocket);

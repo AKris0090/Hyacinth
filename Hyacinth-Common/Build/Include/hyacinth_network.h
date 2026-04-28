@@ -33,6 +33,9 @@ constexpr int SERVER_FRAME_LAG = 100;
 constexpr float SERVER_TIMESTEP = 0.0078125f;
 constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
 
+// max rewind is 140 ms (from official valorant servers)
+constexpr int MAX_REWIND = (720 + static_cast<int>(SERVER_TIMESTEP * 1000.f) - 1) / static_cast<int>(SERVER_TIMESTEP * 1000.f);
+
 //constexpr float SERVER_TIMESTEP = 0.01f;
 //constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 10.0ms;
 
@@ -192,9 +195,6 @@ struct rewindSnapshot {
 	uint32_t tickNum;
 	std::vector<entityPositionSnapshot> entityPositions;
 };
-
-// max rewind is 140 ms (from official valorant servers)
-constexpr int MAX_REWIND = (140 + static_cast<int>(SERVER_TIMESTEP * 1000.f) - 1) / static_cast<int>(SERVER_TIMESTEP * 1000.f);
 
 class RewindRingBuffer {
 private:

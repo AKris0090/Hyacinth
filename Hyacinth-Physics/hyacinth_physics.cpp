@@ -72,20 +72,20 @@ void PhysicsManager::initPhysics(bool debug) {
 
 // Client function for adding capsules to properly predict player-player collision
 void PhysicsManager::addNetworkEntityCapsuleCollider(uint32_t cId) {
-	physx::PxController* entityController = pCManager->createController(controllerDesc);
-	clientControllers[cId] = entityController;
+	// physx::PxController* entityController = pCManager->createController(controllerDesc);
+	// clientControllers[cId] = entityController;
 }
 
 void PhysicsManager::setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId) {
-	charLock.lock();
-	for (const auto& e : s->entities) {
-		if (e.id == selfId) continue;
-		if (clientControllers.find(e.id) == clientControllers.end()) {
-			addNetworkEntityCapsuleCollider(e.id);
-		}
-		clientControllers[e.id]->setFootPosition(physxEVec(e.transform.position));
-	}
-	charLock.unlock();
+	// charLock.lock();
+	// for (const auto& e : s->entities) {
+	// 	if (e.id == selfId) continue;
+	// 	if (clientControllers.find(e.id) == clientControllers.end()) {
+	// 		addNetworkEntityCapsuleCollider(e.id);
+	// 	}
+	// 	clientControllers[e.id]->setFootPosition(physxEVec(e.transform.position));
+	// }
+	// charLock.unlock();
 }
 
 void PhysicsManager::addCharacterController(uint32_t cId) {
@@ -275,6 +275,10 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 		if (e.id == shooterId) continue;
 		previousPositions[e.id] = clientControllers[e.id]->getFootPosition();
 		clientControllers[e.id]->setFootPosition(physxEVec(e.pos));
+
+		if (e.id == 1) {
+			h.footPosHit = e.pos;
+		}
 	}
 
 	bool hit = pScene->raycast(origin + (dir * 0.6f), dir, maxDist, rayHit);

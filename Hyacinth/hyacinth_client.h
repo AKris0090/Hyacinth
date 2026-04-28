@@ -33,6 +33,7 @@ private:
 
 public:
 	NetworkEntityManager netEntManager;
+	LagSimulator lagSim;
 
 	int setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout);
 	void updateServerTick(ClientUpdatePacket& p, bool mouseLocked);
