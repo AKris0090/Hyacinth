@@ -245,5 +245,5 @@ void HyacinthNetworkClient::updateServerTick(ClientUpdatePacket& p, bool mouseLo
 }
 
 void HyacinthNetworkClient::shutdownNet() {
-    // netEntManager.shutdown();
+    netEntManager.shutdown();
 }

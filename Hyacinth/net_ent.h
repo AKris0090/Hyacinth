@@ -69,7 +69,7 @@ struct StateStorage {
 class RewindBuffer {
 public:
 	using PhysicsPosFn = std::function<void(glm::vec3 p)>;
-	using PhysicsStepFn = std::function<void(Transform& t, float fb, float lr)>;
+	using PhysicsStepFn = std::function<void(Transform& t, int8_t fb, int8_t lr)>;
 	std::deque<StateStorage> ringBuffer;
 	std::mutex rBMutex;
 	std::queue<ServerSnapshot> pendingPackets;
@@ -83,7 +83,7 @@ public:
 		physicsStep = fn;
 	}
 
-	void addState(Transform t, float fb, float lr, uint32_t tickNum) {
+	void addState(Transform t, int8_t fb, int8_t lr, uint32_t tickNum) {
 		rBMutex.lock();
 		StateStorage sS;
 		sS.tickNum = tickNum;
@@ -103,7 +103,7 @@ private:
 };
 
 struct gltfObject;
-struct AnimationStateMachine;
+class AnimationStateMachine;
 
 class NetworkEntityManager {
 public:

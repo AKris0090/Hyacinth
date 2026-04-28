@@ -163,13 +163,14 @@ void AnimationStateMachine::updateFromPlayerState(AnimationController& c, float 
 	flushQueuedNodeTransforms(c); // flush all at once so that rotations do not cause weird interactions with each other
 }
 
-void AnimationStateMachine::updateSamplers(AnimationController& c, Animation* animation, AnimationChannel* channel, Transform* t) {
+void AnimationStateMachine::updateSamplers(AnimationController& c, Animation* animation, AnimationChannel* channel, Transform* t, bool upperLower) {
 	AnimationSampler& sampler = animation->samplers[channel->samplerIndex];
+	float currentTime = upperLower ? c.currentUpperTime : c.currentLowerTime;
 	for (size_t i = 0; i < sampler.inputs.size() - 1; i++)
 	{
-		if ((c.currentTime >= sampler.inputs[i]) && (c.currentTime <= sampler.inputs[i + 1]))
+		if ((currentTime >= sampler.inputs[i]) && (currentTime <= sampler.inputs[i + 1]))
 		{
-			float a = (c.currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
+			float a = (currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
 			if (channel->path == "translation")
 			{
 				t->position = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
@@ -202,7 +203,7 @@ void AnimationStateMachine::updateUpperAnimation(AnimationController& c) {
 	for (auto& channel : c.currentUpperBodyAnim->channels)
 	{
 		if (!channel.node->upperBody) continue;
-		updateSamplers(c, c.currentUpperBodyAnim, &channel, &channel.node->matComponents);
+		updateSamplers(c, c.currentUpperBodyAnim, &channel, &channel.node->matComponents, true);
 	}
 }
 
@@ -210,7 +211,7 @@ void AnimationStateMachine::updateLowerAnimation(AnimationController& c) {
 	for (auto& channel : c.currentLowerBodyAnim->channels)
 	{
 		if (!channel.node->lowerBody) continue;
-		updateSamplers(c, c.currentLowerBodyAnim, &channel, &channel.node->matComponents);
+		updateSamplers(c, c.currentLowerBodyAnim, &channel, &channel.node->matComponents, false);
 	}
 }
 
@@ -218,7 +219,7 @@ void AnimationStateMachine::updatePreviousWholeBodyAnimation(AnimationController
 	for (auto& channel : c.previousAnimation->channels)
 	{
 		Transform& t = c.previousAnimationTransforms[channel.node->index];
-		updateSamplers(c, c.previousAnimation, &channel, &t);
+		updateSamplers(c, c.previousAnimation, &channel, &t, true);
 	}
 }
 
@@ -228,7 +229,7 @@ void AnimationStateMachine::transitionToNewAnimation(AnimationController& c, Ani
 	c.fadeTimer = 0.f;
 	c.currentLowerBodyAnim = next;
 	c.currentUpperBodyAnim = next;
-	c.currentTime = next->start;
+	c.currentUpperTime = c.currentLowerTime = next->start;
 }
 
 void AnimationStateMachine::lerpPreviousCurrentAnimations(AnimationController& c) {
@@ -257,13 +258,13 @@ void AnimationStateMachine::updateAnimationState(AnimationController& c, float d
 			if (deltaAngle < -90.f) {
 				turn(c, yaw);
 				c.currentLowerBodyAnim = c.leftTurnAnimation;
-				c.currentTime = c.leftTurnAnimation->start;
+				c.currentLowerTime = c.leftTurnAnimation->start;
 				c.turnState = TURNING;
 			}
 			else if (deltaAngle > 90.f) {
 				turn(c, yaw);
 				c.currentLowerBodyAnim = c.rightTurnAnimation;
-				c.currentTime = c.rightTurnAnimation->start;
+				c.currentLowerTime = c.rightTurnAnimation->start;
 				c.turnState = TURNING;
 			}
 			else if (c.motionState == MOVING) {
@@ -280,23 +281,22 @@ void AnimationStateMachine::updateAnimationState(AnimationController& c, float d
 		setNewBasis(c, yaw);
 	}
 
-	c.currentTime += deltaTime;
+	c.currentLowerTime += deltaTime;
 	if (c.currentLowerBodyAnim == c.rightTurnAnimation || c.currentLowerBodyAnim == c.leftTurnAnimation) {
-		if (c.currentTime >= c.currentLowerBodyAnim->end) {
+		if (c.currentLowerTime >= c.currentLowerBodyAnim->end) {
 			c.currentLowerBodyAnim = c.idleAnimation;
-			c.currentTime = c.currentLowerBodyAnim->start;
+			c.currentLowerTime = c.currentLowerBodyAnim->start;
 			c.turnState = IDLE;
 		}
 	}
-	c.currentTime = fmod(c.currentTime, c.currentLowerBodyAnim->end);
-	if (c.currentLowerBodyAnim != c.currentUpperBodyAnim) {
-		c.currentTime += deltaTime;
-		c.currentTime = fmod(c.currentTime, c.currentUpperBodyAnim->end);
-	}
+	c.currentLowerTime = fmod(c.currentLowerTime, c.currentLowerBodyAnim->end);
+
+	c.currentUpperTime += deltaTime;
+	c.currentUpperTime = fmod(c.currentUpperTime, c.currentUpperBodyAnim->end);
 
 	float alpha = 1.f;
 	if (c.currentLowerBodyAnim == c.leftTurnAnimation || c.currentLowerBodyAnim == c.rightTurnAnimation) {
-		alpha = c.currentTime / c.currentLowerBodyAnim->end;
+		alpha = c.currentLowerTime / c.currentLowerBodyAnim->end;
 	}
 
 	updateUpperAnimation(c);

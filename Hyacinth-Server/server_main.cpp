@@ -188,15 +188,15 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         }
 
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
-        std::unique_lock l(lagSim.buffLock);
-        if (p.id == 1) {
-            lagSim.lagPacketBuffer[currentTick + 1].push(p);
-        }
-        else {
-            lagSim.lagPacketBuffer[currentTick + SERVER_FRAME_LAG].push(p);
-        }
-        // std::unique_lock l(bufferedClientPacketMutex);
-        // bufferedClientPackets.push(p);
+        // std::unique_lock l(lagSim.buffLock);
+        // if (p.id == 1) {
+        //     lagSim.lagPacketBuffer[currentTick + 1].push(p);
+        // }
+        // else {
+        //     lagSim.lagPacketBuffer[currentTick + SERVER_FRAME_LAG].push(p);
+        // }
+        std::unique_lock l(bufferedClientPacketMutex);
+        bufferedClientPackets.push(p);
     }
 
     closesocket(*udpSocket);
@@ -331,10 +331,7 @@ void updateTick(SOCKET* udpSendSocket) {
                 // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
                 // if using the method explained here: https://vercidium.com/blog/lag-compensation/, you can calculate sub-tick positions using a transform lerp
                 // subtract the sub-tick offset at the end.
-                uint32_t tickRewind = currentTick - 2;
-                if (client->id == 2) {
-                    tickRewind -= SERVER_FRAME_LAG; // since entity 2 is the lagging one, offset the tick. this simulates estimated ping (RTT / 2)
-                }
+                uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER; // TODO: - CLIENT_FRAME_LAG (ping, or RTT / 2)
                 rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind); 
                 if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer
                     std::cout << "couldn't find the right snapshot, too far in the past" << std::endl;
@@ -353,15 +350,6 @@ void updateTick(SOCKET* udpSendSocket) {
 
             client->bufferedPacket.reset();
             p->entities.push_back(client->entity);
-
-            if (shooting) {
-                for (auto& ent : p->entities) {
-                    if (ent.id == 1) {
-                        ent.transform.position = h.footPosHit;
-                    }
-                }
-            }
-
             r.entityPositions.push_back(entityPositionSnapshot{ id, client->entity.transform.position });
         }
         rewindBuffer.push(r);
@@ -374,7 +362,7 @@ void updateTick(SOCKET* udpSendSocket) {
         }
         currentSnapshot.store(p, std::memory_order_release);
 
-        // printPhysicsTick();
+        printPhysicsTick();
 
         std::this_thread::sleep_until(nextTick);
         currentTick++;

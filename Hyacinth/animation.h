@@ -34,7 +34,8 @@ struct AnimationController {
 	Animation* idleAnimation;
 	Animation* runningAnimation;
 
-	float currentTime = 0.f;
+	float currentLowerTime = 0.f;
+	float currentUpperTime = 0.f;
 	float previousTime = 0.f;
 
 	Animation* previousAnimation;
@@ -82,7 +83,7 @@ struct AnimationController {
 class AnimationStateMachine {
 private:
 	void setNewBasis(AnimationController& c, float basis) {
-		basis = fmod(basis, 360);
+		basis = fmodf(basis, 360);
 		c.basisRotation = glm::angleAxis(glm::radians(basis), glm::vec3(0, 1, 0));
 	}
 
@@ -96,7 +97,7 @@ private:
 	}
 
 	void flushQueuedNodeTransforms(AnimationController& c);
-	void updateSamplers(AnimationController& c, Animation* animation, AnimationChannel* channel, Transform* t);
+	void updateSamplers(AnimationController& c, Animation* animation, AnimationChannel* channel, Transform* t, bool upperLower);
 	void updateUpperAnimation(AnimationController& c);
 	void updateLowerAnimation(AnimationController& c);
 	void updatePreviousWholeBodyAnimation(AnimationController& c);

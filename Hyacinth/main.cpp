@@ -115,7 +115,7 @@ int main() {
 	netClient.netEntManager.rB.setPhysicsPosition([&physicsManager](glm::vec3 p) {
 		physicsManager.clientControllers[0]->setFootPosition(physx::PxExtendedVec3(p.x, p.y, p.z));
 	});
-	netClient.netEntManager.rB.setPhysicsStep([&physicsManager, &netClient](Transform& t, float fb, float lr) {
+	netClient.netEntManager.rB.setPhysicsStep([&physicsManager, &netClient](Transform& t, int8_t fb, int8_t lr) {
 		SimulateStruct s;
 		s.id = 0;
 		s.movementFB = fb;

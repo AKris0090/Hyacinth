@@ -72,20 +72,20 @@ void PhysicsManager::initPhysics(bool debug) {
 
 // Client function for adding capsules to properly predict player-player collision
 void PhysicsManager::addNetworkEntityCapsuleCollider(uint32_t cId) {
-	// physx::PxController* entityController = pCManager->createController(controllerDesc);
-	// clientControllers[cId] = entityController;
+	physx::PxController* entityController = pCManager->createController(controllerDesc);
+	clientControllers[cId] = entityController;
 }
 
 void PhysicsManager::setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId) {
-	// charLock.lock();
-	// for (const auto& e : s->entities) {
-	// 	if (e.id == selfId) continue;
-	// 	if (clientControllers.find(e.id) == clientControllers.end()) {
-	// 		addNetworkEntityCapsuleCollider(e.id);
-	// 	}
-	// 	clientControllers[e.id]->setFootPosition(physxEVec(e.transform.position));
-	// }
-	// charLock.unlock();
+	charLock.lock();
+	for (const auto& e : s->entities) {
+		if (e.id == selfId) continue;
+		if (clientControllers.find(e.id) == clientControllers.end()) {
+			addNetworkEntityCapsuleCollider(e.id);
+		}
+		clientControllers[e.id]->setFootPosition(physxEVec(e.transform.position));
+	}
+	charLock.unlock();
 }
 
 void PhysicsManager::addCharacterController(uint32_t cId) {
@@ -270,37 +270,24 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 	physx::PxReal maxDist = 100.f;
 	physx::PxRaycastBuffer rayHit;
 
-	std::unordered_map<uint32_t, physx::PxExtendedVec3> previousPositions;
 	for (const auto& e : snapshotToTrace->entityPositions) {
 		if (e.id == shooterId) continue;
-		previousPositions[e.id] = clientControllers[e.id]->getFootPosition();
-		clientControllers[e.id]->setFootPosition(physxEVec(e.pos));
 
-		if (e.id == 1) {
-			h.footPosHit = e.pos;
+		physx::PxTransform pose(physxVec(e.pos + glm::vec3(0, 1.f, 0)), physx::PxQuat(physx::PxHalfPi, physx::PxVec3(0, 0, 1)));
+		physx::PxRaycastHit hit;
+
+		bool didHit = physx::PxGeometryQuery::raycast(
+			origin, dir,
+			capGeom, pose,
+			maxDist, physx::PxHitFlag::eDEFAULT,
+			1, &hit
+		);
+
+		if (didHit) {
+			h.hit = true;
+			h.entityHitId = e.id;
+			break;
 		}
-	}
-
-	bool hit = pScene->raycast(origin + (dir * 0.6f), dir, maxDist, rayHit);
-	if (hit) {
-		for (const auto& [id, cont] : clientControllers) {
-			void* data = rayHit.block.actor->userData;
-			if (!data) {
-				continue;
-			}
-			else {
-				if (static_cast<controllerUserData*>(rayHit.block.actor->userData)->id == id) {
-					h.hit = true;
-					h.entityHitId = id;
-					break;
-				}
-			}
-		}
-	}
-
-	// bring controller positions back
-	for (const auto& [id, pos] : previousPositions) {
-		clientControllers[id]->setFootPosition(pos);
 	}
 
 	return h;
