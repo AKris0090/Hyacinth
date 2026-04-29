@@ -276,6 +276,51 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
     std::cout << "created image: " << curImage.name << std::endl;
 }
 
+void gltfObject::setTPAnimatedParameters(Skin& skin) {
+    idleAnimation = &animations[0];
+    runningAnimation = &animations[1];
+    leftTurnAnimation = &animations[2];
+    rightTurnAnimation = &animations[3];
+
+    skinSize = skin.joints.size() * sizeof(glm::mat4);
+
+    for (int j = 0; j < skin.joints.size(); j++) {
+        gltfNode* joint = skin.joints[j];
+        if (joint->nodeName == "spine.005") {
+            spine005 = joint;
+        }
+        else if (joint->nodeName == "upper_arm.L") {
+            upperArmL = joint;
+        }
+        else if (joint->nodeName == "upper_arm.R") {
+            upperArmR = joint;
+        }
+        else if (joint->nodeName == "spine.007") {
+            spine007 = joint;
+        }
+        else if (joint->nodeName == "spine.003") {
+            spine003 = joint;
+        }
+        else if (joint->nodeName == "spine") {
+            spine = joint;
+            spine->lowerBody = true;
+        }
+    }
+    for (auto& node : allNodes) {
+        if (isParentOf(node, spine003)) {
+            node->upperBody = true;
+        }
+        else if (isParentOf(node, spine007)) {
+            node->lowerBody = true;
+        }
+    }
+}
+
+void gltfObject::setFPAnimatedParameters(Skin& skin) {
+    idleAnimation = &animations[0];
+    skinSize = skin.joints.size() * sizeof(glm::mat4);
+}
+
 gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
@@ -338,46 +383,6 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
 
     Skin::loadSkins(model, object.parentNodes, object.skins);
     Animation::loadAnimations(model, object.parentNodes, object.animations);
-
-    // TODO: change this because first person model can be animated as well
-    if (object.animations.size() > 0) {
-        object.idleAnimation = &object.animations[0];
-        object.runningAnimation = &object.animations[1];
-        object.leftTurnAnimation = &object.animations[2];
-        object.rightTurnAnimation = &object.animations[3];
-    }
-
-    if (object.skins.size() >= 1) {
-        Skin& skin = object.skins[0];
-        object.skinSize = skin.joints.size() * sizeof(glm::mat4);
-
-        tinygltf::Skin glTFSkin = model->skins[0];
-        for (int j = 0; j < glTFSkin.joints.size(); j++) {
-            int jointIndex = glTFSkin.joints[j];
-            if (model->nodes[jointIndex].name == "spine.005") {
-                object.spine005 = nodeFromIndex(object.allNodes, jointIndex);
-            } else if (model->nodes[jointIndex].name == "upper_arm.L") {
-                object.upperArmL = nodeFromIndex(object.allNodes, jointIndex);
-            } else if (model->nodes[jointIndex].name == "upper_arm.R") {
-                object.upperArmR = nodeFromIndex(object.allNodes, jointIndex);
-            } else if (model->nodes[jointIndex].name == "spine.007") {
-                object.spine007 = nodeFromIndex(object.allNodes, jointIndex);
-            } else if (model->nodes[jointIndex].name == "spine.003") {
-                object.spine003 = nodeFromIndex(object.allNodes, jointIndex);
-            } else if (model->nodes[jointIndex].name == "spine") {
-                object.spine = nodeFromIndex(object.allNodes, jointIndex);
-                object.spine->lowerBody = true;
-            }
-        }
-        for (auto& node : object.allNodes) {
-            if (isParentOf(node, object.spine003)) {
-                node->upperBody = true;
-            }
-            else if (isParentOf(node, object.spine007)) {
-                node->lowerBody = true;
-            }
-        }
-    }
 
 	delete model;
 	return object;
@@ -596,12 +601,20 @@ void SceneGraph::uploadTextures(VkDescriptorSet& descriptor) {
 	vkdescriptorutils::flushDescriptorWrites();
 }
 
-void gltfObject::updateAnimation(Entity* e, gltfObject* obj, AnimationStateMachine& animMachine, AnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer)
+void gltfObject::updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer)
 {
     animMachine.updateAnimationState(c, deltaTime, e->isMoving ? 1.f : 0.f, 0.f, e->transform.pitch, e->transform.yaw);
 
     for (auto& node : obj->parentNodes)
     {
+        obj->updateJoints(node, pMappedJointMatrixBuffer);
+    }
+}
+
+void gltfObject::updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer) {
+    animMachine.updateAnimationState(c, deltaTime);
+
+    for (auto& node : obj->parentNodes) {
         obj->updateJoints(node, pMappedJointMatrixBuffer);
     }
 }

@@ -93,6 +93,7 @@ int main() {
 
 	HyacinthNetworkClient netClient;
 	netClient.netEntManager.characterObject = &hyacinthEngine.m_scene.dynamicObjects[0];
+	netClient.netEntManager.firstPersonObject = &hyacinthEngine.m_scene.dynamicObjects[1];
 	Entity* thisEnt;
 	std::string ip; 
 	std::cout << "Enter server IP: ";

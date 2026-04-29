@@ -21,7 +21,7 @@ static float yawFromQuaternion(glm::quat q) {
 	));
 }
 
-struct AnimationController {
+struct ThirdPersonAnimationController {
 	gltfNode* upperArmL;    // left arm (pitch) controller
 	gltfNode* upperArmR;    // right arm (pitch) controller
 	gltfNode* spine005;     // head neck (pitch) controller
@@ -54,12 +54,12 @@ struct AnimationController {
 	CURRENT_PLAYER_MOTION_STATE motionState = STILL;
 	TURN_ANIM_STATE turnState = IDLE;
 
-	AnimationController() {
+	ThirdPersonAnimationController() {
 		upperArmL = upperArmR = spine005 = spine007 = spine003 = spine = nullptr;
 		idleAnimation = leftTurnAnimation = rightTurnAnimation = runningAnimation = currentLowerBodyAnim = currentUpperBodyAnim = previousAnimation = nullptr;
 	};
 
-	AnimationController(gltfNode* upperL, gltfNode* upperR, gltfNode* spine5, gltfNode* spine7, gltfNode* spine3, gltfNode* sp, Animation* idle, Animation* leftTurn, Animation* rightTurn, Animation* run, std::vector<gltfNode*> allNodes) {
+	ThirdPersonAnimationController(gltfNode* upperL, gltfNode* upperR, gltfNode* spine5, gltfNode* spine7, gltfNode* spine3, gltfNode* sp, Animation* idle, Animation* leftTurn, Animation* rightTurn, Animation* run, std::vector<gltfNode*> allNodes) {
 		upperArmL = upperL;
 		upperArmR = upperR;
 		spine005 = spine5;
@@ -80,31 +80,76 @@ struct AnimationController {
 	}
 };
 
-class AnimationStateMachine {
+struct FirstPersonAnimationController {
+	gltfNode* palm;    // parent to for guns
+
+	Animation* idleAnimation;
+
+	float currentTime = 0.f;
+	float previousTime = 0.f;
+
+	Animation* previousAnimation;
+	std::vector<Transform> previousAnimationTransforms;
+
+	Animation* currentAnim;
+
+	float						  fadeTimer = 0.f;
+	float						  fadeLength = 0.15f;
+	bool						  transitioning = false;
+
+	FirstPersonAnimationController() {
+		palm = nullptr;
+		currentAnim = idleAnimation = previousAnimation = nullptr;
+	};
+
+	FirstPersonAnimationController(gltfNode* p, Animation* idleAnim) {
+		palm = p;
+		currentAnim = idleAnimation = idleAnim;
+		previousAnimation = nullptr;
+	};
+};
+
+static void updateSamplers(Animation* animation, AnimationChannel* channel, Transform* t, float currentTime);
+
+class ThirdPersonAnimationStateMachine {
 private:
-	void setNewBasis(AnimationController& c, float basis) {
+	void setNewBasis(ThirdPersonAnimationController& c, float basis) {
 		basis = fmodf(basis, 360);
 		c.basisRotation = glm::angleAxis(glm::radians(basis), glm::vec3(0, 1, 0));
 	}
 
-	void turn(AnimationController& c, float absolute) {
+	void turn(ThirdPersonAnimationController& c, float absolute) {
 		c.prevBasisRotation = c.basisRotation;
 		setNewBasis(c, absolute);
 	}
 
-	void stageTurnAnim(AnimationController& c, bool leftRight) {
+	void stageTurnAnim(ThirdPersonAnimationController& c, bool leftRight) {
 		c.turnState = leftRight ? NEEDS_TURN_LEFT : NEEDS_TURN_RIGHT;
 	}
 
-	void flushQueuedNodeTransforms(AnimationController& c);
-	void updateSamplers(AnimationController& c, Animation* animation, AnimationChannel* channel, Transform* t, bool upperLower);
-	void updateUpperAnimation(AnimationController& c);
-	void updateLowerAnimation(AnimationController& c);
-	void updatePreviousWholeBodyAnimation(AnimationController& c);
-	void lerpPreviousCurrentAnimations(AnimationController& c);
-	void updateFromPlayerState(AnimationController& c, float pitch, float yaw, float alpha, bool isMoving);
-	void transitionToNewAnimation(AnimationController& c, Animation* current, Animation* next);
+	void flushQueuedNodeTransforms(ThirdPersonAnimationController& c);
+	void updateUpperAnimation(ThirdPersonAnimationController& c);
+	void updateLowerAnimation(ThirdPersonAnimationController& c);
+	void updatePreviousWholeBodyAnimation(ThirdPersonAnimationController& c);
+	void lerpPreviousCurrentAnimations(ThirdPersonAnimationController& c);
+	void updateFromPlayerState(ThirdPersonAnimationController& c, float pitch, float yaw, float alpha, bool isMoving);
+	void transitionToNewAnimation(ThirdPersonAnimationController& c, Animation* current, Animation* next);
 
 public:
-	void updateAnimationState(AnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw);
+	void updateAnimationState(ThirdPersonAnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw);
+};
+
+enum FIRSTPERSON_STATE {
+	IDLE_PISTOL
+};
+
+class FirstPersonAnimationStateMachine {
+private:
+	FIRSTPERSON_STATE state;
+
+	void updateAnimation(FirstPersonAnimationController& c, float deltaTime);
+	void transitionToNewAnimation(FirstPersonAnimationController& c, Animation* current, Animation* next);
+
+public:
+	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime);
 };

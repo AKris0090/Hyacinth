@@ -559,12 +559,16 @@ void HyacinthEngine::createDDGIPipeline()
 
 void HyacinthEngine::loadScene() {
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
-    auto characterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
-    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp.glb";
+    auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
+    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp2.glb";
 
     m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true, false, false));
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(characterPath.string(), false, true, false));
+
+    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(thirdPersonCharacterPath.string(), false, true, false));
+    m_scene.dynamicObjects[0].setTPAnimatedParameters(m_scene.dynamicObjects[0].skins[0]);
+
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath.string(), false, true, true));
+    m_scene.dynamicObjects[1].setFPAnimatedParameters(m_scene.dynamicObjects[1].skins[0]);
 
     m_scene.buildSceneGraph();
 
@@ -780,16 +784,8 @@ void HyacinthEngine::update() {
     volumeData[1].spacing.w = volBViewBias;
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
-    // first object (self) 
-    std::vector<glm::mat4> characterMatrices;
-    for(int i = 0; i < m_scene.dynamicObjects[1].numMatrices; i++) {
-        camMutex.lock();
-        glm::mat4 selfMatrix = m_camera.m_transform.getMatrix();
-        camMutex.unlock();
-        characterMatrices.push_back(selfMatrix * m_scene.dynamicTransformMatrices[i + m_scene.dynamicObjects[1].firstMatrix]);
-    }
-    size_t offset = sizeof(glm::mat4) * m_scene.dynamicObjects[1].firstMatrix;
-    memcpy((uint8_t*)m_dynamicWorldMatrixBuffer[m_frameIndex].pMappedData + offset, characterMatrices.data(), sizeof(glm::mat4) * characterMatrices.size());\
+    // first person object (self) 
+    gltfObject::updateFirstPersonAnimation(&m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData);
 
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
@@ -1011,8 +1007,12 @@ void HyacinthEngine::draw()
 
         // draw animated network entities
         p_netEntManager->drawEntities(cmd, m_skinnedPipelineUtil, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), m_dynamicIndirectDrawBuffer, pushConstants);
+        
+        camMutex.lock();
+        pushConstants.entityMatrix = m_camera.m_transform.getMatrix();
+        camMutex.unlock();
+        pushConstants.jointBufferAddress = p_netEntManager->firstPersonJointBuffer.gpuAddress;
 
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline); // TODO: remove when skinned fp character
         vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
         // draw character separately

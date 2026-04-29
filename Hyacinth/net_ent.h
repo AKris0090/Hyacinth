@@ -114,16 +114,20 @@ public:
 	std::mutex selfMutex;
 	std::vector<uint32_t> ids;
 	std::unordered_map<uint32_t, Entity*> entities;
-	std::unordered_map<uint32_t, AnimationController> entityAnimationControllers;
+	std::unordered_map<uint32_t, ThirdPersonAnimationController> entityAnimationControllers;
 	std::unordered_map<uint32_t, VulkanBuffer> entityJointBuffers;
 	gltfObject* characterObject;
+
+	gltfObject* firstPersonObject;
+	VulkanBuffer firstPersonJointBuffer;
+	FirstPersonAnimationController firstPersonAnimationController;
 
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
 	PacketBuffer packetBuffer;
 	RewindBuffer rB;
 	int tickOffset;
-
+	
 	void setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
 	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);

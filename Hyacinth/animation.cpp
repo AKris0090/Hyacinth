@@ -114,7 +114,10 @@ void Animation::loadAnimations(tinygltf::Model* input, std::vector<gltfNode*>& n
 	}
 }
 
-void AnimationStateMachine::flushQueuedNodeTransforms(AnimationController& c) {
+// THIRD PERSON //////////////////////////////////////////
+//////////////////////////////////////////////////////////
+
+void ThirdPersonAnimationStateMachine::flushQueuedNodeTransforms(ThirdPersonAnimationController& c) {
 	for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
 		glm::quat finalPitch{ 1.f, 0.f, 0.f, 0.f };
 		glm::quat finalYaw{ 1.f, 0.f, 0.f, 0.f };
@@ -144,7 +147,7 @@ void AnimationStateMachine::flushQueuedNodeTransforms(AnimationController& c) {
 	}
 }
 
-void AnimationStateMachine::updateFromPlayerState(AnimationController& c, float pitch, float yaw, float alpha, bool isMoving) {
+void ThirdPersonAnimationStateMachine::updateFromPlayerState(ThirdPersonAnimationController& c, float pitch, float yaw, float alpha, bool isMoving) {
 	glm::quat trueAngleQuat = glm::slerp(c.prevBasisRotation, c.basisRotation, alpha);
 	float bodyAngle = yawFromQuaternion(trueAngleQuat);
 	c.spine->queuedYawShifts.push_back(bodyAngle);
@@ -163,9 +166,8 @@ void AnimationStateMachine::updateFromPlayerState(AnimationController& c, float 
 	flushQueuedNodeTransforms(c); // flush all at once so that rotations do not cause weird interactions with each other
 }
 
-void AnimationStateMachine::updateSamplers(AnimationController& c, Animation* animation, AnimationChannel* channel, Transform* t, bool upperLower) {
+void updateSamplers(Animation* animation, AnimationChannel* channel, Transform* t, float currentTime) {
 	AnimationSampler& sampler = animation->samplers[channel->samplerIndex];
-	float currentTime = upperLower ? c.currentUpperTime : c.currentLowerTime;
 	for (size_t i = 0; i < sampler.inputs.size() - 1; i++)
 	{
 		if ((currentTime >= sampler.inputs[i]) && (currentTime <= sampler.inputs[i + 1]))
@@ -199,31 +201,31 @@ void AnimationStateMachine::updateSamplers(AnimationController& c, Animation* an
 	}
 }
 
-void AnimationStateMachine::updateUpperAnimation(AnimationController& c) {
+void ThirdPersonAnimationStateMachine::updateUpperAnimation(ThirdPersonAnimationController& c) {
 	for (auto& channel : c.currentUpperBodyAnim->channels)
 	{
 		if (!channel.node->upperBody) continue;
-		updateSamplers(c, c.currentUpperBodyAnim, &channel, &channel.node->matComponents, true);
+		updateSamplers(c.currentUpperBodyAnim, &channel, &channel.node->matComponents, c.currentUpperTime);
 	}
 }
 
-void AnimationStateMachine::updateLowerAnimation(AnimationController& c) {
+void ThirdPersonAnimationStateMachine::updateLowerAnimation(ThirdPersonAnimationController& c) {
 	for (auto& channel : c.currentLowerBodyAnim->channels)
 	{
 		if (!channel.node->lowerBody) continue;
-		updateSamplers(c, c.currentLowerBodyAnim, &channel, &channel.node->matComponents, false);
+		updateSamplers(c.currentLowerBodyAnim, &channel, &channel.node->matComponents, c.currentLowerTime);
 	}
 }
 
-void AnimationStateMachine::updatePreviousWholeBodyAnimation(AnimationController& c) {
+void ThirdPersonAnimationStateMachine::updatePreviousWholeBodyAnimation(ThirdPersonAnimationController& c) {
 	for (auto& channel : c.previousAnimation->channels)
 	{
 		Transform& t = c.previousAnimationTransforms[channel.node->index];
-		updateSamplers(c, c.previousAnimation, &channel, &t, true);
+		updateSamplers(c.previousAnimation, &channel, &t, c.currentUpperTime);
 	}
 }
 
-void AnimationStateMachine::transitionToNewAnimation(AnimationController& c, Animation* current, Animation* next) {
+void ThirdPersonAnimationStateMachine::transitionToNewAnimation(ThirdPersonAnimationController& c, Animation* current, Animation* next) {
 	c.previousAnimation = current;
 	c.transitioning = true;
 	c.fadeTimer = 0.f;
@@ -232,7 +234,7 @@ void AnimationStateMachine::transitionToNewAnimation(AnimationController& c, Ani
 	c.currentUpperTime = c.currentLowerTime = next->start;
 }
 
-void AnimationStateMachine::lerpPreviousCurrentAnimations(AnimationController& c) {
+void ThirdPersonAnimationStateMachine::lerpPreviousCurrentAnimations(ThirdPersonAnimationController& c) {
 	float alpha = c.fadeTimer / c.fadeLength;
 	for (auto& channel : c.currentLowerBodyAnim->channels)
 	{
@@ -241,7 +243,7 @@ void AnimationStateMachine::lerpPreviousCurrentAnimations(AnimationController& c
 	}
 }
 
-void AnimationStateMachine::updateAnimationState(AnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw) {
+void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw) {
 	bool playerInMotion = false;
 	if (motionFB != 0.f || motionLR != 0.f) {
 		playerInMotion = true;
@@ -318,5 +320,22 @@ void AnimationStateMachine::updateAnimationState(AnimationController& c, float d
 	}
 
 	updateFromPlayerState(c, pitch, yaw, alpha, playerInMotion);
+}
+
+// FIRST PERSON //////////////////////////////////////////
+//////////////////////////////////////////////////////////
+
+void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationController& c, float deltaTime) {
+	c.currentTime += deltaTime;
+	c.currentTime = fmod(c.currentTime, c.currentAnim->end);
+
+	for (auto& channel : c.currentAnim->channels)
+	{
+		updateSamplers(c.currentAnim, &channel, &channel.node->matComponents, c.currentTime);
+	}
+}
+
+void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime) {
+	updateAnimation(c, deltaTime);
 }
 

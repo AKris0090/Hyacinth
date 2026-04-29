@@ -27,6 +27,7 @@ struct gltfNode {
     uint32_t index;
     bool upperBody = false;
     bool lowerBody = false;
+    std::string nodeName;
 
     std::vector<Vertex> vertices;
     VulkanBuffer accelStructureVertexBuffer;

@@ -60,16 +60,22 @@ struct gltfObject {
     Animation* idleAnimation;
     Animation* runningAnimation;
 
+    gltfNode* palm;
+
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;
     std::vector<MaterialInstance> materials;
 
     std::unordered_set<uint32_t>* imageIsSRGB;
 
-    AnimationStateMachine* animStateMachine;
+    ThirdPersonAnimationStateMachine* thirdPersonAnimStateMachine;
+    FirstPersonAnimationStateMachine* firstPersonAnimStateMachine;
 
     void updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer);
-    static void updateAnimation(Entity* e, gltfObject* obj, AnimationStateMachine& animMachine, AnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
+    void setTPAnimatedParameters(Skin& skin);
+    void setFPAnimatedParameters(Skin& skin);
+    static void updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
+    static void updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
 };
 
 struct SceneGraph {
