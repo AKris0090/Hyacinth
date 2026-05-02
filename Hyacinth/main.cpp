@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -52,13 +52,17 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 
 		p.pitch = netClient->netEntManager.self->transform.pitch;
 		p.yaw = netClient->netEntManager.self->transform.yaw;
+#ifdef CONNECT_SERVER
 		netClient->updateServerTick(p, engine->mouseLocked);
 		netClient->netEntManager.rB.addState(netClient->netEntManager.self->transform, p.movementFB, p.movementLR, tickNum);
+#endif
 		engine->p_netEntManager->selfMutex.unlock();
 
+#ifdef CONNECT_SERVER
 		engine->p_netEntManager->rB.pendingPacketsMutex.lock();
 		engine->p_netEntManager->clearPendingPackets(engine->p_netEntManager->self);
 		engine->p_netEntManager->rB.pendingPacketsMutex.unlock();
+#endif
   
 		engine->p_netEntManager->inputAccumulatorMutex.lock();
 		netClient->netEntManager.inputAccumulator.reset();
@@ -95,8 +99,12 @@ int main() {
 	netClient.netEntManager.characterObject = &hyacinthEngine.m_scene.dynamicObjects[0];
 	netClient.netEntManager.firstPersonObject = &hyacinthEngine.m_scene.dynamicObjects[1];
 	netClient.netEntManager.pistolObject = &hyacinthEngine.m_scene.dynamicObjects[2];
-	Entity* thisEnt;
-	std::string ip; 
+	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
+	netClient.netEntManager.inputAccumulator.id = 0;
+	Entity* thisEnt = nullptr;
+
+#ifdef CONNECT_SERVER
+	std::string ip;
 	std::cout << "Enter server IP: ";
 	// std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
@@ -106,10 +114,7 @@ int main() {
 			exit(EXIT_FAILURE);
 		}
 	}
-
-	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	thisEnt = netClient.netEntManager.self;
-	netClient.netEntManager.inputAccumulator.id = 0;
 	ServerSnapshot sP;
 	sP.entities.push_back(*thisEnt);
 	netClient.netEntManager.selfSimBuffer.newPacket(sP);
@@ -124,7 +129,17 @@ int main() {
 		s.movementLR = lr;
 		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self->moveSpeed, t, s);
 	});
+#endif
+#ifndef CONNECT_SERVER
+	netClient.netEntManager.self = new Entity();
+	thisEnt = netClient.netEntManager.self;
 
+	ServerSnapshot s{};
+	s.entities.push_back(*thisEnt);
+	netClient.netEntManager.selfSimBuffer.newPacket(s);
+	netClient.netEntManager.selfSimBuffer.newPacket(s);
+	netClient.netEntManager.setupFromServerPacket(s, 0);
+#endif
 	Time::setInitialTime();
 
 	std::thread tickThread = std::thread(simulationTick, &hyacinthEngine, &netClient, &physicsManager);
@@ -189,11 +204,14 @@ int main() {
 			hyacinthEngine.camMutex.unlock();
 		}
 
+#ifdef CONNECT_SERVER
+
 		// read packets from the server
 		ServerSnapshot interp = netClient.netEntManager.packetBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
 		// use packet to determine object transforms
 		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id, Time::getDeltaTime());
 		physicsManager.setNetworkEntityCapColliderPosition(&interp, netClient.netEntManager.self->id);
+#endif
 
 		Time::updateTime();
 		InputManager::resetMouseMotion();
