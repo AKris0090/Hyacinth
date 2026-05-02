@@ -39,8 +39,11 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 		}
 	}
 
-	firstPersonAnimationController = FirstPersonAnimationController(firstPersonObject->palm, firstPersonObject->idleAnimation);
+	firstPersonAnimationController = FirstPersonAnimationController(firstPersonObject->idleAnimation, firstPersonObject->spinAnim);
 	firstPersonJointBuffer = vkdeviceutils::createBuffer(firstPersonObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_fp");
+
+	pistolAnimationController = PistolAnimationController(pistolObject->idleAnimation);
+	pistolJointBuffer = vkdeviceutils::createBuffer(pistolObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_pistol");
 }
 
 void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
@@ -91,6 +94,8 @@ void NetworkEntityManager::shutdown() {
 	for (auto& [id, buff] : entityJointBuffers) {
 		vkdeviceutils::destroyBuffer(buff);
 	}
+	vkdeviceutils::destroyBuffer(firstPersonJointBuffer);
+	vkdeviceutils::destroyBuffer(pistolJointBuffer);
 }
 
 std::pair<Transform, Transform> RewindBuffer::rewindState(Transform newTransform, uint32_t tickNum) {

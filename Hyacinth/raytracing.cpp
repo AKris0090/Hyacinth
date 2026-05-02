@@ -159,7 +159,7 @@ void rtHelper::createTopLevelAS(SceneGraph& scene) {
                 continue;
 			}
             VkAccelerationStructureInstanceKHR asInstance{};
-            asInstance.transform = toTransformMatrixKHR(node->worldTransform);
+            asInstance.transform = toTransformMatrixKHR(node->localTransform.getMatrix());
             asInstance.instanceCustomIndex = meshIndex;                       // gl_InstanceCustomIndexEXT
             asInstance.accelerationStructureReference = m_blAccelStructures[meshIndex].address;
             asInstance.instanceShaderBindingTableRecordOffset = 0;

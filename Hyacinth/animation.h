@@ -81,9 +81,8 @@ struct ThirdPersonAnimationController {
 };
 
 struct FirstPersonAnimationController {
-	gltfNode* palm;    // parent to for guns
-
 	Animation* idleAnimation;
+	Animation* spinningAnimation;
 
 	float currentTime = 0.f;
 	float previousTime = 0.f;
@@ -98,14 +97,13 @@ struct FirstPersonAnimationController {
 	bool						  transitioning = false;
 
 	FirstPersonAnimationController() {
-		palm = nullptr;
-		currentAnim = idleAnimation = previousAnimation = nullptr;
+		currentAnim = idleAnimation = previousAnimation = spinningAnimation = nullptr;
 	};
 
-	FirstPersonAnimationController(gltfNode* p, Animation* idleAnim) {
-		palm = p;
+	FirstPersonAnimationController(Animation* idleAnim, Animation* spinningAn) {
 		currentAnim = idleAnimation = idleAnim;
 		previousAnimation = nullptr;
+		spinningAnimation = spinningAn;
 	};
 };
 
@@ -152,4 +150,29 @@ private:
 
 public:
 	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime);
+};
+
+
+
+struct PistolAnimationController {
+	Animation* idleAnimation;
+	float currentTime = 0.f;
+	bool done = false;
+
+	Animation* currentAnim;
+
+	PistolAnimationController() {
+		currentAnim = idleAnimation = nullptr;
+	};
+
+	PistolAnimationController(Animation* idleAnim) {
+		currentAnim = idleAnimation = idleAnim;
+	};
+};
+
+class PistolAnimationStateMachine {
+private:
+	void updateAnimation(PistolAnimationController& c, float deltaTime);
+public:
+	void updateAnimationState(PistolAnimationController& c, float deltaTime);
 };

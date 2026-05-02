@@ -122,6 +122,10 @@ public:
 	VulkanBuffer firstPersonJointBuffer;
 	FirstPersonAnimationController firstPersonAnimationController;
 
+	gltfObject* pistolObject;
+	VulkanBuffer pistolJointBuffer;
+	PistolAnimationController pistolAnimationController;
+
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
 	PacketBuffer packetBuffer;

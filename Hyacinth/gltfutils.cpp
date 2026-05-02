@@ -23,6 +23,7 @@ void gltfObject::updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer)
         std::vector<glm::mat4> finalJointMatrices(numJoints);
         for (size_t i = 0; i < numJoints; i++)
         {
+            
             finalJointMatrices[i] = inverseTransform * (getNodeMatrix(skin.joints[i]) * skin.inverseBindMatrices[i]);
         }
 
@@ -44,44 +45,25 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
     node->skinIndex = nodeIn.skin;
 	node->includeInAccel = includeInAccel;
     node->dynamic = dynamic;
+    node->nodeName = nodeIn.name;
 
     if (nodeIn.matrix.size() == 16) {
         glm::mat4 m = glm::make_mat4x4(nodeIn.matrix.data());
-        node->worldTransform = m;
-        
-        // decompose for matComponents
-        glm::vec3 translation = glm::vec3(m[3]);
-        glm::vec3 scale;
-        scale.x = glm::length(glm::vec3(m[0]));
-        scale.y = glm::length(glm::vec3(m[1]));
-        scale.z = glm::length(glm::vec3(m[2]));
 
-        glm::mat4 rotMat = m;
-        if (scale.x != 0.0f) rotMat[0] /= scale.x;
-        if (scale.y != 0.0f) rotMat[1] /= scale.y;
-        if (scale.z != 0.0f) rotMat[2] /= scale.z;
+        glm::vec3 skew;
+        glm::vec4 perspective;
 
-        glm::quat rotation = glm::quat_cast(rotMat);
-
-        node->matComponents.position = translation;
-        node->matComponents.rotation = rotation;
-        node->matComponents.scale = scale;
+        glm::decompose(m, node->localTransform.scale, node->localTransform.rotation, node->localTransform.position, skew, perspective);
     }
     else {
         if (nodeIn.translation.size() == 3) {
-            glm::vec3 translation = glm::make_vec3(nodeIn.translation.data());
-            node->worldTransform = glm::translate(node->worldTransform, translation);
-            node->matComponents.position = translation;
+            node->localTransform.position = glm::make_vec3(nodeIn.translation.data());
         }
         if (nodeIn.rotation.size() == 4) {
-            glm::quat q = glm::make_quat(nodeIn.rotation.data());
-            node->worldTransform *= glm::mat4(q);
-            node->matComponents.rotation = q;
+            node->localTransform.rotation = glm::make_quat(nodeIn.rotation.data());
         }
         if (nodeIn.scale.size() == 3) {
-            glm::vec3 scale = glm::make_vec3(nodeIn.scale.data());
-            node->worldTransform = glm::scale(node->worldTransform, scale);
-            node->matComponents.scale = scale;
+            node->localTransform.scale = glm::make_vec3(nodeIn.scale.data());
         }
     }
 
@@ -317,16 +299,50 @@ void gltfObject::setTPAnimatedParameters(Skin& skin) {
 }
 
 void gltfObject::setFPAnimatedParameters(Skin& skin) {
+    idleAnimation = &animations[1];
+    spinAnim = &animations[0];
+    skinSize = skin.joints.size() * sizeof(glm::mat4);
+
+    for (int j = 0; j < skin.joints.size(); j++) {
+        gltfNode* joint = skin.joints[j];
+        if (joint->nodeName == "gun") {
+            gunBone = joint;
+        }
+    }
+}
+
+void gltfObject::setWeaponParams(Skin& skin) {
     idleAnimation = &animations[0];
     skinSize = skin.joints.size() * sizeof(glm::mat4);
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter) {
+void gltfObject::setWeaponParentTo(gltfObject* parentObj) {
+    if (parentObj->gunBone == nullptr) {
+        std::cout << "no hand node" << std::endl;
+        throw std::runtime_error("hand node not there");
+    }
+
+    gltfNode* gunBaseNode = nullptr;
+    for (int j = 0; j < skins[0].joints.size(); j++) {
+        if (skins[0].joints[j]->nodeName == "base") {
+            gunBaseNode = skins[0].joints[j];
+        }
+    }
+    if (gunBaseNode == nullptr) {
+        std::cout << "no gun base node" << std::endl;
+        throw std::runtime_error("base node not there");
+    }
+
+    gunBaseNode->parent = parentObj->gunBone;
+}
+
+gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isWeapon) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
     object.dynamic = dynamic;
     object.isCharacter = isCharacter;
+    object.isWeapon = isWeapon;
     object.imageIsSRGB = new std::unordered_set<uint32_t>();
     tinygltf::Model* model;
     model = new tinygltf::Model();
@@ -363,15 +379,16 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     for (size_t i = 0; i < model->materials.size(); i++) {
         tinygltf::Material gltfMat = model->materials[i];
         if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
-            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 2; // image index
+            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 3; // 3 for all dummy textures
             object.imageIsSRGB->insert(object.materials[i].baseColorIndex - 2);
         }
+        else { object.materials[i].baseColorIndex = DUMMY_COLOR_TEX_INDEX; }
         if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {
-            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + 2;
+            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + 3;
         }
         else { object.materials[i].normalIndex = DUMMY_NORMAL_TEX_INDEX; }
         if (gltfMat.values.find("metallicRoughnessTexture") != gltfMat.values.end()) {
-            object.materials[i].metallicRoughnessIndex = object.textureIndices[gltfMat.values["metallicRoughnessTexture"].TextureIndex()] + 2;
+            object.materials[i].metallicRoughnessIndex = object.textureIndices[gltfMat.values["metallicRoughnessTexture"].TextureIndex()] + 3;
         }
         else { object.materials[i].metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
     }
@@ -383,6 +400,10 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
 
     Skin::loadSkins(model, object.parentNodes, object.skins);
     Animation::loadAnimations(model, object.parentNodes, object.animations);
+
+    object.thirdPersonAnimStateMachine = new ThirdPersonAnimationStateMachine();
+    object.firstPersonAnimStateMachine = new FirstPersonAnimationStateMachine();
+    object.pistolAnimStateMachine = new PistolAnimationStateMachine();
 
 	delete model;
 	return object;
@@ -465,10 +486,10 @@ void SceneGraph::buildSceneGraph() {
         uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
         for (const auto& node: obj->allNodes) {
             if (obj->dynamic) {
-                dynamicTransformMatrices.push_back(node->worldTransform);
+                dynamicTransformMatrices.push_back(node->localTransform.getMatrix());
             }
             else {
-                staticTransformMatrices.push_back(node->worldTransform);
+                staticTransformMatrices.push_back(node->localTransform.getMatrix());
             }
             obj->numMatrices++;
             for (const auto& prim : node->primitives) {
@@ -478,6 +499,7 @@ void SceneGraph::buildSceneGraph() {
 
                 gltfDrawCommand draw{};
                 draw.isCharacter = obj->isCharacter;
+                draw.isWeapon = obj->isWeapon;
                 draw.dynamic = obj->dynamic;
                 draw.firstIndex = firstIndex;
                 draw.indexCount = static_cast<uint32_t>(prim->indices.size());
@@ -520,7 +542,7 @@ void SceneGraph::buildSceneGraph() {
         
         for (const auto& mat : obj->materials) {
             GPUMaterialIndices newMatIndices{};
-            newMatIndices.baseColorIndex = mat.baseColorIndex + numTextures;
+            newMatIndices.baseColorIndex = (mat.baseColorIndex == DUMMY_COLOR_TEX_INDEX) ? DUMMY_COLOR_TEX_INDEX : mat.baseColorIndex + numTextures;
             newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + numTextures;
             newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + numTextures;
             materialObjects.push_back(newMatIndices);
@@ -547,6 +569,9 @@ void SceneGraph::buildSceneGraph() {
             if (gltfDraw.isCharacter) {
                 characterDrawCommands.push_back(drawCmd);
             }
+            else if (gltfDraw.isWeapon) {
+                pistolDrawCommands.push_back(drawCmd);
+            }
             else {
                 gltfDraw.dynamic ? dynamicDrawCommands.push_back(drawCmd) : staticDrawCommands.push_back(drawCmd);
             }
@@ -559,6 +584,7 @@ void SceneGraph::buildSceneGraph() {
 
 void SceneGraph::createDummyTextures() {
     // add dummy textures
+    int index = 0;
     for (const auto& path : DUMMY_PATHS) {
         VulkanImage texImage{};
         stbi_uc* pixels = nullptr;
@@ -574,9 +600,15 @@ void SceneGraph::createDummyTextures() {
         imageExtents.width = texImage.extent.width;
         imageExtents.height = texImage.extent.height;
         imageExtents.depth = 1;
-        texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        if (index != 2) {
+            texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        }
+        else {
+            texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        }
         vkimageutils::createImageSampler(texImage);
         dummyTextures.push_back(texImage);
+        index++;
     }
 }
 
@@ -611,7 +643,22 @@ void gltfObject::updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPer
     }
 }
 
-void gltfObject::updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer) {
+void gltfObject::updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick) {
+    if (leftClick) {
+        c.currentAnim = c.spinningAnimation;
+    }
+    else {
+        c.currentAnim = c.idleAnimation;
+    }
+
+    animMachine.updateAnimationState(c, deltaTime);
+
+    for (auto& node : obj->parentNodes) {
+        obj->updateJoints(node, pMappedJointMatrixBuffer);
+    }
+}
+
+void gltfObject::updatePistolAnimation(gltfObject* obj, PistolAnimationStateMachine& animMachine, PistolAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer) {
     animMachine.updateAnimationState(c, deltaTime);
 
     for (auto& node : obj->parentNodes) {

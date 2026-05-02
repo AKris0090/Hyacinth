@@ -107,6 +107,7 @@ private:
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t characterDrawOffset = 0;
+	uint32_t pistolDrawOffset = 0;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkInstance						m_instance				{ VK_NULL_HANDLE };

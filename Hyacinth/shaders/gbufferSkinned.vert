@@ -54,18 +54,17 @@ void main()
 	normal.xyz = skinMatrix3 * normal.xyz;
 	tangent.xyz = skinMatrix3 * tangent.xyz;
 
-	DrawData draw = pc.drawDataBuffer.draws[gl_InstanceIndex];
-	mat4 model = pc.transformBuffer.model[draw.transformIndex];
-	gl_Position = ubo.proj * ubo.view * pc.entityTransformMatrix * model * position;
+	gl_Position = ubo.proj * ubo.view * pc.entityTransformMatrix * position;
 
-	fragPos = model * vec4(position.xyz, 1.0);
+	fragPos = skinMatrix * vec4(position.xyz, 1.0);
 
 	vec4 biTangent = vec4(normalize(cross(normal.xyz, tangent.xyz)), 0.0);
-	vec3 T = normalize(vec3(model * vec4(tangent.xyz, 0.0)));
-	vec3 B = normalize(vec3(model * biTangent));
-	vec3 N = normalize(vec3(model * vec4(normal.xyz, 0.0)));
+	vec3 T = normalize(vec3(skinMatrix * vec4(tangent.xyz, 0.0)));
+	vec3 B = normalize(vec3(skinMatrix * biTangent));
+	vec3 N = normalize(vec3(skinMatrix * vec4(normal.xyz, 0.0)));
 	TBNMatrix = mat3(T, B, N);
 
+	DrawData draw = pc.drawDataBuffer.draws[gl_InstanceIndex];
 	matIndex = draw.materialIndex;
 
 	viewPos = (ubo.view * vec4(fragPos.xyz, 1.0));

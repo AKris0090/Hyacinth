@@ -560,7 +560,8 @@ void HyacinthEngine::createDDGIPipeline()
 void HyacinthEngine::loadScene() {
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
-    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp2.glb";
+    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp3.glb";
+    auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun.glb";
 
     m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true, false, false));
 
@@ -569,6 +570,10 @@ void HyacinthEngine::loadScene() {
 
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath.string(), false, true, true));
     m_scene.dynamicObjects[1].setFPAnimatedParameters(m_scene.dynamicObjects[1].skins[0]);
+
+    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(pistolPath.string(), false, true, false, true));
+    m_scene.dynamicObjects[2].setWeaponParams(m_scene.dynamicObjects[2].skins[0]);
+    m_scene.dynamicObjects[2].setWeaponParentTo(&m_scene.dynamicObjects[1]);
 
     m_scene.buildSceneGraph();
 
@@ -591,10 +596,13 @@ void HyacinthEngine::createBuffers() {
 
     size_t dynamicDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.dynamicDrawCommands.size();
     size_t characterDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.characterDrawCommands.size();
-    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize + characterDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
+    size_t pistolDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.pistolDrawCommands.size();
+    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize + characterDrawCmdSize + pistolDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
     vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, dynamicDrawCmdSize, m_scene.dynamicDrawCommands.data());
     characterDrawOffset = m_scene.dynamicDrawCommands.size();
     vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, characterDrawCmdSize, m_scene.characterDrawCommands.data(), dynamicDrawCmdSize);
+    pistolDrawOffset = m_scene.dynamicDrawCommands.size() + m_scene.characterDrawCommands.size();
+    vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, pistolDrawCmdSize, m_scene.pistolDrawCommands.data(), dynamicDrawCmdSize + characterDrawCmdSize);
     
     vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer cmd) {
         for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
@@ -628,7 +636,7 @@ void HyacinthEngine::createDescriptorSets()
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
     {
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.f },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (((float)(m_scene.numTextures + 2)) / (float)MAX_FRAMES_IN_FLIGHT) }, // divided because multiplied by maxSets later. we only want 1 descriptor per texture, not 3
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (((float)(m_scene.numTextures + 3)) / (float)MAX_FRAMES_IN_FLIGHT) }, // divided because multiplied by maxSets later. we only want 1 descriptor per texture, not 3
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float)(1.f / MAX_FRAMES_IN_FLIGHT) } // for shadows, only 1 (not 3)
     };
     m_descriptorAllocator.initPool(MAX_FRAMES_IN_FLIGHT * 4, sizes);
@@ -647,7 +655,7 @@ void HyacinthEngine::createDescriptorSets()
 
     {
         DescriptorLayoutBuilder layoutBuilder;
-        layoutBuilder.addBinding(0, m_scene.numTextures + 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+        layoutBuilder.addBinding(0, m_scene.numTextures + 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR); // + 3 for all 3 dummy textures
         m_textureSetLayout = layoutBuilder.buildLayout(nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
     }
 
@@ -785,7 +793,9 @@ void HyacinthEngine::update() {
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     // first person object (self) 
-    gltfObject::updateFirstPersonAnimation(&m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData);
+    gltfObject::updateFirstPersonAnimation(&m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown());
+    // pistol object
+    gltfObject::updatePistolAnimation(&m_scene.dynamicObjects[2], *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
 
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
@@ -907,6 +917,11 @@ void HyacinthEngine::drawImGui() {
     ImGui::DragFloat("vol b normal bias", &volBNormalBias, 0.01f);
     ImGui::DragFloat("vol a view bias", &volAViewBias, 0.01f);
     ImGui::DragFloat("vol b view bias", &volBViewBias, 0.01f);
+
+    ImGui::DragFloat3("p", &m_scene.dynamicObjects[1].gunBone->localTransform.position.x, 0.01f);
+    ImGui::DragFloat4("r", &m_scene.dynamicObjects[1].gunBone->localTransform.rotation.x, 0.01f);
+    ImGui::DragFloat3("s", &m_scene.dynamicObjects[1].gunBone->localTransform.scale.x, 0.01f);
+
     ImGui::End();
 
     ImGui::Begin("Shadow Maps");
@@ -1005,18 +1020,21 @@ void HyacinthEngine::draw()
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skinnedPipelineUtil.m_pipeline.pipeline);
 
-        // draw animated network entities
+        ///////////// DRAWING NETWORK ENTITIES ////////////////////
         p_netEntManager->drawEntities(cmd, m_skinnedPipelineUtil, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), m_dynamicIndirectDrawBuffer, pushConstants);
         
+        ///////////// DRAWING CHARACTER ////////////////////
         camMutex.lock();
         pushConstants.entityMatrix = m_camera.m_transform.getMatrix();
         camMutex.unlock();
         pushConstants.jointBufferAddress = p_netEntManager->firstPersonJointBuffer.gpuAddress;
-
         vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-
-        // draw character separately
         vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, characterDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.characterDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+
+        ///////////// DRAWING PISTOL ////////////////////
+        pushConstants.jointBufferAddress = p_netEntManager->pistolJointBuffer.gpuAddress;
+        vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+        vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, pistolDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.pistolDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
         vkCmdEndRendering(cmd);
         VK_LABEL_END(cmd);

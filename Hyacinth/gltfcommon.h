@@ -5,6 +5,7 @@
 #include "vkimageutils.h"
 #include "vkdescriptorutils.h"
 #include "fullscreen_quad.h"
+#include <glm/gtx/matrix_decompose.hpp>
 #include "transform.h"
 #include <unordered_set>
 
@@ -16,18 +17,17 @@ struct gltfPrimitive {
 };
 
 struct gltfNode {
-    std::vector<gltfPrimitive*> primitives;
-    Transform matComponents;
-    int32_t skinIndex = -1;
-    glm::mat4 worldTransform = glm::mat4(1.0f);
-    std::vector<gltfNode*> children;
+    std::string nodeName;
+    uint32_t index;
+    Transform localTransform;
     gltfNode* parent;
+    std::vector<gltfNode*> children;
+    std::vector<gltfPrimitive*> primitives;
+    int32_t skinIndex = -1;
     bool includeInAccel = false;
     bool dynamic = false;
-    uint32_t index;
     bool upperBody = false;
     bool lowerBody = false;
-    std::string nodeName;
 
     std::vector<Vertex> vertices;
     VulkanBuffer accelStructureVertexBuffer;
@@ -71,17 +71,13 @@ static gltfNode* nodeFromIndex(std::vector<gltfNode*>& nodes, uint32_t index)
     return nodeFound;
 }
 
-static glm::mat4 getAnimatedMatrix(Transform& matP, glm::mat4& matrix) {
-    return glm::translate(glm::mat4(1.0f), matP.position) * glm::mat4(matP.rotation) * glm::scale(glm::mat4(1.0f), matP.scale);// *matrix;
-}
-
 static glm::mat4 getNodeMatrix(gltfNode* node)
 {
-    glm::mat4 nodeMatrix = getAnimatedMatrix(node->matComponents, node->worldTransform);
+    glm::mat4 nodeMatrix = node->localTransform.getMatrix();
     gltfNode* currentParent = node->parent;
     while (currentParent)
     {
-        nodeMatrix = getAnimatedMatrix(currentParent->matComponents, currentParent->worldTransform) * nodeMatrix;
+        nodeMatrix = currentParent->localTransform.getMatrix() * nodeMatrix;
         currentParent = currentParent->parent;
     }
     return nodeMatrix;

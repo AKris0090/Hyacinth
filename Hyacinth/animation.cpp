@@ -143,7 +143,7 @@ void ThirdPersonAnimationStateMachine::flushQueuedNodeTransforms(ThirdPersonAnim
 		node->queuedYawShifts.clear();
 	}
 	for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
-		node->matComponents.rotation = node->queuedQuatRotation * node->matComponents.rotation;
+		node->localTransform.rotation = node->queuedQuatRotation * node->localTransform.rotation;
 	}
 }
 
@@ -205,7 +205,7 @@ void ThirdPersonAnimationStateMachine::updateUpperAnimation(ThirdPersonAnimation
 	for (auto& channel : c.currentUpperBodyAnim->channels)
 	{
 		if (!channel.node->upperBody) continue;
-		updateSamplers(c.currentUpperBodyAnim, &channel, &channel.node->matComponents, c.currentUpperTime);
+		updateSamplers(c.currentUpperBodyAnim, &channel, &channel.node->localTransform, c.currentUpperTime);
 	}
 }
 
@@ -213,7 +213,7 @@ void ThirdPersonAnimationStateMachine::updateLowerAnimation(ThirdPersonAnimation
 	for (auto& channel : c.currentLowerBodyAnim->channels)
 	{
 		if (!channel.node->lowerBody) continue;
-		updateSamplers(c.currentLowerBodyAnim, &channel, &channel.node->matComponents, c.currentLowerTime);
+		updateSamplers(c.currentLowerBodyAnim, &channel, &channel.node->localTransform, c.currentLowerTime);
 	}
 }
 
@@ -239,7 +239,7 @@ void ThirdPersonAnimationStateMachine::lerpPreviousCurrentAnimations(ThirdPerson
 	for (auto& channel : c.currentLowerBodyAnim->channels)
 	{
 		Transform& t = c.previousAnimationTransforms[channel.node->index];
-		channel.node->matComponents = t.lerpToNoSet(channel.node->matComponents, alpha);
+		channel.node->localTransform = t.lerpToNoSet(channel.node->localTransform, alpha);
 	}
 }
 
@@ -331,7 +331,7 @@ void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationContr
 
 	for (auto& channel : c.currentAnim->channels)
 	{
-		updateSamplers(c.currentAnim, &channel, &channel.node->matComponents, c.currentTime);
+		updateSamplers(c.currentAnim, &channel, &channel.node->localTransform, c.currentTime);
 	}
 }
 
@@ -339,3 +339,19 @@ void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimation
 	updateAnimation(c, deltaTime);
 }
 
+// PISTOL ////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+
+void PistolAnimationStateMachine::updateAnimation(PistolAnimationController& c, float deltaTime) {
+	c.currentTime += deltaTime;
+	c.currentTime = fmod(c.currentTime, c.currentAnim->end);
+
+	for (auto& channel : c.currentAnim->channels)
+	{
+		updateSamplers(c.currentAnim, &channel, &channel.node->localTransform, c.currentTime);
+	}
+}
+
+void PistolAnimationStateMachine::updateAnimationState(PistolAnimationController& c, float deltaTime) {
+	updateAnimation(c, deltaTime);
+}
