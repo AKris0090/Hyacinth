@@ -2,6 +2,9 @@
 
 #include "gltfcommon.h"
 
+constexpr float HORIZONTAL_GUN_SWAY = 0.13f;
+constexpr float VERTICAL_GUN_SWAY = 0.25f;
+
 enum TURN_ANIM_STATE {
 	NEEDS_TURN_LEFT,
 	NEEDS_TURN_RIGHT,
@@ -58,52 +61,24 @@ struct ThirdPersonAnimationController {
 		upperArmL = upperArmR = spine005 = spine007 = spine003 = spine = nullptr;
 		idleAnimation = leftTurnAnimation = rightTurnAnimation = runningAnimation = currentLowerBodyAnim = currentUpperBodyAnim = previousAnimation = nullptr;
 	};
-
-	ThirdPersonAnimationController(gltfNode* upperL, gltfNode* upperR, gltfNode* spine5, gltfNode* spine7, gltfNode* spine3, gltfNode* sp, Animation* idle, Animation* leftTurn, Animation* rightTurn, Animation* run, std::vector<gltfNode*> allNodes) {
-		upperArmL = upperL;
-		upperArmR = upperR;
-		spine005 = spine5;
-		spine007 = spine7;
-		spine003 = spine3;
-		spine = sp;
-
-		idleAnimation = idle;
-		leftTurnAnimation = leftTurn;
-		rightTurnAnimation = rightTurn;
-		runningAnimation = run;
-
-		currentLowerBodyAnim = idle;
-		currentUpperBodyAnim = idle;
-		previousAnimation = nullptr;
-
-		previousAnimationTransforms.resize(allNodes.size());
-	}
 };
 
 struct FirstPersonAnimationController {
 	Animation* idleAnimation;
+	Animation* shootAnimation;
 	Animation* spinningAnimation;
+	gltfNode* gunBone;
+
+	gltfNode* leftWrist;
+	gltfNode* rightWrist;
 
 	float currentTime = 0.f;
-	float previousTime = 0.f;
-
-	Animation* previousAnimation;
-	std::vector<Transform> previousAnimationTransforms;
 
 	Animation* currentAnim;
 
-	float						  fadeTimer = 0.f;
-	float						  fadeLength = 0.15f;
-	bool						  transitioning = false;
-
 	FirstPersonAnimationController() {
-		currentAnim = idleAnimation = previousAnimation = spinningAnimation = nullptr;
-	};
-
-	FirstPersonAnimationController(Animation* idleAnim, Animation* spinningAn) {
-		currentAnim = idleAnimation = idleAnim;
-		previousAnimation = nullptr;
-		spinningAnimation = spinningAn;
+		currentAnim = idleAnimation = shootAnimation = spinningAnimation = nullptr;
+		gunBone = leftWrist = rightWrist = nullptr;
 	};
 };
 
@@ -145,14 +120,37 @@ class FirstPersonAnimationStateMachine {
 private:
 	FIRSTPERSON_STATE state;
 
-	void updateAnimation(FirstPersonAnimationController& c, float deltaTime);
-	void transitionToNewAnimation(FirstPersonAnimationController& c, Animation* current, Animation* next);
+	struct WeaponController {
+		float timeBetweenShots = 0.25f;
+		float currentShotTimer = 0.f;
+
+		bool updateShooting(float deltaTime, bool shooting) {
+			currentShotTimer += deltaTime;
+
+			if (currentShotTimer >= timeBetweenShots) {
+				if (shooting) {
+					currentShotTimer = fmodf(currentShotTimer, timeBetweenShots);
+					return true;
+				}
+				else {
+					currentShotTimer = timeBetweenShots;
+				}
+			}
+
+			return false;
+		}
+	};
+
+	glm::quat currentSwayYaw = { 1.f, 0.f, 0.f, 0.f };
+	glm::quat currentSwayPitch = { 1.f, 0.f, 0.f, 0.f };
+	bool currentlyShooting = false;
+	WeaponController pistolController;
+	void flushQueuedNodeTransforms(FirstPersonAnimationController& c);
+	void updateAnimation(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw);
 
 public:
-	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime);
+	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool shooting);
 };
-
-
 
 struct PistolAnimationController {
 	Animation* idleAnimation;

@@ -187,6 +187,8 @@ int main() {
 			SimulateStruct sS;
 			sS.pitch = p.pitch;
 			sS.yaw = p.yaw;
+			hyacinthEngine.m_camera.prevPitch = hyacinthEngine.m_camera.m_transform.pitch;
+			hyacinthEngine.m_camera.prevYaw = hyacinthEngine.m_camera.m_transform.yaw;
 			physicsManager.updateCamera(0, netClient.netEntManager.self->camSpeed, sS, hyacinthEngine.m_camera.m_transform, false, Time::getDeltaTime());
 
 			hyacinthEngine.p_netEntManager->selfMutex.lock();

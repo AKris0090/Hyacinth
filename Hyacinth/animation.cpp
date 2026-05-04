@@ -1,6 +1,6 @@
 #include "animation.h"
 
-void Skin::loadSkins(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std::vector<Skin>& skinsOut)
+bool Skin::loadSkins(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std::vector<Skin>& skinsOut)
 {
 	skinsOut.resize(input->skins.size());
 
@@ -29,6 +29,7 @@ void Skin::loadSkins(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std:
 			memcpy(skinsOut[i].inverseBindMatrices.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(glm::mat4));
 		}
 	}
+	return skinsOut.size() > 0;
 }
 
 
@@ -325,18 +326,61 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 // FIRST PERSON //////////////////////////////////////////
 //////////////////////////////////////////////////////////
 
-void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationController& c, float deltaTime) {
+void FirstPersonAnimationStateMachine::flushQueuedNodeTransforms(FirstPersonAnimationController& c) {
+	for (auto& node : { c.leftWrist, c.rightWrist }) {
+		node->localTransform.rotation = node->queuedQuatRotation * node->localTransform.rotation;
+	}
+}
+
+void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw) {
 	c.currentTime += deltaTime;
+	if (currentlyShooting && c.currentTime > c.currentAnim->end) {
+		currentlyShooting = false;
+	}
 	c.currentTime = fmod(c.currentTime, c.currentAnim->end);
 
 	for (auto& channel : c.currentAnim->channels)
 	{
 		updateSamplers(c.currentAnim, &channel, &channel.node->localTransform, c.currentTime);
 	}
+
+	// calculate local roll shift on wrists depending on delta yaw
+	float targetYaw = -deltaYaw * HORIZONTAL_GUN_SWAY;
+	glm::quat targetQ = glm::angleAxis(targetYaw, glm::vec3(0, -1, 0));
+	currentSwayYaw = glm::slerp(currentSwayYaw, targetQ, deltaTime * 10.f);
+
+	float targetPitch = -deltaPitch * VERTICAL_GUN_SWAY;
+	glm::quat targetQP = glm::angleAxis(targetPitch, glm::vec3(0, 0, 1));
+	currentSwayPitch = glm::slerp(currentSwayPitch, targetQP, deltaTime * 10.f);
+
+	for (auto& node : { c.leftWrist, c.rightWrist }) {
+		glm::mat4 parentWorldMat = node->parent ? getNodeMatrix(node->parent) : glm::mat4(1.0f);
+		glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
+		glm::quat qRotYawLocal = glm::inverse(parentWorldRot) * currentSwayYaw * parentWorldRot;
+
+		glm::quat qRotPitchLocal = glm::inverse(parentWorldRot) * currentSwayPitch * parentWorldRot;
+
+		node->queuedQuatRotation = qRotYawLocal * qRotPitchLocal;
+	}
+
+	flushQueuedNodeTransforms(c);
 }
 
-void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime) {
-	updateAnimation(c, deltaTime);
+void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool isShooting) {
+	bool shotTimer = pistolController.updateShooting(deltaTime, isShooting);
+	if (shotTimer) {
+		c.currentAnim = c.shootAnimation;
+		c.currentTime = c.shootAnimation->start;
+		currentlyShooting = true;
+	}
+	else {
+		if (!currentlyShooting && c.currentAnim != c.idleAnimation) {
+			c.currentAnim = c.idleAnimation;
+			c.currentTime = c.idleAnimation->start;
+		}
+	}
+
+	updateAnimation(c, deltaTime, deltaPitch, deltaYaw);
 }
 
 // PISTOL ////////////////////////////////////////////////

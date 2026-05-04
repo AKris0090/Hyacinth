@@ -11,7 +11,8 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 			entities[e.id] = new Entity();
 			entities[e.id]->id = e.id;
 			entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
-			entityAnimationControllers[e.id] = ThirdPersonAnimationController(characterObject->upperArmL, characterObject->upperArmR, characterObject->spine005, characterObject->spine007, characterObject->spine003, characterObject->spine, characterObject->idleAnimation, characterObject->leftTurnAnimation, characterObject->rightTurnAnimation, characterObject->runningAnimation, characterObject->allNodes);
+			entityAnimationControllers[e.id] = ThirdPersonAnimationController();
+			characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
 		}
 		entities[e.id]->transform.position = e.transform.position;
 		entities[e.id]->transform.pitch = e.transform.pitch;
@@ -35,14 +36,15 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 			entities[e.id] = newEnt;
 			ids.push_back(e.id);
 			entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
-			entityAnimationControllers[e.id] = ThirdPersonAnimationController(characterObject->upperArmL, characterObject->upperArmR, characterObject->spine005, characterObject->spine007, characterObject->spine003, characterObject->spine, characterObject->idleAnimation, characterObject->leftTurnAnimation, characterObject->rightTurnAnimation, characterObject->runningAnimation, characterObject->allNodes);
+			entityAnimationControllers[e.id] = ThirdPersonAnimationController();
+			characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
 		}
 	}
 
-	firstPersonAnimationController = FirstPersonAnimationController(firstPersonObject->idleAnimation, firstPersonObject->spinAnim);
+	firstPersonObject->setFPControllerParameters(firstPersonAnimationController, firstPersonObject->skins[0]);
 	firstPersonJointBuffer = vkdeviceutils::createBuffer(firstPersonObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_fp");
 
-	pistolAnimationController = PistolAnimationController(pistolObject->idleAnimation);
+	pistolObject->setWeaponControllerParams(pistolAnimationController, pistolObject->skins[0]);
 	pistolJointBuffer = vkdeviceutils::createBuffer(pistolObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_pistol");
 }
 

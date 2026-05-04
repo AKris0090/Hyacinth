@@ -29,6 +29,7 @@ private:
 public:
     bool m_dirtyProj, m_dirtyView, m_dirtyMovement;
     Transform m_transform;
+    float prevYaw, prevPitch;
     CameraFrustumPlanes m_frustumPlanes;
     // CameraUniformProperties m_frustumProperties[MAX_FRAMES_IN_FLIGHT];
 

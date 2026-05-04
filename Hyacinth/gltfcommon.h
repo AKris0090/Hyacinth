@@ -101,7 +101,7 @@ struct Skin
     std::vector<glm::mat4>		inverseBindMatrices;
     std::vector<gltfNode*>		joints;
 
-    static void loadSkins(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std::vector<Skin>& skinsOut);
+    static bool loadSkins(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std::vector<Skin>& skinsOut);
 };
 
 struct AnimationSampler

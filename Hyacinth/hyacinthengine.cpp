@@ -560,19 +560,16 @@ void HyacinthEngine::createDDGIPipeline()
 void HyacinthEngine::loadScene() {
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
-    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp3.glb";
+    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp4.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun.glb";
 
     m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true, false, false));
 
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(thirdPersonCharacterPath.string(), false, true, false));
-    m_scene.dynamicObjects[0].setTPAnimatedParameters(m_scene.dynamicObjects[0].skins[0]);
 
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath.string(), false, true, true));
-    m_scene.dynamicObjects[1].setFPAnimatedParameters(m_scene.dynamicObjects[1].skins[0]);
 
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(pistolPath.string(), false, true, false, true));
-    m_scene.dynamicObjects[2].setWeaponParams(m_scene.dynamicObjects[2].skins[0]);
     m_scene.dynamicObjects[2].setWeaponParentTo(&m_scene.dynamicObjects[1]);
 
     m_scene.buildSceneGraph();
@@ -793,7 +790,7 @@ void HyacinthEngine::update() {
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     // first person object (self) 
-    gltfObject::updateFirstPersonAnimation(&m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown());
+    gltfObject::updateFirstPersonAnimation(&m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw);
     // pistol object
     gltfObject::updatePistolAnimation(&m_scene.dynamicObjects[2], *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
 

@@ -51,22 +51,7 @@ struct gltfObject {
     std::vector<Animation> animations;
     std::vector<Skin> skins;
     size_t skinSize;
-
-    gltfNode* upperArmL;    // left arm (pitch) controller
-    gltfNode* upperArmR;    // right arm (pitch) controller
-    gltfNode* spine005;     // head neck (pitch) controller
-    gltfNode* spine007;     // lower body yaw controller
-    gltfNode* spine003;     // upper body yaw controller
-    gltfNode* spine;		// full body yaw controller
-
-    Animation* leftTurnAnimation;
-    Animation* rightTurnAnimation;
-    Animation* idleAnimation;
-    Animation* runningAnimation;
-
-    Animation* spinAnim;
-
-    gltfNode* gunBone = nullptr;
+    gltfNode* gunBone;
 
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;
@@ -79,11 +64,11 @@ struct gltfObject {
     PistolAnimationStateMachine* pistolAnimStateMachine;
 
     void updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer);
-    void setTPAnimatedParameters(Skin& skin);
-    void setFPAnimatedParameters(Skin& skin);
-    void setWeaponParams(Skin& skin);
+    void setTPControllerParameters(ThirdPersonAnimationController& c, Skin& skin);
+    void setFPControllerParameters(FirstPersonAnimationController& c, Skin& skin);
+    void setWeaponControllerParams(PistolAnimationController& c, Skin& skin);
     static void updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
-    static void updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick);
+    static void updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw);
     static void updatePistolAnimation(gltfObject* obj, PistolAnimationStateMachine& animMachine, PistolAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
     void setWeaponParentTo(gltfObject* parentObj);
 };
