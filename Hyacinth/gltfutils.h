@@ -1,14 +1,17 @@
 #pragma once
 
 #include "animation.h"
+#include "vkmeshutils.h"
 #include "entity.h"
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
 constexpr int DUMMY_METALROUGH_TEX_INDEX = 1;
+constexpr int DUMMY_COLOR_TEX_INDEX = 2;
 
 const std::vector<std::string> DUMMY_PATHS = {
         "./shaders/dummyNormal.png",
-        "./shaders/dummyMetallicRoughness.png"
+        "./shaders/dummyMetallicRoughness.png",
+        "./shaders/dummyColor.png"
 };
 
 static std::string getFilePathExtension(const std::string& FileName) {
@@ -25,6 +28,7 @@ struct DrawData {
 struct gltfDrawCommand {
     bool dynamic;
     bool isCharacter;
+    bool isWeapon;
     uint32_t    indexCount;
     uint32_t    firstIndex;
     int32_t     vertexOffset;
@@ -36,6 +40,7 @@ struct gltfDrawCommand {
 struct gltfObject {
     bool dynamic;
     bool isCharacter;
+    bool isWeapon;
     uint32_t firstMatrix = 0;
     uint32_t numMatrices = 0;
     uint32_t activeAnimation = 0;
@@ -45,8 +50,8 @@ struct gltfObject {
     uint32_t nodeCounter;
     std::vector<Animation> animations;
     std::vector<Skin> skins;
-
-    float lookDirectionPitch, lookDirectionYaw;
+    size_t skinSize;
+    gltfNode* gunBone;
 
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;
@@ -54,10 +59,18 @@ struct gltfObject {
 
     std::unordered_set<uint32_t>* imageIsSRGB;
 
-    AnimationStateMachine animStateMachine;
+    ThirdPersonAnimationStateMachine* thirdPersonAnimStateMachine;
+    FirstPersonAnimationStateMachine* firstPersonAnimStateMachine;
+    PistolAnimationStateMachine* pistolAnimStateMachine;
 
-    void updateJoints(gltfNode* node);
-    void updateAnimation(Entity* e, float deltaTime, uint32_t currentBuffer);
+    void updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer);
+    void setTPControllerParameters(ThirdPersonAnimationController& c, Skin& skin);
+    void setFPControllerParameters(FirstPersonAnimationController& c, Skin& skin);
+    void setWeaponControllerParams(PistolAnimationController& c, Skin& skin);
+    static void updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
+    static void updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw);
+    static void updatePistolAnimation(gltfObject* obj, PistolAnimationStateMachine& animMachine, PistolAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
+    void setWeaponParentTo(gltfObject* parentObj);
 };
 
 struct SceneGraph {
@@ -84,6 +97,7 @@ struct SceneGraph {
     std::vector<VkDrawIndexedIndirectCommand> staticDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> dynamicDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> characterDrawCommands;
+    std::vector<VkDrawIndexedIndirectCommand> pistolDrawCommands;
 
     std::vector<DrawData> drawData;
     std::vector<GPUMaterialIndices> materialObjects;
@@ -99,5 +113,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false);
+    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isWeapon = false);
 }

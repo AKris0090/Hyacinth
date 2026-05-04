@@ -20,6 +20,9 @@
 #include "characterkinematic/PxController.h"
 #include "characterkinematic/PxControllerManager.h"
 #include "characterkinematic/PxCapsuleController.h"
+#include "geometry/PxGeometryQuery.h"
+#include "geometry/PxGeometryHit.h"
+#include "PxRigidDynamic.h"
 
 #include <unordered_map>
 #include "light_loader.h"
@@ -27,9 +30,34 @@
 
 using namespace physx;
 
+constexpr float JUMP_VELOCITY = 3.75f;
+
+struct controllerUserData {
+	uint32_t id;
+};
+
+struct hitReg {
+	bool hit;
+	uint32_t entityHitId;
+};
+
+static physx::PxVec3 physxVec(glm::vec3 v) {
+	return physx::PxVec3(v.x, v.y, v.z);
+}
+
+static physx::PxExtendedVec3 physxEVec(glm::vec3 v) {
+	return physx::PxExtendedVec3(v.x, v.y, v.z);
+}
+
+static glm::vec3 glmPhysxVec(physx::PxExtendedVec3 v) {
+	return glm::vec3(v.x, v.y, v.z);
+}
+
 class PhysicsManager {
 private:
 	bool recordMemoryAllocations = true;
+
+	std::mutex charLock;
 
 	PxDefaultErrorCallback defaultErrorCallback;
 	PxDefaultAllocator defaultAllocatorCallback;
@@ -47,11 +75,13 @@ private:
 
 public:
 	physx::PxScene* pScene = NULL;
+	physx::PxCapsuleGeometry capGeom;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
+	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
 	SPSCQueue<Event> physicsEventQueue;
 
-	void initPhysics();
+	void initPhysics(bool debug);
 	void addCharacterController(uint32_t cId);
 	void removeCharacterController(uint32_t cId);
 	void addStaticPhysicsObject(LightObject* object);
@@ -59,4 +89,7 @@ public:
 	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime);
 	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
 	void addNetworkEntityCapsuleCollider(uint32_t cId);
+	void setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId);
+
+	hitReg playerShooting(uint32_t eId, Transform& t, rewindSnapshot* snapshotToTrace);
 };

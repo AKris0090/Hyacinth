@@ -2,42 +2,8 @@
 
 #include "gltfcommon.h"
 
-struct Skin
-{
-	std::string					name;
-	gltfNode* skeletonRoot =	nullptr;
-	std::vector<glm::mat4>		inverseBindMatrices;
-	std::vector<gltfNode*>		joints;
-	VulkanBuffer				jointMatrixBuffer;
-
-	static void loadSkins(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std::vector<Skin>& skinsOut);
-};
-
-struct AnimationSampler
-{
-	std::string            interpolation;
-	std::vector<float>     inputs;
-	std::vector<glm::vec4> outputsVec4;
-};
-
-struct AnimationChannel
-{
-	std::string path;
-	gltfNode*	node;
-	uint32_t    samplerIndex;
-};
-
-struct Animation
-{
-	std::string                   name;
-	std::vector<AnimationSampler> samplers;
-	std::vector<AnimationChannel> channels;
-	float                         start = std::numeric_limits<float>::max();
-	float                         end = std::numeric_limits<float>::min();
-	float                         currentTime = 0.0f;
-
-	static void loadAnimations(tinygltf::Model* input, std::vector<gltfNode*>& nodes, std::vector<Animation>& animsOut);
-};
+constexpr float HORIZONTAL_GUN_SWAY = 0.13f;
+constexpr float VERTICAL_GUN_SWAY = 0.25f;
 
 enum TURN_ANIM_STATE {
 	NEEDS_TURN_LEFT,
@@ -58,32 +24,7 @@ static float yawFromQuaternion(glm::quat q) {
 	));
 }
 
-class AnimationStateMachine {
-private:
-	void setNewBasis(float basis) {
-		basis = fmod(basis, 360);
-		basisRotation = glm::angleAxis(glm::radians(basis), glm::vec3(0, 1, 0));
-	}
-
-	void turn(float absolute) {
-		prevBasisRotation = basisRotation;
-		setNewBasis(absolute);
-	}
-
-	TURN_ANIM_STATE turnState = IDLE;
-	void stageTurnAnim(bool leftRight) {
-		turnState = leftRight ? NEEDS_TURN_LEFT : NEEDS_TURN_RIGHT;
-	}
-
-	glm::quat prevBasisRotation{ 1.f, 0.f, 0.f, 0.f };
-	glm::quat basisRotation{ 1.f, 0.f, 0.f, 0.f };
-
-	void flushQueuedNodeTransforms();
-	void updateSamplers(Animation* animation, AnimationChannel* channel);
-	void updateUpperAnimation(float deltaTime);
-	void updateLowerAnimation(float deltaTime);
-
-public:
+struct ThirdPersonAnimationController {
 	gltfNode* upperArmL;    // left arm (pitch) controller
 	gltfNode* upperArmR;    // right arm (pitch) controller
 	gltfNode* spine005;     // head neck (pitch) controller
@@ -96,12 +37,140 @@ public:
 	Animation* idleAnimation;
 	Animation* runningAnimation;
 
+	float currentLowerTime = 0.f;
+	float currentUpperTime = 0.f;
+	float previousTime = 0.f;
+
+	Animation* previousAnimation;
+	std::vector<Transform> previousAnimationTransforms;
+
 	Animation* currentLowerBodyAnim;
 	Animation* currentUpperBodyAnim;
 
-	CURRENT_PLAYER_MOTION_STATE motionState = STILL;
-	glm::quat spineDefaultRot;
+	glm::quat prevBasisRotation{ 1.f, 0.f, 0.f, 0.f };
+	glm::quat basisRotation{ 1.f, 0.f, 0.f, 0.f };
 
-	void updateFromPlayerState(float pitch, float yaw, float alpha, bool isMoving);
-	void updateAnimationState(float deltaTime, float motionFB, float motionLR, float pitch, float yaw);
+	float						  fadeTimer = 0.f;
+	float						  fadeLength = 0.15f;
+	bool						  transitioning = false;
+
+	CURRENT_PLAYER_MOTION_STATE motionState = STILL;
+	TURN_ANIM_STATE turnState = IDLE;
+
+	ThirdPersonAnimationController() {
+		upperArmL = upperArmR = spine005 = spine007 = spine003 = spine = nullptr;
+		idleAnimation = leftTurnAnimation = rightTurnAnimation = runningAnimation = currentLowerBodyAnim = currentUpperBodyAnim = previousAnimation = nullptr;
+	};
+};
+
+struct FirstPersonAnimationController {
+	Animation* idleAnimation;
+	Animation* shootAnimation;
+	Animation* spinningAnimation;
+	gltfNode* gunBone;
+
+	gltfNode* leftWrist;
+	gltfNode* rightWrist;
+
+	float currentTime = 0.f;
+
+	Animation* currentAnim;
+
+	FirstPersonAnimationController() {
+		currentAnim = idleAnimation = shootAnimation = spinningAnimation = nullptr;
+		gunBone = leftWrist = rightWrist = nullptr;
+	};
+};
+
+static void updateSamplers(Animation* animation, AnimationChannel* channel, Transform* t, float currentTime);
+
+class ThirdPersonAnimationStateMachine {
+private:
+	void setNewBasis(ThirdPersonAnimationController& c, float basis) {
+		basis = fmodf(basis, 360);
+		c.basisRotation = glm::angleAxis(glm::radians(basis), glm::vec3(0, 1, 0));
+	}
+
+	void turn(ThirdPersonAnimationController& c, float absolute) {
+		c.prevBasisRotation = c.basisRotation;
+		setNewBasis(c, absolute);
+	}
+
+	void stageTurnAnim(ThirdPersonAnimationController& c, bool leftRight) {
+		c.turnState = leftRight ? NEEDS_TURN_LEFT : NEEDS_TURN_RIGHT;
+	}
+
+	void flushQueuedNodeTransforms(ThirdPersonAnimationController& c);
+	void updateUpperAnimation(ThirdPersonAnimationController& c);
+	void updateLowerAnimation(ThirdPersonAnimationController& c);
+	void updatePreviousWholeBodyAnimation(ThirdPersonAnimationController& c);
+	void lerpPreviousCurrentAnimations(ThirdPersonAnimationController& c);
+	void updateFromPlayerState(ThirdPersonAnimationController& c, float pitch, float yaw, float alpha, bool isMoving);
+	void transitionToNewAnimation(ThirdPersonAnimationController& c, Animation* current, Animation* next);
+
+public:
+	void updateAnimationState(ThirdPersonAnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw);
+};
+
+enum FIRSTPERSON_STATE {
+	IDLE_PISTOL
+};
+
+class FirstPersonAnimationStateMachine {
+private:
+	FIRSTPERSON_STATE state;
+
+	struct WeaponController {
+		float timeBetweenShots = 0.25f;
+		float currentShotTimer = 0.f;
+
+		bool updateShooting(float deltaTime, bool shooting) {
+			currentShotTimer += deltaTime;
+
+			if (currentShotTimer >= timeBetweenShots) {
+				if (shooting) {
+					currentShotTimer = fmodf(currentShotTimer, timeBetweenShots);
+					return true;
+				}
+				else {
+					currentShotTimer = timeBetweenShots;
+				}
+			}
+
+			return false;
+		}
+	};
+
+	glm::quat currentSwayYaw = { 1.f, 0.f, 0.f, 0.f };
+	glm::quat currentSwayPitch = { 1.f, 0.f, 0.f, 0.f };
+	bool currentlyShooting = false;
+	WeaponController pistolController;
+	void flushQueuedNodeTransforms(FirstPersonAnimationController& c);
+	void updateAnimation(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw);
+
+public:
+	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool shooting);
+};
+
+struct PistolAnimationController {
+	Animation* idleAnimation;
+	float currentTime = 0.f;
+	bool done = false;
+
+	Animation* currentAnim;
+
+	PistolAnimationController() {
+		currentAnim = idleAnimation = nullptr;
+	};
+
+	PistolAnimationController(Animation* idleAnim) {
+		currentAnim = idleAnimation = idleAnim;
+	};
+};
+
+class PistolAnimationStateMachine {
+private:
+	void updateAnimation(PistolAnimationController& c, float deltaTime);
+public:
+	void updateAnimationState(PistolAnimationController& c, float deltaTime);
 };

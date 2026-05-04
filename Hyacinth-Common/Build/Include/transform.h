@@ -12,7 +12,7 @@ struct Transform {
 	glm::vec3 scale{ 1.f, 1.f, 1.f };
 
 	glm::vec3 forward = { 1.f, 0.f, 0.f };
-	glm::vec3 right = { 0.f, 0.f, 0.f };
+	glm::vec3 right = { 0.f, 0.f, 1.f };
 	glm::vec3 up = { 0.f, 1.f, 0.f };
 
 	float pitch = 0.f, yaw = 0.f;
@@ -62,6 +62,14 @@ struct Transform {
 
 		t.setRotationPitchYaw();
 
+		return t;
+	}
+
+	Transform lerpToNoSet(const Transform& other, float delta) {
+		Transform t;
+		t.position = glm::mix(position, other.position, delta);
+		t.rotation = glm::slerp(rotation, other.rotation, delta);
+		t.scale = glm::mix(scale, other.scale, delta);
 		return t;
 	}
 

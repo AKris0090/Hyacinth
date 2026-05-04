@@ -77,13 +77,13 @@ public:
 	NetworkEntityManager* p_netEntManager;
 	std::mutex camMutex;
 	Camera m_camera;
+	SceneGraph						m_scene{};
 
 	HyacinthEngine() {};
 	~HyacinthEngine() { cleanup(); };
 
 	void init();
 	void draw();
-	void setObjectPitchYaw(int gltfObjectIndex, float pitch, float yaw);
 	void cleanup();
 
 private:
@@ -107,6 +107,7 @@ private:
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t characterDrawOffset = 0;
+	uint32_t pistolDrawOffset = 0;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkInstance						m_instance				{ VK_NULL_HANDLE };
@@ -129,6 +130,7 @@ private:
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
+	VulkanPipelineBuilder			m_skinnedPipelineUtil   {};
 	VulkanPipelineBuilder			m_volumeStencilPipeline	{};
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_staticIndirectDrawBuffer{};
@@ -138,7 +140,6 @@ private:
 	VulkanBuffer					m_drawDataBuffer		{};
 	VulkanBuffer					m_materialBuffer		{};
 	perFrame						m_uploadFrame			{};
-	SceneGraph						m_scene					{};
 	DescriptorAllocator				m_descriptorAllocator	{};
 	DescriptorAllocator				m_imGuiAllocator		{};
 	VkDescriptorSetLayout			m_textureSetLayout		{ VK_NULL_HANDLE };

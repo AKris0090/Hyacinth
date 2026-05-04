@@ -7,11 +7,12 @@
 #include <thread>
 #include <chrono>
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
 std::atomic<uint32_t> tickNum{ 0 };
+BotBehavior b;
 bool dontEnd = true;
 
 std::filesystem::path getExeDir()
@@ -33,7 +34,14 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		p.tick = tickNum;
 		p.movementFB = netClient->netEntManager.inputAccumulator.movementFB;
 		p.movementLR = netClient->netEntManager.inputAccumulator.movementLR;
-		p.movementUD = netClient->netEntManager.inputAccumulator.movementUD;
+		p.jump = netClient->netEntManager.inputAccumulator.jump;
+		p.lmb = netClient->netEntManager.inputAccumulator.shooting;
+
+		if (b.active) {
+			p.movementLR = b.update(SERVER_TIMESTEP);
+			p.movementFB = 0;
+			p.jump = false;
+		}
 
 		// update physics
 		engine->p_netEntManager->selfMutex.lock();
@@ -44,13 +52,17 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 
 		p.pitch = netClient->netEntManager.self->transform.pitch;
 		p.yaw = netClient->netEntManager.self->transform.yaw;
+#ifdef CONNECT_SERVER
 		netClient->updateServerTick(p, engine->mouseLocked);
 		netClient->netEntManager.rB.addState(netClient->netEntManager.self->transform, p.movementFB, p.movementLR, tickNum);
+#endif
 		engine->p_netEntManager->selfMutex.unlock();
 
+#ifdef CONNECT_SERVER
 		engine->p_netEntManager->rB.pendingPacketsMutex.lock();
 		engine->p_netEntManager->clearPendingPackets(engine->p_netEntManager->self);
 		engine->p_netEntManager->rB.pendingPacketsMutex.unlock();
+#endif
   
 		engine->p_netEntManager->inputAccumulatorMutex.lock();
 		netClient->netEntManager.inputAccumulator.reset();
@@ -65,7 +77,6 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		std::this_thread::sleep_until(nextTick);
 
 		tickNum++;
-		// std::cout << tickNum << ", " << (netClient->netEntManager.rB.ringBuffer.empty() ? std::string("") : std::to_string(netClient->netEntManager.rB.ringBuffer[netClient->netEntManager.rB.ringBuffer.size() - 1].tickNum)) << std::endl;
 	}
 }
 
@@ -78,28 +89,32 @@ int main() {
 	hyacinthEngine.init();
 
 	PhysicsManager physicsManager;
-	physicsManager.initPhysics();
+	physicsManager.initPhysics(false);
 	LightLoader loader;
 	auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 	physicsManager.addCharacterController(0);
 
 	HyacinthNetworkClient netClient;
-	Entity* thisEnt;
+	netClient.netEntManager.characterObject = &hyacinthEngine.m_scene.dynamicObjects[0];
+	netClient.netEntManager.firstPersonObject = &hyacinthEngine.m_scene.dynamicObjects[1];
+	netClient.netEntManager.pistolObject = &hyacinthEngine.m_scene.dynamicObjects[2];
+	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
+	netClient.netEntManager.inputAccumulator.id = 0;
+	Entity* thisEnt = nullptr;
+
+#ifdef CONNECT_SERVER
 	std::string ip;
 	std::cout << "Enter server IP: ";
-	std::getline(std::cin, ip);
+	// std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
-		int res = netClient.setup(ip, hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
 		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 		if (res > 0) {
 			exit(EXIT_FAILURE);
 		}
 	}
-
-	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	thisEnt = netClient.netEntManager.self;
-	netClient.netEntManager.inputAccumulator.id = 0;
 	ServerSnapshot sP;
 	sP.entities.push_back(*thisEnt);
 	netClient.netEntManager.selfSimBuffer.newPacket(sP);
@@ -107,14 +122,24 @@ int main() {
 	netClient.netEntManager.rB.setPhysicsPosition([&physicsManager](glm::vec3 p) {
 		physicsManager.clientControllers[0]->setFootPosition(physx::PxExtendedVec3(p.x, p.y, p.z));
 	});
-	netClient.netEntManager.rB.setPhysicsStep([&physicsManager, &netClient](Transform& t, float fb, float lr) {
+	netClient.netEntManager.rB.setPhysicsStep([&physicsManager, &netClient](Transform& t, int8_t fb, int8_t lr) {
 		SimulateStruct s;
 		s.id = 0;
 		s.movementFB = fb;
 		s.movementLR = lr;
 		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self->moveSpeed, t, s);
 	});
+#endif
+#ifndef CONNECT_SERVER
+	netClient.netEntManager.self = new Entity();
+	thisEnt = netClient.netEntManager.self;
 
+	ServerSnapshot s{};
+	s.entities.push_back(*thisEnt);
+	netClient.netEntManager.selfSimBuffer.newPacket(s);
+	netClient.netEntManager.selfSimBuffer.newPacket(s);
+	netClient.netEntManager.setupFromServerPacket(s, 0);
+#endif
 	Time::setInitialTime();
 
 	std::thread tickThread = std::thread(simulationTick, &hyacinthEngine, &netClient, &physicsManager);
@@ -133,6 +158,11 @@ int main() {
 				SDL_SetWindowRelativeMouseMode(hyacinthEngine.m_window, hyacinthEngine.mouseLocked);
 			}
 		}
+
+		if (InputManager::botKeyDown()) {
+			b.active = true;
+		}
+
 		hyacinthEngine.draw();
 
 		// sample/accumulate input 
@@ -143,9 +173,10 @@ int main() {
 		p.id = netClient.netEntManager.self->id;
 		p.movementFB = m[0];
 		p.movementLR = m[1];
-		p.movementUD = m[2];
+		p.jump = InputManager::getSpaceButton();
 		p.pitch = mo.first;
 		p.yaw = mo.second;
+		p.lmb = InputManager::mouseDown();
 
 		netClient.netEntManager.inputAccumulatorMutex.lock();
 		netClient.netEntManager.inputAccumulator.addPacket(p);
@@ -156,6 +187,8 @@ int main() {
 			SimulateStruct sS;
 			sS.pitch = p.pitch;
 			sS.yaw = p.yaw;
+			hyacinthEngine.m_camera.prevPitch = hyacinthEngine.m_camera.m_transform.pitch;
+			hyacinthEngine.m_camera.prevYaw = hyacinthEngine.m_camera.m_transform.yaw;
 			physicsManager.updateCamera(0, netClient.netEntManager.self->camSpeed, sS, hyacinthEngine.m_camera.m_transform, false, Time::getDeltaTime());
 
 			hyacinthEngine.p_netEntManager->selfMutex.lock();
@@ -173,21 +206,14 @@ int main() {
 			hyacinthEngine.camMutex.unlock();
 		}
 
+#ifdef CONNECT_SERVER
+
 		// read packets from the server
 		ServerSnapshot interp = netClient.netEntManager.packetBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
 		// use packet to determine object transforms
-		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id);
-		if (interp.entities.size() > 1) {
-			Entity* e = nullptr;
-			for (auto& ent : interp.entities) {
-				if (ent.id != netClient.netEntManager.self->id) {
-					e = &ent;
-				}
-			}
-			if (e) {
-				hyacinthEngine.setObjectPitchYaw(0, e->transform.pitch, e->transform.yaw);
-			}
-		}
+		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id, Time::getDeltaTime());
+		physicsManager.setNetworkEntityCapColliderPosition(&interp, netClient.netEntManager.self->id);
+#endif
 
 		Time::updateTime();
 		InputManager::resetMouseMotion();

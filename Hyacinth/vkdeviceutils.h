@@ -8,6 +8,8 @@
 #include <set>
 #include <optional>
 
+#include "glm/glm.hpp"
+
 const std::vector<const char*> deviceExts = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
     VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
@@ -35,6 +37,15 @@ struct VulkanBuffer {
 	VkDeviceAddress gpuAddress;
     VmaAllocation allocation;
     VmaAllocationInfo info;
+};
+
+struct GPUDrawPushConstants {
+    glm::mat4 entityMatrix;
+    VkDeviceAddress transformAddress;
+    VkDeviceAddress drawDataAddress;
+    VkDeviceAddress jointBufferAddress;
+    VkDeviceAddress materialAddress;
+    VkDeviceAddress volumeDataAddress;
 };
 
 namespace vkdeviceutils {

@@ -6,6 +6,7 @@
 
 #include <filesystem>
 
+#define NOMINMAX
 #include <windows.h>
 
 // macro to check vk function results

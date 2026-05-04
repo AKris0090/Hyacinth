@@ -20,7 +20,7 @@
 	exit(1);							\
 }										\
 
-void PhysicsManager::initPhysics() {
+void PhysicsManager::initPhysics(bool debug) {
 	std::cout << "[PHYSICS] Initiating Physics engine" << std::endl;
 
 	pFoundation = PxCreateFoundation(PX_PHYSICS_VERSION, defaultAllocatorCallback, defaultErrorCallback);
@@ -29,9 +29,11 @@ void PhysicsManager::initPhysics() {
 	}
 
 #ifndef NDEBUG
-	pVirtDebug = PxCreatePvd(*pFoundation);
-	PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
-	pVirtDebug->connect(*transport, PxPvdInstrumentationFlag::eALL);
+	if (debug) {
+		pVirtDebug = PxCreatePvd(*pFoundation);
+		PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
+		pVirtDebug->connect(*transport, PxPvdInstrumentationFlag::eALL);
+	}
 #endif
 
 	pPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *pFoundation, PxTolerancesScale(), recordMemoryAllocations, pVirtDebug);
@@ -63,24 +65,42 @@ void PhysicsManager::initPhysics() {
 	controllerDesc.contactOffset = 0.1;
 	controllerDesc.scaleCoeff = 1.f;
 
+	capGeom = physx::PxCapsuleGeometry(0.5f, 1.f);
+
 	std::cout << "[PHYSICS] Physics created!" << std::endl << std::endl;
 }
 
-// TODO: add capsule colliders on client for physics preds
-// void PhysicsManager::addNetworkEntityCapsuleCollider(uint32_t cId) {
+// Client function for adding capsules to properly predict player-player collision
+void PhysicsManager::addNetworkEntityCapsuleCollider(uint32_t cId) {
+	physx::PxController* entityController = pCManager->createController(controllerDesc);
+	clientControllers[cId] = entityController;
+}
 
-// }
+void PhysicsManager::setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId) {
+	charLock.lock();
+	for (const auto& e : s->entities) {
+		if (e.id == selfId) continue;
+		if (clientControllers.find(e.id) == clientControllers.end()) {
+			addNetworkEntityCapsuleCollider(e.id);
+		}
+		clientControllers[e.id]->setFootPosition(physxEVec(e.transform.position));
+	}
+	charLock.unlock();
+}
 
 void PhysicsManager::addCharacterController(uint32_t cId) {
 	if (auto search = clientControllers.find(cId); search != clientControllers.end()) {
 		std::cout << "[PHYSICS] That client already has a character controller?" << std::endl;
 	}
 	physx::PxController* playerController = pCManager->createController(controllerDesc);
+	playerController->getActor()->userData = new controllerUserData{ cId };
 	clientControllers[cId] = playerController;
+	clientPhysicsObjects[cId] = PhysicsEnt{};
 }
 
 void PhysicsManager::removeCharacterController(uint32_t cId) {
 	clientControllers[cId]->release();
+	clientPhysicsObjects.erase(cId);
 	clientControllers.erase(cId);
 }
 
@@ -146,6 +166,7 @@ std::vector<physx::PxShape*> PhysicsManager::createPhysicsFromMesh(LightObject* 
 
 void PhysicsManager::addStaticPhysicsObject(LightObject* object) {
 	std::vector<physx::PxShape*> shapes = createPhysicsFromMesh(object);
+
 	physx::PxRigidStatic* body = pPhysics->createRigidStatic(physx::PxTransform(physx::PxVec3(0, 0, 0)));
 	for (auto& shape : shapes) {
 		body->attachShape(*shape);
@@ -178,6 +199,10 @@ void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& 
 }
 
 void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s) {
+	if (clientControllers.find(eId) == clientControllers.end()) {
+		return;
+	}
+
 	glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
 	glm::vec3 flatForward = glm::normalize(glm::vec3(t.forward.x, 0.0f, t.forward.z));
 	glm::vec3 flatRight = glm::normalize(glm::vec3(t.right.x, 0.0f, t.right.z));
@@ -187,20 +212,32 @@ void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transfo
 	if (s.movementLR > 0)       localDisplacement += flatRight;
 	if (s.movementLR < 0)       localDisplacement -= flatRight;
 
+	glm::vec3 pos{ 0.f, 0.f, 0.f };
 	if (glm::length(localDisplacement) > 0) {
 		localDisplacement = glm::normalize(localDisplacement);
 		localDisplacement *= moveSpeed;
 	}
 
-	physx::PxFilterData filterData;
-	filterData.word0 = 0;
-	physx::PxControllerFilters data;
-	data.mFilterData = &filterData;
+	PhysicsEnt& phys = clientPhysicsObjects[eId];
 
-	if (clientControllers.find(eId) == clientControllers.end()) {
-		return;
+	if (phys.isGrounded) {
+		if (s.jump) {
+			phys.yVel = JUMP_VELOCITY;
+		}
+		else {
+			phys.yVel = 0.f;
+		}
 	}
-	clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, -9.81f, localDisplacement.z), 0.001f, SERVER_TIMESTEP, data);
+	else {
+		phys.yVel -= 9.81f * SERVER_TIMESTEP;
+	}
+
+	float yDisplacement = phys.yVel * SERVER_TIMESTEP;
+
+	charLock.lock();
+	const physx::PxControllerCollisionFlags flags = clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, yDisplacement, localDisplacement.z), 0.001f, SERVER_TIMESTEP, nullptr);
+	charLock.unlock();
+	phys.isGrounded = flags.isSet(physx::PxControllerCollisionFlag::eCOLLISION_DOWN);
 	physx::PxExtendedVec3 p = clientControllers[eId]->getFootPosition();
 	t.position = glm::vec3(p.x, p.y, p.z);
 }
@@ -221,4 +258,37 @@ void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
 			removeCharacterController(e.clientID);
 		}
 	}
+}
+
+hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEntityTransform, rewindSnapshot* snapshotToTrace) {
+	hitReg h = hitReg{ false, INT_MAX };
+
+	// return hitreg struct that reports if the shooter hit anything, or if hit nothing
+	physx::PxVec3 origin = physxVec(currentEntityTransform.position + glm::vec3(0.f, 1.85f, 0.f));
+	currentEntityTransform.setRotationPitchYaw();
+	physx::PxVec3 dir = physxVec(glm::normalize(currentEntityTransform.forward));
+	physx::PxReal maxDist = 100.f;
+	physx::PxRaycastBuffer rayHit;
+
+	for (const auto& e : snapshotToTrace->entityPositions) {
+		if (e.id == shooterId) continue;
+
+		physx::PxTransform pose(physxVec(e.pos + glm::vec3(0, 1.f, 0)), physx::PxQuat(physx::PxHalfPi, physx::PxVec3(0, 0, 1)));
+		physx::PxRaycastHit hit;
+
+		bool didHit = physx::PxGeometryQuery::raycast(
+			origin, dir,
+			capGeom, pose,
+			maxDist, physx::PxHitFlag::eDEFAULT,
+			1, &hit
+		);
+
+		if (didHit) {
+			h.hit = true;
+			h.entityHitId = e.id;
+			break;
+		}
+	}
+
+	return h;
 }

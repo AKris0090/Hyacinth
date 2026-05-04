@@ -1,124 +1,27 @@
 #include "net_ent.h"
-#include "gltfutils.h"
 
-void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID) {
+void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime) {
 	for (const auto& e : p.entities) {
 		if (e.id == currentClientID) {
 			continue;
 		}
 		auto findit = entities.find(e.id);
-		if (findit == entities.end()) {
+		if (findit == entities.end()) { // entity that is sent is not there in current entity list
 			ids.push_back(e.id);
 			entities[e.id] = new Entity();
 			entities[e.id]->id = e.id;
-			entityMutexes.emplace(e.id, std::make_unique<std::mutex>());
+			entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
+			entityAnimationControllers[e.id] = ThirdPersonAnimationController();
+			characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
 		}
-		entityMutexes[e.id].get()->lock();
 		entities[e.id]->transform.position = e.transform.position;
-		// entities[e.id]->transform.rotation = e.transform.rotation;
-		// entities[e.id]->transform.pitch = e.transform.pitch;
-		// entities[e.id]->transform.yaw = e.transform.yaw;
-		// entities[e.id]->transform.setRotationPitchYaw();
+		entities[e.id]->transform.pitch = e.transform.pitch;
+		entities[e.id]->transform.yaw = e.transform.yaw;
 		entities[e.id]->isMoving = e.isMoving;
-		entityMutexes[e.id].get()->unlock();
 	}
-}
-
-void NetworkEntityManager::setupRenderingUtils() {
-	auto spherePath = vkdebugutils::getExeDir() / "objects" / "cubeOrigin.glb";
-	sphereObject = std::make_unique<gltfObject>(gltfutils::loadFromFile(spherePath.string(), false));
-	gltfNode* node = sphereObject.get()->allNodes[0];
-	for (const auto& p : node->primitives) {
-		for (const auto& v : p->vertices) {
-			Vertex upV = v;
-			node->vertices.push_back(upV);
-		}
-		for (const auto& index : p->indices) {
-			node->indices.push_back(index);
-		}
+	for (int i = 0; i < ids.size(); i++) {
+		gltfObject::updateThirdPersonAnimation(entities[ids[i]], characterObject, *characterObject->thirdPersonAnimStateMachine, entityAnimationControllers[ids[i]], deltaTime, entityJointBuffers[ids[i]].pMappedData);
 	}
-	indexCount = static_cast<uint32_t>(node->indices.size());
-	
-	VkDeviceSize vertexBufferSize = node->vertices.size() * sizeof(Vertex);
-	VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
-	vertexBuffer = vkdeviceutils::createBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "entity_vis_vertex");
-	indexBuffer = vkdeviceutils::createBuffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "entity_vis_index");
-	
-	VulkanBuffer staging = vkdeviceutils::createBuffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
-	
-	memcpy(staging.info.pMappedData, node->vertices.data(), vertexBufferSize);
-	memcpy((char*)staging.info.pMappedData + vertexBufferSize, node->indices.data(), indexBufferSize);
-	
-	VkBufferCopy vertexCopyRegion{};
-	vertexCopyRegion.srcOffset = 0;
-	vertexCopyRegion.dstOffset = 0;
-	vertexCopyRegion.size = vertexBufferSize;
-	
-	VkBufferCopy indexCopyRegion{};
-	indexCopyRegion.srcOffset = vertexBufferSize;
-	indexCopyRegion.dstOffset = 0;
-	indexCopyRegion.size = indexBufferSize;
-	
-	vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
-		vkCmdCopyBuffer(cmd, staging.buffer, vertexBuffer.buffer, 1, &vertexCopyRegion);
-		vkCmdCopyBuffer(cmd, staging.buffer, indexBuffer.buffer, 1, &indexCopyRegion);
-		});
-	
-	vkdeviceutils::destroyBuffer(staging);
-
-	// create probe vis pipeline
-	pipelineUtil.addShader("shaders/netEntVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-	pipelineUtil.addShader("shaders/netEntFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
-	pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	pipelineUtil.setDefaultAttributes();
-	pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
-	pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	pipelineUtil.setColorAttachmentFormat(imageFormat.format, 1);
-	pipelineUtil.setMultisampling(VK_SAMPLE_COUNT_1_BIT);
-	pipelineUtil.disableBlending();
-
-	pipelineUtil.enableDepthTest(false, VK_COMPARE_OP_LESS);
-	pipelineUtil.setDepthAttachmentFormat(VK_FORMAT_D32_SFLOAT);
-
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.width = (float)imageFormat.extent.width;
-	viewport.height = (float)imageFormat.extent.height;
-	viewport.minDepth = 1.0f;
-	viewport.maxDepth = 0.0f;
-
-	VkRect2D scissor{};
-	scissor.offset = { 0, 0 };
-	scissor.extent = imageFormat.extent;
-
-	VkPipelineViewportStateCreateInfo viewportState{};
-	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-	viewportState.viewportCount = 1;
-	viewportState.pViewports = &viewport;
-	viewportState.scissorCount = 1;
-	viewportState.pScissors = &scissor;
-
-	pipelineUtil.m_viewportState.pViewports = &viewport;
-	pipelineUtil.m_viewportState.pScissors = &scissor;
-
-	VkPushConstantRange bufferRange{};
-	bufferRange.offset = 0;
-	bufferRange.size = sizeof(entityBufferPC);
-	bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	std::array<VkDescriptorSetLayout, 1> setLayouts = { *uniformSetLayout };
-
-	VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-	pipelineLayoutCInfo.pushConstantRangeCount = 1;
-	pipelineLayoutCInfo.pPushConstantRanges = &bufferRange;
-	pipelineLayoutCInfo.setLayoutCount = 1;
-	pipelineLayoutCInfo.pSetLayouts = setLayouts.data();
-
-	VK_CHECK(vkCreatePipelineLayout(vkdeviceutils::device, &pipelineLayoutCInfo, nullptr, &pipelineUtil.m_pipeline.layout));
-
-	pipelineUtil.buildPipeline();
 }
 
 void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID) {
@@ -128,75 +31,143 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 			Entity* newEnt = new Entity;
 			newEnt->id = e.id;
 			newEnt->transform.position = e.transform.position;
-			newEnt->transform.rotation = e.transform.rotation;
+			newEnt->transform.pitch = e.transform.pitch;
+			newEnt->transform.yaw = e.transform.yaw;
 			entities[e.id] = newEnt;
-			entityMutexes.emplace(e.id, std::make_unique<std::mutex>());
 			ids.push_back(e.id);
+			entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
+			entityAnimationControllers[e.id] = ThirdPersonAnimationController();
+			characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
 		}
 	}
-	
-	// create entity position buffer
-	size_t entityBufferSize = MAX_CONNECTIONS * sizeof(glm::mat4);
-	entityPositionBuffer = vkdeviceutils::createBuffer(entityBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "entity_pos_buffer");
 
-	setupRenderingUtils();
+	firstPersonObject->setFPControllerParameters(firstPersonAnimationController, firstPersonObject->skins[0]);
+	firstPersonJointBuffer = vkdeviceutils::createBuffer(firstPersonObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_fp");
+
+	pistolObject->setWeaponControllerParams(pistolAnimationController, pistolObject->skins[0]);
+	pistolJointBuffer = vkdeviceutils::createBuffer(pistolObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_pistol");
 }
 
-void NetworkEntityManager::update() {
-	if (entities.size() > 0) {
-		std::vector<glm::mat4> entityPositions;
-		for (const auto& id : ids) {
-			entityMutexes[id].get()->lock();
-			entityPositions.push_back(entities[id]->transform.getMatrix());
-			entityMutexes[id].get()->unlock();
-		}
-		size_t entityBufferSize = entityPositions.size() * sizeof(glm::mat4);
-		memcpy(entityPositionBuffer.pMappedData, entityPositions.data(), entityBufferSize);
+void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
+	for (int i = 0; i < ids.size(); i++) {
+		pc.entityMatrix = entities[ids[i]]->transform.getPositionMatrix();
+		pc.jointBufferAddress = entityJointBuffers[ids[i]].gpuAddress;
+
+		vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pc);
+
+		vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, 0, numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 	}
 }
 
-void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet) {
-	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer.buffer, offsets);
-	vkCmdBindIndexBuffer(cmd, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+void NetworkEntityManager::clearPendingPackets(Entity* self) {
+	while (!rB.pendingPackets.empty()) {
+		uint32_t checkTick = rB.ringBuffer.front().tickNum;
 
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.pipeline);
+		auto& pending = rB.pendingPackets.front();
 
+		if (pending.processedTickNum < checkTick) {
+			rB.pendingPackets.pop();
+			continue;
+		}
 
-	std::array<VkDescriptorSet, 1> sets = { uniformSet };
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.layout, 0, sets.size(), sets.data(), 0, nullptr);
+		bool found = false;
+		StateStorage sS;
+		for (auto& s : rB.ringBuffer)
+			if (s.tickNum == pending.processedTickNum) { found = true; sS = s; break; }
+		if (!found) break;
 
-	entityBufferPC pc{};
-	pc.entityPosBufferAddress = entityPositionBuffer.gpuAddress;
+		Transform serverTransform;
+		for (auto& e : pending.entities) {
+			if (e.id == self->id) {
+				serverTransform = e.transform;
+				self->shotAck = e.shotAck;
+			}
+		}
 
-	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(entityBufferPC), &pc);
-
-	vkCmdDrawIndexed(cmd, indexCount, entities.size(), 0, 0, 0);
-}
-
-void NetworkEntityManager::drawFPCharacter(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet) {
-	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer.buffer, offsets);
-	vkCmdBindIndexBuffer(cmd, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.pipeline);
-
-
-	std::array<VkDescriptorSet, 1> sets = { uniformSet };
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.layout, 0, sets.size(), sets.data(), 0, nullptr);
-
-	entityBufferPC pc{};
-	pc.entityPosBufferAddress = entityPositionBuffer.gpuAddress;
-
-	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(entityBufferPC), &pc);
-
-	vkCmdDrawIndexed(cmd, indexCount, entities.size(), 0, 0, 0);
+		std::pair<Transform, Transform> t;
+		if (rB.checkPacketNeedsRewind(self, t, serverTransform, sS.tickNum)) {
+			selfSimBuffer.fixServerRecon(self, t);
+		}
+		rB.pendingPackets.pop();
+	}
 }
 
 void NetworkEntityManager::shutdown() {
-	vkdeviceutils::destroyBuffer(entityPositionBuffer);
-	vkdeviceutils::destroyBuffer(vertexBuffer);
-	vkdeviceutils::destroyBuffer(indexBuffer);
-
-	pipelineUtil.destroyPipeline();
+	for (auto& [id, buff] : entityJointBuffers) {
+		vkdeviceutils::destroyBuffer(buff);
+	}
+	vkdeviceutils::destroyBuffer(firstPersonJointBuffer);
+	vkdeviceutils::destroyBuffer(pistolJointBuffer);
 }
+
+std::pair<Transform, Transform> RewindBuffer::rewindState(Transform newTransform, uint32_t tickNum) {
+	rBMutex.lock();
+	physicsPosition(newTransform.position);
+
+	Transform prev;
+
+	bool skip = true;
+	std::cout << "rewinded ticks: ";
+	for (int i = 0; i < ringBuffer.size(); i++) {
+		StateStorage& sS = ringBuffer[i];
+		if (sS.tickNum == tickNum) { skip = false; sS.state = newTransform; continue; }
+		if (skip) continue;
+		std::cout << sS.tickNum << " ";
+		newTransform.pitch = sS.state.pitch;
+		newTransform.yaw = sS.state.yaw;
+		newTransform.setRotationPitchYaw();
+		physicsStep(newTransform, sS.fb, sS.lr);
+		sS.state = newTransform;
+		if (i == ringBuffer.size() - 2) {
+			prev = newTransform;
+		}
+	}
+	std::cout << std::endl;
+
+	rBMutex.unlock();
+	return std::pair<Transform, Transform>(prev, newTransform);
+}
+
+// sp.processedTickNum is translated to client local tick
+bool RewindBuffer::checkPacketNeedsRewind(Entity* self, std::pair<Transform, Transform>& outTransform, Transform serverTransform, uint32_t processedTickNum) {
+	while (!ringBuffer.empty() && ringBuffer.front().tickNum != processedTickNum) {
+		ringBuffer.pop_front();
+	}
+
+	if (ringBuffer.empty()) return false;
+
+	int ind = -1;
+	int index = 0;
+	for (auto& pack : ringBuffer) {
+		if (pack.tickNum == processedTickNum) {
+			ind = index;
+			break;
+		}
+		index++;
+	}
+
+	float diffPitch = serverTransform.pitch - ringBuffer[ind].state.pitch;
+	float diffYaw = serverTransform.yaw - ringBuffer[ind].state.yaw;
+	// std::cout << "tick: " << processedTickNum << " | " << "serv: " << serverTransform.pitch << ", " << serverTransform.yaw << " | " << "client: " << ringBuffer[ind].state.pitch << ", " << ringBuffer[ind].state.yaw << " | " << "diff: " << diffPitch << ", " << diffYaw << std::endl;
+
+	if (glm::length(ringBuffer[ind].state.position - serverTransform.position) > DIFF_THRESHOLD) {
+		// std::cout << "rewinded!" << std::endl;
+		// 
+		std::cout << "tick: " << processedTickNum << " | ";
+		for (auto& pack : ringBuffer) {
+			std::cout << "|" << pack.tickNum << ":" << (glm::length(pack.state.position - serverTransform.position) <= DIFF_THRESHOLD);
+		}
+		std::cout << "|" << std::endl;
+		std::cout << "diff: " << glm::length(ringBuffer[ind].state.position - serverTransform.position) << std::endl;
+		outTransform = rewindState(serverTransform, processedTickNum);
+		return true;
+	}
+	else {
+		// std::cout << "length: " << glm::length(ringBuffer[ind].state.position - t.position) << std::endl;
+	}
+
+	// std::cout << "passed!" << std::endl;
+
+	return false;
+}
+

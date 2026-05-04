@@ -28,8 +28,13 @@ constexpr int DEFAULT_LEN = 512;
 constexpr int MAX_CONNECTIONS = 12;
 constexpr int SERVER_INPUT_BUFFER = 2;
 
+constexpr int SERVER_FRAME_LAG = 100;
+
 constexpr float SERVER_TIMESTEP = 0.0078125f;
 constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
+
+// max rewind is 140 ms (from official valorant servers)
+constexpr int MAX_REWIND = (720 + static_cast<int>(SERVER_TIMESTEP * 1000.f) - 1) / static_cast<int>(SERVER_TIMESTEP * 1000.f);
 
 //constexpr float SERVER_TIMESTEP = 0.01f;
 //constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 10.0ms;
@@ -65,7 +70,8 @@ struct ClientUpdatePacket {
 	float yaw = 0.f;
 	int8_t movementFB = 0;
 	int8_t movementLR = 0;
-	int8_t movementUD = 0;
+	bool jump = false;
+	bool lmb = false;
 
 	std::string toString();
 	static ClientUpdatePacket fromString(std::string s);
@@ -82,13 +88,15 @@ struct SimulateStruct {
 	float yaw = 0.f;
 	int8_t movementFB = 0;
 	int8_t movementLR = 0;
-	int8_t movementUD = 0;
+	bool jump = false;
+	bool shooting = false;
 
 	void addPacket(ClientUpdatePacket pack);
 	void reset() {
 		movementFB = 0;
 		movementLR = 0;
-		movementUD = 0;
+		jump = false;
+		shooting = false;
 	}
 };
 
@@ -176,4 +184,95 @@ public:
 		queue.pop();
 		return true;
 	}
+};
+
+struct entityPositionSnapshot {
+	uint32_t id;
+	glm::vec3 pos;
+};
+
+struct rewindSnapshot {
+	uint32_t tickNum;
+	std::vector<entityPositionSnapshot> entityPositions;
+};
+
+class RewindRingBuffer {
+private:
+	struct arrItem {
+		arrItem* prev = nullptr;
+		arrItem* next = nullptr;
+		rewindSnapshot item;
+	};
+
+	arrItem* head = nullptr;
+	arrItem* tail = nullptr;
+	int length = 0;
+
+	void pop() {
+		if (length == 0) return;
+
+		if (length == 1) {
+			delete head;
+			head = tail = nullptr;
+			length = 0;
+			return;
+		}
+
+		arrItem* placeholder = head->next;
+		head->next->prev = nullptr;
+		delete head;
+		head = placeholder;
+
+		length--;
+	}
+
+public:
+	void push(rewindSnapshot item) {
+		arrItem* t = new arrItem();
+		t->item = item;
+
+		if (length == 0) {
+			head = tail = t;
+			length++;
+			return;
+		}
+
+		tail->next = t;
+		t->prev = tail;
+		tail = t;
+		length++;
+
+		if (length >= MAX_REWIND) {
+			pop();
+		}
+	}
+
+	rewindSnapshot getSnapshotFromTick(uint32_t tickNum) {
+		if (!head) {
+			rewindSnapshot r;
+			r.tickNum = INT_MAX;
+			return r;
+		}
+
+		arrItem* t = head;
+		while (t != tail && t->item.tickNum != tickNum) {
+			t = t->next;
+		}
+		if (t->item.tickNum == tickNum) {
+			return t->item;
+		}
+		else {
+			rewindSnapshot r;
+			r.tickNum = INT_MAX;
+			return r;
+		}
+	}
+};
+
+// layer on top of network to simulate lag
+class LagSimulator {
+public:
+	// map<deliver_time, packet>
+	std::unordered_map<uint32_t, std::queue<ClientUpdatePacket>> lagPacketBuffer;
+	std::mutex buffLock;
 };

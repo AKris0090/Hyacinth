@@ -2,7 +2,7 @@
 
 #include "hyacinth_network.h"
 #include "vkpipelineutils.h"
-// #include "gltfutils.h"
+#include "gltfutils.h"
 #include <unordered_map>
 #include "fpcam.h"
 #include <mutex>
@@ -69,7 +69,7 @@ struct StateStorage {
 class RewindBuffer {
 public:
 	using PhysicsPosFn = std::function<void(glm::vec3 p)>;
-	using PhysicsStepFn = std::function<void(Transform& t, float fb, float lr)>;
+	using PhysicsStepFn = std::function<void(Transform& t, int8_t fb, int8_t lr)>;
 	std::deque<StateStorage> ringBuffer;
 	std::mutex rBMutex;
 	std::queue<ServerSnapshot> pendingPackets;
@@ -83,7 +83,7 @@ public:
 		physicsStep = fn;
 	}
 
-	void addState(Transform t, float fb, float lr, uint32_t tickNum) {
+	void addState(Transform t, int8_t fb, int8_t lr, uint32_t tickNum) {
 		rBMutex.lock();
 		StateStorage sS;
 		sS.tickNum = tickNum;
@@ -94,76 +94,8 @@ public:
 		rBMutex.unlock();
 	}
 
-	std::pair<Transform, Transform> rewindState(Transform newTransform, uint32_t tickNum) {
-		rBMutex.lock();
-		physicsPosition(newTransform.position);
-
-		Transform prev;
-
-		bool skip = true;
-		std::cout << "rewinded ticks: ";
-		for (int i = 0; i < ringBuffer.size(); i++) {
-			StateStorage& sS = ringBuffer[i];
-			if (sS.tickNum == tickNum) { skip = false; sS.state = newTransform; continue; }
-		 	if (skip) continue;
-			std::cout << sS.tickNum << " ";
-			newTransform.pitch = sS.state.pitch;
-			newTransform.yaw = sS.state.yaw;
-			newTransform.setRotationPitchYaw();
-		 	physicsStep(newTransform, sS.fb, sS.lr);
-		 	sS.state = newTransform;
-			if (i == ringBuffer.size() - 2) {
-				prev = newTransform;
-			}
-		}
-		std::cout << std::endl;
-
-		rBMutex.unlock();
-		return std::pair<Transform, Transform>(prev, newTransform);
-	}
-
-	// sp.processedTickNum is translated to client local tick
-	bool checkPacketNeedsRewind(Entity* self, std::pair<Transform, Transform>& outTransform, Transform serverTransform, uint32_t processedTickNum) {
-		while (!ringBuffer.empty() && ringBuffer.front().tickNum != processedTickNum) {
-			ringBuffer.pop_front();
-		}
-
-		if (ringBuffer.empty()) return false;
-
-		int ind = -1;
-		int index = 0;
-		for (auto& pack : ringBuffer) {
-			if (pack.tickNum == processedTickNum) {
-				ind = index;
-				break;
-			}
-			index++;
-		}
-		
-		float diffPitch = serverTransform.pitch - ringBuffer[ind].state.pitch;
-		float diffYaw = serverTransform.yaw - ringBuffer[ind].state.yaw;
-		// std::cout << "tick: " << processedTickNum << " | " << "serv: " << serverTransform.pitch << ", " << serverTransform.yaw << " | " << "client: " << ringBuffer[ind].state.pitch << ", " << ringBuffer[ind].state.yaw << " | " << "diff: " << diffPitch << ", " << diffYaw << std::endl;
-
-		if (glm::length(ringBuffer[ind].state.position - serverTransform.position) > DIFF_THRESHOLD) {
-			// std::cout << "rewinded!" << std::endl;
-			// 
-			std::cout << "tick: " << processedTickNum << " | ";
-			for (auto& pack : ringBuffer) {
-				std::cout << "|" << pack.tickNum << ":" << (glm::length(pack.state.position - serverTransform.position) <= DIFF_THRESHOLD);
-			}
-			std::cout << "|" << std::endl;
-			std::cout << "diff: " << glm::length(ringBuffer[ind].state.position - serverTransform.position) << std::endl;
-			outTransform = rewindState(serverTransform, processedTickNum);
-			return true;
-		}
-		else {
-			// std::cout << "length: " << glm::length(ringBuffer[ind].state.position - t.position) << std::endl;
-		}
-		
-		// std::cout << "passed!" << std::endl;
-		
-		return false;
-	}
+	std::pair<Transform, Transform> rewindState(Transform newTransform, uint32_t tickNum);
+	bool checkPacketNeedsRewind(Entity* self, std::pair<Transform, Transform>& outTransform, Transform serverTransform, uint32_t processedTickNum); // sp.processedTickNum is translated to client local tick
 
 private:
 	PhysicsStepFn physicsStep;
@@ -171,22 +103,9 @@ private:
 };
 
 struct gltfObject;
+class AnimationStateMachine;
 
 class NetworkEntityManager {
-	VulkanBuffer vertexBuffer;
-	VulkanBuffer indexBuffer;
-	VulkanPipelineBuilder pipelineUtil;
-	uint32_t indexCount;
-	std::unique_ptr<gltfObject> sphereObject;
-
-	struct entityBufferPC {
-		VkDeviceAddress entityPosBufferAddress;
-	};
-
-	VulkanBuffer entityPositionBuffer;
-
-	void setupRenderingUtils();
-
 public:
 	Entity* self;
 	SimulateStruct inputAccumulator;
@@ -195,49 +114,27 @@ public:
 	std::mutex selfMutex;
 	std::vector<uint32_t> ids;
 	std::unordered_map<uint32_t, Entity*> entities;
-	std::unordered_map<uint32_t, std::unique_ptr<std::mutex>> entityMutexes;
+	std::unordered_map<uint32_t, ThirdPersonAnimationController> entityAnimationControllers;
+	std::unordered_map<uint32_t, VulkanBuffer> entityJointBuffers;
+	gltfObject* characterObject;
+
+	gltfObject* firstPersonObject;
+	VulkanBuffer firstPersonJointBuffer;
+	FirstPersonAnimationController firstPersonAnimationController;
+
+	gltfObject* pistolObject;
+	VulkanBuffer pistolJointBuffer;
+	PistolAnimationController pistolAnimationController;
+
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
 	PacketBuffer packetBuffer;
 	RewindBuffer rB;
 	int tickOffset;
-
+	
 	void setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID);
-	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID);
-	void update();
-	void drawEntities(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
-	void drawFPCharacter(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
+	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
+	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
 	void shutdown();
-
-	void clearPendingPackets(Entity* self) {
-		while (!rB.pendingPackets.empty()) {
-			uint32_t checkTick = rB.ringBuffer.front().tickNum;
-
-			auto& pending = rB.pendingPackets.front();
-
-			if (pending.processedTickNum < checkTick) {
-				rB.pendingPackets.pop();
-				continue;
-			}
-
-			bool found = false;
-			StateStorage sS;
-			for (auto& s : rB.ringBuffer)
-				if (s.tickNum == pending.processedTickNum) { found = true; sS = s; break; }
-			if (!found) break;
-
-			Transform serverTransform;
-			for (auto& e : pending.entities) {
-				if (e.id == self->id) {
-					serverTransform = e.transform;
-				}
-			}
-
-			std::pair<Transform, Transform> t;
-			if (rB.checkPacketNeedsRewind(self, t, serverTransform, sS.tickNum)) {
-				selfSimBuffer.fixServerRecon(self, t);
-			}
-			rB.pendingPackets.pop();
-		}
-	}
+	void clearPendingPackets(Entity* self);
 };
