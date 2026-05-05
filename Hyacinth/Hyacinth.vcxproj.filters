@@ -112,6 +112,9 @@
     <Filter Include="Source Files\renderer\utils\animation">
       <UniqueIdentifier>{a9b7bf78-bd98-4e41-8174-3c32b5c63198}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\core\ui">
+      <UniqueIdentifier>{dfa97c39-b09b-423a-b4b2-b5522cbdb14e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">

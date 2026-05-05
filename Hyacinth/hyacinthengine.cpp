@@ -1189,6 +1189,8 @@ void HyacinthEngine::recreateSwapchain() {
         vkimageutils::destroyImage(m_gBuffers[i].albedo);
         vkimageutils::destroyImage(m_gBuffers[i].normal);
         vkimageutils::destroyImage(m_gBuffers[i].depth);
+        vkimageutils::destroyImage(m_gBuffers[i].ddgiImage);
+        vkimageutils::destroyImage(m_gBuffers[i].stencilDepth);
     }
 
     for (VulkanImage& img : m_swapChainImages) {
@@ -1198,6 +1200,15 @@ void HyacinthEngine::recreateSwapchain() {
 
 	createSwapchain();
     createColorImages();
+
+    for (int i = 0; i < m_swapChainImages.size(); i++) {
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].albedo, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].normal, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].ddgiImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+
+    vkdescriptorutils::flushDescriptorWrites();
 }
 
 void HyacinthEngine::cleanup()
