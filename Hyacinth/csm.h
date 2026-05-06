@@ -62,5 +62,5 @@ public:
 	void setupImGui();
 	void update(Camera& cam, int currentFrame);
 	void drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint32_t frameIndex, VkDeviceAddress& matrixBufferAddress, VkDeviceAddress& drawDataBufferAddress);
-	void destroy();
+	void shutdown();
 };

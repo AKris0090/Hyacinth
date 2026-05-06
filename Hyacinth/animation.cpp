@@ -337,6 +337,10 @@ void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationContr
 	if (currentlyShooting && c.currentTime > c.currentAnim->end) {
 		currentlyShooting = false;
 	}
+	else if (c.pistolController.reloading && c.currentTime > c.currentAnim->end) {
+		c.pistolController.reloading = false;
+		c.pistolController.current_ammo = c.pistolController.MAX_AMMO;
+	}
 	c.currentTime = fmod(c.currentTime, c.currentAnim->end);
 
 	for (auto& channel : c.currentAnim->channels)
@@ -367,17 +371,18 @@ void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationContr
 }
 
 void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool isShooting) {
-	bool shotTimer = pistolController.updateShooting(deltaTime, isShooting);
-	if (shotTimer) {
+	FIRSTPERSON_STATE newState = c.pistolController.updateShooting(deltaTime, isShooting);
+	if (newState == SHOOTING) {
 		c.currentAnim = c.shootAnimation;
 		c.currentTime = c.shootAnimation->start;
 		currentlyShooting = true;
 	}
-	else {
-		if (!currentlyShooting && c.currentAnim != c.idleAnimation) {
-			c.currentAnim = c.idleAnimation;
-			c.currentTime = c.idleAnimation->start;
-		}
+	else if (newState == RELOADING){
+		c.currentAnim = c.spinningAnimation;
+		c.currentTime = c.spinningAnimation->start;
+	} else if (!currentlyShooting && !c.pistolController.reloading && c.currentAnim != c.idleAnimation) {
+		c.currentAnim = c.idleAnimation;
+		c.currentTime = c.idleAnimation->start;
 	}
 
 	updateAnimation(c, deltaTime, deltaPitch, deltaYaw);

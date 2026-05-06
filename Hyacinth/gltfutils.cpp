@@ -631,6 +631,34 @@ void SceneGraph::createDummyTextures() {
         vkimageutils::createImageSampler(texImage);
         dummyTextures.push_back(texImage);
         index++;
+        numTextures++;
+    }
+}
+
+void SceneGraph::createUITextures() {
+    uiTextureOffset = numTextures;
+    for (const auto& str : UI_TEXTURE_NAMES) {
+        auto p = vkdebugutils::getExeDir() / "ui" / str;
+        VulkanImage texImage{};
+        stbi_uc* pixels = nullptr;
+        int texWidth, texHeight, texChannels;
+        pixels = stbi_load(p.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        if (!pixels) {
+            throw std::runtime_error("failed to load dummy image " + str + "!");
+        }
+        texImage.extent.width = texWidth;
+        texImage.extent.height = texHeight;
+
+        VkExtent3D imageExtents{};
+        imageExtents.width = texImage.extent.width;
+        imageExtents.height = texImage.extent.height;
+        imageExtents.depth = 1;
+
+        texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        vkimageutils::createImageSampler(texImage);
+
+        uiTextures.push_back(texImage);
+        numTextures++;
     }
 }
 
@@ -651,6 +679,10 @@ void SceneGraph::uploadTextures(VkDescriptorSet& descriptor) {
             vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             textureOffset++;
         }
+    }
+    for (auto& tex : uiTextures) {
+        vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        textureOffset++;
     }
 	vkdescriptorutils::flushDescriptorWrites();
 }

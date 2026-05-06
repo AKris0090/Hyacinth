@@ -2,6 +2,7 @@
 
 #include "animation.h"
 #include "vkmeshutils.h"
+#include "hyacinth_ui.h"
 #include "entity.h"
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
@@ -85,9 +86,11 @@ struct SceneGraph {
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     std::vector<VulkanImage> dummyTextures;
+    std::vector<VulkanImage> uiTextures;
     uint32_t numTextures;
     uint32_t numNodes = 0;
     uint32_t numAccelNodes = 0;
+    uint32_t uiTextureOffset = 0;
 
     std::vector<VkSampler> imageSamplers;
 
@@ -108,6 +111,7 @@ struct SceneGraph {
     void buildNodeBuffers(gltfNode* node);
     void buildSceneGraph();
     void createDummyTextures();
+    void createUITextures();
     void uploadTextures(VkDescriptorSet& descriptor);
 };
 

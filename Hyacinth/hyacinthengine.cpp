@@ -576,6 +576,7 @@ void HyacinthEngine::loadScene() {
 
     m_meshBuffers = vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
     m_scene.createDummyTextures();
+    m_scene.createUITextures();
 }
 
 void HyacinthEngine::createBuffers() {
@@ -633,7 +634,7 @@ void HyacinthEngine::createDescriptorSets()
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
     {
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.f },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (((float)(m_scene.numTextures + 3)) / (float)MAX_FRAMES_IN_FLIGHT) }, // divided because multiplied by maxSets later. we only want 1 descriptor per texture, not 3
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (((float)(m_scene.numTextures)) / (float)MAX_FRAMES_IN_FLIGHT) }, // divided because multiplied by maxSets later. we only want 1 descriptor per texture, not 3
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float)(1.f / MAX_FRAMES_IN_FLIGHT) } // for shadows, only 1 (not 3)
     };
     m_descriptorAllocator.initPool(MAX_FRAMES_IN_FLIGHT * 4, sizes);
@@ -769,6 +770,8 @@ void HyacinthEngine::init()
     volBNormalBias = m_owDDGIHelper.m_probeVolumes[1].data.pos.w;
     volAViewBias = m_owDDGIHelper.m_probeVolumes[0].data.spacing.w;
     volBViewBias = m_owDDGIHelper.m_probeVolumes[1].data.spacing.w;
+
+    m_uiHelper.setup(m_textureSetLayout, m_scene.uiTextureOffset, glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
 }
 
 void HyacinthEngine::update() {
@@ -793,6 +796,8 @@ void HyacinthEngine::update() {
     gltfObject::updateFirstPersonAnimation(&m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw);
     // pistol object
     gltfObject::updatePistolAnimation(&m_scene.dynamicObjects[2], *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
+
+    m_uiHelper.update(p_netEntManager->firstPersonAnimationController.pistolController.current_ammo);
 
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
@@ -1099,6 +1104,19 @@ void HyacinthEngine::draw()
         VK_LABEL_END(cmd);
     }
 
+    {
+        VK_LABEL(cmd, "UI Pass");
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_uiHelper.uiPipelineUtil.m_pipeline.pipeline);
+        std::array<VkDescriptorSet, 1> uiSets = { m_textureSet };
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_uiHelper.uiPipelineUtil.m_pipeline.layout, 0, uiSets.size(), uiSets.data(), 0, nullptr);
+        VkRenderingAttachmentInfo uiAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+        VkRenderingInfo uiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &uiAttachment, nullptr);
+        vkCmdBeginRendering(cmd, &uiRenderingInfo);
+        m_uiHelper.draw(cmd);
+        vkCmdEndRendering(cmd);
+        VK_LABEL_END(cmd);
+    }
+
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
     if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
@@ -1220,9 +1238,10 @@ void HyacinthEngine::cleanup()
 	vkDeviceWaitIdle(m_device);
 
     m_frustumCullHelper.shutdown();
-	m_shadowHelper.destroy();
+	m_shadowHelper.shutdown();
 	m_owDDGIHelper.shutdown();
     m_rtHelper.shutdown();
+    m_uiHelper.shutdown();
 
 	vkdeviceutils::destroyBuffer(m_meshBuffers.indexBuffer);
 	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);
@@ -1261,6 +1280,9 @@ void HyacinthEngine::cleanup()
         for (auto& tex : obj.textures) {
             vkimageutils::destroyImage(tex);
         }
+    }
+    for (auto& tex : m_scene.uiTextures) {
+        vkimageutils::destroyImage(tex);
     }
 
     for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
