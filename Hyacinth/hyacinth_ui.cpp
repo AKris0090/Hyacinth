@@ -40,6 +40,40 @@ UIGPUUnit HyacinthUIManager::calculateUIPosition(UIElement& e, glm::vec2 screenS
 	return u;
 }
 
+void HyacinthUIManager::createUIElements(float textureOffset, glm::vec2 screenSize) {
+	elements.clear();
+
+	// crosshair
+	UIElement cH;
+	cH.active = true;
+	cH.anchorPos = MIDDLE_MIDDLE;
+	cH.dimensions = glm::vec2(32, 32);
+	cH.offset = glm::vec2(screenSize.x / 2.f, screenSize.y / 2.f);
+	cH.texIndex = textureOffset;
+	elements.push_back(cH);
+
+	UIElement port;
+	port.active = true;
+	port.anchorPos = BOTTOM_LEFT;
+	port.dimensions = glm::vec2(384, 96);
+	port.offset = glm::vec2(20.f, screenSize.y - 20.f);
+	port.texIndex = textureOffset + 1;
+	elements.push_back(port);
+
+	// bullet array
+	glm::vec2 spacing = glm::vec2(21.f, 0.f);
+	glm::vec2 startBottom = glm::vec2(130.f, screenSize.y - 55.f);
+	for (int i = 0; i < 10; i++) {
+		UIElement bullet;
+		bullet.active = true;
+		bullet.anchorPos = BOTTOM_LEFT;
+		bullet.dimensions = glm::vec2(32, 64);
+		bullet.offset = startBottom + (spacing * (float)i);
+		bullet.texIndex = textureOffset + 2;
+		elements.push_back(bullet);
+	}
+}
+
 void HyacinthUIManager::setup(VkDescriptorSetLayout& uiTextureSetLayout, uint32_t textureOffset, glm::vec2 screenSize, SWChainImageFormat& swFormat, VkSampleCountFlagBits& msaaSamples) {
 	// setup UI pipeline
 	uiPipelineUtil.addShader("shaders/uiQuadVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -131,6 +165,16 @@ void HyacinthUIManager::setup(VkDescriptorSetLayout& uiTextureSetLayout, uint32_
 	std::vector<UIGPUUnit> units;
 	for (auto& e : elements) {
 		units.push_back(calculateUIPosition(e, screenSize));
+	}
+	memcpy(uiUnitStorageBuffer.pMappedData, units.data(), elements.size() * sizeof(UIGPUUnit));
+}
+
+void HyacinthUIManager::onresize(float textureOffset, glm::vec2 newScreenSize) {
+	createUIElements(textureOffset, newScreenSize);
+
+	std::vector<UIGPUUnit> units;
+	for (auto& e : elements) {
+		units.push_back(calculateUIPosition(e, newScreenSize));
 	}
 	memcpy(uiUnitStorageBuffer.pMappedData, units.data(), elements.size() * sizeof(UIGPUUnit));
 }
