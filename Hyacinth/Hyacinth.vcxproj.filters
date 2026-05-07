@@ -112,6 +112,12 @@
     <Filter Include="Source Files\renderer\utils\animation">
       <UniqueIdentifier>{a9b7bf78-bd98-4e41-8174-3c32b5c63198}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\core\ui">
+      <UniqueIdentifier>{dfa97c39-b09b-423a-b4b2-b5522cbdb14e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\ui">
+      <UniqueIdentifier>{76888cc6-17f7-495a-808b-deb35d061679}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -212,6 +218,9 @@
     </ClCompile>
     <ClCompile Include="animation.cpp">
       <Filter>Source Files\renderer\utils\animation</Filter>
+    </ClCompile>
+    <ClCompile Include="hyacinth_ui.cpp">
+      <Filter>Source Files\renderer\core\ui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -323,6 +332,9 @@
     <ClInclude Include="gltfcommon.h">
       <Filter>Source Files\renderer\utils\gltfutils</Filter>
     </ClInclude>
+    <ClInclude Include="hyacinth_ui.h">
+      <Filter>Source Files\renderer\core\ui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\gbuffer.vert">
@@ -395,6 +407,12 @@
     </None>
     <None Include="shaders\gbufferSkinned.vert">
       <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\uiTex.vert">
+      <Filter>Source Files\shaders\ui</Filter>
+    </None>
+    <None Include="shaders\uiTex.frag">
+      <Filter>Source Files\shaders\ui</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -150,6 +150,7 @@ private:
 	rtHelper						m_rtHelper;
 	owDDGI							m_owDDGIHelper;
 	FrustumCullHelper				m_frustumCullHelper;
+	HyacinthUIManager				m_uiHelper;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();

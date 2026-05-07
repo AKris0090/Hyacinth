@@ -337,6 +337,10 @@ void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationContr
 	if (currentlyShooting && c.currentTime > c.currentAnim->end) {
 		currentlyShooting = false;
 	}
+	else if (c.pistolController.reloading && c.currentTime > c.currentAnim->end) {
+		c.pistolController.reloading = false;
+		c.pistolController.current_ammo = c.pistolController.MAX_AMMO;
+	}
 	c.currentTime = fmod(c.currentTime, c.currentAnim->end);
 
 	for (auto& channel : c.currentAnim->channels)
@@ -366,18 +370,20 @@ void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationContr
 	flushQueuedNodeTransforms(c);
 }
 
-void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool isShooting) {
-	bool shotTimer = pistolController.updateShooting(deltaTime, isShooting);
-	if (shotTimer) {
+void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool isShooting, bool& shootingOut) {
+	FIRSTPERSON_STATE newState = c.pistolController.updateShooting(deltaTime, isShooting);
+	if (newState == SHOOTING) {
 		c.currentAnim = c.shootAnimation;
 		c.currentTime = c.shootAnimation->start;
+		shootingOut = true;
 		currentlyShooting = true;
 	}
-	else {
-		if (!currentlyShooting && c.currentAnim != c.idleAnimation) {
-			c.currentAnim = c.idleAnimation;
-			c.currentTime = c.idleAnimation->start;
-		}
+	else if (newState == RELOADING){
+		c.currentAnim = c.spinningAnimation;
+		c.currentTime = c.spinningAnimation->start;
+	} else if (!currentlyShooting && !c.pistolController.reloading && c.currentAnim != c.idleAnimation) {
+		c.currentAnim = c.idleAnimation;
+		c.currentTime = c.idleAnimation->start;
 	}
 
 	updateAnimation(c, deltaTime, deltaPitch, deltaYaw);
@@ -387,7 +393,18 @@ void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimation
 //////////////////////////////////////////////////////////
 
 void PistolAnimationStateMachine::updateAnimation(PistolAnimationController& c, float deltaTime) {
+	if (c.queueShoot) {
+		c.queueShoot = false;
+		c.currentAnim = c.shootAnimation;
+		c.currentTime = c.currentAnim->start;
+	}
 	c.currentTime += deltaTime;
+
+	if (c.currentTime > c.currentAnim->end) {
+		c.currentAnim = c.idleAnimation;
+		c.currentTime = c.idleAnimation->start;
+	}
+
 	c.currentTime = fmod(c.currentTime, c.currentAnim->end);
 
 	for (auto& channel : c.currentAnim->channels)

@@ -83,7 +83,7 @@ float filterPCF(vec4 sc, uint cascadeIndex)
 
 void main() {
 	Material m = pc.materialBuffer.mats[matIndex];
-    vec4 sampledColor = texture(globalTextures2D[m.baseColorIndex], inUV);
+    vec4 sampledColor = texture(globalTextures2D[m.baseColorIndex], inUVf);
     vec4 metalRough = texture(globalTextures2D[m.metalRoughIndex], inUV);
 
     vec3 N = texture(globalTextures2D[m.normalIndex], inUV).xyz;

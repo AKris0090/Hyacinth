@@ -63,6 +63,13 @@ struct ThirdPersonAnimationController {
 	};
 };
 
+enum FIRSTPERSON_STATE {
+	IDLE_PISTOL,
+	SHOOTING,
+	RELOADING,
+	DEFAULT
+};
+
 struct FirstPersonAnimationController {
 	Animation* idleAnimation;
 	Animation* shootAnimation;
@@ -75,6 +82,45 @@ struct FirstPersonAnimationController {
 	float currentTime = 0.f;
 
 	Animation* currentAnim;
+
+	FIRSTPERSON_STATE state;
+
+	struct WeaponController {
+		float timeBetweenShots = 0.25f;
+		float currentShotTimer = 0.f;
+
+		const int MAX_AMMO = 10;
+		int current_ammo = 10;
+
+		float reloadLength = 1.25f;
+		float reloadTimer = 0.f;
+
+		bool reloading = false;
+
+		FIRSTPERSON_STATE updateShooting(float deltaTime, bool shooting) {
+			if (!reloading) {
+				currentShotTimer += deltaTime;
+
+				if (currentShotTimer >= timeBetweenShots) {
+					if (shooting) {
+						if (current_ammo == 0 && !reloading) {
+							reloading = true;
+							return RELOADING;
+						}
+						currentShotTimer = fmodf(currentShotTimer, timeBetweenShots);
+						current_ammo--;
+						return SHOOTING;
+					}
+					else {
+						currentShotTimer = timeBetweenShots;
+					}
+				}
+			}
+
+			return DEFAULT;
+		}
+	};
+	WeaponController pistolController;
 
 	FirstPersonAnimationController() {
 		currentAnim = idleAnimation = shootAnimation = spinningAnimation = nullptr;
@@ -112,59 +158,30 @@ public:
 	void updateAnimationState(ThirdPersonAnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw);
 };
 
-enum FIRSTPERSON_STATE {
-	IDLE_PISTOL
-};
-
 class FirstPersonAnimationStateMachine {
 private:
-	FIRSTPERSON_STATE state;
-
-	struct WeaponController {
-		float timeBetweenShots = 0.25f;
-		float currentShotTimer = 0.f;
-
-		bool updateShooting(float deltaTime, bool shooting) {
-			currentShotTimer += deltaTime;
-
-			if (currentShotTimer >= timeBetweenShots) {
-				if (shooting) {
-					currentShotTimer = fmodf(currentShotTimer, timeBetweenShots);
-					return true;
-				}
-				else {
-					currentShotTimer = timeBetweenShots;
-				}
-			}
-
-			return false;
-		}
-	};
 
 	glm::quat currentSwayYaw = { 1.f, 0.f, 0.f, 0.f };
 	glm::quat currentSwayPitch = { 1.f, 0.f, 0.f, 0.f };
 	bool currentlyShooting = false;
-	WeaponController pistolController;
 	void flushQueuedNodeTransforms(FirstPersonAnimationController& c);
 	void updateAnimation(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw);
 
 public:
-	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool shooting);
+	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool shooting, bool& shootingOut);
 };
 
 struct PistolAnimationController {
 	Animation* idleAnimation;
+	Animation* shootAnimation;
 	float currentTime = 0.f;
 	bool done = false;
+	bool queueShoot = false;
 
 	Animation* currentAnim;
 
 	PistolAnimationController() {
-		currentAnim = idleAnimation = nullptr;
-	};
-
-	PistolAnimationController(Animation* idleAnim) {
-		currentAnim = idleAnimation = idleAnim;
+		currentAnim = idleAnimation = shootAnimation = nullptr;
 	};
 };
 

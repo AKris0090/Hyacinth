@@ -290,7 +290,7 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint3
 	vkimageutils::transitionImage(cmd, m_shadowImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
-void shadowHelper::destroy() {
+void shadowHelper::shutdown() {
 	// shadow stuff
 	vkDestroySampler(vkdeviceutils::device, m_shadowImage.imageSampler, nullptr);
 	vkDestroyImageView(vkdeviceutils::device, m_shadowImage.imageView, nullptr);
