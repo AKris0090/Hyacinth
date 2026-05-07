@@ -98,16 +98,15 @@ struct FirstPersonAnimationController {
 		bool reloading = false;
 
 		FIRSTPERSON_STATE updateShooting(float deltaTime, bool shooting) {
-			if (current_ammo == 0 && !reloading) {
-				reloading = true;
-				return RELOADING;
-			}
-
 			if (!reloading) {
 				currentShotTimer += deltaTime;
 
 				if (currentShotTimer >= timeBetweenShots) {
 					if (shooting) {
+						if (current_ammo == 0 && !reloading) {
+							reloading = true;
+							return RELOADING;
+						}
 						currentShotTimer = fmodf(currentShotTimer, timeBetweenShots);
 						current_ammo--;
 						return SHOOTING;
@@ -169,22 +168,20 @@ private:
 	void updateAnimation(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw);
 
 public:
-	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool shooting);
+	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool shooting, bool& shootingOut);
 };
 
 struct PistolAnimationController {
 	Animation* idleAnimation;
+	Animation* shootAnimation;
 	float currentTime = 0.f;
 	bool done = false;
+	bool queueShoot = false;
 
 	Animation* currentAnim;
 
 	PistolAnimationController() {
-		currentAnim = idleAnimation = nullptr;
-	};
-
-	PistolAnimationController(Animation* idleAnim) {
-		currentAnim = idleAnimation = idleAnim;
+		currentAnim = idleAnimation = shootAnimation = nullptr;
 	};
 };
 

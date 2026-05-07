@@ -325,6 +325,7 @@ void gltfObject::setFPControllerParameters(FirstPersonAnimationController& c, Sk
 
 void gltfObject::setWeaponControllerParams(PistolAnimationController& c, Skin& skin) {
     c.idleAnimation = &animations[0];
+    c.shootAnimation = &animations[1];
     c.currentAnim = c.idleAnimation;
     c.currentTime = c.currentAnim->start;
     skinSize = skin.joints.size() * sizeof(glm::mat4);
@@ -697,8 +698,8 @@ void gltfObject::updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPer
     }
 }
 
-void gltfObject::updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw) {
-    animMachine.updateAnimationState(c, deltaTime, deltaPitch, deltaYaw, leftClick);
+void gltfObject::updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut) {
+    animMachine.updateAnimationState(c, deltaTime, deltaPitch, deltaYaw, leftClick, shootTriggerOut);
 
     for (auto& node : obj->parentNodes) {
         obj->updateJoints(node, pMappedJointMatrixBuffer);

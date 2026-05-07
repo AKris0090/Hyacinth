@@ -370,11 +370,12 @@ void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationContr
 	flushQueuedNodeTransforms(c);
 }
 
-void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool isShooting) {
+void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool isShooting, bool& shootingOut) {
 	FIRSTPERSON_STATE newState = c.pistolController.updateShooting(deltaTime, isShooting);
 	if (newState == SHOOTING) {
 		c.currentAnim = c.shootAnimation;
 		c.currentTime = c.shootAnimation->start;
+		shootingOut = true;
 		currentlyShooting = true;
 	}
 	else if (newState == RELOADING){
@@ -392,7 +393,18 @@ void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimation
 //////////////////////////////////////////////////////////
 
 void PistolAnimationStateMachine::updateAnimation(PistolAnimationController& c, float deltaTime) {
+	if (c.queueShoot) {
+		c.queueShoot = false;
+		c.currentAnim = c.shootAnimation;
+		c.currentTime = c.currentAnim->start;
+	}
 	c.currentTime += deltaTime;
+
+	if (c.currentTime > c.currentAnim->end) {
+		c.currentAnim = c.idleAnimation;
+		c.currentTime = c.idleAnimation->start;
+	}
+
 	c.currentTime = fmod(c.currentTime, c.currentAnim->end);
 
 	for (auto& channel : c.currentAnim->channels)

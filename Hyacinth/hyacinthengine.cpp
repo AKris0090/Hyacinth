@@ -793,7 +793,7 @@ void HyacinthEngine::update() {
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     // first person object (self) 
-    gltfObject::updateFirstPersonAnimation(&m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw);
+    gltfObject::updateFirstPersonAnimation(&m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw, p_netEntManager->pistolAnimationController.queueShoot);
     // pistol object
     gltfObject::updatePistolAnimation(&m_scene.dynamicObjects[2], *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
 
