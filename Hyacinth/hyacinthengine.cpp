@@ -1227,6 +1227,8 @@ void HyacinthEngine::recreateSwapchain() {
     }
 
     vkdescriptorutils::flushDescriptorWrites();
+
+    m_uiHelper.onresize(m_scene.uiTextureOffset, glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height));
 }
 
 void HyacinthEngine::cleanup()

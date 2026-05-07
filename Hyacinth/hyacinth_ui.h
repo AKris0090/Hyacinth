@@ -41,11 +41,13 @@ private:
 	std::vector<UIElement> elements;
 	VulkanBuffer uiUnitStorageBuffer;
 
+	void createUIElements(float textureOffset, glm::vec2 screenSize);
 	UIGPUUnit calculateUIPosition(UIElement& e, glm::vec2 screenSize);
 public:
 	VulkanPipelineBuilder uiPipelineUtil;
 
 	void setup(VkDescriptorSetLayout& uiTextureSetLayout, uint32_t textureOffset, glm::vec2 screenSize, SWChainImageFormat& swFormat, VkSampleCountFlagBits& msaaSamples);
+	void onresize(float textureOffset, glm::vec2 newScreenSize);
 	void update(int ammoDisplay);
 	void draw(VkCommandBuffer& cmd);
 	void shutdown();
