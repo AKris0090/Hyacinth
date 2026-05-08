@@ -371,6 +371,16 @@ void updateTick(SOCKET* udpSendSocket) {
 
             client->bufferedPacket.reset();
             p->entities.push_back(client->entity);
+
+#ifdef LAG_SIMULATION
+            if (shooting) {
+                for (auto& ent : p->entities) {
+                    if (ent.id == 1) {
+                        ent.transform.position = h.footPosHit;
+                    }
+                }
+            }
+#endif
             r.entityPositions.push_back(entityPositionSnapshot{ id, client->entity.transform.position });
         }
         rewindBuffer.push(r);

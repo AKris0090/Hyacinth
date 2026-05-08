@@ -286,6 +286,9 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 		if (didHit) {
 			h.hit = true;
 			h.entityHitId = e.id;
+
+			h.footPosHit = e.pos;
+
 			break;
 		}
 	}

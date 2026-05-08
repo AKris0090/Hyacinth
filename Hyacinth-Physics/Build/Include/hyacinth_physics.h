@@ -39,6 +39,7 @@ struct controllerUserData {
 struct hitReg {
 	bool hit;
 	uint32_t entityHitId;
+	glm::vec3 footPosHit;
 };
 
 static physx::PxVec3 physxVec(glm::vec3 v) {
@@ -49,7 +50,11 @@ static physx::PxExtendedVec3 physxEVec(glm::vec3 v) {
 	return physx::PxExtendedVec3(v.x, v.y, v.z);
 }
 
-static glm::vec3 glmPhysxVec(physx::PxExtendedVec3 v) {
+static glm::vec3 glmPhysxEVec(physx::PxExtendedVec3 v) {
+	return glm::vec3(v.x, v.y, v.z);
+}
+
+static glm::vec3 glmPhysxVec(physx::PxVec3 v) {
 	return glm::vec3(v.x, v.y, v.z);
 }
 
