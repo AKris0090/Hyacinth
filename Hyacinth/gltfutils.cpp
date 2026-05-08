@@ -267,7 +267,7 @@ void gltfObject::setTPControllerParameters(ThirdPersonAnimationController& c, Sk
     c.currentUpperBodyAnim = c.currentLowerBodyAnim = c.idleAnimation;
     c.currentUpperTime = c.currentLowerTime = c.idleAnimation->start;
 
-    skinSize = skin.joints.size() * sizeof(glm::mat4);
+    c.previousAnimationTransforms.resize(skin.joints.size());
 
     for (int j = 0; j < skin.joints.size(); j++) {
         gltfNode* joint = skin.joints[j];
@@ -305,7 +305,6 @@ void gltfObject::setFPControllerParameters(FirstPersonAnimationController& c, Sk
     c.idleAnimation = &animations[0];
     c.shootAnimation = &animations[1];
     c.spinningAnimation = &animations[2];
-    skinSize = skin.joints.size() * sizeof(glm::mat4);
     c.currentAnim = c.idleAnimation;
     c.currentTime = c.currentAnim->start;
 
@@ -328,13 +327,12 @@ void gltfObject::setWeaponControllerParams(PistolAnimationController& c, Skin& s
     c.shootAnimation = &animations[1];
     c.currentAnim = c.idleAnimation;
     c.currentTime = c.currentAnim->start;
-    skinSize = skin.joints.size() * sizeof(glm::mat4);
 }
 
 void gltfObject::setWeaponParentTo(gltfObject* parentObj) {
-    if (parentObj->gunBone == nullptr) {
-        std::cout << "no hand node" << std::endl;
-        throw std::runtime_error("hand node not there");
+    if (parentObj->attachmentPoint == nullptr) {
+        std::cout << "no attachment node" << std::endl;
+        throw std::runtime_error("attachment node not there");
     }
 
     gltfNode* gunBaseNode = nullptr;
@@ -348,7 +346,7 @@ void gltfObject::setWeaponParentTo(gltfObject* parentObj) {
         throw std::runtime_error("base node not there");
     }
 
-    gunBaseNode->parent = parentObj->gunBone;
+    gunBaseNode->parent = parentObj->attachmentPoint;
 }
 
 gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isWeapon) {
@@ -417,10 +415,10 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     if (skinned) {
         for (const auto& n : object.skins[0].joints) {
             if (n->nodeName == "gun") {
-                object.gunBone = n;
-                break;
+                object.attachmentPoint = n;
             }
         }
+        object.skinSize = sizeof(glm::mat4) * object.skins[0].joints.size();
     }
     Animation::loadAnimations(model, object.parentNodes, object.animations);
 

@@ -27,7 +27,7 @@ private:
 	sockaddr serverAddress;
 	int serverAddressLen;
 
-	uint32_t tickTracker;
+	uint32_t serverAck;
 
 	void listenForServer(SOCKET udpReceiverSocket);
 

@@ -919,11 +919,6 @@ void HyacinthEngine::drawImGui() {
     ImGui::DragFloat("vol b normal bias", &volBNormalBias, 0.01f);
     ImGui::DragFloat("vol a view bias", &volAViewBias, 0.01f);
     ImGui::DragFloat("vol b view bias", &volBViewBias, 0.01f);
-
-    ImGui::DragFloat3("p", &m_scene.dynamicObjects[1].gunBone->localTransform.position.x, 0.01f);
-    ImGui::DragFloat4("r", &m_scene.dynamicObjects[1].gunBone->localTransform.rotation.x, 0.01f);
-    ImGui::DragFloat3("s", &m_scene.dynamicObjects[1].gunBone->localTransform.scale.x, 0.01f);
-
     ImGui::End();
 
     ImGui::Begin("Shadow Maps");

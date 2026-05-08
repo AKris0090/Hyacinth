@@ -27,7 +27,7 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
         }
 
         ServerSnapshot sp = ServerSnapshot::fromString(std::string(recvBuff));
-
+        serverAck = sp.serverTickNum;
         netEntManager.packetBuffer.newPacket(sp);
 
         netEntManager.rB.pendingPacketsMutex.lock();
@@ -239,6 +239,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
 }
 
 void HyacinthNetworkClient::updateServerTick(ClientUpdatePacket& p, bool mouseLocked) {
+    p.ack = serverAck;
     std::string s = p.toString();
     const char* msg = s.c_str();
     sendto(udpReceiverSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);

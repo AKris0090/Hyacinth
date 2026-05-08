@@ -2,10 +2,25 @@
 #include "framework.h"
 #include "hyacinth_network.h"
 
+std::string ClientRequestConnectionPacket::toString() {
+	std::ostringstream oss;
+	oss << port << "," << tick << ",";
+	return oss.str();
+}
+
+void ClientRequestConnectionPacket::fromString(std::string s) {
+	std::stringstream es(s);
+	std::string field;
+
+	std::getline(es, field, ','); port = std::stoi(field);
+	std::getline(es, field, ','); tick = std::stoi(field);
+}
+
 std::string ClientUpdatePacket::toString() {
 	std::ostringstream oss;
 	oss << id << "," 
 		<< tick << ","
+		<< ack << ","
 		<< pitch << "," 
 		<< yaw << "," 
 		<< static_cast<int>(movementFB) << ","
@@ -22,6 +37,7 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	std::string field;
 	std::getline(es, field, ','); p.id = std::stoi(field);
 	std::getline(es, field, ','); p.tick = std::stoi(field);
+	std::getline(es, field, ','); p.ack = std::stoi(field);
 	std::getline(es, field, ','); p.pitch = std::stof(field);
 	std::getline(es, field, ','); p.yaw = std::stof(field);
 	std::getline(es, field, ','); p.movementFB = std::stoi(field);
@@ -32,23 +48,9 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	return p;
 }
 
-std::string ClientRequestConnectionPacket::toString() {
-	std::ostringstream oss;
-	oss << port << "," << tick << ",";
-	return oss.str();
-}
-
-void ClientRequestConnectionPacket::fromString(std::string s) {
-	std::stringstream es(s);
-	std::string field;
-
-	std::getline(es, field, ','); port = std::stoi(field);
-	std::getline(es, field, ','); tick = std::stoi(field);
-}
-
 std::string ServerSnapshot::toString() {
 	std::ostringstream oss;
-	oss << processedTickNum << "," << time << ",";
+	oss << processedTickNum << "," << time << "," << serverTickNum << ",";
 	for (size_t i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
 		oss << e.id << "," << e.transform.position.x
@@ -72,6 +74,7 @@ ServerSnapshot ServerSnapshot::fromString(std::string s) {
 	std::string tickField;
 	std::getline(ss, tickField, ','); packet.processedTickNum = std::stoi(tickField);
 	std::getline(ss, tickField, ','); packet.time = std::stoi(tickField);
+	std::getline(ss, tickField, ','); packet.serverTickNum = std::stoi(tickField);
 
 	while (std::getline(ss, entityStr, '|')) {
 		std::stringstream es(entityStr);
@@ -104,4 +107,43 @@ void SimulateStruct::addPacket(ClientUpdatePacket pack) {
 	movementLR = pack.movementLR;
 	jump = pack.jump;
 	shooting = pack.lmb;
+
+	ackedTick = pack.ack;
+	receivedTimestamp = pack.serverTimestamp;
+}
+
+bool ServersideClient::getPacketFor(uint32_t tickNum) {
+	if (clientPacketBuffer.empty()) {
+		bufferedPacket.addPacket(previousInput);
+		return false;
+	}
+
+	tickNum -= tickBasis;
+	while (!clientPacketBuffer.empty() && (clientPacketBuffer.top().tick < tickNum)) {
+		clientPacketBuffer.pop();
+	}
+	if (!clientPacketBuffer.empty() && clientPacketBuffer.top().tick == tickNum) {
+		bufferedPacket.addPacket(clientPacketBuffer.top());
+		previousInput = clientPacketBuffer.top();
+		clientPacketBuffer.pop();
+		return true;
+	}
+	else {
+		bufferedPacket.addPacket(previousInput);
+		return false;
+	}
+}
+
+bool ServersideClient::foundTimestamp(uint32_t serverTickNum) {
+	if (sendTimestamps.empty()) return false;
+
+	while (!sendTimestamps.empty() && (sendTimestamps.front().first < serverTickNum)) {
+		sendTimestamps.pop();
+	}
+	if (!sendTimestamps.empty() && sendTimestamps.front().first == serverTickNum) {
+		return true;
+	}
+	else {
+		return false;
+	}
 }

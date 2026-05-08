@@ -52,7 +52,7 @@ struct gltfObject {
     std::vector<Animation> animations;
     std::vector<Skin> skins;
     size_t skinSize;
-    gltfNode* gunBone;
+    gltfNode* attachmentPoint;
 
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;

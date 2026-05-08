@@ -79,7 +79,7 @@ public:
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
-	SPSCQueue<Event> physicsEventQueue;
+	ThreadSafeQueue<Event> physicsEventQueue;
 
 	void initPhysics(bool debug);
 	void addCharacterController(uint32_t cId);

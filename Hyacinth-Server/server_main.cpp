@@ -28,11 +28,13 @@
 #pragma comment(lib, "Hyacinth-Common.lib")
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
-constexpr long long CLIENT_TIMEOUT = 15000;
+#define LAG_SIMULATION
+
+constexpr long long CLIENT_TIMEOUT = 3000;
 
 EntityManager entityManager;
 PhysicsManager physicsManager;
-SPSCQueue<Event> serverEvents;
+ThreadSafeQueue<Event> serverEvents;
 LagSimulator lagSim;
 std::mutex bufferedClientPacketMutex;
 std::queue<ClientUpdatePacket> bufferedClientPackets;
@@ -188,15 +190,23 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         }
 
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
-        // std::unique_lock l(lagSim.buffLock);
-        // if (p.id == 1) {
-        //     lagSim.lagPacketBuffer[currentTick + 1].push(p);
-        // }
-        // else {
-        //     lagSim.lagPacketBuffer[currentTick + SERVER_FRAME_LAG].push(p);
-        // }
+        // when a packet is received, write its timestamp down to estimate ping
+        p.serverTimestamp = getNowMs();
+
+#ifdef LAG_SIMULATION
+        std::unique_lock l(lagSim.buffLock);
+        std::unique_lock lck(bufferedClientPacketMutex);
+        if (p.id == 1) {
+            bufferedClientPackets.push(p);
+        }
+        else {
+            lagSim.lagPacketBuffer[currentTick + SERVER_FRAME_LAG].push(p);
+        }
+#endif
+#ifndef LAG_SIMULATION
         std::unique_lock l(bufferedClientPacketMutex);
         bufferedClientPackets.push(p);
+#endif
     }
 
     closesocket(*udpSocket);
@@ -234,7 +244,7 @@ void printPhysicsTick() {
         std::cout << std::left
             << std::setw(6) << id
             << std::setw(20) << ipPort
-            << std::setw(12) << (std::to_string(client->heartBeat) + "ms")
+            << std::setw(12) << (std::to_string(client->ping) + "ms")
             << std::setw(22) << (std::to_string(client->tickBasis))
             << "\n";
     }
@@ -279,17 +289,20 @@ void updateTick(SOCKET* udpSendSocket) {
         }
 
         {
-            // scroll through lag sim buffer, and push all packets into bufferedClientPackets
             std::unique_lock l(bufferedClientPacketMutex);
+#ifdef LAG_SIMULATION
+            // scroll through lag sim buffer, and push all packets into bufferedClientPackets
             std::unique_lock lock(lagSim.buffLock);
             if (lagSim.lagPacketBuffer.find(currentTick) != lagSim.lagPacketBuffer.end()) {
                 while (lagSim.lagPacketBuffer[currentTick].size() > 0) {
-                    bufferedClientPackets.push(lagSim.lagPacketBuffer[currentTick].front());
+                    ClientUpdatePacket p = lagSim.lagPacketBuffer[currentTick].front();
+                    p.serverTimestamp = getNowMs();
+                    bufferedClientPackets.push(p);
                     lagSim.lagPacketBuffer[currentTick].pop();
                 }
                 lagSim.lagPacketBuffer.erase(currentTick);
             }
-
+#endif
             // flush buffered packets
             while (!bufferedClientPackets.empty()) {
                 ClientUpdatePacket p = bufferedClientPackets.front();
@@ -308,7 +321,15 @@ void updateTick(SOCKET* udpSendSocket) {
         }
 
         for (const auto& [id, client] : entityManager.clients) {
-            client->getPacketFor(currentTick);
+            bool loaded = client->getPacketFor(currentTick); // loads the correct packet for this tick into the client's bufferedPacket field
+            if (loaded) {
+                if (client->foundTimestamp(client->bufferedPacket.ackedTick)) {
+                    client->ping = client->bufferedPacket.receivedTimestamp - client->sendTimestamps.front().second;
+                }
+                else {
+                    std::cout << "not found!" << "," << client->bufferedPacket.ackedTick << "," << client->sendTimestamps.front().first << std::endl;
+                }
+            }
         }
         physicsManager.updatePhysicsServer(&entityManager);
 
@@ -331,7 +352,7 @@ void updateTick(SOCKET* udpSendSocket) {
                 // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
                 // if using the method explained here: https://vercidium.com/blog/lag-compensation/, you can calculate sub-tick positions using a transform lerp
                 // subtract the sub-tick offset at the end.
-                uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER; // TODO: - CLIENT_FRAME_LAG (ping, or RTT / 2)
+                uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER - (client->ping / SERVER_TIMESTEP_MS.count()); // client ping divided by 
                 rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind); 
                 if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer
                     std::cout << "couldn't find the right snapshot, too far in the past" << std::endl;
@@ -353,10 +374,12 @@ void updateTick(SOCKET* udpSendSocket) {
             r.entityPositions.push_back(entityPositionSnapshot{ id, client->entity.transform.position });
         }
         rewindBuffer.push(r);
+        p->serverTickNum = currentTick;
         for (const auto& [id, client] : entityManager.clients) {
             if (!client->addressSet) continue;
             p->processedTickNum = currentTick - client->tickBasis;
             if (client->tickBasis > currentTick) continue;
+            client->sendTimestamps.push({ currentTick, getNowMs() });
             std::string packetString = p->toString();
             sendto(*udpSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
@@ -369,17 +392,19 @@ void updateTick(SOCKET* udpSendSocket) {
     }
 }
 
-void startPhysics() {
-    LightLoader loader;
-    auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
-
-    physicsManager.initPhysics(true);
-    physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
-}
-
 int main()
 {
-    startPhysics(); 
+    SOCKET tcpListenSocket = INVALID_SOCKET;
+    SOCKET udpTwoWaySocket = INVALID_SOCKET;
+
+    // setup physics with base scene as a static mesh
+    {
+        LightLoader loader;
+        auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
+
+        physicsManager.initPhysics(true);
+        physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
+    }
 
     WSADATA wsaData;
     int iResult;
@@ -392,6 +417,7 @@ int main()
 
     struct addrinfo* result = NULL, hints;
 
+    // setup and bind tcp listener socket
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -403,7 +429,6 @@ int main()
         WSACleanup();
         return 1;
     }
-    SOCKET tcpListenSocket = INVALID_SOCKET;
     tcpListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     if (tcpListenSocket == INVALID_SOCKET) {
         std::cout << "[NETWORK] problem with tcp socket(): " << WSAGetLastError() << std::endl;
@@ -420,8 +445,8 @@ int main()
         return 1;
     }
     freeaddrinfo(result);
-    std::thread tcpSocketThread(serverListenForClients, &tcpListenSocket);
 
+    // setup and bind udp listener (and sender) socket
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
@@ -433,19 +458,18 @@ int main()
         WSACleanup();
         return 1;
     }
-    SOCKET udpListenSocket = INVALID_SOCKET;
-    udpListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (udpListenSocket == INVALID_SOCKET) {
+    udpTwoWaySocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (udpTwoWaySocket == INVALID_SOCKET) {
         std::cout << "[NETWORK] problem with udp socket(): " << WSAGetLastError() << std::endl;
         freeaddrinfo(result);
         WSACleanup();
         return 1;
     }
-    iResult = bind(udpListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    iResult = bind(udpTwoWaySocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult != 0) {
         std::cout << "[NETWORK] udp bind failed: " << iResult << std::endl;
         freeaddrinfo(result);
-        closesocket(udpListenSocket);
+        closesocket(udpTwoWaySocket);
         WSACleanup();
         return 1;
     }
@@ -466,13 +490,16 @@ int main()
         freeaddrinfo(localResult);
     }
 
-    std::cout << "MAX FRAME PING: " << MAX_REWIND << "\n";
+    // tcp listener thread (for new clients requesting a server connection)
+    std::thread tcpSocketThread(serverListenForClients, &tcpListenSocket);
 
-    // listen on the udp thread
-    std::thread udpSocketThread(serverListenForUDPPackets, &udpListenSocket);
+    // udp listener thread
+    std::thread udpSocketThread(serverListenForUDPPackets, &udpTwoWaySocket);
 
-    std::thread tickThread(updateTick, &udpListenSocket);
+    // physics tick thread. Uses same socket as listener thread to avoid NAT rule setting issue
+    std::thread tickThread(updateTick, &udpTwoWaySocket);
 
+    // watchdog thread to manage client timouts and chase them off the lawn
     std::thread watchdogThread(timeoutWatchdog);
 
     tickThread.join();
