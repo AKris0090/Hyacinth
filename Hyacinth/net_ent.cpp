@@ -77,10 +77,19 @@ void NetworkEntityManager::clearPendingPackets(Entity* self) {
 		if (!found) break;
 
 		Transform serverTransform;
+		bool haveShotAck = false;
 		for (auto& e : pending.entities) {
 			if (e.id == self->id) {
 				serverTransform = e.transform;
-				self->shotAck = e.shotAck;
+				haveShotAck = e.shotAck;
+			}
+		}
+
+		if (haveShotAck) {
+			for (auto& e : pending.entities) {
+				if (e.id == 1) {
+					shotAckPosition = e.transform.position;
+				}
 			}
 		}
 

@@ -344,10 +344,10 @@ void updateTick(SOCKET* udpSendSocket) {
                 client->entity.isMoving = false;
             }
 
+            bool canShoot = client->entity.pistolController.updateShooting(SERVER_TIMESTEP, client->bufferedPacket.shooting);
+
             hitReg h;
-            bool shooting = false;
-            if (client->bufferedPacket.shooting) {
-                shooting = true;
+            if (canShoot) {
                 // usually, it would be Current Server Time - Packet Latency - Client View Interpolation. In this case, RTT / 2 = 0 because everything is being run locally.
                 // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
                 // if using the method explained here: https://vercidium.com/blog/lag-compensation/, you can calculate sub-tick positions using a transform lerp
@@ -360,11 +360,11 @@ void updateTick(SOCKET* udpSendSocket) {
                 else {
                     h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
                     if (h.hit) {
-                        std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl << std::endl;
-                        client->entity.shotAck = true;
+                        // std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl << std::endl;
+                        // client->entity.shotAck = true;
                     }
                     else {
-                        std::cout << "airball" << std::endl << std::endl;
+                        // std::cout << "airball" << std::endl << std::endl;
                     }
                 }
             }
@@ -373,8 +373,11 @@ void updateTick(SOCKET* udpSendSocket) {
             p->entities.push_back(client->entity);
 
 #ifdef LAG_SIMULATION
-            if (shooting) {
+            if (canShoot && h.hit) {
                 for (auto& ent : p->entities) {
+                    if (ent.id == client->id) {
+                        ent.shotAck = true;
+                    }
                     if (ent.id == 1) {
                         ent.transform.position = h.footPosHit;
                     }

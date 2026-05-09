@@ -25,6 +25,7 @@
 #include "imguihelper.h"
 
 #include "net_ent.h"
+#include "netDebugRenderer.h"
 
 #include "vk_mem_alloc.h"
 
@@ -37,6 +38,8 @@ const bool enableValLayers = false;
 #else
 const bool enableValLayers = true;
 #endif
+
+#define DEBUG_NETWORK
 
 constexpr uint8_t CURRENT_BIT = 0x01;
 constexpr uint8_t ANY_BIT = 0x02;
@@ -78,6 +81,10 @@ public:
 	std::mutex camMutex;
 	Camera m_camera;
 	SceneGraph						m_scene{};
+
+#ifdef DEBUG_NETWORK
+	NetDebugRenderer m_netDebugRenderer;
+#endif
 
 	HyacinthEngine() {};
 	~HyacinthEngine() { cleanup(); };

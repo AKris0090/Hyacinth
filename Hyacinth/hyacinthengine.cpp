@@ -772,6 +772,10 @@ void HyacinthEngine::init()
     volBViewBias = m_owDDGIHelper.m_probeVolumes[1].data.spacing.w;
 
     m_uiHelper.setup(m_textureSetLayout, m_scene.uiTextureOffset, glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
+
+#ifdef DEBUG_NETWORK
+    m_netDebugRenderer.setup(m_swImageFormat, m_msaaSamples, m_descriptorSetLayout);
+#endif
 }
 
 void HyacinthEngine::update() {
@@ -793,11 +797,11 @@ void HyacinthEngine::update() {
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     // first person object (self) 
-    gltfObject::updateFirstPersonAnimation(&m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw, p_netEntManager->pistolAnimationController.queueShoot);
+    gltfObject::updateFirstPersonAnimation(p_netEntManager->self->pistolController.state, &m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw, p_netEntManager->pistolAnimationController.queueShoot);
     // pistol object
     gltfObject::updatePistolAnimation(&m_scene.dynamicObjects[2], *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
 
-    m_uiHelper.update(p_netEntManager->firstPersonAnimationController.pistolController.current_ammo);
+    m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo);
 
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
@@ -1111,6 +1115,19 @@ void HyacinthEngine::draw()
         vkCmdEndRendering(cmd);
         VK_LABEL_END(cmd);
     }
+
+#ifdef DEBUG_NETWORK
+    {
+        VK_LABEL(cmd, "Network Entity Debug Pass");
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_netDebugRenderer.pipelineUtil.m_pipeline.pipeline);
+        VkRenderingAttachmentInfo netDebugAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+        VkRenderingInfo netDebugRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netDebugAttachment, nullptr);
+        vkCmdBeginRendering(cmd, &netDebugRenderingInfo);
+        m_netDebugRenderer.draw(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
+        vkCmdEndRendering(cmd);
+        VK_LABEL_END(cmd);
+    }
+#endif
 
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 

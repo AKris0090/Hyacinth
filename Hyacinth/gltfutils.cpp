@@ -696,8 +696,8 @@ void gltfObject::updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPer
     }
 }
 
-void gltfObject::updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut) {
-    animMachine.updateAnimationState(c, deltaTime, deltaPitch, deltaYaw, leftClick, shootTriggerOut);
+void gltfObject::updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut) {
+    animMachine.updateAnimationState(c, state, deltaTime, deltaPitch, deltaYaw, shootTriggerOut);
 
     for (auto& node : obj->parentNodes) {
         obj->updateJoints(node, pMappedJointMatrixBuffer);

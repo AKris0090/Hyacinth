@@ -118,6 +118,9 @@
     <Filter Include="Source Files\shaders\ui">
       <UniqueIdentifier>{76888cc6-17f7-495a-808b-deb35d061679}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\network\network_debugging">
+      <UniqueIdentifier>{12437511-b37c-4bba-ac85-94ed9d2f9abb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -221,6 +224,9 @@
     </ClCompile>
     <ClCompile Include="hyacinth_ui.cpp">
       <Filter>Source Files\renderer\core\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="netDebugRenderer.cpp">
+      <Filter>Source Files\network\network_debugging</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -334,6 +340,9 @@
     </ClInclude>
     <ClInclude Include="hyacinth_ui.h">
       <Filter>Source Files\renderer\core\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="netDebugRenderer.h">
+      <Filter>Source Files\network\network_debugging</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

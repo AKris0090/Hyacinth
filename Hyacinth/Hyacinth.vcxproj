@@ -160,6 +160,7 @@
     <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mikktspace\mikktspace.cpp" />
+    <ClCompile Include="netDebugRenderer.cpp" />
     <ClCompile Include="net_ent.cpp" />
     <ClCompile Include="owDDGI.cpp" />
     <ClCompile Include="probevis.cpp" />
@@ -198,6 +199,7 @@
     <ClInclude Include="imguihelper.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="mikktspace\mikktspace.h" />
+    <ClInclude Include="netDebugRenderer.h" />
     <ClInclude Include="net_ent.h" />
     <ClInclude Include="owDDGI.h" />
     <ClInclude Include="probevis.h" />

@@ -39,20 +39,19 @@ public:
 		packetBufferMutex.lock();
 		ServerSnapshot p;
 		for (auto& e : packetBuffer.first.entities) {
-			Entity secondEnt;
-			secondEnt.id = 150;
+			Entity* secondEnt = nullptr;
 			for (auto& e2 : packetBuffer.second.entities) {
 				if (e2.id == e.id) {
-					secondEnt = e2;
+					secondEnt = &e2;
 				}
 			}
-			if (secondEnt.id == 150) continue;
+			if (!secondEnt) continue;
 			Entity nE;
 			nE.camSpeed = e.camSpeed;
 			nE.moveSpeed = e.moveSpeed;
 			nE.id = e.id;
-			nE.transform = e.transform.lerpTo(secondEnt.transform, t);
-			nE.isMoving = e.isMoving || secondEnt.isMoving;
+			nE.transform = e.transform.lerpTo(secondEnt->transform, t);
+			nE.isMoving = e.isMoving || secondEnt->isMoving;
 			p.entities.push_back(nE);
 		}
 		packetBufferMutex.unlock();
@@ -131,6 +130,8 @@ public:
 	PacketBuffer packetBuffer;
 	RewindBuffer rB;
 	int tickOffset;
+
+	glm::vec3 shotAckPosition;
 	
 	void setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);

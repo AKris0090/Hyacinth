@@ -245,6 +245,8 @@ void ThirdPersonAnimationStateMachine::lerpPreviousCurrentAnimations(ThirdPerson
 }
 
 void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw) {
+	if (c.off) return;
+
 	bool playerInMotion = false;
 	if (motionFB != 0.f || motionLR != 0.f) {
 		playerInMotion = true;
@@ -321,6 +323,7 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 	}
 
 	updateFromPlayerState(c, pitch, yaw, alpha, playerInMotion);
+	c.off = true;
 }
 
 // FIRST PERSON //////////////////////////////////////////
@@ -334,13 +337,6 @@ void FirstPersonAnimationStateMachine::flushQueuedNodeTransforms(FirstPersonAnim
 
 void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw) {
 	c.currentTime += deltaTime;
-	if (currentlyShooting && c.currentTime > c.currentAnim->end) {
-		currentlyShooting = false;
-	}
-	else if (c.pistolController.reloading && c.currentTime > c.currentAnim->end) {
-		c.pistolController.reloading = false;
-		c.pistolController.current_ammo = c.pistolController.MAX_AMMO;
-	}
 	c.currentTime = fmod(c.currentTime, c.currentAnim->end);
 
 	for (auto& channel : c.currentAnim->channels)
@@ -370,20 +366,32 @@ void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationContr
 	flushQueuedNodeTransforms(c);
 }
 
-void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool isShooting, bool& shootingOut) {
-	FIRSTPERSON_STATE newState = c.pistolController.updateShooting(deltaTime, isShooting);
-	if (newState == SHOOTING) {
-		c.currentAnim = c.shootAnimation;
-		c.currentTime = c.shootAnimation->start;
-		shootingOut = true;
-		currentlyShooting = true;
+void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, FIRSTPERSON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut) {
+	if (previousState != state) {
+		switch (state) {
+		case SHOOTING:
+			c.currentAnim = c.shootAnimation;
+			c.currentTime = c.shootAnimation->start;
+			shootingOut = true;
+			currentlyShooting = true;
+			break;
+		case RELOADING:
+			c.currentAnim = c.spinningAnimation;
+			c.currentTime = c.spinningAnimation->start;
+			break;
+		case IDLE_PISTOL:
+			c.currentAnim = c.idleAnimation;
+			c.currentTime = c.idleAnimation->start;
+			break;
+		}
+		previousState = state;
 	}
-	else if (newState == RELOADING){
-		c.currentAnim = c.spinningAnimation;
-		c.currentTime = c.spinningAnimation->start;
-	} else if (!currentlyShooting && !c.pistolController.reloading && c.currentAnim != c.idleAnimation) {
-		c.currentAnim = c.idleAnimation;
-		c.currentTime = c.idleAnimation->start;
+	if (currentlyShooting) {
+		if (c.currentTime + deltaTime > c.currentAnim->end) {
+			currentlyShooting = false;
+			c.currentAnim = c.idleAnimation;
+			c.currentTime = c.idleAnimation->start;
+		}
 	}
 
 	updateAnimation(c, deltaTime, deltaPitch, deltaYaw);
