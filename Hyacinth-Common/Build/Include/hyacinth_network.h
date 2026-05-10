@@ -132,6 +132,48 @@ struct ServerSnapshot {
 	static ServerSnapshot fromString(std::string s);
 };
 
+class PacketBuffer {
+public:
+	float timeAggregate;
+	std::pair<ServerSnapshot, ServerSnapshot> packetBuffer;
+	std::shared_mutex packetBufferMutex;
+
+	void newPacket(ServerSnapshot p) {
+		std::unique_lock<std::shared_mutex> l(packetBufferMutex);
+		packetBuffer.first = packetBuffer.second;
+		packetBuffer.second = p;
+		timeAggregate = 0.f;
+	}
+
+	ServerSnapshot getInterpolatedSimPacket(float timeDelta) {
+		timeAggregate += timeDelta;
+		if (timeAggregate > SERVER_TIMESTEP) {
+			timeAggregate = SERVER_TIMESTEP;
+		}
+		float alpha = timeAggregate / SERVER_TIMESTEP;
+
+		std::shared_lock<std::shared_mutex> l(packetBufferMutex);
+		ServerSnapshot p;
+		for (auto& e : packetBuffer.first.entities) {
+			Entity* secondEnt = nullptr;
+			for (auto& e2 : packetBuffer.second.entities) {
+				if (e2.id == e.id) {
+					secondEnt = &e2;
+				}
+			}
+			if (!secondEnt) continue;
+			Entity nE;
+			nE.camSpeed = e.camSpeed;
+			nE.moveSpeed = e.moveSpeed;
+			nE.id = e.id;
+			nE.transform = e.transform.lerpTo(secondEnt->transform, alpha);
+			nE.isMoving = e.isMoving || secondEnt->isMoving;
+			p.entities.push_back(nE);
+		}
+		return p;
+	}
+};
+
 struct EntityManager {
 	static constexpr uint8_t MAX = 10;
 	std::shared_mutex clientsMutex;

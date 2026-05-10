@@ -7,57 +7,9 @@
 #include "fpcam.h"
 #include <mutex>
 #include <utility>
+#include <shared_mutex>
 
 constexpr float DIFF_THRESHOLD = 0.01f;
-
-class PacketBuffer {
-public:
-	float timeAggregate;
-	std::pair<ServerSnapshot, ServerSnapshot> packetBuffer;
-	std::mutex packetBufferMutex;
-
-	void newPacket(ServerSnapshot p, bool resetTime = true) {
-		packetBufferMutex.lock();
-		packetBuffer.first = packetBuffer.second;
-		packetBuffer.second = p;
-		if (resetTime) timeAggregate = 0.f;
-		packetBufferMutex.unlock();
-	}
-
-	void fixServerRecon(Entity* e, std::pair<Transform, Transform> newPacketBuffer) {
-		packetBuffer.first.entities[0].transform = newPacketBuffer.first;
-		packetBuffer.second.entities[0].transform = newPacketBuffer.second;
-	}
-
-	ServerSnapshot getInterpolatedSimPacket(float timeDelta) {
-		timeAggregate += timeDelta;
-		if (timeAggregate > SERVER_TIMESTEP) {
-			timeAggregate = SERVER_TIMESTEP;
-		}
-		float t = timeAggregate / SERVER_TIMESTEP;
-
-		packetBufferMutex.lock();
-		ServerSnapshot p;
-		for (auto& e : packetBuffer.first.entities) {
-			Entity* secondEnt = nullptr;
-			for (auto& e2 : packetBuffer.second.entities) {
-				if (e2.id == e.id) {
-					secondEnt = &e2;
-				}
-			}
-			if (!secondEnt) continue;
-			Entity nE;
-			nE.camSpeed = e.camSpeed;
-			nE.moveSpeed = e.moveSpeed;
-			nE.id = e.id;
-			nE.transform = e.transform.lerpTo(secondEnt->transform, t);
-			nE.isMoving = e.isMoving || secondEnt->isMoving;
-			p.entities.push_back(nE);
-		}
-		packetBufferMutex.unlock();
-		return p;
-	}
-};
 
 struct StateStorage {
 	uint32_t tickNum;

@@ -95,7 +95,8 @@ void NetworkEntityManager::clearPendingPackets(Entity* self) {
 
 		std::pair<Transform, Transform> t;
 		if (rB.checkPacketNeedsRewind(self, t, serverTransform, sS.tickNum)) {
-			selfSimBuffer.fixServerRecon(self, t);
+			selfSimBuffer.packetBuffer.first.entities[0].transform = t.first;
+			selfSimBuffer.packetBuffer.second.entities[0].transform = t.second;
 		}
 		rB.pendingPackets.pop();
 	}
