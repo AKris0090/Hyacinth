@@ -32,11 +32,11 @@ constexpr int SERVER_INPUT_BUFFER = 2;
 
 constexpr int SERVER_FRAME_LAG = 100;
 
-constexpr float SERVER_TIMESTEP = 0.1f;
-constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 100ms;
+// constexpr float SERVER_TIMESTEP = 0.1f;
+// constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 100ms;
 
-// constexpr float SERVER_TIMESTEP = 0.0078125f;
-// constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
+constexpr float SERVER_TIMESTEP = 0.0078125f;
+constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
 
 // max rewind is 140 ms (from official valorant servers)
 // if server frame lag is 100, (for demo purposes), 100 * 7.8125, ceil is 782ms max rewind
@@ -115,7 +115,6 @@ struct ServersideClient {
 	uint32_t tickBasis = 0;
 	uint32_t tickBasisOffset = SERVER_INPUT_BUFFER;
 	bool tickOffsetSet = false;
-	bool addressSet = false;
 
 	// queue of <sendTick, timestamp>
 	std::queue<std::pair<uint32_t, uint64_t>> sendTimestamps;
@@ -186,7 +185,6 @@ struct EntityManager {
 enum SERVER_EVENT {
 	CLIENT_JOIN,
 	CLIENT_DISCONNECT,
-	CLIENT_UPDATE_ADDR
 };
 
 struct Event {

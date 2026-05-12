@@ -3,11 +3,32 @@
 
 #include "hyacinth_client.h"
 
-void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
+// assumes that socket s has a timeout set
+inline std::string loopTillResponse(SOCKET* s, const char* str, int len, sockaddr* socketAddr, int addrLen) {
+    char resBuffer[DEFAULT_LEN];
+    int resBufferLen = DEFAULT_LEN;
+
+    int res = 0;
+    while (res <= 0) {
+        int altRes = sendto(*s, str, len, 0, socketAddr, addrLen);
+        if (altRes < 0) {
+            throw std::runtime_error("could not send, for some reason");
+        }
+
+        res = recvfrom(*s, resBuffer, resBufferLen, 0, NULL, NULL);
+        if (res <= 0) {
+            std::cout << "[NETWORK] error receiving info from server, trying again..." << std::endl;
+        }
+    }
+    resBuffer[res] = '\0';
+    return std::string(resBuffer);
+}
+
+void HyacinthNetworkClient::listenForServer(SOCKET twoWayUDPSocket) {
     char recvBuff[DEFAULT_LEN];
 
     while (true) {
-        int bytesReceived = recvfrom(udpReceiverSocket, recvBuff, sizeof(recvBuff) - 1, 0, NULL, NULL);
+        int bytesReceived = recvfrom(twoWayUDPSocket, recvBuff, sizeof(recvBuff) - 1, 0, NULL, NULL);
 
         if (bytesReceived <= 0) {
             if (errno == EWOULDBLOCK || errno == EAGAIN) {
@@ -25,6 +46,9 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
         if (std::string(recvBuff) == "pong") {
             continue;
         }
+        else if (std::string(recvBuff).substr(0, 4) == "snap") {
+            continue;
+        }
 
         ServerSnapshot sp = ServerSnapshot::fromString(std::string(recvBuff));
         serverAck = sp.serverTickNum;
@@ -35,7 +59,7 @@ void HyacinthNetworkClient::listenForServer(SOCKET udpReceiverSocket) {
         netEntManager.rB.pendingPacketsMutex.unlock();
     }
 
-    closesocket(udpReceiverSocket);
+    closesocket(twoWayUDPSocket);
 }
 
 int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout) {
@@ -53,8 +77,8 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     struct addrinfo* result = NULL, hints;
 
     // create UDP receiver socket
-    udpReceiverSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (udpReceiverSocket == INVALID_SOCKET) {
+    twoWayUDPSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (twoWayUDPSocket == INVALID_SOCKET) {
         std::cout << "problem with udp socket(): " << WSAGetLastError() << std::endl;
         freeaddrinfo(result);
         WSACleanup();
@@ -66,7 +90,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     recvAddr.sin_addr.s_addr = INADDR_ANY;
     recvAddr.sin_port = 0;
 
-    iResult = bind(udpReceiverSocket, (sockaddr*)&recvAddr, sizeof(recvAddr));
+    iResult = bind(twoWayUDPSocket, (sockaddr*)&recvAddr, sizeof(recvAddr));
     if (iResult != 0) {
         std::cout << "udp receiver socket binding failed: " << iResult << std::endl;
         return 1;
@@ -74,9 +98,9 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
 
     sockaddr_in boundAddr;
     int boundAddrLen = sizeof(boundAddr);
-    if (getsockname(udpReceiverSocket, (sockaddr*)&boundAddr, &boundAddrLen) == SOCKET_ERROR) {
+    if (getsockname(twoWayUDPSocket, (sockaddr*)&boundAddr, &boundAddrLen) == SOCKET_ERROR) {
         std::cout << "getsockname failed: " << WSAGetLastError() << std::endl;
-        closesocket(udpReceiverSocket);
+        closesocket(twoWayUDPSocket);
         WSACleanup();
         return 1;
     }
@@ -84,134 +108,54 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     std::cout << "receiver set up on port: " << receiverPort << std::endl;
     freeaddrinfo(result);
 
-    // create server UDP sender socket
+    // set socket timeout for 1 second
+    DWORD timeout = 1000;
+    if (setsockopt(twoWayUDPSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout)) < 0) {
+        std::cout << "socket timeout set error" << std::endl;
+        return 1;
+    }
+
+    // send a connection request packet to the server, also sets the NAT translation rule in router between sockets
+
+    // get server address info
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = IPPROTO_UDP;
-    hints.ai_flags = AI_PASSIVE;
     iResult = getaddrinfo(serveraddr.c_str(), SERVER_UDP_PORT, &hints, &result);
-    if (iResult != 0) {
-        std::cout << "getaddrinfo failed: " << iResult << std::endl;
-        WSACleanup();
-        return 1;
-    }
-    serverUDPSocket = INVALID_SOCKET;
-    serverUDPSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (serverUDPSocket == INVALID_SOCKET) {
-        std::cout << "problem with server udp socket(): " << WSAGetLastError() << std::endl;
-        freeaddrinfo(result);
-        WSACleanup();
-        return 1;
-    }
-    memcpy(&serverAddress, result->ai_addr, result->ai_addrlen);
-    serverAddressLen = (int)result->ai_addrlen;
-    freeaddrinfo(result);
-
-    // create TCP connection socket
-    ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    iResult = getaddrinfo(serveraddr.c_str(), DEFAULT_PORT, &hints, &result);
     if (iResult != 0) {
         printf("getaddrinfo failed: %d\n", iResult);
         WSACleanup();
         return 1;
     }
-    connectSocket = INVALID_SOCKET;
-    connectSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (connectSocket == INVALID_SOCKET) {
-        std::cout << "problem with socket(): " << WSAGetLastError() << std::endl;
-        freeaddrinfo(result);
-        WSACleanup();
-        return 1;
-    }
-    iResult = connect(connectSocket, result->ai_addr, (int)result->ai_addrlen);
-    if (iResult == SOCKET_ERROR) {
-        closesocket(connectSocket);
-        connectSocket = INVALID_SOCKET;
-    }
-    if(connectSocket == INVALID_SOCKET) {
-        printf("Unable to connect to server! Make sure it is running and listening!\n");
-        WSACleanup();
-        return 1;
-    }
-    std::cout << "connected to server!" << std::endl;
+
+    serverAddressLen = result->ai_addrlen;
+    memcpy(&serverAddress, result->ai_addr, result->ai_addrlen);
     freeaddrinfo(result);
 
-    // get the server response to the join request. contains client id
-    char recvbuf[DEFAULT_LEN];
-    int recvbuflen = DEFAULT_LEN;
-    iResult = recv(connectSocket, recvbuf, recvbuflen, 0);
-    if (iResult <= 0) {
-        std::cout << "could not receive response from server!" << std::endl;
-        closesocket(connectSocket);
-        WSACleanup();
-        return 1;
-    }
-    recvbuf[iResult] = '\0';
-
-    // get the entity list from the server
-    char entityBuff[DEFAULT_LEN];
-    int entityBuffLen = DEFAULT_LEN;
-    iResult = recv(connectSocket, entityBuff, entityBuffLen, 0);
-    if (iResult <= 0) {
-        std::cout << "could not receive entity list from server!" << std::endl;
-        closesocket(connectSocket);
-        WSACleanup();
-        return 1;
-    }
-    entityBuff[iResult] = '\0';
-
-    iResult = shutdown(connectSocket, SD_BOTH);
-    if (iResult == SOCKET_ERROR) {
-        std::cout << "secondary shutdown failed: " << WSAGetLastError() << std::endl;
-        closesocket(connectSocket);
-        WSACleanup();
-        return 1;
-    }
+    std::cout << "[NETWORK] Attempting to ping server... here we go" << std::endl;
+    std::string pong = loopTillResponse(&twoWayUDPSocket, "tryping", 7, (sockaddr*)&serverAddress, serverAddressLen);
 
     ClientRequestConnectionPacket serverResponse;
-    serverResponse.fromString(std::string(recvbuf));
+    serverResponse.fromString(pong);
     clientID = serverResponse.port;
     netEntManager.self->id = clientID;
+    std::cout << "[NETWORK] Response from server! My id is: " << clientID << std::endl;
+
+    std::cout << "[NETWORK] Requesting current server snapshot..." << std::endl;
+    std::string snapRequest = std::string("getsnapshot") + std::to_string(clientID);
+    std::string snapshot = loopTillResponse(&twoWayUDPSocket, snapRequest.c_str(), snapRequest.length(), (sockaddr*)&serverAddress, serverAddressLen);
+    std::cout << "[NETWORK] Response from server!" << std::endl;
 
     ServerSnapshot sp;
-    sp = ServerSnapshot::fromString(std::string(entityBuff));
+    sp = ServerSnapshot::fromString(snapshot);
     netEntManager.imageFormat = swImageFormat;
     netEntManager.uniformSetLayout = &uniformLayout;
     netEntManager.setupFromServerPacket(sp, clientID);
 
-    std::cout << "my id is: " << clientID << std::endl;
-
-    struct timeval tv;
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
-
-    if (setsockopt(udpReceiverSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv)) < 0) {
-        std::cout << "socket timeout set error" << std::endl;
-        return 1;
-    }
-
-    std::stringstream ss;
-    ss << "tryping" << clientID;
-    while (true) {
-        sendto(udpReceiverSocket, ss.str().c_str(), ss.str().length(), 0, (sockaddr*)&serverAddress, serverAddressLen);
-        std::cout << "SENT PING" << std::endl;
-
-        int res = recvfrom(udpReceiverSocket, entityBuff, entityBuffLen, 0, NULL, NULL);
-        if (res != 4) { // received should be "pong"
-            continue;
-        } 
-
-        std::cout << "SERVER ACK, starting now..." << std::endl;
-        break;
-    }
-
     connected = true;
 
-    std::thread serverListenThread(&HyacinthNetworkClient::listenForServer, this, udpReceiverSocket);
+    std::thread serverListenThread(&HyacinthNetworkClient::listenForServer, this, twoWayUDPSocket);
     serverListenThread.detach();
 
     return 0;
@@ -221,7 +165,7 @@ void HyacinthNetworkClient::updateServerTick(ClientUpdatePacket& p, bool mouseLo
     p.ack = serverAck;
     std::string s = p.toString();
     const char* msg = s.c_str();
-    sendto(udpReceiverSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);
+    sendto(twoWayUDPSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);
 }
 
 void HyacinthNetworkClient::shutdownNet() {

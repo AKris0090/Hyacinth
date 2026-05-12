@@ -2,8 +2,7 @@
 
 #include "transform.h"
 
-#define DEFAULT_PORT "6767"
-#define SERVER_UDP_PORT "6969"
+#define SERVER_UDP_PORT "6767"
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -20,16 +19,14 @@ class HyacinthNetworkClient {
 private:
 	bool connected;
 	uint32_t clientID;
-	SOCKET connectSocket;
-	SOCKET udpReceiverSocket;
+	SOCKET twoWayUDPSocket;
 	int receiverPort;
-	SOCKET serverUDPSocket;
 	sockaddr serverAddress;
 	int serverAddressLen;
 
 	uint32_t serverAck;
 
-	void listenForServer(SOCKET udpReceiverSocket);
+	void listenForServer(SOCKET twoWayUDPSocket);
 
 public:
 	NetworkEntityManager netEntManager;
