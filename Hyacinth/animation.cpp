@@ -245,8 +245,6 @@ void ThirdPersonAnimationStateMachine::lerpPreviousCurrentAnimations(ThirdPerson
 }
 
 void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimationController& c, float deltaTime, float motionFB, float motionLR, float pitch, float yaw) {
-	if (c.off) return;
-
 	bool playerInMotion = false;
 	if (motionFB != 0.f || motionLR != 0.f) {
 		playerInMotion = true;
@@ -323,7 +321,6 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 	}
 
 	updateFromPlayerState(c, pitch, yaw, alpha, playerInMotion);
-	c.off = true;
 }
 
 // FIRST PERSON //////////////////////////////////////////

@@ -32,8 +32,11 @@ constexpr int SERVER_INPUT_BUFFER = 2;
 
 constexpr int SERVER_FRAME_LAG = 100;
 
-constexpr float SERVER_TIMESTEP = 0.0078125f;
-constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
+constexpr float SERVER_TIMESTEP = 0.1f;
+constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 100ms;
+
+// constexpr float SERVER_TIMESTEP = 0.0078125f;
+// constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
 
 // max rewind is 140 ms (from official valorant servers)
 // if server frame lag is 100, (for demo purposes), 100 * 7.8125, ceil is 782ms max rewind
@@ -132,16 +135,16 @@ struct ServerSnapshot {
 	static ServerSnapshot fromString(std::string s);
 };
 
-class PacketBuffer {
+class InterpolationPacketBuffer {
 public:
 	float timeAggregate;
 	std::pair<ServerSnapshot, ServerSnapshot> packetBuffer;
 	std::shared_mutex packetBufferMutex;
 
-	void newPacket(ServerSnapshot p) {
+	void newPacket(ServerSnapshot snap) {
 		std::unique_lock<std::shared_mutex> l(packetBufferMutex);
 		packetBuffer.first = packetBuffer.second;
-		packetBuffer.second = p;
+		packetBuffer.second = snap;
 		timeAggregate = 0.f;
 	}
 
@@ -154,21 +157,21 @@ public:
 
 		std::shared_lock<std::shared_mutex> l(packetBufferMutex);
 		ServerSnapshot p;
-		for (auto& e : packetBuffer.first.entities) {
+		for (auto& fromEntity : packetBuffer.first.entities) {
 			Entity* secondEnt = nullptr;
-			for (auto& e2 : packetBuffer.second.entities) {
-				if (e2.id == e.id) {
-					secondEnt = &e2;
+			for (auto& toEntity : packetBuffer.second.entities) {
+				if (toEntity.id == fromEntity.id) {
+					secondEnt = &toEntity;
 				}
 			}
 			if (!secondEnt) continue;
-			Entity nE;
-			nE.camSpeed = e.camSpeed;
-			nE.moveSpeed = e.moveSpeed;
-			nE.id = e.id;
-			nE.transform = e.transform.lerpTo(secondEnt->transform, alpha);
-			nE.isMoving = e.isMoving || secondEnt->isMoving;
-			p.entities.push_back(nE);
+			Entity newEntity;
+			newEntity.camSpeed = fromEntity.camSpeed;
+			newEntity.moveSpeed = fromEntity.moveSpeed;
+			newEntity.id = fromEntity.id;
+			newEntity.transform = secondEnt->transform;// fromEntity.transform.lerpTo(secondEnt->transform, alpha);
+			newEntity.isMoving = fromEntity.isMoving || secondEnt->isMoving;
+			p.entities.push_back(newEntity);
 		}
 		return p;
 	}

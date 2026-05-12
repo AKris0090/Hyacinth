@@ -28,7 +28,7 @@
 #pragma comment(lib, "Hyacinth-Common.lib")
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
-#define LAG_SIMULATION
+// #define LAG_SIMULATION
 
 constexpr long long CLIENT_TIMEOUT = 3000;
 
@@ -52,53 +52,37 @@ std::filesystem::path getExeDir()
     return std::filesystem::path(buffer).parent_path();
 }
 
-void handleNewClient(SOCKET socket, ServersideClient* newClient) {
-    SetThreadDescription(GetCurrentThread(), L"ClientHandler");
+void newClientHandshake(SOCKET socket, ServersideClient* newClient) {
+    int serverAck, entityMessage;
 
-    int initialReq, serverAck, entityMessage;
+    ClientRequestConnectionPacket response;
+    response.port = newClient->id;
+    response.tick = currentTick;
 
-    char recvbuf[DEFAULT_LEN];
-    int recvbuflen = DEFAULT_LEN;
-    initialReq = recv(socket, recvbuf, recvbuflen, 0);
-
-    if (initialReq > 0) {
-        recvbuf[initialReq] = '\0';
-        ClientRequestConnectionPacket p;
-        p.fromString(std::string(recvbuf));
-
-        ClientRequestConnectionPacket response;
-        response.port = newClient->id;
-        response.tick = currentTick;
-
-        std::string msg = response.toString();
-        serverAck = send(socket, msg.c_str(), msg.length(), 0);
-        if (serverAck == SOCKET_ERROR) {
-            std::cout << "acknowledge failed to send?" << std::endl;
-            closesocket(socket);
-            return;
-        }
-
-        std::string spString = currentSnapshot.load(std::memory_order_acquire)->toString();
-        entityMessage = send(socket, spString.c_str(), spString.length(), 0);
-        if (entityMessage == SOCKET_ERROR) {
-            std::cout << "[NETWORK] entityList failed to send?" << std::endl;
-            closesocket(socket);
-            entityManager.clients.erase(newClient->id);
-            return;
-        }
-
-        shutdown(socket, SD_BOTH);
-
-        Event e;
-        e.eventType = SERVER_EVENT::CLIENT_JOIN;
-        e.newClient = newClient;
-        e.clientID = newClient->id;
-        serverEvents.push(e);
-    }
-    else {
-        std::cout << "[NETWORK] client initiation receive failure: " << initialReq << " " << WSAGetLastError() << std::endl;
+    std::string msg = response.toString();
+    serverAck = send(socket, msg.c_str(), msg.length(), 0);
+    if (serverAck == SOCKET_ERROR) {
+        std::cout << "acknowledge failed to send?" << std::endl;
         closesocket(socket);
+        return;
     }
+
+    std::string spString = currentSnapshot.load(std::memory_order_acquire)->toString();
+    entityMessage = send(socket, spString.c_str(), spString.length(), 0);
+    if (entityMessage == SOCKET_ERROR) {
+        std::cout << "[NETWORK] entityList failed to send?" << std::endl;
+        closesocket(socket);
+        entityManager.clients.erase(newClient->id);
+        return;
+    }
+
+    shutdown(socket, SD_BOTH);
+
+    Event e;
+    e.eventType = SERVER_EVENT::CLIENT_JOIN;
+    e.newClient = newClient;
+    e.clientID = newClient->id;
+    serverEvents.push(e);
 }
 
 void serverListenForClients(SOCKET* tcpSocket) {
@@ -133,8 +117,7 @@ void serverListenForClients(SOCKET* tcpSocket) {
         newClient->entity.id = currentClientID;
         newClient->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
-        std::thread newClientThread(handleNewClient, clientSocket, newClient);
-        newClientThread.join();
+        newClientHandshake(clientSocket, newClient);
     }
 }
 
@@ -281,7 +264,6 @@ void updateTick(SOCKET* udpSendSocket) {
 
                     sendto(*udpSendSocket, "pong", 4, 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
                 }
-
                 break;
             default:
                 break;
@@ -350,8 +332,6 @@ void updateTick(SOCKET* udpSendSocket) {
             if (canShoot) {
                 // usually, it would be Current Server Time - Packet Latency - Client View Interpolation. In this case, RTT / 2 = 0 because everything is being run locally.
                 // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
-                // if using the method explained here: https://vercidium.com/blog/lag-compensation/, you can calculate sub-tick positions using a transform lerp
-                // subtract the sub-tick offset at the end.
                 uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER - (client->ping / SERVER_TIMESTEP_MS.count()); // client ping divided by 
                 rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind); 
                 if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer

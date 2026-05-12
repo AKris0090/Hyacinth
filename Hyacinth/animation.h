@@ -42,8 +42,6 @@ struct ThirdPersonAnimationController {
 	float currentUpperTime = 0.f;
 	float previousTime = 0.f;
 
-	bool off = false;
-
 	Animation* previousAnimation;
 	std::vector<Transform> previousAnimationTransforms;
 

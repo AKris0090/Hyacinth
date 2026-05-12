@@ -140,20 +140,6 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     std::cout << "connected to server!" << std::endl;
     freeaddrinfo(result);
 
-    // send the server handshake packet after tcp connection established
-    ClientRequestConnectionPacket myRequest;
-    myRequest.port = static_cast<uint32_t>(receiverPort);
-    std::string requestString = myRequest.toString();
-
-    uint64_t timeStampPing = getNowMs();
-    int sendResult = send(connectSocket, requestString.c_str(), requestString.length(), 0);
-    if (sendResult == SOCKET_ERROR) {
-        std::cout << "request failed to send?" << std::endl;
-        closesocket(connectSocket);
-        WSACleanup();
-        return 1;
-    }
-
     // get the server response to the join request. contains client id
     char recvbuf[DEFAULT_LEN];
     int recvbuflen = DEFAULT_LEN;
@@ -164,7 +150,6 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
         WSACleanup();
         return 1;
     }
-    uint64_t timeStampPong = getNowMs();
     recvbuf[iResult] = '\0';
 
     // get the entity list from the server
@@ -186,12 +171,6 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
         WSACleanup();
         return 1;
     }
-
-    uint64_t rtt = timeStampPong - timeStampPing;
-    uint64_t halfRtt = rtt / 2;
-    uint64_t ticksInFlight = halfRtt / (SERVER_TIMESTEP * 1000.f);
-
-    std::cout << "RTT / 2: " << halfRtt << std::endl;
 
     ClientRequestConnectionPacket serverResponse;
     serverResponse.fromString(std::string(recvbuf));

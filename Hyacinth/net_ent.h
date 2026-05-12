@@ -14,7 +14,7 @@ constexpr float DIFF_THRESHOLD = 0.01f;
 struct StateStorage {
 	uint32_t tickNum;
 	Transform state;
-	float fb, lr;
+	int8_t fb, lr;
 };
 
 class RewindBuffer {
@@ -22,9 +22,9 @@ public:
 	using PhysicsPosFn = std::function<void(glm::vec3 p)>;
 	using PhysicsStepFn = std::function<void(Transform& t, int8_t fb, int8_t lr)>;
 	std::deque<StateStorage> ringBuffer;
-	std::mutex rBMutex;
 	std::queue<ServerSnapshot> pendingPackets;
 	std::mutex pendingPacketsMutex;
+	std::shared_mutex rBMutex;
 
 	void setPhysicsPosition(PhysicsPosFn fn) {
 		physicsPosition = fn;
@@ -35,14 +35,13 @@ public:
 	}
 
 	void addState(Transform t, int8_t fb, int8_t lr, uint32_t tickNum) {
-		rBMutex.lock();
+		std::unique_lock<std::shared_mutex> lock(rBMutex);
 		StateStorage sS;
 		sS.tickNum = tickNum;
 		sS.state = t;
 		sS.fb = fb;
 		sS.lr = lr;
 		ringBuffer.push_back(sS);
-		rBMutex.unlock();
 	}
 
 	std::pair<Transform, Transform> rewindState(Transform newTransform, uint32_t tickNum);
@@ -61,7 +60,7 @@ public:
 	Entity* self;
 	SimulateStruct inputAccumulator;
 	std::mutex inputAccumulatorMutex;
-	PacketBuffer selfSimBuffer;
+	InterpolationPacketBuffer selfSimBuffer;
 	std::mutex selfMutex;
 	std::vector<uint32_t> ids;
 	std::unordered_map<uint32_t, Entity*> entities;
@@ -79,7 +78,7 @@ public:
 
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
-	PacketBuffer packetBuffer;
+	InterpolationPacketBuffer packetBuffer;
 	RewindBuffer rB;
 	int tickOffset;
 

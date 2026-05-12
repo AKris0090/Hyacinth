@@ -111,7 +111,7 @@ void NetworkEntityManager::shutdown() {
 }
 
 std::pair<Transform, Transform> RewindBuffer::rewindState(Transform newTransform, uint32_t tickNum) {
-	rBMutex.lock();
+	std::shared_lock<std::shared_mutex> lock(rBMutex);
 	physicsPosition(newTransform.position);
 
 	Transform prev;
@@ -119,22 +119,21 @@ std::pair<Transform, Transform> RewindBuffer::rewindState(Transform newTransform
 	bool skip = true;
 	std::cout << "rewinded ticks: ";
 	for (int i = 0; i < ringBuffer.size(); i++) {
-		StateStorage& sS = ringBuffer[i];
-		if (sS.tickNum == tickNum) { skip = false; sS.state = newTransform; continue; }
+		StateStorage& currentState = ringBuffer[i];
+		if (currentState.tickNum == tickNum) { skip = false; currentState.state = newTransform; continue; }
 		if (skip) continue;
-		std::cout << sS.tickNum << " ";
-		newTransform.pitch = sS.state.pitch;
-		newTransform.yaw = sS.state.yaw;
+		std::cout << currentState.tickNum << " ";
+		newTransform.pitch = currentState.state.pitch;
+		newTransform.yaw = currentState.state.yaw;
 		newTransform.setRotationPitchYaw();
-		physicsStep(newTransform, sS.fb, sS.lr);
-		sS.state = newTransform;
+		physicsStep(newTransform, currentState.fb, currentState.lr);
+		currentState.state = newTransform;
 		if (i == ringBuffer.size() - 2) {
 			prev = newTransform;
 		}
 	}
 	std::cout << std::endl;
 
-	rBMutex.unlock();
 	return std::pair<Transform, Transform>(prev, newTransform);
 }
 
@@ -146,37 +145,25 @@ bool RewindBuffer::checkPacketNeedsRewind(Entity* self, std::pair<Transform, Tra
 
 	if (ringBuffer.empty()) return false;
 
-	int ind = -1;
-	int index = 0;
-	for (auto& pack : ringBuffer) {
-		if (pack.tickNum == processedTickNum) {
-			ind = index;
+	int stateIndex = 0;
+	for (int i = 0; i < ringBuffer.size(); i++) {
+		StateStorage& state = ringBuffer[i];
+		if (state.tickNum == processedTickNum) {
+			stateIndex = i;
 			break;
 		}
-		index++;
 	}
 
-	float diffPitch = serverTransform.pitch - ringBuffer[ind].state.pitch;
-	float diffYaw = serverTransform.yaw - ringBuffer[ind].state.yaw;
-	// std::cout << "tick: " << processedTickNum << " | " << "serv: " << serverTransform.pitch << ", " << serverTransform.yaw << " | " << "client: " << ringBuffer[ind].state.pitch << ", " << ringBuffer[ind].state.yaw << " | " << "diff: " << diffPitch << ", " << diffYaw << std::endl;
-
-	if (glm::length(ringBuffer[ind].state.position - serverTransform.position) > DIFF_THRESHOLD) {
-		// std::cout << "rewinded!" << std::endl;
-		// 
-		std::cout << "tick: " << processedTickNum << " | ";
-		for (auto& pack : ringBuffer) {
-			std::cout << "|" << pack.tickNum << ":" << (glm::length(pack.state.position - serverTransform.position) <= DIFF_THRESHOLD);
-		}
-		std::cout << "|" << std::endl;
-		std::cout << "diff: " << glm::length(ringBuffer[ind].state.position - serverTransform.position) << std::endl;
+	if (glm::length(ringBuffer[stateIndex].state.position - serverTransform.position) > DIFF_THRESHOLD) {
+		// std::cout << "tick: " << processedTickNum << " | ";
+		// for (auto& pack : ringBuffer) {
+		// 	std::cout << "|" << pack.tickNum << ":" << (glm::length(pack.state.position - serverTransform.position) <= DIFF_THRESHOLD);
+		// }
+		// std::cout << "|" << std::endl;
+		// std::cout << "diff: " << glm::length(ringBuffer[ind].state.position - serverTransform.position) << std::endl;
 		outTransform = rewindState(serverTransform, processedTickNum);
 		return true;
 	}
-	else {
-		// std::cout << "length: " << glm::length(ringBuffer[ind].state.position - t.position) << std::endl;
-	}
-
-	// std::cout << "passed!" << std::endl;
 
 	return false;
 }

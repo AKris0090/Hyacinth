@@ -4,7 +4,7 @@
 #include "transform.h"
 
 constexpr float CAM_LOOK_SPEED = 35.f;
-constexpr float MOVE_SPEED = 0.0285f;
+constexpr float MOVE_SPEED = 2.85f;// 0.0285f;
 constexpr int MAX_AMMO = 10;
 
 enum FIRSTPERSON_STATE {

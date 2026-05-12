@@ -39,7 +39,7 @@ const bool enableValLayers = false;
 const bool enableValLayers = true;
 #endif
 
-#define DEBUG_NETWORK
+// #define DEBUG_NETWORK
 
 constexpr uint8_t CURRENT_BIT = 0x01;
 constexpr uint8_t ANY_BIT = 0x02;

@@ -271,24 +271,16 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 	physx::PxRaycastBuffer rayHit;
 
 	for (const auto& e : snapshotToTrace->entityPositions) {
-		if (e.id == shooterId) continue;
+		if (e.id == shooterId) continue; // if the current entity is the shooter, skip
 
 		physx::PxTransform pose(physxVec(e.pos + glm::vec3(0, 1.f, 0)), physx::PxQuat(physx::PxHalfPi, physx::PxVec3(0, 0, 1)));
 		physx::PxRaycastHit hit;
 
-		bool didHit = physx::PxGeometryQuery::raycast(
-			origin, dir,
-			capGeom, pose,
-			maxDist, physx::PxHitFlag::eDEFAULT,
-			1, &hit
-		);
+		bool didHit = physx::PxGeometryQuery::raycast(origin, dir, capGeom, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
 
 		if (didHit) {
 			h.hit = true;
 			h.entityHitId = e.id;
-
-			h.footPosHit = e.pos;
-
 			break;
 		}
 	}
