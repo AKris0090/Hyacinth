@@ -30,4 +30,7 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./composite.frag -o composite.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./uiTex.vert -o uiQuadVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./uiTex.frag -o uiQuadFrag.spv
 
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./netEntDebug.vert -o netDebugVert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./netEntDebug.frag -o netDebugFrag.spv
+
 pause

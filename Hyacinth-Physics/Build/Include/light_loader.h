@@ -9,7 +9,9 @@
 #include <algorithm>
 #include <execution>
 #include <mutex>
+#include "transform.h"
 #include "tiny_gltf.h"
+#include "glm/gtx/matrix_decompose.hpp"
 
 static std::string getFileExtension(const std::string& FileName) {
     if (FileName.find_last_of(".") != std::string::npos)
@@ -25,21 +27,30 @@ struct LightPrimitive {
 };
 
 struct LightNode {
-    std::vector<std::unique_ptr<LightPrimitive>> primitives;
-    glm::mat4 worldTransform = glm::mat4(1.0f);
-    std::vector<uint32_t> childrenIndices;
-    int32_t parentIndex = -1;
+    std::vector<LightPrimitive*> primitives;
+    Transform localTransform;
+    std::vector<LightNode*> children;
+    LightNode* parentNode;
 };
 
+static glm::mat4 getWorldMatrix(LightNode* node) {
+    glm::mat4 returnMatrix = node->localTransform.getMatrix();
+    LightNode* parent = node->parentNode;
+    while (parent) {
+        returnMatrix = parent->localTransform.getMatrix() * returnMatrix;
+        parent = parent->parentNode;
+    }
+
+    return returnMatrix;
+}
+
 struct LightObject {
-    std::mutex objectMutex;
-    bool dynamic = false;
-    std::vector<std::unique_ptr<LightNode>> nodes;
+    std::vector<LightNode*> parentNodes;
     uint32_t nodeCounter;
 };
 
 class LightLoader {
 public:
-    void loadNode(LightObject* obj, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent);
+    void loadNode(LightObject* obj, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightNode* parent);
     LightObject* loadFromFile(const std::string& filePath, bool dynamic);
 };

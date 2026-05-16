@@ -104,61 +104,69 @@ void PhysicsManager::removeCharacterController(uint32_t cId) {
 	clientControllers.erase(cId);
 }
 
+void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightNode* node) {
+	glm::mat4 trueModel = getWorldMatrix(node);
+	for (auto& prim : node->primitives) {
+		std::vector<physx::PxVec3> pxVertices;
+		std::vector<uint32_t> pxIndices;
+
+		for (int i = 0; i < prim->vertices.size(); i++) {
+			glm::vec3 vert = prim->vertices[i];
+			glm::vec4 p = trueModel * glm::vec4(vert.x, vert.y, vert.z, 1.0f);
+			pxVertices.push_back(physx::PxVec3(p.x, p.y, p.z));
+		}
+
+		for (int i = 0; i < prim->indices.size(); i++) {
+			pxIndices.push_back(prim->indices[i]);
+		}
+
+		physx::PxTriangleMeshDesc meshDescription;
+		meshDescription.points.count = pxVertices.size();
+		meshDescription.points.data = pxVertices.data();
+		meshDescription.points.stride = sizeof(physx::PxVec3);
+
+		meshDescription.triangles.count = pxIndices.size() / 3;
+		meshDescription.triangles.data = pxIndices.data();
+		meshDescription.triangles.stride = 3 * sizeof(physx::PxU32);
+
+		assert(meshDescription.isValid());
+
+		physx::PxTolerancesScale toleranceScale;
+		physx::PxCookingParams params(toleranceScale);
+
+		params.midphaseDesc = physx::PxMeshMidPhase::eBVH33;
+
+		bool skipMeshCleanup = false;
+		bool skipEdgeData = false;
+		bool cookingPerformance = false;
+		bool meshSizePerfTradeoff = true;
+
+		params.suppressTriangleMeshRemapTable = true;
+		params.meshPreprocessParams |= static_cast<physx::PxMeshPreprocessingFlags>(physx::PxMeshPreprocessingFlag::eDISABLE_CLEAN_MESH);
+		params.meshPreprocessParams &= ~static_cast<physx::PxMeshPreprocessingFlags>(physx::PxMeshPreprocessingFlag::eDISABLE_ACTIVE_EDGES_PRECOMPUTE);
+		params.midphaseDesc.mBVH33Desc.meshCookingHint = physx::PxMeshCookingHint::eSIM_PERFORMANCE;
+		params.midphaseDesc.mBVH33Desc.meshSizePerformanceTradeOff = 0.0f;
+
+		physx::PxTriangleMesh* triMesh = PxCreateTriangleMesh(params, meshDescription, pPhysics->getPhysicsInsertionCallback());
+
+		physx::PxMeshGeometryFlags flags(~physx::PxMeshGeometryFlag::eDOUBLE_SIDED);
+		physx::PxTriangleMeshGeometry geo(triMesh, physx::PxMeshScale(physx::PxVec3(1, 1, 1)), flags);
+
+		physx::PxShapeFlags shapeFlags(physx::PxShapeFlag::eVISUALIZATION | physx::PxShapeFlag::eSCENE_QUERY_SHAPE | physx::PxShapeFlag::eSIMULATION_SHAPE);
+		physx::PxShape* shape = pPhysics->createShape(geo, *pMaterial, shapeFlags);
+		shapes.push_back(shape);
+	}
+
+	for (auto& child : node->children) {
+		loadShape(shapes, child);
+	}
+}
+
 std::vector<physx::PxShape*> PhysicsManager::createPhysicsFromMesh(LightObject* object) {
 	std::vector<physx::PxShape*> shapes;
 
-	for (auto& node : object->nodes) {
-		glm::mat4 trueModel = node.get()->worldTransform;
-		for (auto& prim : node.get()->primitives) {
-			std::vector<physx::PxVec3> pxVertices;
-			std::vector<uint32_t> pxIndices;
-
-			for (int i = 0; i < prim.get()->vertices.size(); i++) {
-				glm::vec3 vert = prim.get()->vertices[i];
-				glm::vec4 p = glm::vec4(vert.x, vert.y, vert.z, 1.0f) * trueModel;
-				pxVertices.push_back(physx::PxVec3(p.x, p.y, p.z));
-			}
-
-			for (int i = 0; i < prim.get()->indices.size(); i++) {
-				pxIndices.push_back(prim.get()->indices[i]);
-			}
-
-			physx::PxTriangleMeshDesc meshDescription;
-			meshDescription.points.count = pxVertices.size();
-			meshDescription.points.data = pxVertices.data();
-			meshDescription.points.stride = sizeof(physx::PxVec3);
-
-			meshDescription.triangles.count = pxIndices.size() / 3;
-			meshDescription.triangles.data = pxIndices.data();
-			meshDescription.triangles.stride = 3 * sizeof(physx::PxU32);
-
-			assert(meshDescription.isValid());
-
-			physx::PxTolerancesScale toleranceScale;
-			physx::PxCookingParams params(toleranceScale);
-
-			params.midphaseDesc = physx::PxMeshMidPhase::eBVH33;
-
-			bool skipMeshCleanup = false;
-			bool skipEdgeData = false;
-			bool cookingPerformance = false;
-			bool meshSizePerfTradeoff = true;
-
-			params.suppressTriangleMeshRemapTable = true;
-			params.meshPreprocessParams |= static_cast<physx::PxMeshPreprocessingFlags>(physx::PxMeshPreprocessingFlag::eDISABLE_CLEAN_MESH);
-			params.meshPreprocessParams &= ~static_cast<physx::PxMeshPreprocessingFlags>(physx::PxMeshPreprocessingFlag::eDISABLE_ACTIVE_EDGES_PRECOMPUTE);
-			params.midphaseDesc.mBVH33Desc.meshCookingHint = physx::PxMeshCookingHint::eSIM_PERFORMANCE;
-			params.midphaseDesc.mBVH33Desc.meshSizePerformanceTradeOff = 0.0f;
-
-			physx::PxTriangleMesh* triMesh = PxCreateTriangleMesh(params, meshDescription, pPhysics->getPhysicsInsertionCallback());
-
-			physx::PxMeshGeometryFlags flags(~physx::PxMeshGeometryFlag::eDOUBLE_SIDED);
-			physx::PxTriangleMeshGeometry geo(triMesh, physx::PxMeshScale(physx::PxVec3(1, 1, 1)), flags);
-
-			physx::PxShapeFlags shapeFlags(physx::PxShapeFlag::eVISUALIZATION | physx::PxShapeFlag::eSCENE_QUERY_SHAPE | physx::PxShapeFlag::eSIMULATION_SHAPE);
-			physx::PxShape* shape = pPhysics->createShape(geo, *pMaterial, shapeFlags);
-			shapes.push_back(shape);
-		}
+	for (auto& node : object->parentNodes) {
+		loadShape(shapes, node);
 	}
 
 	return shapes;
@@ -229,7 +237,7 @@ void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transfo
 		}
 	}
 	else {
-		phys.yVel -= 9.81f * SERVER_TIMESTEP;
+		phys.yVel -= 9.81f * 3.65f * SERVER_TIMESTEP;
 	}
 
 	float yDisplacement = phys.yVel * SERVER_TIMESTEP;
@@ -271,21 +279,17 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 	physx::PxRaycastBuffer rayHit;
 
 	for (const auto& e : snapshotToTrace->entityPositions) {
-		if (e.id == shooterId) continue;
+		if (e.id == shooterId) continue; // if the current entity is the shooter, skip
 
 		physx::PxTransform pose(physxVec(e.pos + glm::vec3(0, 1.f, 0)), physx::PxQuat(physx::PxHalfPi, physx::PxVec3(0, 0, 1)));
 		physx::PxRaycastHit hit;
 
-		bool didHit = physx::PxGeometryQuery::raycast(
-			origin, dir,
-			capGeom, pose,
-			maxDist, physx::PxHitFlag::eDEFAULT,
-			1, &hit
-		);
+		bool didHit = physx::PxGeometryQuery::raycast(origin, dir, capGeom, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
 
 		if (didHit) {
 			h.hit = true;
 			h.entityHitId = e.id;
+			h.footPosHit = e.pos;
 			break;
 		}
 	}

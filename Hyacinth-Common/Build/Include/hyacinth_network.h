@@ -26,24 +26,21 @@ using namespace std::chrono_literals;
 
 constexpr int DEFAULT_LEN = 512;
 constexpr int MAX_CONNECTIONS = 12;
+
+// 2 fixed frames of input buffer for network jitter - tested 1, 128hz likes 2 better
 constexpr int SERVER_INPUT_BUFFER = 2;
 
 constexpr int SERVER_FRAME_LAG = 100;
+
+// constexpr float SERVER_TIMESTEP = 0.1f;
+// constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 100ms;
 
 constexpr float SERVER_TIMESTEP = 0.0078125f;
 constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 7.8125ms;
 
 // max rewind is 140 ms (from official valorant servers)
-constexpr int MAX_REWIND = (720 + static_cast<int>(SERVER_TIMESTEP * 1000.f) - 1) / static_cast<int>(SERVER_TIMESTEP * 1000.f);
-
-//constexpr float SERVER_TIMESTEP = 0.01f;
-//constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 10.0ms;
-
-//constexpr float SERVER_TIMESTEP = 0.015625f;
-//constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 15.625ms;
-
-//constexpr float SERVER_TIMESTEP = 0.1f;
-//constexpr std::chrono::duration<double, std::milli> SERVER_TIMESTEP_MS = 100.0ms;
+// if server frame lag is 100, (for demo purposes), 100 * 7.8125, ceil is 782ms max rewind
+constexpr int MAX_REWIND = (782 + static_cast<int>(SERVER_TIMESTEP * 1000.f) - 1) / static_cast<int>(SERVER_TIMESTEP * 1000.f);
 
 static auto now() {
 	return std::chrono::steady_clock::now();
@@ -66,12 +63,15 @@ struct ClientRequestConnectionPacket {
 struct ClientUpdatePacket {
 	uint32_t id;
 	uint32_t tick = 0;
+	uint32_t ack = 0; 
 	float pitch = 0.f;
 	float yaw = 0.f;
 	int8_t movementFB = 0;
 	int8_t movementLR = 0;
 	bool jump = false;
 	bool lmb = false;
+
+	uint64_t serverTimestamp;
 
 	std::string toString();
 	static ClientUpdatePacket fromString(std::string s);
@@ -84,6 +84,8 @@ const auto clientPacketCmp = [](const ClientUpdatePacket& a, const ClientUpdateP
 struct SimulateStruct {
 	uint32_t id;
 	uint32_t tick = 0;
+	uint32_t ackedTick;
+	uint64_t receivedTimestamp;
 	float pitch = 0.f;
 	float yaw = 0.f;
 	int8_t movementFB = 0;
@@ -105,40 +107,73 @@ struct ServersideClient {
 	SimulateStruct bufferedPacket;
 	uint32_t id;
 	sockaddr_in clientAddr;
+	ClientUpdatePacket previousInput;
 	std::priority_queue<ClientUpdatePacket, std::vector<ClientUpdatePacket>, decltype(clientPacketCmp)> clientPacketBuffer;
 	long long heartBeat;
-	uint64_t ping;
+	uint64_t ping = 0;
 	int clientAddrLen;
 	uint32_t tickBasis = 0;
 	uint32_t tickBasisOffset = SERVER_INPUT_BUFFER;
 	bool tickOffsetSet = false;
-	bool addressSet = false;
 
-	void getPacketFor(uint32_t tickNum) {
-		ClientUpdatePacket prev{};
-		tickNum -= tickBasis;
-		if (clientPacketBuffer.empty()) return;
-		while (!clientPacketBuffer.empty() && (clientPacketBuffer.top().tick < tickNum)) {
-			prev = clientPacketBuffer.top();
-			clientPacketBuffer.pop();
-		}
-		if (!clientPacketBuffer.empty() && clientPacketBuffer.top().tick == tickNum) {
-			bufferedPacket.addPacket(clientPacketBuffer.top());
-			clientPacketBuffer.pop();
-		}
-		else {
-			bufferedPacket.addPacket(prev);
-		}
-	}
+	// queue of <sendTick, timestamp>
+	std::queue<std::pair<uint32_t, uint64_t>> sendTimestamps;
+	bool foundTimestamp(uint32_t serverTickNum);
+
+	// returns true if the correct packet for this current tick is found, false otherwise
+	bool getPacketFor(uint32_t tickNum);
 };
 
 struct ServerSnapshot {
 	std::vector<Entity> entities;
 	uint32_t processedTickNum = 0;
+	uint32_t serverTickNum = 0;
 	uint64_t time = 0;
 
 	std::string toString();
 	static ServerSnapshot fromString(std::string s);
+};
+
+class InterpolationPacketBuffer {
+public:
+	float timeAggregate;
+	std::pair<ServerSnapshot, ServerSnapshot> packetBuffer;
+	std::shared_mutex packetBufferMutex;
+
+	void newPacket(ServerSnapshot snap) {
+		std::unique_lock<std::shared_mutex> l(packetBufferMutex);
+		packetBuffer.first = packetBuffer.second;
+		packetBuffer.second = snap;
+		timeAggregate = 0.f;
+	}
+
+	ServerSnapshot getInterpolatedSimPacket(float timeDelta) {
+		timeAggregate += timeDelta;
+		if (timeAggregate > SERVER_TIMESTEP) {
+			timeAggregate = SERVER_TIMESTEP;
+		}
+		float alpha = timeAggregate / SERVER_TIMESTEP;
+
+		std::shared_lock<std::shared_mutex> l(packetBufferMutex);
+		ServerSnapshot p;
+		for (auto& fromEntity : packetBuffer.first.entities) {
+			Entity* secondEnt = nullptr;
+			for (auto& toEntity : packetBuffer.second.entities) {
+				if (toEntity.id == fromEntity.id) {
+					secondEnt = &toEntity;
+				}
+			}
+			if (!secondEnt) continue;
+			Entity newEntity;
+			newEntity.camSpeed = fromEntity.camSpeed;
+			newEntity.moveSpeed = fromEntity.moveSpeed;
+			newEntity.id = fromEntity.id;
+			newEntity.transform = secondEnt->transform;// fromEntity.transform.lerpTo(secondEnt->transform, alpha);
+			newEntity.isMoving = fromEntity.isMoving || secondEnt->isMoving;
+			p.entities.push_back(newEntity);
+		}
+		return p;
+	}
 };
 
 struct EntityManager {
@@ -150,7 +185,6 @@ struct EntityManager {
 enum SERVER_EVENT {
 	CLIENT_JOIN,
 	CLIENT_DISCONNECT,
-	CLIENT_UPDATE_ADDR
 };
 
 struct Event {
@@ -162,7 +196,7 @@ struct Event {
 };
 
 template<typename T>
-class SPSCQueue {
+class ThreadSafeQueue {
 private:
 	std::mutex lock;
 	std::queue<T> queue;

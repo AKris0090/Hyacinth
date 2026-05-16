@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gltfcommon.h"
+#include "entity.h"
 
 constexpr float HORIZONTAL_GUN_SWAY = 0.13f;
 constexpr float VERTICAL_GUN_SWAY = 0.25f;
@@ -63,13 +64,6 @@ struct ThirdPersonAnimationController {
 	};
 };
 
-enum FIRSTPERSON_STATE {
-	IDLE_PISTOL,
-	SHOOTING,
-	RELOADING,
-	DEFAULT
-};
-
 struct FirstPersonAnimationController {
 	Animation* idleAnimation;
 	Animation* shootAnimation;
@@ -82,45 +76,6 @@ struct FirstPersonAnimationController {
 	float currentTime = 0.f;
 
 	Animation* currentAnim;
-
-	FIRSTPERSON_STATE state;
-
-	struct WeaponController {
-		float timeBetweenShots = 0.25f;
-		float currentShotTimer = 0.f;
-
-		const int MAX_AMMO = 10;
-		int current_ammo = 10;
-
-		float reloadLength = 1.25f;
-		float reloadTimer = 0.f;
-
-		bool reloading = false;
-
-		FIRSTPERSON_STATE updateShooting(float deltaTime, bool shooting) {
-			if (!reloading) {
-				currentShotTimer += deltaTime;
-
-				if (currentShotTimer >= timeBetweenShots) {
-					if (shooting) {
-						if (current_ammo == 0 && !reloading) {
-							reloading = true;
-							return RELOADING;
-						}
-						currentShotTimer = fmodf(currentShotTimer, timeBetweenShots);
-						current_ammo--;
-						return SHOOTING;
-					}
-					else {
-						currentShotTimer = timeBetweenShots;
-					}
-				}
-			}
-
-			return DEFAULT;
-		}
-	};
-	WeaponController pistolController;
 
 	FirstPersonAnimationController() {
 		currentAnim = idleAnimation = shootAnimation = spinningAnimation = nullptr;
@@ -163,12 +118,13 @@ private:
 
 	glm::quat currentSwayYaw = { 1.f, 0.f, 0.f, 0.f };
 	glm::quat currentSwayPitch = { 1.f, 0.f, 0.f, 0.f };
+	FIRSTPERSON_STATE previousState;
 	bool currentlyShooting = false;
 	void flushQueuedNodeTransforms(FirstPersonAnimationController& c);
 	void updateAnimation(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw);
 
 public:
-	void updateAnimationState(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw, bool shooting, bool& shootingOut);
+	void updateAnimationState(FirstPersonAnimationController& c, FIRSTPERSON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut);
 };
 
 struct PistolAnimationController {

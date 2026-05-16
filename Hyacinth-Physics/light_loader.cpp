@@ -4,39 +4,33 @@
 
 #include "light_loader.h"
 
-void LightLoader::loadNode(LightObject* obj, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, int32_t parent) {
-    auto node = std::make_unique<LightNode>();
-    node->parentIndex = parent;
+void LightLoader::loadNode(LightObject* obj, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightNode* parent) {
+    LightNode* node = new LightNode();
+    node->parentNode = parent;
 
     if (nodeIn.matrix.size() == 16) {
-        node->worldTransform = glm::make_mat4x4(nodeIn.matrix.data());
+        glm::mat4 m = glm::make_mat4x4(nodeIn.matrix.data());
+
+        glm::vec3 skew;
+        glm::vec4 perspective;
+
+        glm::decompose(m, node->localTransform.scale, node->localTransform.rotation, node->localTransform.position, skew, perspective);
     }
     else {
         if (nodeIn.translation.size() == 3) {
-            node->worldTransform = glm::translate(node->worldTransform, glm::vec3(glm::make_vec3(nodeIn.translation.data())));
+            node->localTransform.position = glm::make_vec3(nodeIn.translation.data());
         }
         if (nodeIn.rotation.size() == 4) {
-            glm::quat q = glm::make_quat(nodeIn.rotation.data());
-            node->worldTransform *= glm::mat4(q);
+            node->localTransform.rotation = glm::make_quat(nodeIn.rotation.data());
         }
         if (nodeIn.scale.size() == 3) {
-            node->worldTransform = glm::scale(node->worldTransform, glm::vec3(glm::make_vec3(nodeIn.scale.data())));
+            node->localTransform.scale = glm::make_vec3(nodeIn.scale.data());
         }
-    }
-
-    uint32_t nodeIndex = obj->nodeCounter++;
-    std::lock_guard<std::mutex> guard(obj->objectMutex);
-    obj->nodes.push_back(std::move(node));
-
-    LightNode* nodePtr = obj->nodes[nodeIndex].get();
-    if (parent >= 0) {
-        obj->nodes[parent]->childrenIndices.push_back(nodeIndex);
-        nodePtr->worldTransform = obj->nodes[parent]->worldTransform * nodePtr->worldTransform;
     }
 
     if (nodeIn.children.size() > 0) {
         for (size_t i = 0; i < nodeIn.children.size(); i++) {
-            loadNode(obj, dynamic, model, model->nodes[nodeIn.children[i]], nodeIndex);
+            loadNode(obj, dynamic, model, model->nodes[nodeIn.children[i]], node);
         }
     }
 
@@ -44,9 +38,8 @@ void LightLoader::loadNode(LightObject* obj, bool dynamic, const tinygltf::Model
         const tinygltf::Mesh mesh = model->meshes[nodeIn.mesh];
         for (size_t i = 0; i < mesh.primitives.size(); i++) {
             const tinygltf::Primitive& gltfPrim = mesh.primitives[i];
-            auto prim = std::make_unique<LightPrimitive>();
-            nodePtr->primitives.push_back(std::move(prim));
-            LightPrimitive* p = obj->nodes[nodeIndex]->primitives.back().get();
+            LightPrimitive* p = new LightPrimitive();
+            node->primitives.push_back(p);
             p->materialIndex = gltfPrim.material;
 
             uint32_t currentNumIndices = 0;
@@ -99,13 +92,19 @@ void LightLoader::loadNode(LightObject* obj, bool dynamic, const tinygltf::Model
             }
         }
     }
+
+    if (parent == nullptr) {
+        obj->parentNodes.push_back(node);
+    }
+    else {
+        parent->children.push_back(node);
+    }
 }
 
 LightObject* LightLoader::loadFromFile(const std::string& filename, bool dynamic) {
     std::cout << "[LIGHTLOADER] loading physics object from: " << filename << std::endl;
 
     LightObject* object = new LightObject();
-    object->dynamic = dynamic;
     tinygltf::Model* model;
     model = new tinygltf::Model();
     tinygltf::TinyGLTF gltfContext;
@@ -130,10 +129,10 @@ LightObject* LightLoader::loadFromFile(const std::string& filename, bool dynamic
 
     const tinygltf::Scene& scene = model->scenes[model->defaultScene];
     
-    std::for_each(std::execution::par, std::begin(scene.nodes), std::end(scene.nodes), [&](int nodeIndex) {
+    for(const auto& nodeIndex : scene.nodes) {
         const tinygltf::Node& node = model->nodes[nodeIndex];
-        loadNode(object, dynamic, model, node, -1);
-    });
+        loadNode(object, dynamic, model, node, nullptr);
+    }
 
     delete model;
     return object;

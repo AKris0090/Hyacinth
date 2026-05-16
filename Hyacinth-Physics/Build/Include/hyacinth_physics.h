@@ -30,7 +30,7 @@
 
 using namespace physx;
 
-constexpr float JUMP_VELOCITY = 3.75f;
+constexpr float JUMP_VELOCITY = 10.5f;
 
 struct controllerUserData {
 	uint32_t id;
@@ -39,6 +39,7 @@ struct controllerUserData {
 struct hitReg {
 	bool hit;
 	uint32_t entityHitId;
+	glm::vec3 footPosHit;
 };
 
 static physx::PxVec3 physxVec(glm::vec3 v) {
@@ -49,7 +50,11 @@ static physx::PxExtendedVec3 physxEVec(glm::vec3 v) {
 	return physx::PxExtendedVec3(v.x, v.y, v.z);
 }
 
-static glm::vec3 glmPhysxVec(physx::PxExtendedVec3 v) {
+static glm::vec3 glmPhysxEVec(physx::PxExtendedVec3 v) {
+	return glm::vec3(v.x, v.y, v.z);
+}
+
+static glm::vec3 glmPhysxVec(physx::PxVec3 v) {
 	return glm::vec3(v.x, v.y, v.z);
 }
 
@@ -73,13 +78,15 @@ private:
 	physx::PxControllerManager* pCManager = NULL;
 	physx::PxCapsuleControllerDesc controllerDesc;
 
+	void loadShape(std::vector<physx::PxShape*>& shapes, LightNode* node);
+
 public:
 	physx::PxScene* pScene = NULL;
 	physx::PxCapsuleGeometry capGeom;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
-	SPSCQueue<Event> physicsEventQueue;
+	ThreadSafeQueue<Event> physicsEventQueue;
 
 	void initPhysics(bool debug);
 	void addCharacterController(uint32_t cId);

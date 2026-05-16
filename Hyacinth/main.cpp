@@ -45,6 +45,19 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 
 		// update physics
 		engine->p_netEntManager->selfMutex.lock();
+
+		bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb);
+
+#ifdef DEBUG_NETWORK
+		if (shotFired) {
+			for (const auto& e : engine->p_netEntManager->entities) {
+				if (e.first == 1) {
+					engine->m_netDebugRenderer.clientEntityPosition = glm::vec4(e.second->transform.position, 1.f);
+				}
+			}
+		}
+#endif
+
 		if (engine->mouseLocked) {
 			physicsManager->updatePlayerMovement(0, netClient->netEntManager.self->moveSpeed, netClient->netEntManager.self->transform, netClient->netEntManager.inputAccumulator);
 		}
@@ -91,7 +104,7 @@ int main() {
 	PhysicsManager physicsManager;
 	physicsManager.initPhysics(false);
 	LightLoader loader;
-	auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
+	auto path = getExeDir() / "objects" / "sponza_physics.glb";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 	physicsManager.addCharacterController(0);
 
@@ -163,8 +176,6 @@ int main() {
 			b.active = true;
 		}
 
-		hyacinthEngine.draw();
-
 		// sample/accumulate input 
 		std::array<int8_t, 3> m = InputManager::getMovement();
 		std::pair<float, float> mo = InputManager::getMouseMotion();
@@ -213,7 +224,14 @@ int main() {
 		// use packet to determine object transforms
 		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id, Time::getDeltaTime());
 		physicsManager.setNetworkEntityCapColliderPosition(&interp, netClient.netEntManager.self->id);
+
+#ifdef DEBUG_NETWORK
+		hyacinthEngine.m_netDebugRenderer.serverEntityPosition = glm::vec4(netClient.netEntManager.shotAckPosition, 1.f);
 #endif
+
+#endif
+
+		hyacinthEngine.draw();
 
 		Time::updateTime();
 		InputManager::resetMouseMotion();

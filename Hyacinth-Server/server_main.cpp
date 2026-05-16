@@ -2,8 +2,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-#define DEFAULT_PORT "6767"
-#define PACKET_PORT "6969"
+#define PACKET_PORT "6767"
 
 #include <windows.h>
 #include <winsock2.h>
@@ -28,11 +27,13 @@
 #pragma comment(lib, "Hyacinth-Common.lib")
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
-constexpr long long CLIENT_TIMEOUT = 15000;
+#define LAG_SIMULATION
+
+constexpr long long CLIENT_TIMEOUT = 3000;
 
 EntityManager entityManager;
 PhysicsManager physicsManager;
-SPSCQueue<Event> serverEvents;
+ThreadSafeQueue<Event> serverEvents;
 LagSimulator lagSim;
 std::mutex bufferedClientPacketMutex;
 std::queue<ClientUpdatePacket> bufferedClientPackets;
@@ -43,97 +44,16 @@ std::atomic<std::shared_ptr<ServerSnapshot>> currentSnapshot;
 
 using namespace std::chrono;
 
+bool isSameAddress(const sockaddr_in& a, const sockaddr_in& b) {
+    return a.sin_addr.s_addr == b.sin_addr.s_addr &&
+        a.sin_port == b.sin_port;
+}
+
 std::filesystem::path getExeDir()
 {
     wchar_t buffer[MAX_PATH];
     GetModuleFileNameW(nullptr, buffer, MAX_PATH);
     return std::filesystem::path(buffer).parent_path();
-}
-
-void handleNewClient(SOCKET socket, ServersideClient* newClient) {
-    SetThreadDescription(GetCurrentThread(), L"ClientHandler");
-
-    int initialReq, serverAck, entityMessage;
-
-    char recvbuf[DEFAULT_LEN];
-    int recvbuflen = DEFAULT_LEN;
-    initialReq = recv(socket, recvbuf, recvbuflen, 0);
-
-    if (initialReq > 0) {
-        recvbuf[initialReq] = '\0';
-        ClientRequestConnectionPacket p;
-        p.fromString(std::string(recvbuf));
-
-        ClientRequestConnectionPacket response;
-        response.port = newClient->id;
-        response.tick = currentTick;
-
-        std::string msg = response.toString();
-        serverAck = send(socket, msg.c_str(), msg.length(), 0);
-        if (serverAck == SOCKET_ERROR) {
-            std::cout << "acknowledge failed to send?" << std::endl;
-            closesocket(socket);
-            return;
-        }
-
-        std::string spString = currentSnapshot.load(std::memory_order_acquire)->toString();
-        entityMessage = send(socket, spString.c_str(), spString.length(), 0);
-        if (entityMessage == SOCKET_ERROR) {
-            std::cout << "[NETWORK] entityList failed to send?" << std::endl;
-            closesocket(socket);
-            entityManager.clients.erase(newClient->id);
-            return;
-        }
-
-        shutdown(socket, SD_BOTH);
-
-        Event e;
-        e.eventType = SERVER_EVENT::CLIENT_JOIN;
-        e.newClient = newClient;
-        e.clientID = newClient->id;
-        serverEvents.push(e);
-    }
-    else {
-        std::cout << "[NETWORK] client initiation receive failure: " << initialReq << " " << WSAGetLastError() << std::endl;
-        closesocket(socket);
-    }
-}
-
-void serverListenForClients(SOCKET* tcpSocket) {
-    SetThreadDescription(GetCurrentThread(), L"NewClientListener");
-    while (true) {
-        if (listen(*tcpSocket, SOMAXCONN) == SOCKET_ERROR) {
-            std::cout << "[NETWORK] Listen failed with error: " << WSAGetLastError() << std::endl;
-            closesocket(*tcpSocket);
-            WSACleanup();
-            return;
-        }
-
-        sockaddr_in clientAddr;
-        int clientAddrSize = sizeof(clientAddr);
-
-        SOCKET clientSocket = INVALID_SOCKET;
-        clientSocket = accept(*tcpSocket, (sockaddr*)&clientAddr, &clientAddrSize);
-        if (clientSocket == INVALID_SOCKET) {
-            std::cout << "[NETWORK] accept failed: " << WSAGetLastError() << std::endl;
-            continue;
-        }
-
-        std::shared_lock lok(entityManager.clientsMutex);
-        if (entityManager.clients.size() > MAX_CONNECTIONS) {
-            std::cout << "[NETWORK] Cannot accept new client, max number of connections exceeded!" << std::endl;
-            continue;
-        }
-
-        currentClientID++;
-        ServersideClient* newClient = new ServersideClient();
-        newClient->id = currentClientID;
-        newClient->entity.id = currentClientID;
-        newClient->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-
-        std::thread newClientThread(handleNewClient, clientSocket, newClient);
-        newClientThread.join();
-    }
 }
 
 void timeoutWatchdog() {
@@ -165,10 +85,9 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
 
     char recvBuff[DEFAULT_LEN];
     sockaddr_in clientAddr;
+    int clientAddrSize = sizeof(clientAddr);
 
     while (true) {
-        int clientAddrSize = sizeof(clientAddr);
-
         int bytesReceived = recvfrom(*udpSocket, recvBuff, sizeof(recvBuff) - 1, 0, (sockaddr*)&clientAddr, &clientAddrSize);
 
         if (bytesReceived == SOCKET_ERROR) { // usually client disconnect
@@ -179,24 +98,35 @@ void serverListenForUDPPackets(SOCKET* udpSocket) {
         size_t found = std::string(recvBuff).find("tryping");
         if (found != std::string::npos) {
             Event e;
-            e.eventType = SERVER_EVENT::CLIENT_UPDATE_ADDR;
-            e.clientID = std::stoi(std::string(recvBuff).substr(found + 7));
+            e.eventType = SERVER_EVENT::CLIENT_JOIN;
             e.clientAddr = clientAddr;
             e.clientAddrSize = clientAddrSize;
             serverEvents.push(e);
             continue;
         }
+        size_t snapRequest = std::string(recvBuff).find("getsnapshot");
+        if (snapRequest != std::string::npos) {
+            continue;
+        }
 
         ClientUpdatePacket p = ClientUpdatePacket::fromString(std::string(recvBuff));
-        // std::unique_lock l(lagSim.buffLock);
-        // if (p.id == 1) {
-        //     lagSim.lagPacketBuffer[currentTick + 1].push(p);
-        // }
-        // else {
-        //     lagSim.lagPacketBuffer[currentTick + SERVER_FRAME_LAG].push(p);
-        // }
+        // when a packet is received, write its timestamp down to estimate ping
+        p.serverTimestamp = getNowMs();
+
+#ifdef LAG_SIMULATION
+        std::unique_lock l(lagSim.buffLock);
+        std::unique_lock lck(bufferedClientPacketMutex);
+        if (p.id == 1) {
+            bufferedClientPackets.push(p);
+        }
+        else {
+            lagSim.lagPacketBuffer[currentTick + SERVER_FRAME_LAG].push(p);
+        }
+#endif
+#ifndef LAG_SIMULATION
         std::unique_lock l(bufferedClientPacketMutex);
         bufferedClientPackets.push(p);
+#endif
     }
 
     closesocket(*udpSocket);
@@ -234,7 +164,7 @@ void printPhysicsTick() {
         std::cout << std::left
             << std::setw(6) << id
             << std::setw(20) << ipPort
-            << std::setw(12) << (std::to_string(client->heartBeat) + "ms")
+            << std::setw(12) << (std::to_string(client->ping) + "ms")
             << std::setw(22) << (std::to_string(client->tickBasis))
             << "\n";
     }
@@ -256,22 +186,46 @@ void updateTick(SOCKET* udpSendSocket) {
         while (serverEvents.pop(e)) {
             std::unique_lock lok(entityManager.clientsMutex);
             switch (e.eventType) {
-            case SERVER_EVENT::CLIENT_JOIN:
-                entityManager.clients[e.clientID] = e.newClient;
-                physicsManager.addCharacterController(e.newClient->id);
-                break;
-            case SERVER_EVENT::CLIENT_DISCONNECT:
-                entityManager.clients.erase(e.clientID);
-                break;
-            case SERVER_EVENT::CLIENT_UPDATE_ADDR:
-                if (entityManager.clients.find(e.clientID) != entityManager.clients.end()) {
-                    entityManager.clients[e.clientID]->clientAddr = e.clientAddr;
-                    entityManager.clients[e.clientID]->clientAddrLen = e.clientAddrSize;
-                    entityManager.clients[e.clientID]->addressSet = true;
-
-                    sendto(*udpSendSocket, "pong", 4, 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
+            case SERVER_EVENT::CLIENT_JOIN: {
+                int existingID = -1;
+                for (auto& [id, client] : entityManager.clients) {
+                    if (isSameAddress(client->clientAddr, e.clientAddr)) {
+                        existingID = id;
+                        break;
+                    }
                 }
 
+                ClientRequestConnectionPacket response;
+
+                if (existingID > -1) {
+                    response.port = existingID;
+                    std::string respStr = response.toString();
+                    sendto(*udpSendSocket, respStr.c_str(), respStr.length(), 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
+                    break;
+                }
+                currentClientID++;
+
+                e.clientID = currentClientID;
+
+                ServersideClient* newClient = new ServersideClient();
+                newClient->id = e.clientID;
+                newClient->entity.id = e.clientID;
+                newClient->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+
+                entityManager.clients[e.clientID] = newClient;
+                physicsManager.addCharacterController(newClient->id);
+
+                entityManager.clients[e.clientID]->clientAddr = e.clientAddr;
+                entityManager.clients[e.clientID]->clientAddrLen = e.clientAddrSize;
+
+                response.port = e.clientID;
+                std::string respStr = response.toString();
+                sendto(*udpSendSocket, respStr.c_str(), respStr.length(), 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
+
+                break;
+            }
+            case SERVER_EVENT::CLIENT_DISCONNECT:
+                entityManager.clients.erase(e.clientID);
                 break;
             default:
                 break;
@@ -279,17 +233,20 @@ void updateTick(SOCKET* udpSendSocket) {
         }
 
         {
-            // scroll through lag sim buffer, and push all packets into bufferedClientPackets
             std::unique_lock l(bufferedClientPacketMutex);
+#ifdef LAG_SIMULATION
+            // scroll through lag sim buffer, and push all packets into bufferedClientPackets
             std::unique_lock lock(lagSim.buffLock);
             if (lagSim.lagPacketBuffer.find(currentTick) != lagSim.lagPacketBuffer.end()) {
                 while (lagSim.lagPacketBuffer[currentTick].size() > 0) {
-                    bufferedClientPackets.push(lagSim.lagPacketBuffer[currentTick].front());
+                    ClientUpdatePacket p = lagSim.lagPacketBuffer[currentTick].front();
+                    p.serverTimestamp = getNowMs();
+                    bufferedClientPackets.push(p);
                     lagSim.lagPacketBuffer[currentTick].pop();
                 }
                 lagSim.lagPacketBuffer.erase(currentTick);
             }
-
+#endif
             // flush buffered packets
             while (!bufferedClientPackets.empty()) {
                 ClientUpdatePacket p = bufferedClientPackets.front();
@@ -308,7 +265,15 @@ void updateTick(SOCKET* udpSendSocket) {
         }
 
         for (const auto& [id, client] : entityManager.clients) {
-            client->getPacketFor(currentTick);
+            bool loaded = client->getPacketFor(currentTick); // loads the correct packet for this tick into the client's bufferedPacket field
+            if (loaded) {
+                if (client->foundTimestamp(client->bufferedPacket.ackedTick)) {
+                    client->ping = client->bufferedPacket.receivedTimestamp - client->sendTimestamps.front().second;
+                }
+                else {
+                    std::cout << "not found!" << "," << client->bufferedPacket.ackedTick << "," << client->sendTimestamps.front().first << std::endl;
+                }
+            }
         }
         physicsManager.updatePhysicsServer(&entityManager);
 
@@ -323,15 +288,13 @@ void updateTick(SOCKET* udpSendSocket) {
                 client->entity.isMoving = false;
             }
 
+            bool canShoot = client->entity.pistolController.updateShooting(SERVER_TIMESTEP, client->bufferedPacket.shooting);
+
             hitReg h;
-            bool shooting = false;
-            if (client->bufferedPacket.shooting) {
-                shooting = true;
+            if (canShoot) {
                 // usually, it would be Current Server Time - Packet Latency - Client View Interpolation. In this case, RTT / 2 = 0 because everything is being run locally.
                 // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
-                // if using the method explained here: https://vercidium.com/blog/lag-compensation/, you can calculate sub-tick positions using a transform lerp
-                // subtract the sub-tick offset at the end.
-                uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER; // TODO: - CLIENT_FRAME_LAG (ping, or RTT / 2)
+                uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER - (client->ping / SERVER_TIMESTEP_MS.count()); // client ping divided by 
                 rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind); 
                 if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer
                     std::cout << "couldn't find the right snapshot, too far in the past" << std::endl;
@@ -339,47 +302,62 @@ void updateTick(SOCKET* udpSendSocket) {
                 else {
                     h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
                     if (h.hit) {
-                        std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl << std::endl;
-                        client->entity.shotAck = true;
+                        // std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl << std::endl;
+                        // client->entity.shotAck = true;
                     }
                     else {
-                        std::cout << "airball" << std::endl << std::endl;
+                        // std::cout << "airball" << std::endl << std::endl;
                     }
                 }
             }
 
             client->bufferedPacket.reset();
             p->entities.push_back(client->entity);
+
+#ifdef LAG_SIMULATION
+            if (canShoot && h.hit) {
+                for (auto& ent : p->entities) {
+                    if (ent.id == client->id) {
+                        ent.shotAck = true;
+                    }
+                    if (ent.id == 1) {
+                        ent.transform.position = h.footPosHit;
+                    }
+                }
+            }
+#endif
             r.entityPositions.push_back(entityPositionSnapshot{ id, client->entity.transform.position });
         }
         rewindBuffer.push(r);
+        p->serverTickNum = currentTick;
         for (const auto& [id, client] : entityManager.clients) {
-            if (!client->addressSet) continue;
             p->processedTickNum = currentTick - client->tickBasis;
             if (client->tickBasis > currentTick) continue;
+            client->sendTimestamps.push({ currentTick, getNowMs() });
             std::string packetString = p->toString();
             sendto(*udpSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
         currentSnapshot.store(p, std::memory_order_release);
 
-        printPhysicsTick();
+        // printPhysicsTick();
 
         std::this_thread::sleep_until(nextTick);
         currentTick++;
     }
 }
 
-void startPhysics() {
-    LightLoader loader;
-    auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
-
-    physicsManager.initPhysics(true);
-    physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
-}
-
 int main()
 {
-    startPhysics(); 
+    SOCKET udpTwoWaySocket = INVALID_SOCKET;
+
+    // setup physics with base scene as a static mesh
+    {
+        LightLoader loader;
+        auto path = getExeDir() / "objects" / "sponza_physics.glb";
+
+        physicsManager.initPhysics(true);
+        physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
+    }
 
     WSADATA wsaData;
     int iResult;
@@ -392,36 +370,7 @@ int main()
 
     struct addrinfo* result = NULL, hints;
 
-    ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    hints.ai_flags = AI_PASSIVE;
-    iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
-    if (iResult != 0) {
-        std::cout << "[NETWORK] getaddrinfo failed: " << iResult << std::endl;
-        WSACleanup();
-        return 1;
-    }
-    SOCKET tcpListenSocket = INVALID_SOCKET;
-    tcpListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (tcpListenSocket == INVALID_SOCKET) {
-        std::cout << "[NETWORK] problem with tcp socket(): " << WSAGetLastError() << std::endl;
-        freeaddrinfo(result);
-        WSACleanup();
-        return 1;
-    }
-    iResult = bind(tcpListenSocket, result->ai_addr, (int)result->ai_addrlen);
-    if (iResult != 0) {
-        std::cout << "[NETWORK] tcp bind failed: " << iResult << std::endl;
-        freeaddrinfo(result);
-        closesocket(tcpListenSocket);
-        WSACleanup();
-        return 1;
-    }
-    freeaddrinfo(result);
-    std::thread tcpSocketThread(serverListenForClients, &tcpListenSocket);
-
+    // setup and bind udp listener (and sender) socket
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
@@ -433,19 +382,18 @@ int main()
         WSACleanup();
         return 1;
     }
-    SOCKET udpListenSocket = INVALID_SOCKET;
-    udpListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (udpListenSocket == INVALID_SOCKET) {
+    udpTwoWaySocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (udpTwoWaySocket == INVALID_SOCKET) {
         std::cout << "[NETWORK] problem with udp socket(): " << WSAGetLastError() << std::endl;
         freeaddrinfo(result);
         WSACleanup();
         return 1;
     }
-    iResult = bind(udpListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    iResult = bind(udpTwoWaySocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult != 0) {
         std::cout << "[NETWORK] udp bind failed: " << iResult << std::endl;
         freeaddrinfo(result);
-        closesocket(udpListenSocket);
+        closesocket(udpTwoWaySocket);
         WSACleanup();
         return 1;
     }
@@ -462,21 +410,20 @@ int main()
         char localIP[INET_ADDRSTRLEN];
         struct sockaddr_in* ipv4 = (struct sockaddr_in*)localResult->ai_addr;
         InetNtopA(AF_INET, &(ipv4->sin_addr), localIP, sizeof(localIP));
-        std::cout << "[NETWORK] Connect from other devices using: " << localIP << ":" << DEFAULT_PORT << std::endl << std::endl;
+        std::cout << "[NETWORK] Connect from other devices using: " << localIP << ":" << PACKET_PORT << std::endl << std::endl;
         freeaddrinfo(localResult);
     }
 
-    std::cout << "MAX FRAME PING: " << MAX_REWIND << "\n";
+    // udp listener thread
+    std::thread udpSocketThread(serverListenForUDPPackets, &udpTwoWaySocket);
 
-    // listen on the udp thread
-    std::thread udpSocketThread(serverListenForUDPPackets, &udpListenSocket);
+    // physics tick thread. Uses same socket as listener thread to avoid NAT rule setting issue
+    std::thread tickThread(updateTick, &udpTwoWaySocket);
 
-    std::thread tickThread(updateTick, &udpListenSocket);
-
+    // watchdog thread to manage client timouts and chase them off the lawn
     std::thread watchdogThread(timeoutWatchdog);
 
     tickThread.join();
-    tcpSocketThread.join();
     udpSocketThread.join();
     watchdogThread.join();
 

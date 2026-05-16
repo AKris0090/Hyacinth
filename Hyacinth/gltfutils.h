@@ -52,7 +52,7 @@ struct gltfObject {
     std::vector<Animation> animations;
     std::vector<Skin> skins;
     size_t skinSize;
-    gltfNode* gunBone;
+    gltfNode* attachmentPoint;
 
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;
@@ -69,7 +69,7 @@ struct gltfObject {
     void setFPControllerParameters(FirstPersonAnimationController& c, Skin& skin);
     void setWeaponControllerParams(PistolAnimationController& c, Skin& skin);
     static void updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
-    static void updateFirstPersonAnimation(gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut);
+    static void updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut);
     static void updatePistolAnimation(gltfObject* obj, PistolAnimationStateMachine& animMachine, PistolAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
     void setWeaponParentTo(gltfObject* parentObj);
 };
