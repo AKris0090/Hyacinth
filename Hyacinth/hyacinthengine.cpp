@@ -98,6 +98,7 @@ void HyacinthEngine::createInstance()
     }
 
 	VkPhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.fillModeNonSolid = VK_TRUE;
     deviceFeatures.multiDrawIndirect = VK_TRUE;
     deviceFeatures.shaderSampledImageArrayDynamicIndexing = true;
     deviceFeatures.samplerAnisotropy = true;

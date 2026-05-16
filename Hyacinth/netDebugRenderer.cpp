@@ -1,7 +1,7 @@
 #include "netDebugRenderer.h"
 
 void NetDebugRenderer::setup(SWChainImageFormat& swFormat, VkSampleCountFlagBits msaaSamples, VkDescriptorSetLayout& uniformSetLayout) {
-	auto spherePath = vkdebugutils::getExeDir() / "objects" / "sphere.glb";
+	auto spherePath = vkdebugutils::getExeDir() / "objects" / "capsule.glb";
 	sphereObject = gltfutils::loadFromFile(spherePath.string(), false);
 	gltfNode* node = sphereObject.allNodes[0];
 	for (const auto& p : node->primitives) {
@@ -47,11 +47,13 @@ void NetDebugRenderer::setup(SWChainImageFormat& swFormat, VkSampleCountFlagBits
 
 	pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineUtil.setDefaultAttributes();
-	pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
-	pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	pipelineUtil.setPolygonMode(VK_POLYGON_MODE_LINE);
+	pipelineUtil.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 	pipelineUtil.setColorAttachmentFormat(swFormat.format, 1);
 	pipelineUtil.setMultisampling(msaaSamples);
 	pipelineUtil.disableBlending();
+
+	pipelineUtil.m_rasterizer.lineWidth = 1.0;
 
 	VkViewport viewport{};
 	viewport.x = 0.0f;
@@ -104,13 +106,13 @@ void NetDebugRenderer::draw(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet) {
 	pCNetDebug p;
 
 	// draw client position in blue
-	p.pos = clientEntityPosition + glm::vec4(0.f, 1.85f, 0.f, 0.f);
+	p.pos = clientEntityPosition;
 	p.color = glm::vec4(0.f, 0.f, 1.f, 1.f);
 	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pCNetDebug), &p);
 	vkCmdDrawIndexed(cmd, indexCount, 1, 0, 0, 0);
 
 	// draw server position in red
-	p.pos = serverEntityPosition + glm::vec4(0.f, 1.85f, 0.f, 0.f);
+	p.pos = serverEntityPosition;
 	p.color = glm::vec4(1.f, 0.f, 0.f, 1.f);
 	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pCNetDebug), &p);
 	vkCmdDrawIndexed(cmd, indexCount, 1, 0, 0, 0);

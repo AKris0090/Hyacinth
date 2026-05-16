@@ -234,6 +234,8 @@
     <None Include="shaders\gbufferSkinned.vert" />
     <None Include="shaders\irradianceBuild.comp" />
     <None Include="shaders\miss.rmiss" />
+    <None Include="shaders\netEntDebug.frag" />
+    <None Include="shaders\netEntDebug.vert" />
     <None Include="shaders\probeCommon.glsl" />
     <None Include="shaders\probeMiss.rmiss" />
     <None Include="shaders\probeVis.frag" />

@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -104,7 +104,7 @@ int main() {
 	PhysicsManager physicsManager;
 	physicsManager.initPhysics(false);
 	LightLoader loader;
-	auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
+	auto path = getExeDir() / "objects" / "sponza_physics.glb";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 	physicsManager.addCharacterController(0);
 

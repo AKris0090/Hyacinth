@@ -25,8 +25,7 @@ void main()
 {
 	vec3 headPos = PushConstants.position.xyz;
 
-	vec3 scaledPos = inPosition.xyz * 0.05;
-	vec3 worldPos  = scaledPos + headPos;
+	vec3 worldPos  = inPosition.xyz + headPos;
 
 	gl_Position = ubo.proj * ubo.view * vec4(worldPos.xyz, 1.0f);
 }

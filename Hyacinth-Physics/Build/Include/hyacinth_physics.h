@@ -30,7 +30,7 @@
 
 using namespace physx;
 
-constexpr float JUMP_VELOCITY = 3.75f;
+constexpr float JUMP_VELOCITY = 10.5f;
 
 struct controllerUserData {
 	uint32_t id;
@@ -77,6 +77,8 @@ private:
 
 	physx::PxControllerManager* pCManager = NULL;
 	physx::PxCapsuleControllerDesc controllerDesc;
+
+	void loadShape(std::vector<physx::PxShape*>& shapes, LightNode* node);
 
 public:
 	physx::PxScene* pScene = NULL;

@@ -12,7 +12,7 @@ inline std::string loopTillResponse(SOCKET* s, const char* str, int len, sockadd
     while (res <= 0) {
         int altRes = sendto(*s, str, len, 0, socketAddr, addrLen);
         if (altRes < 0) {
-            throw std::runtime_error("could not send, for some reason");
+            throw std::runtime_error("[NETWORK] could not send, for some reason");
         }
 
         res = recvfrom(*s, resBuffer, resBufferLen, 0, NULL, NULL);

@@ -27,7 +27,7 @@
 #pragma comment(lib, "Hyacinth-Common.lib")
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
-// #define LAG_SIMULATION
+#define LAG_SIMULATION
 
 constexpr long long CLIENT_TIMEOUT = 3000;
 
@@ -353,7 +353,7 @@ int main()
     // setup physics with base scene as a static mesh
     {
         LightLoader loader;
-        auto path = getExeDir() / "objects" / "sponza" / "sponza.gltf";
+        auto path = getExeDir() / "objects" / "sponza_physics.glb";
 
         physicsManager.initPhysics(true);
         physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));

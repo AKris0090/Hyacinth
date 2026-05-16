@@ -134,8 +134,6 @@ void VulkanPipelineBuilder::setPolygonMode(VkPolygonMode polygonMode) {
     m_rasterizer.lineWidth = 1.0f;
     m_rasterizer.depthClampEnable = VK_FALSE;
     m_rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    m_rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    m_rasterizer.lineWidth = 1.0f;
     m_rasterizer.depthBiasEnable = VK_FALSE;
 }
 

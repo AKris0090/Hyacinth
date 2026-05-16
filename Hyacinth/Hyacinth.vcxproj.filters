@@ -121,6 +121,9 @@
     <Filter Include="Source Files\network\network_debugging">
       <UniqueIdentifier>{12437511-b37c-4bba-ac85-94ed9d2f9abb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\shaders\network">
+      <UniqueIdentifier>{460b37bc-2290-43c6-bf53-54a768289c21}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -422,6 +425,12 @@
     </None>
     <None Include="shaders\uiTex.frag">
       <Filter>Source Files\shaders\ui</Filter>
+    </None>
+    <None Include="shaders\netEntDebug.vert">
+      <Filter>Source Files\shaders\network</Filter>
+    </None>
+    <None Include="shaders\netEntDebug.frag">
+      <Filter>Source Files\shaders\network</Filter>
     </None>
   </ItemGroup>
 </Project>
