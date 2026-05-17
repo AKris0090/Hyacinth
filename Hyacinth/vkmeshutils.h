@@ -84,7 +84,9 @@ struct Vertex {
 
 struct AABB {
 	glm::vec4 min = glm::vec4(0.f), max = glm::vec4(0.f);
+	void grow(glm::vec4 p) { min = (glm::min)(min, glm::vec4(glm::vec3(p), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p), 1.f)); }
 	void grow(Vertex p) { min = (glm::min)(min, glm::vec4(glm::vec3(p.pos), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p.pos), 1.f)); }
+	void grow(AABB other) { min = (glm::min)(min, other.min), max = (glm::max)(max, other.max); }
 };
 
 namespace std {

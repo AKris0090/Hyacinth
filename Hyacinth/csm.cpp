@@ -1,5 +1,7 @@
 #include "csm.h"
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+
 void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayout) {
 	transform.position = glm::vec3(-2.f, 12.f, -6.f);
 
@@ -137,7 +139,7 @@ void shadowHelper::update(Camera& cam, int currentFrame) {
 	memcpy(m_uniformBuffers[currentFrame].info.pMappedData, cascadeViewProjMatrices.data(), sizeof(glm::mat4) * SHADOW_MAP_CASCADE_COUNT);
 }
 
-void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view) {
+void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view, AABB sceneBounds) {
 	float cascadeSplits[SHADOW_MAP_CASCADE_COUNT];
 
 	float nearClip = camNear;
@@ -197,30 +199,33 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 			float distance = glm::length(frustumCorners[j] - frustumCenter);
 			radius = glm::max(radius, distance);
 		}
-		radius = std::ceil(radius * 16.0f) / 16.0f;
+		m_cascades[i].radius = radius;
 
-		float texelsPerUnit = cascadeImageSize / (radius * 2.0f);
-		glm::mat4 scalarMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(texelsPerUnit));
-		glm::vec3 zero = glm::vec3(0.0f);
-		glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-		glm::vec3 lightDir = glm::normalize(-transform.position);
+		glm::vec3 lightPosDirection = glm::normalize(transform.position);
 
-		glm::mat4 lookAt = glm::lookAt(lightDir, zero, up);
-		lookAt = scalarMatrix * lookAt;
-		glm::mat4 invLookAt = glm::inverse(lookAt);
-		glm::vec4 trueFrustumCenter = lookAt * glm::vec4(frustumCenter, 1.0f);
-		trueFrustumCenter.x = (float)glm::floor(trueFrustumCenter.x);
-		trueFrustumCenter.y = (float)glm::floor(trueFrustumCenter.y);
-		trueFrustumCenter = invLookAt * trueFrustumCenter;
+		// radius = std::ceil(radius * 16.0f) / 16.0f;
+		// float texelsPerUnit = cascadeImageSize / (radius * 2.0f);
+		// glm::mat4 scalarMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(texelsPerUnit));
+		// glm::vec3 zero = glm::vec3(0.0f);
+		// glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+		// glm::vec3 lightDir = glm::normalize(-transform.position);
+		// 
+		// glm::mat4 lookAt = glm::lookAt(lightDir, zero, up);
+		// lookAt = scalarMatrix * lookAt;
+		// glm::mat4 invLookAt = glm::inverse(lookAt);
+		// glm::vec4 trueFrustumCenter = lookAt * glm::vec4(frustumCenter, 1.0f);
+		// trueFrustumCenter.x = (float)glm::floor(trueFrustumCenter.x);
+		// trueFrustumCenter.y = (float)glm::floor(trueFrustumCenter.y);
+		// trueFrustumCenter = invLookAt * trueFrustumCenter;
 
-		frustumCenter.x = trueFrustumCenter.x;
-		frustumCenter.y = trueFrustumCenter.y;
-		frustumCenter.z = trueFrustumCenter.z;
+		// frustumCenter.x = trueFrustumCenter.x;
+		// frustumCenter.y = trueFrustumCenter.y;
+		// frustumCenter.z = trueFrustumCenter.z;
 
 		glm::vec3 maxExtents = glm::vec3(radius);
 		glm::vec3 minExtents = -maxExtents;
 
-		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter + lightPosDirection * maxExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 		glm::mat4 lightOrthoMatrix = glm::orthoZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
 		// Store split distance and matrix in cascade

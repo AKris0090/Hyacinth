@@ -13,6 +13,23 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
     return bounds;
 }
 
+AABB getWorldSpaceBoundingBox(gltfNode* node) {
+    AABB bounds;
+    bounds.min = glm::vec4(glm::vec3(INT_MIN), 1.f);
+    bounds.max = glm::vec4(glm::vec3(INT_MAX), 1.f);
+    glm::mat4 worldMatrix = getNodeMatrix(node);
+    for (const auto& p : node->primitives) {
+        for (const auto& v : p->vertices) {
+            bounds.grow(worldMatrix * glm::vec4(v.pos.x, v.pos.y, v.pos.z, 1.f));
+        }
+    }
+    for (const auto& n : node->children) {
+        bounds.grow(getWorldSpaceBoundingBox(n));
+    }
+
+    return bounds;
+}
+
 void gltfObject::updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer)
 {
     if (node->skinIndex > -1)

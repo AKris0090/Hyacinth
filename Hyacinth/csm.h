@@ -10,10 +10,11 @@
 #include "vkpipelineutils.h"
 #include "vkdescriptorutils.h"
 #include "imgui_impl_vulkan.h"
+#include "vkmeshutils.h"
 #include "fpcam.h"
 
-constexpr int SHADOW_MAP_CASCADE_COUNT = 4;
-constexpr int cascadeImageSize = 4096;
+constexpr int SHADOW_MAP_CASCADE_COUNT = 3;
+constexpr int cascadeImageSize = 2048;
 
 struct shadowUniform {
 	glm::mat4 viewProj[SHADOW_MAP_CASCADE_COUNT];
@@ -22,6 +23,7 @@ struct shadowUniform {
 struct Cascade {
 	VkImageView cascadeImageView;
 	float splitDepth;
+	float radius;
 	glm::mat4 viewProj;
 	VulkanBuffer cascadeDrawBuffer;
 	glm::vec4 frustumPlanes[6];
@@ -41,10 +43,10 @@ private:
 	VkFormat shadowFormat = VK_FORMAT_D32_SFLOAT;
 	std::vector<glm::vec4> corners;
 
-	void updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view);
+	void updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view, AABB sceneBounds);
 
 public:
-	float cascadeSplitLambda = 0.95f;
+	float cascadeSplitLambda = 0.85f;
 	float DDGIntensity = 1.25f;
 	Transform transform;
 	Cascade m_cascades[SHADOW_MAP_CASCADE_COUNT];

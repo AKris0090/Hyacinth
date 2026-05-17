@@ -42,7 +42,10 @@ float textureProj(vec4 shadowCoord, vec2 offset, uint cascadeIndex)
 {
 	float shadow = 1.0;
     const float biasModifier = 1.0;
-    float scaledBias = max(0.005 * (1.0 - dot(normalize(inNormal.xyz), (ubo.lightPos.xyz - fragPos.xyz))), 0.005);
+
+	float scaledBias = mix(0.005, 0.0005, float(cascadeIndex) / float(SHADOW_MAP_CASCADE_COUNT));
+	scaledBias = max(scaledBias * (1.0 - dot(normalize(inNormal.xyz), normalize(ubo.lightPos.xyz))), 0.0005);
+
     if (cascadeIndex == SHADOW_MAP_CASCADE_COUNT - 1)
     {
         scaledBias *= 1.0 / (ubo.cascadeSplits[SHADOW_MAP_CASCADE_COUNT - 1] * biasModifier);
@@ -64,13 +67,13 @@ float textureProj(vec4 shadowCoord, vec2 offset, uint cascadeIndex)
 float filterPCF(vec4 sc, uint cascadeIndex)
 {
 	ivec2 texDim = textureSize(shadowDepthMap, 0).xy;
-	float scale = 0.75;
+	float scale = 1.0;
 	float dx = scale * 1.0 / float(texDim.x);
 	float dy = scale * 1.0 / float(texDim.y);
 
 	float shadowFactor = 0.0;
 	int count = 0;
-	int range = 1;
+	int range = 2;
 	
 	for (int x = -range; x <= range; x++) {
 		for (int y = -range; y <= range; y++) {
@@ -91,7 +94,7 @@ void main() {
     N = normalize(TBNMatrix * N) * 0.5 + 0.5;
 
     uint cascadeIndex = 0;
-	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
+	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; i++) {
 		if(viewPos.z < ubo.cascadeSplits[i]) {
 			cascadeIndex = i + 1;
 		}
@@ -100,6 +103,6 @@ void main() {
     vec4 shadowCoord = (biasMat * ubo.cascadeViewProj[cascadeIndex]) * vec4(fragPos.xyz, 1.0);	 
 	float shadow = filterPCF(shadowCoord / shadowCoord.w, cascadeIndex);
 
-    outAlbedo = vec4(sampledColor.rgb, metalRough.b);
+    outAlbedo = vec4(sampledColor.rgb, viewPos.z);
     outNormal = vec4(N, shadow);
 }

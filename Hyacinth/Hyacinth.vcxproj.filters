@@ -414,9 +414,6 @@
     <None Include="shaders\probeVis.vert">
       <Filter>Source Files\shaders\visualization</Filter>
     </None>
-    <None Include="shaders\ddgi.frag">
-      <Filter>Source Files\shaders\visualization</Filter>
-    </None>
     <None Include="shaders\gbufferSkinned.vert">
       <Filter>Source Files\shaders</Filter>
     </None>
@@ -431,6 +428,9 @@
     </None>
     <None Include="shaders\netEntDebug.frag">
       <Filter>Source Files\shaders\network</Filter>
+    </None>
+    <None Include="shaders\ddgi.frag">
+      <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

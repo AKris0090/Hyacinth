@@ -24,4 +24,5 @@ public:
 
 	void setup(SWChainImageFormat& swFormat, VkSampleCountFlagBits msaaSamples, VkDescriptorSetLayout& uniformSetLayout);
 	void draw(VkCommandBuffer& cmd, VkDescriptorSet& uniformSet);
+	void shutdown();
 };

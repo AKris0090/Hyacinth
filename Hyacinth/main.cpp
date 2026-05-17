@@ -15,13 +15,6 @@ std::atomic<uint32_t> tickNum{ 0 };
 BotBehavior b;
 bool dontEnd = true;
 
-std::filesystem::path getExeDir()
-{
-	wchar_t buffer[MAX_PATH];
-	GetModuleFileNameW(nullptr, buffer, MAX_PATH);
-	return std::filesystem::path(buffer).parent_path();
-}
-
 void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, PhysicsManager* physicsManager) {
 	auto epoch = std::chrono::steady_clock::now();
 	while (dontEnd) {
@@ -104,7 +97,7 @@ int main() {
 	PhysicsManager physicsManager;
 	physicsManager.initPhysics(false);
 	LightLoader loader;
-	auto path = getExeDir() / "objects" / "sponza_physics.glb";
+	auto path = vkdebugutils::getExeDir() / "objects" / "sponza_physics.glb";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 	physicsManager.addCharacterController(0);
 

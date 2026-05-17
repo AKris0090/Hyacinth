@@ -731,7 +731,7 @@ void HyacinthEngine::init()
 
 	createSyncObjects(); // also creates device context
 
-    m_camera = Camera(m_swImageFormat.aspectRatio, 90.f, 0.01f, 150.f);
+    m_camera = Camera(m_swImageFormat.aspectRatio, 90.f, 0.01f, 40.f);
 
     createColorImages();
 
@@ -818,7 +818,7 @@ void HyacinthEngine::update() {
     newuniform.view = m_camera.m_view;
     newuniform.viewPos = glm::vec4(m_camera.m_transform.position, ambientToggle);
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, m_shadowHelper.DDGIntensity);
-    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_shadowHelper.m_cascades[2].splitDepth);
+    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_shadowHelper.m_cascades[3].splitDepth);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeViewProj[i] = m_shadowHelper.m_cascades[i].viewProj;
     }
@@ -907,6 +907,12 @@ void HyacinthEngine::drawImGui() {
     ImGui::DragFloat("cascade split delta", &m_shadowHelper.cascadeSplitLambda, 0.01f);
     ImGui::DragFloat("cascade min distance (zNear)", &m_camera.m_zNear, 0.01f);
     ImGui::DragFloat("cascade max distance (zFar)", &m_camera.m_zFar, 0.01f);
+
+    ImGui::Text((std::string("cascade split 1: ") + std::to_string(m_shadowHelper.m_cascades[0].radius)).c_str());
+    ImGui::Text((std::string("cascade split 2: ") + std::to_string(m_shadowHelper.m_cascades[1].radius)).c_str());
+    ImGui::Text((std::string("cascade split 3: ") + std::to_string(m_shadowHelper.m_cascades[2].radius)).c_str());
+    ImGui::Text((std::string("cascade split 4: ") + std::to_string(m_shadowHelper.m_cascades[3].radius)).c_str());
+
     ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
     ImGui::Checkbox("show probes A", &m_owDDGIHelper.showProbesA);
     ImGui::Checkbox("show probes B", &m_owDDGIHelper.showProbesB);
@@ -1257,6 +1263,7 @@ void HyacinthEngine::cleanup()
 	m_owDDGIHelper.shutdown();
     m_rtHelper.shutdown();
     m_uiHelper.shutdown();
+    m_netDebugRenderer.shutdown();
 
 	vkdeviceutils::destroyBuffer(m_meshBuffers.indexBuffer);
 	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);

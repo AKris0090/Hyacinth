@@ -280,14 +280,12 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 	glm::vec3 scaleA = glm::vec3(31.855, 13.78, 18.87);
 	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT, 1.f, 0.4f);
 
-	// glm::vec3 posB = glm::vec3(-11.744f, 3.280f, 1.650f);
-	// glm::vec3 scaleB = glm::vec3(24.f, 4.5f, 4.1f);
 	glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
 	glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
 	addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT, 0.4f, 0.2f);
 
 	std::vector<glm::mat4> volumeTransforms;
-	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4); // TODO: make this with more volumes
+	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4);
 	for (int i = 0; i < m_probeVolumes.size(); i++) {
 		Transform t = m_probeVolumes[i].transform;
 		t.scale -= m_probeVolumes[i].data.spacing;
