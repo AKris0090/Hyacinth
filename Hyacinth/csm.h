@@ -22,7 +22,6 @@ struct shadowUniform {
 
 struct Cascade {
 	VkImageView cascadeImageView;
-	float splitDepth;
 	glm::mat4 viewProj;
 	VulkanBuffer cascadeDrawBuffer;
 	glm::vec4 frustumPlanes[6];

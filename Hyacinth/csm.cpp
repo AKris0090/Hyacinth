@@ -2,13 +2,22 @@
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
+static float boundingBoxRadius(glm::vec3 frustumCenter, glm::vec3* AABBPoints) {
+	float sphereRadius = 0.f;
+	for (int j = 0; j < 8; j++) {
+		float dist = glm::length(AABBPoints[j] - frustumCenter);
+		sphereRadius = std::max(sphereRadius, dist);
+	}
+	return sphereRadius;
+}
+
 struct Triangle {
 	glm::vec3 points[3];
 	bool culled;
 };
 
 // lightCamOrthoMin/Max are the xy bounding boxes of the shadow map's coverage area
-// pointsCamView are the corners of the camera frustum in light camera space
+// pointsCamView are the corners of the scene in light camera space
 // code from https://github.com/walbourn/directx-sdk-samples-reworked/blob/main/CascadedShadowMaps11/CascadedShadowsManager.cpp#L494
 // deadass no clue whats going on
 static void computeNearFar(float& nearPlane, float& farPlane, glm::vec3 lightCamOrthoMin, glm::vec3 lightCamOrthoMax, glm::vec3* pointsCamView) {
@@ -44,7 +53,7 @@ static void computeNearFar(float& nearPlane, float& farPlane, glm::vec3 lightCam
 		triangleList[0].points[1] = pointsCamView[aabbTriangleIndexes[aabbTriIter * 3 + 1]];
 		triangleList[0].points[2] = pointsCamView[aabbTriangleIndexes[aabbTriIter * 3 + 2]];
 		triangleCount = 1;
-		triangleList[0].culled = FALSE;
+		triangleList[0].culled = false;
 
 		for (int frustumPlaneIter = 0; frustumPlaneIter < 4; ++frustumPlaneIter) {
 			float edge;
@@ -459,6 +468,23 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 			float dist = glm::length(frustumCorners[j] - frustumCenter);
 			sphereRadius = std::max(sphereRadius, dist);
 		}
+
+		glm::vec3 aabbMin = sceneWorldBounds.min;
+		glm::vec3 aabbMax = sceneWorldBounds.max;
+
+		glm::vec3 sceneAABBCornersLightView[8] = {
+			glm::vec3(aabbMin.x, aabbMin.y, aabbMin.z),
+			glm::vec3(aabbMax.x, aabbMin.y, aabbMin.z),
+			glm::vec3(aabbMin.x, aabbMax.y, aabbMin.z),
+			glm::vec3(aabbMax.x, aabbMax.y, aabbMin.z),
+			glm::vec3(aabbMin.x, aabbMin.y, aabbMax.z),
+			glm::vec3(aabbMax.x, aabbMin.y, aabbMax.z),
+			glm::vec3(aabbMin.x, aabbMax.y, aabbMax.z),
+			glm::vec3(aabbMax.x, aabbMax.y, aabbMax.z),
+		};
+
+		sphereRadius = std::min(sphereRadius, boundingBoxRadius(frustumCenter, sceneAABBCornersLightView));
+
 		sphereRadius = std::ceil(sphereRadius * 16.f) / 16.f;
 
 		glm::vec3 maxExtents = glm::vec3(sphereRadius);
@@ -467,10 +493,21 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 		glm::vec3 shadowCamPos = frustumCenter + lightDirection * -minExtents;
 
 		glm::mat4 lightViewMatrix = glm::lookAt(shadowCamPos, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 lightOrthoMatrix = glm::orthoRH_ZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+
+		// calculate tight near and far bounds ///////////////////
+
+		for (int j = 0; j < 8; j++) {
+			glm::vec4 lv = lightViewMatrix * glm::vec4(sceneAABBCornersLightView[j], 1.0f);
+			sceneAABBCornersLightView[j] = glm::vec3(lv);
+		}
+
+		float tightNear, tightFar;
+		computeNearFar(tightNear, tightFar, minExtents, maxExtents, sceneAABBCornersLightView);
+
+		//////////////////////////////////////////////////////////
+		glm::mat4 lightOrthoMatrix = glm::orthoRH_ZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, -tightFar, -tightNear);
 
 		// Store split distance and matrix in cascade
-		m_cascades[i].splitDepth = (camNear + splitDist * clipRange) * -1.f;
 		m_cascades[i].viewProj = lightOrthoMatrix * lightViewMatrix;
 
 		// stabilization ///////////////////
