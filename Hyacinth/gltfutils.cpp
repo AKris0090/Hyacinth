@@ -15,8 +15,8 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
 
 AABB getWorldSpaceBoundingBox(gltfNode* node) {
     AABB bounds;
-    bounds.min = glm::vec4(glm::vec3(INT_MIN), 1.f);
-    bounds.max = glm::vec4(glm::vec3(INT_MAX), 1.f);
+    bounds.min = glm::vec4(glm::vec3(FLT_MAX), 1.f);
+    bounds.max = glm::vec4(glm::vec3(FLT_MIN), 1.f);
     glm::mat4 worldMatrix = getNodeMatrix(node);
     for (const auto& p : node->primitives) {
         for (const auto& v : p->vertices) {
@@ -572,6 +572,8 @@ void SceneGraph::buildSceneGraph() {
             numNodes++;
             if (node->includeInAccel && node->vertices.size() > 0 && node->indices.size() > 0) {
 				numAccelNodes++;
+
+                sceneBoundingBox.grow(getWorldSpaceBoundingBox(node));
             }
 
             // for acceleration structures

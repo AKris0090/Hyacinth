@@ -9,12 +9,16 @@ layout	(set = 0, binding = 2) uniform sampler2D depthMap;
 layout  (set = 0, binding = 3) uniform sampler2D ddgiImage;
 
 layout(set = 1, binding = 0) uniform UniformBufferObject {
-    mat4 view;
-    mat4 proj;
-    vec4 viewPos;
-    vec4 lightPos;
-    vec4 cascadeSplits;
-    mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	mat4 view;
+	mat4 proj;
+	vec4 viewPos;
+	vec4 lightPos;
+	vec4 ABOD; // ambient toggle, bias, offset scale, ddgi intensity
+	mat4 globalShadowMatrix;
+	vec4 cascadeSplits;
+	mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeOffsets[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
 layout (set = 2, binding = 0) uniform sampler2DArray irradianceTex;

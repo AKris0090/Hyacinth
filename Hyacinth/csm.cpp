@@ -2,6 +2,219 @@
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
+struct Triangle {
+	glm::vec3 points[3];
+	bool culled;
+};
+
+// lightCamOrthoMin/Max are the xy bounding boxes of the shadow map's coverage area
+// pointsCamView are the corners of the camera frustum in light camera space
+// code from https://github.com/walbourn/directx-sdk-samples-reworked/blob/main/CascadedShadowMaps11/CascadedShadowsManager.cpp#L494
+// deadass no clue whats going on
+static void computeNearFar(float& nearPlane, float& farPlane, glm::vec3 lightCamOrthoMin, glm::vec3 lightCamOrthoMax, glm::vec3* pointsCamView) {
+	nearPlane = FLT_MAX;
+	farPlane = -FLT_MAX;
+
+	Triangle triangleList[16];
+	int triangleCount = 1;
+
+	triangleList[0].points[0] = pointsCamView[0];
+	triangleList[0].points[1] = pointsCamView[1];
+	triangleList[0].points[2] = pointsCamView[2];
+	triangleList[0].culled = false;
+
+	static const int aabbTriangleIndexes[] = {
+		0,1,2,  1,2,3,
+		4,5,6,  5,6,7,
+		0,2,4,  2,4,6,
+		1,3,5,  3,5,7,
+		0,1,4,  1,4,5,
+		2,3,6,  3,6,7
+	};
+
+	int pointPassesCollision[3];
+
+	float fLightCameraOrthographicMinX = lightCamOrthoMin.x;
+	float fLightCameraOrthographicMaxX = lightCamOrthoMax.x;
+	float fLightCameraOrthographicMinY = lightCamOrthoMin.y;
+	float fLightCameraOrthographicMaxY = lightCamOrthoMax.y;
+
+	for (int aabbTriIter = 0; aabbTriIter < 12; ++aabbTriIter) {
+		triangleList[0].points[0] = pointsCamView[aabbTriangleIndexes[aabbTriIter * 3 + 0]];
+		triangleList[0].points[1] = pointsCamView[aabbTriangleIndexes[aabbTriIter * 3 + 1]];
+		triangleList[0].points[2] = pointsCamView[aabbTriangleIndexes[aabbTriIter * 3 + 2]];
+		triangleCount = 1;
+		triangleList[0].culled = FALSE;
+
+		for (int frustumPlaneIter = 0; frustumPlaneIter < 4; ++frustumPlaneIter) {
+			float edge;
+			int component;
+
+			if (frustumPlaneIter == 0) {
+				edge = fLightCameraOrthographicMinX;
+				component = 0;
+			}
+			else if (frustumPlaneIter == 1) {
+				edge = fLightCameraOrthographicMaxX;
+				component = 0;
+			}
+			else if (frustumPlaneIter == 2) {
+				edge = fLightCameraOrthographicMinY;
+				component = 1;
+			}
+			else {
+				edge = fLightCameraOrthographicMaxY;
+				component = 1;
+			}
+
+			for (int triIter = 0; triIter < triangleCount; ++triIter) {
+				if (!triangleList[triIter].culled) {
+					int insideVertCount = 0;
+					glm::vec3 tempOrder;
+
+					if (frustumPlaneIter == 0) {
+						for (int triPtIter = 0; triPtIter < 3; ++triPtIter) {
+							if (triangleList[triIter].points[triPtIter].x > lightCamOrthoMin.x) {
+								pointPassesCollision[triPtIter] = 1;
+							}
+							else {
+								pointPassesCollision[triPtIter] = 0;
+							}
+							insideVertCount += pointPassesCollision[triPtIter];
+						}
+					}
+					else if (frustumPlaneIter == 1) {
+						for (int triPtIter = 0; triPtIter < 3; ++triPtIter) {
+							if (triangleList[triIter].points[triPtIter].x < lightCamOrthoMax.x) {
+								pointPassesCollision[triPtIter] = 1;
+							}
+							else {
+								pointPassesCollision[triPtIter] = 0;
+							}
+							insideVertCount += pointPassesCollision[triPtIter];
+						}
+					}
+					else if (frustumPlaneIter == 2) {
+						for (int triPtIter = 0; triPtIter < 3; ++triPtIter) {
+							if (triangleList[triIter].points[triPtIter].y > lightCamOrthoMin.y) {
+								pointPassesCollision[triPtIter] = 1;
+							}
+							else {
+								pointPassesCollision[triPtIter] = 0;
+							}
+							insideVertCount += pointPassesCollision[triPtIter];
+						}
+					}
+					else {
+						for (int triPtIter = 0; triPtIter < 3; ++triPtIter) {
+							if (triangleList[triIter].points[triPtIter].y < lightCamOrthoMax.y) {
+								pointPassesCollision[triPtIter] = 1;
+							}
+							else {
+								pointPassesCollision[triPtIter] = 0;
+							}
+							insideVertCount += pointPassesCollision[triPtIter];
+						}
+					}
+
+					if (pointPassesCollision[1] && !pointPassesCollision[0]) {
+						tempOrder = triangleList[triIter].points[0];
+						triangleList[triIter].points[0] = triangleList[triIter].points[1];
+						triangleList[triIter].points[1] = tempOrder;
+						pointPassesCollision[0] = TRUE;
+						pointPassesCollision[1] = FALSE;
+					}
+					if (pointPassesCollision[2] && !pointPassesCollision[1]) {
+						tempOrder = triangleList[triIter].points[1];
+						triangleList[triIter].points[1] = triangleList[triIter].points[2];
+						triangleList[triIter].points[2] = tempOrder;
+						pointPassesCollision[1] = TRUE;
+						pointPassesCollision[2] = FALSE;
+					}
+					if (pointPassesCollision[1] && !pointPassesCollision[0]) {
+						tempOrder = triangleList[triIter].points[0];
+						triangleList[triIter].points[0] = triangleList[triIter].points[1];
+						triangleList[triIter].points[1] = tempOrder;
+						pointPassesCollision[0] = TRUE;
+						pointPassesCollision[1] = FALSE;
+					}
+
+					if (insideVertCount == 0) {
+						triangleList[triIter].culled = true;
+					}
+					else if (insideVertCount == 1) {
+						triangleList[triIter].culled = false;
+
+						glm::vec3 vVert0ToVert1 = triangleList[triIter].points[1] - triangleList[triIter].points[0];
+						glm::vec3 vVert0ToVert2 = triangleList[triIter].points[2] - triangleList[triIter].points[0];
+
+						float fHitPointTimeRatio = edge - triangleList[triIter].points[0][component];
+						float fDistanceAlongVector01 = fHitPointTimeRatio / vVert0ToVert1[component];
+						float fDistanceAlongVector02 = fHitPointTimeRatio / vVert0ToVert2[component];
+
+						vVert0ToVert1 *= fDistanceAlongVector01;
+						vVert0ToVert1 += triangleList[triIter].points[0];
+						vVert0ToVert2 *= fDistanceAlongVector02;
+						vVert0ToVert2 += triangleList[triIter].points[0];
+
+						triangleList[triIter].points[1] = vVert0ToVert2;
+						triangleList[triIter].points[2] = vVert0ToVert1;
+
+					}
+					else if (insideVertCount == 2) {
+
+						triangleList[triangleCount] = triangleList[triIter + 1];
+
+						triangleList[triIter].culled = false;
+						triangleList[triIter + 1].culled = false;
+
+						glm::vec3 vVert2ToVert0 = triangleList[triIter].points[0] - triangleList[triIter].points[2];
+						glm::vec3 vVert2ToVert1 = triangleList[triIter].points[1] - triangleList[triIter].points[2];
+
+						float fHitPointTime_2_0 = edge - triangleList[triIter].points[2][component];
+						float fDistanceAlongVector_2_0 = fHitPointTime_2_0 / vVert2ToVert0[component];
+						vVert2ToVert0 *= fDistanceAlongVector_2_0;
+						vVert2ToVert0 += triangleList[triIter].points[2];
+
+						triangleList[triIter + 1].points[0] = triangleList[triIter].points[0];
+						triangleList[triIter + 1].points[1] = triangleList[triIter].points[1];
+						triangleList[triIter + 1].points[2] = vVert2ToVert0;
+
+						float fHitPointTime_2_1 = edge - triangleList[triIter].points[2][component];
+						float fDistanceAlongVector_2_1 = fHitPointTime_2_1 / vVert2ToVert1[component];
+						vVert2ToVert1 *= fDistanceAlongVector_2_1;
+						vVert2ToVert1 += triangleList[triIter].points[2];
+						triangleList[triIter].points[0] = triangleList[triIter + 1].points[1];
+						triangleList[triIter].points[1] = triangleList[triIter + 1].points[2];
+						triangleList[triIter].points[2] = vVert2ToVert1;
+						++triangleCount;
+						++triIter;
+					}
+					else {
+						triangleList[triIter].culled = false;
+
+					}
+				}          
+			}
+		}
+		for (int index = 0; index < triangleCount; ++index) {
+			if (!triangleList[index].culled) {
+				for (int vertind = 0; vertind < 3; ++vertind) {
+					float fTriangleCoordZ = triangleList[index].points[vertind].z;
+					if (nearPlane > fTriangleCoordZ)
+					{
+						nearPlane = fTriangleCoordZ;
+					}
+					if (farPlane < fTriangleCoordZ)
+					{
+						farPlane = fTriangleCoordZ;
+					}
+				}
+			}
+		}
+	}
+}
+
 void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayout) {
 	transform.position = glm::vec3(-2.f, 12.f, -6.f);
 
@@ -26,15 +239,18 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	VkSamplerCreateInfo samplerInfo { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	samplerInfo.magFilter = VK_FILTER_LINEAR;
 	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	samplerInfo.addressModeV = samplerInfo.addressModeU;
 	samplerInfo.addressModeW = samplerInfo.addressModeU;
 	samplerInfo.mipLodBias = 0.0f;
 	samplerInfo.maxAnisotropy = 1.0f;
 	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = 1.0f;
-	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+	samplerInfo.maxLod = 0.0f;
+	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+
+	samplerInfo.compareEnable = VK_TRUE;
+	samplerInfo.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerInfo, nullptr, &m_shadowImage.imageSampler));
 
 	// descriptor
@@ -72,7 +288,7 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	m_shadowPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	m_shadowPipelineUtil.setPositionAttribute();
 	m_shadowPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
-	m_shadowPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	m_shadowPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_CLOCKWISE);
 	m_shadowPipelineUtil.setMultisamplingNone();
 	m_shadowPipelineUtil.disableBlending();
 
@@ -125,8 +341,8 @@ void shadowHelper::setupImGui() {
 	}
 }
 
-void shadowHelper::update(Camera& cam, int currentFrame) {
-	updateFrustumCorners(cam.m_zNear, cam.m_zFar, cam.m_proj, cam.m_view);
+void shadowHelper::update(Camera& cam, AABB worldSpaceSceneBouunds, int currentFrame) {
+	updateFrustumCorners(cam.m_zNear, cam.m_zFar, cam.m_proj, cam.m_view, worldSpaceSceneBouunds);
 
 	std::vector<glm::mat4> cascadeViewProjMatrices(SHADOW_MAP_CASCADE_COUNT);
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
@@ -139,9 +355,47 @@ void shadowHelper::update(Camera& cam, int currentFrame) {
 	memcpy(m_uniformBuffers[currentFrame].info.pMappedData, cascadeViewProjMatrices.data(), sizeof(glm::mat4) * SHADOW_MAP_CASCADE_COUNT);
 }
 
-void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view, AABB sceneBounds) {
-	float cascadeSplits[SHADOW_MAP_CASCADE_COUNT];
+static glm::vec3 vec3mat4mul(glm::vec3 v, glm::mat4 m) {
+	glm::vec4 unresolved = m * glm::vec4(v, 1.f);
+	return (glm::vec3(unresolved) / unresolved.w);
+}
 
+static glm::mat4 getGlobalShadowMatrix(glm::vec3 lightDir, glm::mat4 camProj, glm::mat4 camView) {
+	glm::vec3 frustumCorners[8] = {
+			glm::vec3(-1.0f,  1.0f, 0.0f),
+			glm::vec3(1.0f,  1.0f, 0.0f),
+			glm::vec3(1.0f, -1.0f, 0.0f),
+			glm::vec3(-1.0f, -1.0f, 0.0f),
+			glm::vec3(-1.0f,  1.0f,  1.0f),
+			glm::vec3(1.0f,  1.0f,  1.0f),
+			glm::vec3(1.0f, -1.0f,  1.0f),
+			glm::vec3(-1.0f, -1.0f,  1.0f),
+	};
+
+	glm::mat4 invViewProj = glm::inverse(camProj * camView);
+
+	glm::vec3 frustumCenter = glm::vec3(0.f);
+	for (int i = 0; i < 8; i++) {
+		frustumCorners[i] = vec3mat4mul(frustumCorners[i], invViewProj);
+		frustumCenter += frustumCorners[i];
+	}
+	frustumCenter /= 8.0f;
+
+	glm::vec3 shadowCamPos = frustumCenter + lightDir * -0.5f;
+	glm::mat4 shadowCamProj = glm::orthoRH_ZO(-0.5f, 0.5f, -0.5f, 0.5f, 0.f, 1.f);
+	glm::mat4 shadowCamView = glm::lookAt(shadowCamPos, frustumCenter, glm::vec3(0.f, 1.f, 0.f));
+
+	glm::mat4 texScaleBias = glm::mat4(1.0f);
+	texScaleBias[0][0] = 0.5f;
+	texScaleBias[1][1] = 0.5f;
+	texScaleBias[2][2] = 1.0f;
+	texScaleBias[3][0] = 0.5f;
+	texScaleBias[3][1] = 0.5f;
+
+	return texScaleBias * (shadowCamProj * shadowCamView);
+}
+
+void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view, AABB sceneWorldBounds) {
 	float nearClip = camNear;
 	float farClip = camFar;
 	float clipRange = farClip - nearClip;
@@ -152,17 +406,24 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 	float range = maxZ - minZ;
 	float ratio = maxZ / minZ;
 
+	float currentSplits[SHADOW_MAP_CASCADE_COUNT];
 	for (uint32_t i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
 		float p = (i + 1) / static_cast<float>(SHADOW_MAP_CASCADE_COUNT);
 		float log = minZ * std::pow(ratio, p);
 		float uniform = minZ + range * p;
 		float d = cascadeSplitLambda * (log - uniform) + uniform;
-		cascadeSplits[i] = (d - nearClip) / clipRange;
+		currentSplits[i] = (d - nearClip) / clipRange;
 	}
 
-	float lastSplitDist = 0.0;
+	glm::vec3 lightDirection = glm::normalize(transform.position);
+
+	glm::mat4 globalShadowMatrix = getGlobalShadowMatrix(lightDirection, proj, view);
+	shaderShadowMatrix = globalShadowMatrix;
+
 	for (uint32_t i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-		float splitDist = cascadeSplits[i];
+		float lastSplitDist = i == 0 ? 0.f : currentSplits[i - 1];
+
+		float splitDist = currentSplits[i];
 
 		glm::vec3 frustumCorners[8] = {
 			glm::vec3(-1.0f,  1.0f, 0.0f),
@@ -177,8 +438,7 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 
 		glm::mat4 invCam = glm::inverse(proj * view);
 		for (uint32_t j = 0; j < 8; j++) {
-			glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[j], 1.0f);
-			frustumCorners[j] = invCorner / invCorner.w;
+			frustumCorners[j] = vec3mat4mul(frustumCorners[j], invCam);
 		}
 
 		for (uint32_t j = 0; j < 4; j++) {
@@ -194,45 +454,62 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 		}
 		frustumCenter /= 8.0f;
 
-		float radius = 0.0f;
-		for (uint32_t j = 0; j < 8; j++) {
-			float distance = glm::length(frustumCorners[j] - frustumCenter);
-			radius = glm::max(radius, distance);
+		float sphereRadius = 0.f;
+		for (int j = 0; j < 8; j++) {
+			float dist = glm::length(frustumCorners[j] - frustumCenter);
+			sphereRadius = std::max(sphereRadius, dist);
 		}
-		m_cascades[i].radius = radius;
+		sphereRadius = std::ceil(sphereRadius * 16.f) / 16.f;
 
-		glm::vec3 lightPosDirection = glm::normalize(transform.position);
-
-		// radius = std::ceil(radius * 16.0f) / 16.0f;
-		// float texelsPerUnit = cascadeImageSize / (radius * 2.0f);
-		// glm::mat4 scalarMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(texelsPerUnit));
-		// glm::vec3 zero = glm::vec3(0.0f);
-		// glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-		// glm::vec3 lightDir = glm::normalize(-transform.position);
-		// 
-		// glm::mat4 lookAt = glm::lookAt(lightDir, zero, up);
-		// lookAt = scalarMatrix * lookAt;
-		// glm::mat4 invLookAt = glm::inverse(lookAt);
-		// glm::vec4 trueFrustumCenter = lookAt * glm::vec4(frustumCenter, 1.0f);
-		// trueFrustumCenter.x = (float)glm::floor(trueFrustumCenter.x);
-		// trueFrustumCenter.y = (float)glm::floor(trueFrustumCenter.y);
-		// trueFrustumCenter = invLookAt * trueFrustumCenter;
-
-		// frustumCenter.x = trueFrustumCenter.x;
-		// frustumCenter.y = trueFrustumCenter.y;
-		// frustumCenter.z = trueFrustumCenter.z;
-
-		glm::vec3 maxExtents = glm::vec3(radius);
+		glm::vec3 maxExtents = glm::vec3(sphereRadius);
 		glm::vec3 minExtents = -maxExtents;
 
-		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter + lightPosDirection * maxExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 lightOrthoMatrix = glm::orthoZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+		glm::vec3 shadowCamPos = frustumCenter + lightDirection * -minExtents;
+
+		glm::mat4 lightViewMatrix = glm::lookAt(shadowCamPos, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightOrthoMatrix = glm::orthoRH_ZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
 		// Store split distance and matrix in cascade
 		m_cascades[i].splitDepth = (camNear + splitDist * clipRange) * -1.f;
 		m_cascades[i].viewProj = lightOrthoMatrix * lightViewMatrix;
 
-		lastSplitDist = cascadeSplits[i];
+		// stabilization ///////////////////
+		glm::vec4 shadowOrigin = glm::vec4(0.f, 0.f, 0.f, 1.f);
+		shadowOrigin = m_cascades[i].viewProj * shadowOrigin;
+		shadowOrigin = shadowOrigin * (cascadeImageSize / 2.f);
+
+		glm::vec4 roundedOrigin = glm::round(shadowOrigin);
+		glm::vec4 roundedOffset = roundedOrigin - shadowOrigin;
+		roundedOffset = roundedOffset * (2.f / cascadeImageSize);
+		roundedOffset = glm::vec4(roundedOffset.x, roundedOffset.y, 0.f, 0.f);
+
+		glm::mat4 shadowProj = lightOrthoMatrix;
+		shadowProj[3] += roundedOffset;
+		m_cascades[i].viewProj = shadowProj * lightViewMatrix;
+		///////////////////////////////////
+
+		glm::mat4 texScaleBias = glm::mat4(1.0f);
+		texScaleBias[0][0] = 0.5f;
+		texScaleBias[1][1] = 0.5f;
+		texScaleBias[2][2] = 1.0f;
+		texScaleBias[3][0] = 0.5f;
+		texScaleBias[3][1] = 0.5f;
+
+		glm::mat4 cascadeMatrix = texScaleBias * m_cascades[i].viewProj;
+
+		const float clipDist = camFar - camNear;
+		shaderSplits[i] = camNear + splitDist * clipDist;
+
+		glm::mat4 invCascadeMat = glm::inverse(cascadeMatrix);
+		glm::vec3 cascadeCorner = vec3mat4mul(glm::vec3(0.f), invCascadeMat);
+		cascadeCorner = vec3mat4mul(cascadeCorner, globalShadowMatrix);
+
+		glm::vec3 otherCorner = vec3mat4mul(glm::vec3(1.f), invCascadeMat); // project the furthest corner into the frustum local space
+		otherCorner = vec3mat4mul(otherCorner, globalShadowMatrix); // transform the local frustum space into the light's local space
+
+		glm::vec3 cascadeScale = glm::vec3(1.f) / (otherCorner - cascadeCorner);
+		cascadeOffsets[i] = glm::vec4(-cascadeCorner, 0.f);
+		cascadeScales[i] = glm::vec4(cascadeScale, 1.f);
 	}
 }
 

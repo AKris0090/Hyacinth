@@ -92,6 +92,8 @@ struct SceneGraph {
     uint32_t numAccelNodes = 0;
     uint32_t uiTextureOffset = 0;
 
+    AABB sceneBoundingBox;
+
     std::vector<VkSampler> imageSamplers;
 
     std::vector<MaterialInstance> materials;

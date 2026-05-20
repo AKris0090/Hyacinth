@@ -12,15 +12,19 @@ layout	(location = 3) in vec4 fragPos;
 layout	(location = 4) in mat3 TBNMatrix;
 layout	(location = 7) in vec2 inUV;
 
-layout (set = 1, binding = 0) uniform sampler2DArray shadowDepthMap;
+layout (set = 1, binding = 0) uniform sampler2DArrayShadow shadowDepthMap;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
-    mat4 view;
-    mat4 proj;
+	mat4 view;
+	mat4 proj;
 	vec4 viewPos;
 	vec4 lightPos;
-    vec4 cascadeSplits;
-    mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	vec4 ABOD; // ambient toggle, bias, offset scale, ddgi intensity
+	mat4 globalShadowMatrix;
+	vec4 cascadeSplits;
+	mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeOffsets[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
 layout( push_constant ) uniform constants
@@ -38,50 +42,103 @@ layout(set = 2, binding = 0) uniform sampler2D globalTextures2D[];
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outNormal;
 
-float textureProj(vec4 shadowCoord, vec2 offset, uint cascadeIndex)
-{
-	float shadow = 1.0;
-    const float biasModifier = 1.0;
-
-	float scaledBias = mix(0.005, 0.0005, float(cascadeIndex) / float(SHADOW_MAP_CASCADE_COUNT));
-	scaledBias = max(scaledBias * (1.0 - dot(normalize(inNormal.xyz), normalize(ubo.lightPos.xyz))), 0.0005);
-
-    if (cascadeIndex == SHADOW_MAP_CASCADE_COUNT - 1)
-    {
-        scaledBias *= 1.0 / (ubo.cascadeSplits[SHADOW_MAP_CASCADE_COUNT - 1] * biasModifier);
-    }
-    else
-    {
-     scaledBias *= 1.0 / (ubo.cascadeSplits[cascadeIndex] * biasModifier);
-    }
-
-	if ( shadowCoord.z > -1.0 && shadowCoord.z < 1.0 ) {
-		float dist = texture(shadowDepthMap, vec3(shadowCoord.st + offset, cascadeIndex)).r;
-		if (shadowCoord.w > 0 && dist < shadowCoord.z - scaledBias) {
-			shadow = 0.0;
-		}
-	}
-	return shadow;
+vec2 computeReceiverPlaneDepthBias(vec3 texCoordDX, vec3 texCoordDY) {
+	vec2 biasUV;
+	biasUV.x = texCoordDY.y * texCoordDX.z - texCoordDX.y * texCoordDY.z;
+	biasUV.y = texCoordDX.x * texCoordDY.z - texCoordDY.x * texCoordDX.z;
+	biasUV *= 1.0f / ((texCoordDX.x * texCoordDY.y) - (texCoordDX.y * texCoordDY.x));
+	return biasUV;
 }
 
-float filterPCF(vec4 sc, uint cascadeIndex)
-{
-	ivec2 texDim = textureSize(shadowDepthMap, 0).xy;
-	float scale = 1.0;
-	float dx = scale * 1.0 / float(texDim.x);
-	float dy = scale * 1.0 / float(texDim.y);
+float sampleShadowMap(vec2 baseUV, float u, float v, vec2 shadowMapSizeInv, uint cascadeIndex, float depth, vec2 receiverPlaneDepthBias) {
+	vec2 uv = baseUV + vec2(u, v) * shadowMapSizeInv;
+	float z = depth + dot(vec2(u, v) * shadowMapSizeInv, receiverPlaneDepthBias);
+	return texture(shadowDepthMap, vec4(uv, cascadeIndex, z));
+}
 
-	float shadowFactor = 0.0;
-	int count = 0;
-	int range = 2;
+float sampleCascadeMap(vec3 shadowPos, vec3 shadowPosDx, vec3 shadowPosDy, uint cascadeIndex) {
+	shadowPos += ubo.cascadeOffsets[cascadeIndex].xyz;
+	shadowPos *= ubo.cascadeScales[cascadeIndex].xyz;
+
+	shadowPosDx *= ubo.cascadeScales[cascadeIndex].xyz;
+	shadowPosDy *= ubo.cascadeScales[cascadeIndex].xyz;
+
+	// sample shadow optimized pcf 
+	vec3 shadowMapSize = vec3(textureSize(shadowDepthMap, 0).xyz);
+
+	float lightDepth = shadowPos.z;
 	
-	for (int x = -range; x <= range; x++) {
-		for (int y = -range; y <= range; y++) {
-	 		shadowFactor += textureProj(sc, vec2(dx * x, dy * y), cascadeIndex);
-			count++;
+	// using depth plane bias
+	vec2 texelSize = 1.0 / shadowMapSize.xy;
+	vec2 receiverPlaneDepthBias = computeReceiverPlaneDepthBias(shadowPosDx, shadowPosDy);
+
+	float fracSamplingErr = 2 * dot(vec2(1.0) * texelSize, abs(receiverPlaneDepthBias));
+	lightDepth -= min(fracSamplingErr, 0.01f);
+
+	vec2 uv = shadowPos.xy * shadowMapSize.xy;
+	vec2 shadowMapSizeInv = 1.0 / shadowMapSize.xy;
+
+	vec2 baseUV;
+	baseUV.x = floor(uv.x + 0.5);
+	baseUV.y = floor(uv.y + 0.5);
+
+	float s = (uv.x + 0.5 - baseUV.x);
+    float t = (uv.y + 0.5 - baseUV.y);
+
+	baseUV -= vec2(0.5);
+    baseUV *= shadowMapSizeInv;
+
+	float sum = 0;
+
+	float uw0 = (3 - 2 * s);
+    float uw1 = (1 + 2 * s);
+
+    float u0 = (2 - s) / uw0 - 1;
+    float u1 = s / uw1 + 1;
+
+    float vw0 = (3 - 2 * t);
+    float vw1 = (1 + 2 * t);
+
+    float v0 = (2 - t) / vw0 - 1;
+    float v1 = t / vw1 + 1;
+
+    sum += uw0 * vw0 * sampleShadowMap(baseUV, u0, v0, shadowMapSizeInv, cascadeIndex, lightDepth, receiverPlaneDepthBias);
+    sum += uw1 * vw0 * sampleShadowMap(baseUV, u1, v0, shadowMapSizeInv, cascadeIndex, lightDepth, receiverPlaneDepthBias);
+    sum += uw0 * vw1 * sampleShadowMap(baseUV, u0, v1, shadowMapSizeInv, cascadeIndex, lightDepth, receiverPlaneDepthBias);
+    sum += uw1 * vw1 * sampleShadowMap(baseUV, u1, v1, shadowMapSizeInv, cascadeIndex, lightDepth, receiverPlaneDepthBias);
+
+    return sum * 1.0 / 16;
+}
+
+// offset sampling the shadow map based on the surface normal
+vec3 getShadowSamplePosOffset(float nDotL, vec3 normal) {
+	vec3 shadowMapSize = vec3(textureSize(shadowDepthMap, 0).xyz);
+	float texelSize = 2.0 / shadowMapSize.x;
+	float normalOffsetScale = clamp(1.0 - nDotL, 0.0, 1.0);
+	return texelSize * ubo.ABOD.z * normalOffsetScale * normal;
+}
+
+float shadowTest(vec3 worldPos, float viewSpaceDepth, float nDotL, vec3 normal) {
+	float shadowVis = 1.0;
+
+	// select shadow cascade level based on view space depth
+	uint cascadeIndex = SHADOW_MAP_CASCADE_COUNT - 1;
+	for(int i = SHADOW_MAP_CASCADE_COUNT - 1; i >= 0; --i) {
+		if(viewSpaceDepth <= ubo.cascadeSplits[i]) {
+			cascadeIndex = i;
 		}
 	}
-	return shadowFactor / count;
+
+	vec3 offset = getShadowSamplePosOffset(nDotL, normal) / abs(ubo.cascadeScales[cascadeIndex].z);
+
+	vec3 samplePos = worldPos + offset;
+	vec3 shadowPosition = (ubo.globalShadowMatrix * vec4(samplePos, 1.0)).xyz;
+	vec3 shadowPosDx = dFdxFine(shadowPosition);
+	vec3 shadowPosDy = dFdyFine(shadowPosition);
+
+	shadowVis = sampleCascadeMap(shadowPosition, shadowPosDx, shadowPosDy, cascadeIndex);
+
+	return shadowVis;
 }
 
 void main() {
@@ -91,18 +148,13 @@ void main() {
 
     vec3 N = texture(globalTextures2D[m.normalIndex], inUV).xyz;
     N = normalize(N * 2.0 - 1.0);
-    N = normalize(TBNMatrix * N) * 0.5 + 0.5;
+	N = normalize(TBNMatrix * N);
 
-    uint cascadeIndex = 0;
-	for(uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; i++) {
-		if(viewPos.z < ubo.cascadeSplits[i]) {
-			cascadeIndex = i + 1;
-		}
-	}
-
-    vec4 shadowCoord = (biasMat * ubo.cascadeViewProj[cascadeIndex]) * vec4(fragPos.xyz, 1.0);	 
-	float shadow = filterPCF(shadowCoord / shadowCoord.w, cascadeIndex);
+	float nDotL = clamp(dot(N, normalize(ubo.lightPos.xyz)), 0.0, 1.0);
+	float shadow = shadowTest(fragPos.xyz, -viewPos.z, nDotL, N);
 
     outAlbedo = vec4(sampledColor.rgb, viewPos.z);
+
+	N = N * 0.5 + 0.5; // packing the normal
     outNormal = vec4(N, shadow);
 }

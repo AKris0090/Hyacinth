@@ -348,8 +348,8 @@ void HyacinthEngine::createGraphicsPipeline()
     viewport.y = 0.0f;
     viewport.width = (float)m_swImageFormat.extent.width;
     viewport.height = (float)m_swImageFormat.extent.height;
-    viewport.minDepth = 1.0f;
-    viewport.maxDepth = 0.0f;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
 
     VkRect2D scissor{};
     scissor.offset = { 0, 0 };
@@ -406,8 +406,8 @@ void HyacinthEngine::createCompositePipeline()
     viewport.y = 0.0f;
     viewport.width = (float)m_swImageFormat.extent.width;
     viewport.height = (float)m_swImageFormat.extent.height;
-    viewport.minDepth = 1.0f;
-    viewport.maxDepth = 0.0f;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
 
     VkRect2D scissor{};
     scissor.offset = { 0, 0 };
@@ -461,8 +461,8 @@ void HyacinthEngine::createDDGIVolumePipeline()
     viewport.y = 0.0f;
     viewport.width = (float)m_swImageFormat.extent.width;
     viewport.height = (float)m_swImageFormat.extent.height;
-    viewport.minDepth = 1.0f;
-    viewport.maxDepth = 0.0f;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
 
     VkRect2D scissor{};
     scissor.offset = { 0, 0 };
@@ -523,8 +523,8 @@ void HyacinthEngine::createDDGIPipeline()
     viewport.y = 0.0f;
     viewport.width = (float)m_swImageFormat.extent.width;
     viewport.height = (float)m_swImageFormat.extent.height;
-    viewport.minDepth = 1.0f;
-    viewport.maxDepth = 0.0f;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
 
     VkRect2D scissor{};
     scissor.offset = { 0, 0 };
@@ -784,7 +784,7 @@ void HyacinthEngine::update() {
 		m_showImGui = !m_showImGui;
     }
 
-    m_shadowHelper.update(m_camera, m_frameIndex);
+    m_shadowHelper.update(m_camera, m_scene.sceneBoundingBox,m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
 
     std::vector<VolumeData> volumeData;
@@ -816,10 +816,14 @@ void HyacinthEngine::update() {
     UBO newuniform{};
     newuniform.proj = m_camera.m_proj;
     newuniform.view = m_camera.m_view;
-    newuniform.viewPos = glm::vec4(m_camera.m_transform.position, ambientToggle);
-    newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, m_shadowHelper.DDGIntensity);
-    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.m_cascades[0].splitDepth, m_shadowHelper.m_cascades[1].splitDepth, m_shadowHelper.m_cascades[2].splitDepth, m_shadowHelper.m_cascades[3].splitDepth);
+    newuniform.viewPos = glm::vec4(m_camera.m_transform.position, 1.f);
+    newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 1.f);
+    newuniform.ABOD = glm::vec4(ambientToggle, m_shadowHelper.bias, m_shadowHelper.offsetScale, m_shadowHelper.DDGIntensity);
+    newuniform.globalShadowMatrix = m_shadowHelper.shaderShadowMatrix;
+    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.shaderSplits[0], m_shadowHelper.shaderSplits[1], m_shadowHelper.shaderSplits[2], 0.f);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+        newuniform.cascadeOffsets[i] = m_shadowHelper.cascadeOffsets[i];
+        newuniform.cascadeScales[i] = m_shadowHelper.cascadeScales[i];
         newuniform.cascadeViewProj[i] = m_shadowHelper.m_cascades[i].viewProj;
     }
 
@@ -907,11 +911,8 @@ void HyacinthEngine::drawImGui() {
     ImGui::DragFloat("cascade split delta", &m_shadowHelper.cascadeSplitLambda, 0.01f);
     ImGui::DragFloat("cascade min distance (zNear)", &m_camera.m_zNear, 0.01f);
     ImGui::DragFloat("cascade max distance (zFar)", &m_camera.m_zFar, 0.01f);
-
-    ImGui::Text((std::string("cascade split 1: ") + std::to_string(m_shadowHelper.m_cascades[0].radius)).c_str());
-    ImGui::Text((std::string("cascade split 2: ") + std::to_string(m_shadowHelper.m_cascades[1].radius)).c_str());
-    ImGui::Text((std::string("cascade split 3: ") + std::to_string(m_shadowHelper.m_cascades[2].radius)).c_str());
-    ImGui::Text((std::string("cascade split 4: ") + std::to_string(m_shadowHelper.m_cascades[3].radius)).c_str());
+    ImGui::DragFloat("bias", &m_shadowHelper.bias, 0.01f);
+    ImGui::DragFloat("offset scale", &m_shadowHelper.offsetScale, 0.01f);
 
     ImGui::Checkbox("show probes", &m_owDDGIHelper.showProbes);
     ImGui::Checkbox("show probes A", &m_owDDGIHelper.showProbesA);

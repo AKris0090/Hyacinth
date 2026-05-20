@@ -87,6 +87,10 @@ struct AABB {
 	void grow(glm::vec4 p) { min = (glm::min)(min, glm::vec4(glm::vec3(p), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p), 1.f)); }
 	void grow(Vertex p) { min = (glm::min)(min, glm::vec4(glm::vec3(p.pos), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p.pos), 1.f)); }
 	void grow(AABB other) { min = (glm::min)(min, other.min), max = (glm::max)(max, other.max); }
+	void scale(glm::mat4 scaleMatrix) {
+		min = scaleMatrix * glm::vec4(glm::vec3(min), 1.0);
+		max = scaleMatrix * glm::vec4(glm::vec3(max), 1.0);
+	}
 };
 
 namespace std {

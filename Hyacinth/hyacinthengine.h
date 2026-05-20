@@ -56,8 +56,12 @@ struct UBO {
 	glm::mat4 proj;
 	glm::vec4 viewPos;
 	glm::vec4 lightPos;
+	glm::vec4 ABOD;
+	glm::mat4 globalShadowMatrix;
 	glm::vec4 cascadeSplits;
 	glm::mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	glm::vec4 cascadeOffsets[SHADOW_MAP_CASCADE_COUNT];
+	glm::vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 };
 
 struct GBuffer {

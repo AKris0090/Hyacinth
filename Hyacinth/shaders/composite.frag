@@ -10,12 +10,16 @@ layout	(set = 0, binding = 2) uniform sampler2D depthMap;
 layout  (set = 0, binding = 3) uniform sampler2D ddgiImage;
 
 layout(set = 1, binding = 0) uniform UniformBufferObject {
-    mat4 view;
-    mat4 proj;
-    vec4 viewPos;
-    vec4 lightPos;
-    vec4 cascadeSplits;
-    mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	mat4 view;
+	mat4 proj;
+	vec4 viewPos;
+	vec4 lightPos;
+	vec4 ABOD; // ambient toggle, bias, offset scale, ddgi intensity
+	mat4 globalShadowMatrix;
+	vec4 cascadeSplits;
+	mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeOffsets[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
 layout 	(location = 0) in vec2 inUV;
@@ -56,13 +60,13 @@ void main() {
     }
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = albedo.rgb * irrad;
+	vec3 ambient = albedo.rgb * irrad * ubo.ABOD.w;
 
 	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
 
     outColor = vec4(color, 1.0);
 
-    if (ubo.viewPos.w == 1.0) {
+    if (ubo.ABOD.x == 1.0) {
         outColor = vec4(irrad, 1.0);
     }
 }  

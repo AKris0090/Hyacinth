@@ -21,8 +21,8 @@ void volumeVisHelper::createVolumeVisualizationStructures(VkDescriptorSetLayout&
 	viewport.y = 0.0f;
 	viewport.width = (float)SWImageFormat.extent.width;
 	viewport.height = (float)SWImageFormat.extent.height;
-	viewport.minDepth = 1.0f;
-	viewport.maxDepth = 0.0f;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
 
 	VkRect2D scissor{};
 	scissor.offset = { 0, 0 };

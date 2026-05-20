@@ -60,8 +60,8 @@ void NetDebugRenderer::setup(SWChainImageFormat& swFormat, VkSampleCountFlagBits
 	viewport.y = 0.0f;
 	viewport.width = (float)swFormat.extent.width;
 	viewport.height = (float)swFormat.extent.height;
-	viewport.minDepth = 1.0f;
-	viewport.maxDepth = 0.0f;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
 
 	VkRect2D scissor{};
 	scissor.offset = { 0, 0 };
