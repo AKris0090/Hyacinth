@@ -6,6 +6,7 @@
 layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
+layout	(location = 3) in vec4 inUVs;
 
 layout (location = 0) out vec4 probeDir;
 layout (location = 1) flat out int probeIndex;

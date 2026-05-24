@@ -86,6 +86,7 @@ void vkdescriptorutils::queueWriteAccelStructure(VkDescriptorSet& descriptorSet,
     asInfo->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
     asInfo->accelerationStructureCount = numStructures;
     asInfo->pAccelerationStructures = pAccelStructures;
+    accelStructureInfos.push_back(asInfo);
 
     VkWriteDescriptorSet accelWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
     accelWrite.pNext = asInfo;

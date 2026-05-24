@@ -33,4 +33,10 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./uiTex.frag -o uiQuadFrag.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./netEntDebug.vert -o netDebugVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./netEntDebug.frag -o netDebugFrag.spv
 
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./lightmap_shaders/posNormal.vert -o lightmap_shaders/posNormalVert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./lightmap_shaders/posNormal.frag -o lightmap_shaders/posNormalFrag.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./lightmap_shaders/lightMap.rgen -o lightmap_shaders/lightGen.spv --target-env=vulkan1.3
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./lightmap_shaders/lightMap.rchit -o lightmap_shaders/lightCHit.spv --target-env=vulkan1.3
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./lightmap_shaders/lightMap.rmiss -o lightmap_shaders/lightMiss.spv --target-env=vulkan1.3
+
 pause

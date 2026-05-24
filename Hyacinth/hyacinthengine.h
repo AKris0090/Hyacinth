@@ -13,8 +13,10 @@
 #include "vkdescriptorutils.h"
 #include "vkmeshutils.h"
 #include "gltfutils.h"
+
 #include "raytracing.h"
 #include "owDDGI.h"
+#include "lightmap.h"
 
 #include "frustumcull.h"
 
@@ -160,6 +162,7 @@ private:
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
 	owDDGI							m_owDDGIHelper;
+	LightMapper						m_lightMapper;
 	FrustumCullHelper				m_frustumCullHelper;
 	HyacinthUIManager				m_uiHelper;
 

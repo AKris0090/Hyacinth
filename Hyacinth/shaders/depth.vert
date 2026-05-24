@@ -25,7 +25,6 @@ layout( push_constant ) uniform constants
 	TransformBuffer transformBuffer;
 	MaterialBuffer materialBuffer;
 	DrawDataBuffer drawDataBuffer;
-	// ProbePositionBuffer probePosBuffer;
 } PushConstants;
 
 void main()

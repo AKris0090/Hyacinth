@@ -29,8 +29,8 @@ public:
 	static void addFullscreenQuad(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
 		for (int i = 0; i < fullscreenQuadPositions.size(); i++) {
 			Vertex vert{};
-			vert.pos = glm::vec4(fullscreenQuadPositions[i], fullscreenQuadUVs[i].x);
-			vert.normal = glm::vec4(glm::vec3(0.f), fullscreenQuadUVs[i].y);
+			vert.pos = glm::vec4(fullscreenQuadPositions[i], 1.f);
+			vert.uvs = glm::vec4(fullscreenQuadUVs[i].x, fullscreenQuadUVs[i].y, 0.f, 0.f);
 			vertices.push_back(vert);
 		}
 		for (auto& i : fullscreenQuadIndices) {

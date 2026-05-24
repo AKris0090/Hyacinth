@@ -7,15 +7,16 @@
 layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
-layout  (location = 3) in vec4 jointIndex;
-layout  (location = 4) in vec4 jointWeight;
+layout	(location = 3) in vec4 inUVs;
+layout  (location = 4) in vec4 jointIndex;
+layout  (location = 5) in vec4 jointWeight;
 
 layout	(location = 0) flat out int matIndex;
 layout  (location = 1) out vec4 viewPos;
 layout  (location = 2) out vec4 outNormal;
 layout	(location = 3) out vec4 fragPos;
 layout	(location = 4) out mat3 TBNMatrix;
-layout	(location = 7) out vec2 outUV;
+layout	(location = 7) out vec4 outUV;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
 	mat4 view;
@@ -74,6 +75,5 @@ void main()
 	viewPos = (ubo.view * vec4(fragPos.xyz, 1.0));
 	outNormal = vec4(normal.xyz, 1.0);
 
-	outUV.x		= inPosition.w;
-	outUV.y		= inNormal.w;
+	outUV = inUVs;
 }

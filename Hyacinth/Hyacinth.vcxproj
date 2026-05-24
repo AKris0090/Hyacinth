@@ -158,6 +158,7 @@
     <ClCompile Include="hyacinth_ui.cpp" />
     <ClCompile Include="imguihelper.cpp" />
     <ClCompile Include="input.cpp" />
+    <ClCompile Include="lightmap.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mikktspace\mikktspace.cpp" />
     <ClCompile Include="netDebugRenderer.cpp" />
@@ -198,6 +199,7 @@
     <ClInclude Include="hyacinth_ui.h" />
     <ClInclude Include="imguihelper.h" />
     <ClInclude Include="input.h" />
+    <ClInclude Include="lightmap.h" />
     <ClInclude Include="mikktspace\mikktspace.h" />
     <ClInclude Include="netDebugRenderer.h" />
     <ClInclude Include="net_ent.h" />

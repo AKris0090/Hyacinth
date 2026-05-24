@@ -23,6 +23,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hyacinth-Physics", "Hyacint
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hyacinth-Common", "Hyacinth-Common\Hyacinth-Common.vcxproj", "{C5B5FD41-425F-4B98-91EA-261EC7947426}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hyacinth-Lightmap-Bakery", "Hyacinth-Lightmap-Bakery\Hyacinth-Lightmap-Bakery.vcxproj", "{FE55C6EA-3B0C-42E4-BF16-4C7914BD524B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1ECB439F-0CED-4D19-B940-E5340020C20C} = {1ECB439F-0CED-4D19-B940-E5340020C20C}
+		{C5B5FD41-425F-4B98-91EA-261EC7947426} = {C5B5FD41-425F-4B98-91EA-261EC7947426}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -63,6 +69,14 @@ Global
 		{C5B5FD41-425F-4B98-91EA-261EC7947426}.Release|x64.Build.0 = Release|x64
 		{C5B5FD41-425F-4B98-91EA-261EC7947426}.Release|x86.ActiveCfg = Release|Win32
 		{C5B5FD41-425F-4B98-91EA-261EC7947426}.Release|x86.Build.0 = Release|Win32
+		{FE55C6EA-3B0C-42E4-BF16-4C7914BD524B}.Debug|x64.ActiveCfg = Debug|x64
+		{FE55C6EA-3B0C-42E4-BF16-4C7914BD524B}.Debug|x64.Build.0 = Debug|x64
+		{FE55C6EA-3B0C-42E4-BF16-4C7914BD524B}.Debug|x86.ActiveCfg = Debug|Win32
+		{FE55C6EA-3B0C-42E4-BF16-4C7914BD524B}.Debug|x86.Build.0 = Debug|Win32
+		{FE55C6EA-3B0C-42E4-BF16-4C7914BD524B}.Release|x64.ActiveCfg = Release|x64
+		{FE55C6EA-3B0C-42E4-BF16-4C7914BD524B}.Release|x64.Build.0 = Release|x64
+		{FE55C6EA-3B0C-42E4-BF16-4C7914BD524B}.Release|x86.ActiveCfg = Release|Win32
+		{FE55C6EA-3B0C-42E4-BF16-4C7914BD524B}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

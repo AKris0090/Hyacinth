@@ -22,6 +22,10 @@ static std::string getFileExtension(const std::string& FileName) {
 struct LightPrimitive {
     uint32_t indexCount = 0;
     std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec2> uvs;
+    std::vector<glm::vec2> lmUVs;
+    std::vector<glm::vec4> tangents;
     std::vector<uint32_t> indices;
     int materialIndex = -1;
 };
@@ -50,7 +54,8 @@ struct LightObject {
 };
 
 class LightLoader {
-public:
+private:
     void loadNode(LightObject* obj, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightNode* parent);
+public:
     LightObject* loadFromFile(const std::string& filePath, bool dynamic);
 };

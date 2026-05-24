@@ -53,6 +53,73 @@ void gltfObject::updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer)
     }
 }
 
+static void loadCachedNode(gltfObject& obj, bool includeInAccel, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, uint32_t nodeIndex, gltfNode* parent,std::vector<gltfNode*>& parentNodes, std::ifstream& file) {
+    auto node = new gltfNode();
+    node->parent = parent;
+    node->index = nodeIndex;
+    node->skinIndex = nodeIn.skin;
+    node->includeInAccel = includeInAccel;
+    node->dynamic = dynamic;
+    node->nodeName = nodeIn.name;
+
+    if (nodeIn.matrix.size() == 16) {
+        glm::mat4 m = glm::make_mat4x4(nodeIn.matrix.data());
+        glm::vec3 skew; glm::vec4 perspective;
+        glm::decompose(m, node->localTransform.scale, node->localTransform.rotation, node->localTransform.position, skew, perspective);
+    }
+    else {
+        if (nodeIn.translation.size() == 3) node->localTransform.position = glm::make_vec3(nodeIn.translation.data());
+        if (nodeIn.rotation.size() == 4)    node->localTransform.rotation = glm::make_quat(nodeIn.rotation.data());
+        if (nodeIn.scale.size() == 3)       node->localTransform.scale = glm::make_vec3(nodeIn.scale.data());
+    }
+
+    for (size_t i = 0; i < nodeIn.children.size(); i++) {
+        loadCachedNode(obj, includeInAccel, dynamic, model,
+            model->nodes[nodeIn.children[i]], nodeIn.children[i],
+            node, parentNodes, file);
+    }
+
+    if (nodeIn.mesh > -1) {
+        const tinygltf::Mesh& mesh = model->meshes[nodeIn.mesh];
+        for (size_t i = 0; i < mesh.primitives.size(); i++) {
+            auto p = new gltfPrimitive();
+            p->materialIndex = mesh.primitives[i].material;
+
+            std::string line;
+            while (std::getline(file, line)) {
+                if (line == "p::") continue;
+                if (line[0] == 'v') {
+                    std::istringstream iss(line.substr(2));
+                    Vertex v{};
+                    iss >> v.pos.x >> v.pos.y >> v.pos.z
+                        >> v.normal.x >> v.normal.y >> v.normal.z
+                        >> v.uvs.x >> v.uvs.y >> v.uvs.z >> v.uvs.w
+                        >> v.tangent.x >> v.tangent.y >> v.tangent.z >> v.tangent.w
+                        >> v.jointIndices.x >> v.jointIndices.y >> v.jointIndices.z >> v.jointIndices.w
+                        >> v.jointWeights.x >> v.jointWeights.y >> v.jointWeights.z >> v.jointWeights.w;
+                    p->vertices.push_back(v);
+                }
+                else if (line[0] == 'i') {
+                    std::istringstream iss(line.substr(2));
+                    uint32_t idx;
+                    while (iss >> idx) p->indices.push_back(idx);
+                    break;
+                }
+            }
+
+            node->primitives.push_back(p);
+        }
+    }
+
+    if (parent) {
+        parent->children.push_back(node);
+    }
+    else {
+        parentNodes.push_back(node);
+    }
+    obj.allNodes.push_back(node);
+}
+
 static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, uint32_t nodeIndex, gltfNode* parent, std::vector<gltfNode*>& parentNodes) {
     SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
 
@@ -154,9 +221,10 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
 
                 glm::vec2 uv = uvBuff ? glm::make_vec2(&uvBuff[vert * 2]) : glm::vec3(0.0f);
 
-                v.pos = glm::vec4(glm::make_vec3(&positionBuff[vert * 3]), uv.x);
-                v.normal = glm::vec4(normal, uv.y);
+                v.pos = glm::vec4(glm::make_vec3(&positionBuff[vert * 3]), 1.f);
+                v.normal = glm::vec4(normal, 1.f);
                 v.tangent = tangentsBuff ? glm::make_vec4(&tangentsBuff[vert * 4]) : glm::vec4(0.0f);
+                v.uvs = glm::vec4(uv.x, uv.y, 0.f, 0.f);
 
                 if (hasSkin) {
                     switch (jointType) {
@@ -366,7 +434,7 @@ void gltfObject::setWeaponParentTo(gltfObject* parentObj) {
     gunBaseNode->parent = parentObj->attachmentPoint;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isWeapon) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isWeapon, const std::string& cachedNodes) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
@@ -378,6 +446,11 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     model = new tinygltf::Model();
     tinygltf::TinyGLTF gltfContext;
     std::string error, warning;
+
+    std::ifstream cacheFile;
+    if (cachedNodes.length() > 0) {
+        cacheFile.open(cachedNodes);
+    }
 
     bool loaded = false;
     if (getFilePathExtension(filename) == "glb") {
@@ -397,7 +470,12 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
     const tinygltf::Scene& scene = model->scenes[model->defaultScene];
     for (size_t i = 0; i < scene.nodes.size(); i++) {
         const tinygltf::Node node = model->nodes[scene.nodes[i]];
-        loadGLTFNode(object, includeInAccel, dynamic, model, node, -1, nullptr, object.parentNodes);
+        if (cachedNodes.length() == 0) {
+            loadGLTFNode(object, includeInAccel, dynamic, model, node, -1, nullptr, object.parentNodes);
+        }
+        else {
+            loadCachedNode(object, includeInAccel, dynamic, model, node, -1, nullptr, object.parentNodes, cacheFile);
+        }
     }
 
     object.textureIndices.resize(model->textures.size());

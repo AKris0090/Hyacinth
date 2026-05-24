@@ -119,5 +119,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isWeapon = false);
+    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isWeapon = false, const std::string& cachedNodes = "");
 }

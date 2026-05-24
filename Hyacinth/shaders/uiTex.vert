@@ -10,6 +10,7 @@ struct UIObj {
 layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
+layout	(location = 3) in vec4 inUVs;
 
 layout  (location = 0) flat out uint texIndex;
 layout	(location = 1) out vec2 outUV;
@@ -31,8 +32,7 @@ void main()
 	pos.x = (pos.x * ui.dimensions.x) + ui.origin.x;
 	pos.y = (pos.y * ui.dimensions.y) + ui.origin.y;
 
-	outUV.x		= inPosition.w;
-	outUV.y		= inNormal.w;
+	outUV = inUVs.xy;
 
 	texIndex = ui.texIndex;
 

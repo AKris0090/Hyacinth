@@ -97,7 +97,7 @@ int main() {
 	PhysicsManager physicsManager;
 	physicsManager.initPhysics(false);
 	LightLoader loader;
-	auto path = vkdebugutils::getExeDir() / "objects" / "sponza_physics.glb";
+	auto path = vkdebugutils::getExeDir() / "objects" / "blank_scene.glb";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 	physicsManager.addCharacterController(0);
 

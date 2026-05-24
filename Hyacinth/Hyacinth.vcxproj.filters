@@ -124,6 +124,9 @@
     <Filter Include="Source Files\shaders\network">
       <UniqueIdentifier>{460b37bc-2290-43c6-bf53-54a768289c21}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\core\raytracing\lightmap">
+      <UniqueIdentifier>{3ddb7278-2b1f-40b1-92ba-91b032dbddad}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -230,6 +233,9 @@
     </ClCompile>
     <ClCompile Include="netDebugRenderer.cpp">
       <Filter>Source Files\network\network_debugging</Filter>
+    </ClCompile>
+    <ClCompile Include="lightmap.cpp">
+      <Filter>Source Files\renderer\core\raytracing\lightmap</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -346,6 +352,9 @@
     </ClInclude>
     <ClInclude Include="netDebugRenderer.h">
       <Filter>Source Files\network\network_debugging</Filter>
+    </ClInclude>
+    <ClInclude Include="lightmap.h">
+      <Filter>Source Files\renderer\core\raytracing\lightmap</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

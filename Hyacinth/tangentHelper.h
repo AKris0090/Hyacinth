@@ -40,7 +40,7 @@ public:
 
 	static void MikkTGetTexCoord(const SMikkTSpaceContext* context, float fvTexcOut[], const int face, const int vert) {
 		const auto data = reinterpret_cast<const MikkTContext*>(context->m_pUserData);
-		glm::vec2 uv = glm::vec2(data->mesh->vertices[face * 3 + vert].pos.w, data->mesh->vertices[face * 3 + vert].normal.w);
+		glm::vec2 uv = glm::vec2(data->mesh->vertices[face * 3 + vert].uvs.x, data->mesh->vertices[face * 3 + vert].uvs.y);
 		fvTexcOut[0] = uv.x;
 		fvTexcOut[1] = 1.f - uv.y;
 	}

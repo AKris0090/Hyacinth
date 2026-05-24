@@ -53,7 +53,7 @@ public:
 	float offsetScale = 0.f;
 
 	float cascadeSplitLambda = 0.85f;
-	float DDGIntensity = 1.25f;
+	float DDGIntensity = 0.f;// 1.25f;
 	Transform transform;
 	Cascade m_cascades[SHADOW_MAP_CASCADE_COUNT];
 	VkExtent2D extent;

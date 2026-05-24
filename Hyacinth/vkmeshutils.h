@@ -12,6 +12,7 @@ struct Vertex {
 	glm::vec4 pos;		// uvX is in w component
 	glm::vec4 normal;	// uvY is in w component
 	glm::vec4 tangent;
+	glm::vec4 uvs;
 	glm::vec4 jointIndices;
 	glm::vec4 jointWeights;
 
@@ -30,8 +31,8 @@ struct Vertex {
 		return bindingDescription;
 	}
 
-	static std::array<VkVertexInputAttributeDescription, 5> getAnimatedAttributeDescriptions() {
-		std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions{};
+	static std::array<VkVertexInputAttributeDescription, 6> getAnimatedAttributeDescriptions() {
+		std::array<VkVertexInputAttributeDescription, 6> attributeDescriptions{};
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
 		attributeDescriptions[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -47,16 +48,20 @@ struct Vertex {
 		attributeDescriptions[3].binding = 0;
 		attributeDescriptions[3].location = 3;
 		attributeDescriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-		attributeDescriptions[3].offset = offsetof(Vertex, jointIndices);
+		attributeDescriptions[3].offset = offsetof(Vertex, uvs);
 		attributeDescriptions[4].binding = 0;
 		attributeDescriptions[4].location = 4;
 		attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-		attributeDescriptions[4].offset = offsetof(Vertex, jointWeights);
+		attributeDescriptions[4].offset = offsetof(Vertex, jointIndices);
+		attributeDescriptions[5].binding = 0;
+		attributeDescriptions[5].location = 5;
+		attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attributeDescriptions[5].offset = offsetof(Vertex, jointWeights);
 		return attributeDescriptions;
 	}
 
-	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+	static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
+		std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
 		attributeDescriptions[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
@@ -69,6 +74,10 @@ struct Vertex {
 		attributeDescriptions[2].location = 2;
 		attributeDescriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 		attributeDescriptions[2].offset = offsetof(Vertex, tangent);
+		attributeDescriptions[3].binding = 0;
+		attributeDescriptions[3].location = 3;
+		attributeDescriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attributeDescriptions[3].offset = offsetof(Vertex, uvs);
 		return attributeDescriptions;
 	}
 

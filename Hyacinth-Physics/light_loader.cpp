@@ -47,6 +47,9 @@ void LightLoader::loadNode(LightObject* obj, bool dynamic, const tinygltf::Model
 
             // FOR VERTICES
             const float* positionBuff = nullptr;
+            const float* normalBuff = nullptr;
+            const float* texCoordBuff = nullptr;
+            const float* tangentBuff = nullptr;
 
             if (gltfPrim.attributes.find("POSITION") != gltfPrim.attributes.end()) {
                 const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("POSITION")->second];
@@ -54,10 +57,32 @@ void LightLoader::loadNode(LightObject* obj, bool dynamic, const tinygltf::Model
                 positionBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
                 currentNumVertices = static_cast<uint32_t>(accessor.count);
             }
+            if (gltfPrim.attributes.find("NORMAL") != gltfPrim.attributes.end()) {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("NORMAL")->second];
+                const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
+                normalBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+            }
+            if (gltfPrim.attributes.find("TEXCOORD_0") != gltfPrim.attributes.end()) {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("TEXCOORD_0")->second];
+                const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
+                texCoordBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+            }
+            if (gltfPrim.attributes.find("TANGENT") != gltfPrim.attributes.end()) {
+                const tinygltf::Accessor& accessor = model->accessors[gltfPrim.attributes.find("TANGENT")->second];
+                const tinygltf::BufferView& view = model->bufferViews[accessor.bufferView];
+                tangentBuff = reinterpret_cast<const float*>(&(model->buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+            }
 
             for (size_t vert = 0; vert < currentNumVertices; vert++) {
                 glm::vec3 pos = glm::make_vec3(&positionBuff[vert * 3]);
+                glm::vec3 normal = glm::normalize(glm::vec3(normalBuff ? glm::make_vec3(&normalBuff[vert * 3]) : glm::vec3(0.0f)));
+                glm::vec2 uv = texCoordBuff ? glm::make_vec2(&texCoordBuff[vert * 2]) : glm::vec3(0.0f);
+                glm::vec4 tangent = tangentBuff ? glm::make_vec4(&tangentBuff[vert * 4]) : glm::vec4(0.0f);
+
                 p->vertices.push_back(pos);
+                p->normals.push_back(normal);
+                p->uvs.push_back(uv);
+                p->tangents.push_back(tangent);
             }
 
             const tinygltf::Accessor& accessor = model->accessors[gltfPrim.indices];
