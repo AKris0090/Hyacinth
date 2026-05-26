@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
 {
     // load the static geometry
     LightLoader lightLoader;
-    auto path = getExeDir() / "objects" / "blank_scene.glb";
+    auto path = getExeDir() / "objects" / "test_scene.glb";
     LightObject* obj = lightLoader.loadFromFile(path.string(), false);
  
     xatlas::SetPrint(Print, true);

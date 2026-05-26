@@ -559,7 +559,7 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadScene() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "blank_scene.glb";
+    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     auto cachedSponzaPath = vkdebugutils::getExeDir() / "object_breakdowns" / "sponza_breakdown.txt";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp4.glb";
@@ -677,8 +677,8 @@ void HyacinthEngine::createDescriptorSets()
 
         vkdescriptorutils::queueWriteBuffer(m_frameData[i].uniformDescriptorSet, 0, sizeof(UBO), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_frameData[i].uniformBuffer);
 
-        // vkdescriptorutils::queueWriteImage(m_frameData[i].shadowDescriptorSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_shadowHelper.m_shadowImage, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
-        vkdescriptorutils::queueWriteImage(m_frameData[i].shadowDescriptorSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_lightMapper.m_lightMapImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_frameData[i].shadowDescriptorSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_shadowHelper.m_shadowImage, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+        // vkdescriptorutils::queueWriteImage(m_frameData[i].shadowDescriptorSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_lightMapper.m_lightMapImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		m_gBuffers[i].m_compositeSet = m_descriptorAllocator.allocate(m_compositeSetLayout);
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].albedo, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -754,7 +754,7 @@ void HyacinthEngine::init()
     m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 
-    m_lightMapper.bakeLightMap(m_staticIndirectDrawBuffer.buffer, static_cast<uint32_t>(m_scene.staticDrawCommands.size()), m_drawDataBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_meshBuffers.vertexBuffer.buffer, m_meshBuffers.indexBuffer.buffer);
+    // m_lightMapper.bakeLightMap(m_staticIndirectDrawBuffer.buffer, static_cast<uint32_t>(m_scene.staticDrawCommands.size()), m_drawDataBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_meshBuffers.vertexBuffer.buffer, m_meshBuffers.indexBuffer.buffer);
 
     createGraphicsPipeline();
 

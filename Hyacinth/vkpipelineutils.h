@@ -20,6 +20,7 @@ struct VulkanPipeline {
 class VulkanPipelineBuilder {
 public:
     int numColorAttachments = 1;
+
     VulkanPipeline                                  m_pipeline;
 	std::vector<VkPipelineShaderStageCreateInfo>    m_shaderStages;
 
@@ -37,7 +38,6 @@ public:
     VulkanPipelineBuilder() { reset(); };
     void buildPipeline();
 	void addShader(std::string shaderFile, VkShaderStageFlagBits stage);
-
     void setInputTopology(VkPrimitiveTopology topology);
 	void setPolygonMode(VkPolygonMode polygonMode);
     void setCullMode(VkCullModeFlags cullMode, VkFrontFace frontFace);

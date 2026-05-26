@@ -8,7 +8,7 @@ struct RayPayload {
 };
 
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
-layout(set = 0, binding = 1) uniform writeonly image2D lightMapImage;
+layout(set = 0, binding = 1, r32f) uniform image2D lightMapImage;
 layout(set = 0, binding = 2) uniform sampler2D worldPosImage;
 layout(set = 0, binding = 3) uniform sampler2D normalImage;
 
@@ -17,6 +17,7 @@ layout(location = 0) rayPayloadEXT RayPayload payload;
 layout( push_constant ) uniform constants
 {
 	vec4 lightPos;
+	vec2 rand;
 } pc;
 
 void main() 
@@ -25,21 +26,22 @@ void main()
 	lmUV.x = int(gl_LaunchIDEXT.x);
 	lmUV.y = int(gl_LaunchIDEXT.y);
 
-	vec2 mapUV = vec2(lmUV) / 4096.0;
+	vec2 uv = (vec2(lmUV) + pc.rand) / vec2(4096);
 
-	vec4 worldPos = texture(worldPosImage, mapUV);
-	vec4 normal = texture(normalImage, mapUV);
+	vec4 worldPos = texture(worldPosImage, uv);
+	vec4 normal = texture(normalImage, uv);
 
-	vec3 origin = worldPos.xyz;
-	vec3 dir = pc.lightPos.xyz;
+	vec4 currentval = imageLoad(lightMapImage, lmUV);
 
-	uint rayFlags = gl_RayFlagsOpaqueEXT;
+	vec3 origin = worldPos.xyz + (normal.xyz * 0.001);
+	vec3 dir = normalize(pc.lightPos.xyz);
+
+	uint rayFlags = gl_RayFlagsOpaqueEXT | gl_RayFlagsTerminateOnFirstHitEXT;
 	uint cullMask = 0xff;
-	float tmin = 0.01;
+	float tmin = 0.0;
 	float tmax = 1000.0;
 
-	payload.shaded = 1;
+	payload.shaded = 0;
 	traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin, tmin, dir, tmax, 0);
-
-	imageStore(lightMapImage, lmUV, vec4(float(payload.shaded), 0.f, 0.f, 0.f));
+	imageStore(lightMapImage, lmUV, vec4(currentval.r + float(payload.shaded), 0.f, 0.f, 0.f));
 }

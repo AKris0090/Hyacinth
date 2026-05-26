@@ -15,6 +15,7 @@ struct PosNormPC {
 
 struct lightPosPC {
 	glm::vec4 lightPos;
+	glm::vec2 rand;
 };
 
 class LightMapper {
@@ -28,7 +29,7 @@ private:
 	VkStridedDeviceAddressRegionKHR m_hitRegion{};
 	VkStridedDeviceAddressRegionKHR m_callableRegion{};
 
-	VkFormat						m_lightMapFormat = VK_FORMAT_R16_SFLOAT;
+	VkFormat						m_lightMapFormat = VK_FORMAT_R32_SFLOAT;
 	VkFormat						m_posNormalFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 	VulkanPipeline					m_lightMapTracePipeline;
 	VulkanPipelineBuilder			m_posNormalPipeline;
@@ -44,7 +45,7 @@ private:
 
 public:
 	VulkanImage m_lightMapImage;
-
+	VkPhysicalDeviceConservativeRasterizationPropertiesEXT conservativeRasterProps{};
 	VulkanImage m_worldPosImage;
 	VulkanImage m_normalImage;
 

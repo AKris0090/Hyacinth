@@ -188,7 +188,6 @@ void LightMapper::createLightMapPipelines()
 	pipelineLayoutCInfo.pPushConstantRanges = &posNormPCRange;
 
 	VK_CHECK(vkCreatePipelineLayout(vkdeviceutils::device, &pipelineLayoutCInfo, nullptr, &m_posNormalPipeline.m_pipeline.layout));
-
 	m_posNormalPipeline.buildPipeline();
 }
 
@@ -211,8 +210,8 @@ void LightMapper::setup(rtHelper* rtHelper) {
 	m_worldPosImage = vkimageutils::createImageandView(worldPosNormExtent3D, 1, m_posNormalFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, false, "lightmap_world_pos_image");
 	m_normalImage = vkimageutils::createImageandView(worldPosNormExtent3D, 1, m_posNormalFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, false, "lightmap_normal_image");
 	VkSamplerCreateInfo samplerInfo{ .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-	samplerInfo.magFilter = VK_FILTER_NEAREST;
-	samplerInfo.minFilter = VK_FILTER_NEAREST;
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
 	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	samplerInfo.addressModeV = samplerInfo.addressModeU;
 	samplerInfo.addressModeW = samplerInfo.addressModeU;
@@ -220,12 +219,17 @@ void LightMapper::setup(rtHelper* rtHelper) {
 	VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerInfo, nullptr, &m_worldPosImage.imageSampler));
 	VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerInfo, nullptr, &m_normalImage.imageSampler));
 
-	// samplerInfo.magFilter = VK_FILTER_LINEAR;
-	// samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.magFilter = VK_FILTER_NEAREST;
+	samplerInfo.minFilter = VK_FILTER_NEAREST;
+	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
 	VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerInfo, nullptr, &m_lightMapImage.imageSampler));
 
 	createLightMapDescriptors();
 	createLightMapPipelines();
+}
+
+static float randomFloat() {
+	return (float)(rand()) / (float)(RAND_MAX);
 }
 
 void LightMapper::bakeLightMap(VkBuffer& staticDrawBuffer, uint32_t numStaticDraws, VkDeviceAddress& drawDataAddress, VkDeviceAddress& transformAddress, VkBuffer& vertexBuffer, VkBuffer& indexBuffer) {
@@ -256,6 +260,9 @@ void LightMapper::bakeLightMap(VkBuffer& staticDrawBuffer, uint32_t numStaticDra
 	scissor.offset = { 0, 0 };
 	scissor.extent = m_lightMapExtent;
 
+	lightPosPC lPc{};
+	lPc.lightPos = glm::vec4(-2.f, 12.f, -6.f, 1.f);
+
 	vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
 		vkimageutils::transitionImage(cmd, m_worldPosImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		vkimageutils::transitionImage(cmd, m_normalImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -263,9 +270,6 @@ void LightMapper::bakeLightMap(VkBuffer& staticDrawBuffer, uint32_t numStaticDra
 		PosNormPC pc{};
 		pc.drawDataAddress = drawDataAddress;
 		pc.transformAddress = transformAddress;
-
-		lightPosPC lPc{};
-		lPc.lightPos = glm::vec4(-2.f, 12.f, -6.f, 1.f);
 
 		{
 			VK_LABEL(cmd, "WorldPosNormal Pass");
@@ -296,18 +300,29 @@ void LightMapper::bakeLightMap(VkBuffer& staticDrawBuffer, uint32_t numStaticDra
 
 		vkimageutils::transitionImage(cmd, m_lightMapImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		vkCmdClearColorImage(cmd, m_lightMapImage.image, VK_IMAGE_LAYOUT_GENERAL, &lightMapClear.color, 1, &subResourceRange);
-		
-		{
-			VK_LABEL(cmd, "Lightmap Trace Pass");
-			std::array<VkDescriptorSet, 1> sets = { m_lightMapDescriptorSet };
-		
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_lightMapTracePipeline.pipeline);
-			vkCmdPushConstants(cmd, m_lightMapTracePipeline.layout, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, sizeof(lightPosPC), &lPc);
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_lightMapTracePipeline.layout, 0, 1, sets.data(), 0, nullptr);
-			rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, LIGHTMAP_SIZE, LIGHTMAP_SIZE, 1);
-			VK_LABEL_END(cmd);
+	});
+
+	std::array<VkDescriptorSet, 1> sets = { m_lightMapDescriptorSet };
+
+	int batchSize = 500;
+	for (int i = 0; i < 30000; i++) {
+		if (i % batchSize == 0) {
+			if (i != 0) {
+				printf("Lightmap progress: %d / 30000 (%.1f%%)\n", i, (i / 30000.0f) * 100.0f);
+				vkdeviceutils::endSubmitCommandBuffer();
+			}
+			vkdeviceutils::beginSingleTimeCommandBuffer();
+			vkCmdBindPipeline(vkdeviceutils::commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_lightMapTracePipeline.pipeline);
+			vkCmdBindDescriptorSets(vkdeviceutils::commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_lightMapTracePipeline.layout, 0, 1, sets.data(), 0, nullptr);
 		}
-		
+
+		lPc.rand = glm::vec2(randomFloat(), randomFloat());
+		vkCmdPushConstants(vkdeviceutils::commandBuffer, m_lightMapTracePipeline.layout, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, sizeof(lightPosPC), &lPc);
+		rt::Trace(vkdeviceutils::commandBuffer, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, LIGHTMAP_SIZE, LIGHTMAP_SIZE, 1);
+	}
+	vkdeviceutils::endSubmitCommandBuffer();
+
+	vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
 		vkimageutils::transitionImage(cmd, m_lightMapImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 	});
 }
