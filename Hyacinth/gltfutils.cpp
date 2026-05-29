@@ -410,7 +410,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
         tinygltf::Material gltfMat = model->materials[i];
         if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
             object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 3; // 3 for all dummy textures
-            object.imageIsSRGB->insert(object.materials[i].baseColorIndex - 2);
+            object.imageIsSRGB->insert(object.materials[i].baseColorIndex - 3);
         }
         else { object.materials[i].baseColorIndex = DUMMY_COLOR_TEX_INDEX; }
         if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {

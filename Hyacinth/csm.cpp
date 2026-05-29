@@ -485,6 +485,8 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 
 		sphereRadius = std::min(sphereRadius, boundingBoxRadius(frustumCenter, sceneAABBCornersLightView));
 
+		sphereRadius = 30.f;
+
 		sphereRadius = std::ceil(sphereRadius * 16.f) / 16.f;
 
 		glm::vec3 maxExtents = glm::vec3(sphereRadius);
@@ -492,7 +494,7 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 
 		glm::vec3 shadowCamPos = frustumCenter + lightDirection * -minExtents;
 
-		glm::mat4 lightViewMatrix = glm::lookAt(shadowCamPos, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightViewMatrix = glm::lookAt(lightDirection * -minExtents, glm::vec3(0.f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 		// calculate tight near and far bounds ///////////////////
 

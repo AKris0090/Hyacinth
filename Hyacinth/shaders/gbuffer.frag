@@ -42,6 +42,15 @@ layout(set = 2, binding = 0) uniform sampler2D globalTextures2D[];
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outNormal;
 
+vec2 ComputeReceiverPlaneDepthBias(vec3 texCoordDX, vec3 texCoordDY)
+{
+    vec2 biasUV;
+    biasUV.x = texCoordDY.y * texCoordDX.z - texCoordDX.y * texCoordDY.z;
+    biasUV.y = texCoordDX.x * texCoordDY.z - texCoordDY.x * texCoordDX.z;
+    biasUV *= 1.0f / ((texCoordDX.x * texCoordDY.y) - (texCoordDX.y * texCoordDY.x));
+    return biasUV;
+}
+
 float sampleShadowMap(vec2 baseUV, float u, float v, vec2 shadowMapSizeInv, uint cascadeIndex, float depth, vec2 receiverPlaneDepthBias) {
 	vec2 uv = baseUV + vec2(u, v) * shadowMapSizeInv;
 	float z = depth + dot(vec2(u, v) * shadowMapSizeInv, receiverPlaneDepthBias);
@@ -58,8 +67,12 @@ float sampleCascadeMap(vec3 shadowPos, vec3 shadowPosDx, vec3 shadowPosDy, uint 
 	// sample shadow optimized pcf 
 	vec3 shadowMapSize = vec3(textureSize(shadowDepthMap, 0).xyz);
 
-	float lightDepth = shadowPos.z - ubo.ABOD.y;
-	vec2 receiverPlaneDepthBias = vec2(0.0, 0.0);
+	float lightDepth = shadowPos.z;
+	vec2 receiverPlaneDepthBias = ComputeReceiverPlaneDepthBias(shadowPosDx, shadowPosDy);
+
+	vec2 texelSize = 1.0f / shadowMapSize.xy;
+	float fractionalSamplingError = 2 * dot(vec2(1.0f, 1.0f) * texelSize, abs(receiverPlaneDepthBias));
+    lightDepth -= min(fractionalSamplingError, 0.01f);
 
 	vec2 uv = shadowPos.xy * shadowMapSize.xy;
 	vec2 shadowMapSizeInv = 1.0 / shadowMapSize.xy;

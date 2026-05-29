@@ -13,8 +13,8 @@
 #include "vkmeshutils.h"
 #include "fpcam.h"
 
-constexpr int SHADOW_MAP_CASCADE_COUNT = 3;
-constexpr int cascadeImageSize = 4096;
+constexpr int SHADOW_MAP_CASCADE_COUNT = 1;
+constexpr int cascadeImageSize = 8192;
 
 struct shadowUniform {
 	glm::mat4 viewProj[SHADOW_MAP_CASCADE_COUNT];

@@ -243,8 +243,8 @@ void HyacinthEngine::createColorImages() {
     m_gBuffers.resize(numImages);
     for (auto& gb : m_gBuffers) {
         gb.depth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "depth_image");
-        gb.albedo = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "albedo_image");
-		gb.normal = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "normal_image");
+        gb.albedo = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "albedo_image");
+		gb.normal = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "normal_image");
         gb.ddgiImage = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "ddgi_image");
         gb.stencilDepth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "stencil_depth_image");
 	    vkimageutils::createImageSampler(gb.albedo);
@@ -325,7 +325,7 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.setDefaultAttributes();
 	m_pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
 	m_pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	m_pipelineUtil.setColorAttachmentFormat(m_swImageFormat.format, 2);
+	m_pipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 2);
     m_pipelineUtil.setMultisampling(m_msaaSamples);
 	m_pipelineUtil.disableBlending();
     m_pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
@@ -336,7 +336,7 @@ void HyacinthEngine::createGraphicsPipeline()
     m_skinnedPipelineUtil.setAnimatedAttribute();
     m_skinnedPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
     m_skinnedPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    m_skinnedPipelineUtil.setColorAttachmentFormat(m_swImageFormat.format, 2);
+    m_skinnedPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 2);
     m_skinnedPipelineUtil.setMultisampling(m_msaaSamples);
     m_skinnedPipelineUtil.disableBlending();
     m_skinnedPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
@@ -348,8 +348,8 @@ void HyacinthEngine::createGraphicsPipeline()
     viewport.y = 0.0f;
     viewport.width = (float)m_swImageFormat.extent.width;
     viewport.height = (float)m_swImageFormat.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    viewport.minDepth = 1.0f;
+    viewport.maxDepth = 0.0f;
 
     VkRect2D scissor{};
     scissor.offset = { 0, 0 };
@@ -559,7 +559,7 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadScene() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp4.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun.glb";
@@ -731,7 +731,7 @@ void HyacinthEngine::init()
 
 	createSyncObjects(); // also creates device context
 
-    m_camera = Camera(m_swImageFormat.aspectRatio, 90.f, 0.01f, 40.f);
+    m_camera = Camera(m_swImageFormat.aspectRatio, 90.f, 0.01f, 50.f);
 
     createColorImages();
 
@@ -820,7 +820,7 @@ void HyacinthEngine::update() {
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 1.f);
     newuniform.ABOD = glm::vec4(ambientToggle, m_shadowHelper.bias, m_shadowHelper.offsetScale, m_shadowHelper.DDGIntensity);
     newuniform.globalShadowMatrix = m_shadowHelper.shaderShadowMatrix;
-    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.shaderSplits[0], m_shadowHelper.shaderSplits[1], m_shadowHelper.shaderSplits[2], 0.f);
+    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.shaderSplits[0], 0.f, 0.f, 0.f);// , m_shadowHelper.shaderSplits[1], m_shadowHelper.shaderSplits[2], m_shadowHelper.shaderSplits[3]);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeOffsets[i] = m_shadowHelper.cascadeOffsets[i];
         newuniform.cascadeScales[i] = m_shadowHelper.cascadeScales[i];
