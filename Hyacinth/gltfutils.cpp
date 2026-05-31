@@ -366,13 +366,14 @@ void gltfObject::setWeaponParentTo(gltfObject* parentObj) {
     gunBaseNode->parent = parentObj->attachmentPoint;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isWeapon) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isWeapon, bool isTracer) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
     object.dynamic = dynamic;
     object.isCharacter = isCharacter;
     object.isWeapon = isWeapon;
+    object.isTracer = isTracer;
     object.imageIsSRGB = new std::unordered_set<uint32_t>();
     tinygltf::Model* model;
     model = new tinygltf::Model();
@@ -539,6 +540,7 @@ void SceneGraph::buildSceneGraph() {
                 draw.isCharacter = obj->isCharacter;
                 draw.isWeapon = obj->isWeapon;
                 draw.dynamic = obj->dynamic;
+                draw.isTracer = obj->isTracer;
                 draw.firstIndex = firstIndex;
                 draw.indexCount = static_cast<uint32_t>(prim->indices.size());
                 draw.vertexCount = prim->vertices.size();
@@ -611,6 +613,9 @@ void SceneGraph::buildSceneGraph() {
             }
             else if (gltfDraw.isWeapon) {
                 pistolDrawCommands.push_back(drawCmd);
+            }
+            else if (gltfDraw.isTracer) {
+                tracerCommands.push_back(drawCmd);
             }
             else {
                 gltfDraw.dynamic ? dynamicDrawCommands.push_back(drawCmd) : staticDrawCommands.push_back(drawCmd);

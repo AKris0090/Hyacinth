@@ -12,7 +12,7 @@ layout	(location = 3) in vec4 fragPos;
 layout	(location = 4) in mat3 TBNMatrix;
 layout	(location = 7) in vec2 inUV;
 
-layout (set = 1, binding = 0) uniform sampler2DArrayShadow shadowDepthMap;
+layout (set = 1, binding = 0) uniform sampler2DShadow shadowDepthMap;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
 	mat4 view;
@@ -54,7 +54,8 @@ vec2 ComputeReceiverPlaneDepthBias(vec3 texCoordDX, vec3 texCoordDY)
 float sampleShadowMap(vec2 baseUV, float u, float v, vec2 shadowMapSizeInv, uint cascadeIndex, float depth, vec2 receiverPlaneDepthBias) {
 	vec2 uv = baseUV + vec2(u, v) * shadowMapSizeInv;
 	float z = depth + dot(vec2(u, v) * shadowMapSizeInv, receiverPlaneDepthBias);
-	return texture(shadowDepthMap, vec4(uv, cascadeIndex, z));
+	// return texture(shadowDepthMap, vec4(uv, cascadeIndex, z));
+	return texture(shadowDepthMap, vec3(uv, z));
 }
 
 float sampleCascadeMap(vec3 shadowPos, vec3 shadowPosDx, vec3 shadowPosDy, uint cascadeIndex) {
@@ -65,7 +66,7 @@ float sampleCascadeMap(vec3 shadowPos, vec3 shadowPosDx, vec3 shadowPosDy, uint 
 	shadowPosDy *= ubo.cascadeScales[cascadeIndex].xyz;
 
 	// sample shadow optimized pcf 
-	vec3 shadowMapSize = vec3(textureSize(shadowDepthMap, 0).xyz);
+	vec2 shadowMapSize = vec2(textureSize(shadowDepthMap, 0));
 
 	float lightDepth = shadowPos.z;
 	vec2 receiverPlaneDepthBias = ComputeReceiverPlaneDepthBias(shadowPosDx, shadowPosDy);
@@ -134,7 +135,7 @@ float sampleCascadeMap(vec3 shadowPos, vec3 shadowPosDx, vec3 shadowPosDy, uint 
 
 // offset sampling the shadow map based on the surface normal
 vec3 getShadowSamplePosOffset(float nDotL, vec3 normal) {
-	vec3 shadowMapSize = vec3(textureSize(shadowDepthMap, 0).xyz);
+	vec2 shadowMapSize = vec2(textureSize(shadowDepthMap, 0));
 	float texelSize = 2.0 / shadowMapSize.x;
 	float normalOffsetScale = clamp(1.0 - nDotL, 0.0, 1.0);
 	return texelSize * ubo.ABOD.z * normalOffsetScale * normal;

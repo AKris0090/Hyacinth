@@ -30,6 +30,7 @@ struct gltfDrawCommand {
     bool dynamic;
     bool isCharacter;
     bool isWeapon;
+    bool isTracer;
     uint32_t    indexCount;
     uint32_t    firstIndex;
     int32_t     vertexOffset;
@@ -42,6 +43,7 @@ struct gltfObject {
     bool dynamic;
     bool isCharacter;
     bool isWeapon;
+    bool isTracer;
     uint32_t firstMatrix = 0;
     uint32_t numMatrices = 0;
     uint32_t activeAnimation = 0;
@@ -103,6 +105,7 @@ struct SceneGraph {
     std::vector<VkDrawIndexedIndirectCommand> dynamicDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> characterDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> pistolDrawCommands;
+    std::vector<VkDrawIndexedIndirectCommand> tracerCommands;
 
     std::vector<DrawData> drawData;
     std::vector<GPUMaterialIndices> materialObjects;
@@ -119,5 +122,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isWeapon = false);
+    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isWeapon = false, bool isTracer = false);
 }

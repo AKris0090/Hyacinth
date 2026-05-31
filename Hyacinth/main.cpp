@@ -39,18 +39,6 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		// update physics
 		engine->p_netEntManager->selfMutex.lock();
 
-		bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb);
-
-#ifdef DEBUG_NETWORK
-		if (shotFired) {
-			for (const auto& e : engine->p_netEntManager->entities) {
-				if (e.first == 1) {
-					engine->m_netDebugRenderer.clientEntityPosition = glm::vec4(e.second->transform.position, 1.f);
-				}
-			}
-		}
-#endif
-
 		if (engine->mouseLocked) {
 			physicsManager->updatePlayerMovement(0, netClient->netEntManager.self->moveSpeed, netClient->netEntManager.self->transform, netClient->netEntManager.inputAccumulator);
 		}
@@ -58,6 +46,36 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 
 		p.pitch = netClient->netEntManager.self->transform.pitch;
 		p.yaw = netClient->netEntManager.self->transform.yaw;
+
+		bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb); // update if self is shooting
+
+		if (shotFired) {
+#ifdef DEBUG_NETWORK
+			for (const auto& e : engine->p_netEntManager->entities) {
+				if (e.first == 1) {
+					engine->m_netDebugRenderer.clientEntityPosition = glm::vec4(e.second->transform.position, 1.f);
+				}
+			}
+#endif
+			// if shot fired, then draw trace and draw the tracer to connect the two
+			glm::vec3 hitPos = physicsManager->traceBullet(netClient->netEntManager.self->transform);
+			std::cout << "hit: " << hitPos.x << " " << hitPos.y << " " << hitPos.z << std::endl;
+			// add a transform to the tracers list
+			// vector from position to hitposition
+			glm::vec3 origin = netClient->netEntManager.self->transform.position + glm::vec3(0.f, 1.85f, 0.f);
+			origin += netClient->netEntManager.self->transform.forward * 1.6f;
+			origin += netClient->netEntManager.self->transform.right * 0.9f;
+			origin -= netClient->netEntManager.self->transform.up * 0.2f;
+			glm::vec3 dir = hitPos - origin;
+			Transform t;
+			t.scale.x = glm::length(dir);
+			t.yaw = glm::degrees(glm::atan2(dir.z, dir.x));
+			t.pitch = glm::degrees(-glm::atan2(-dir.y, sqrt(dir.x * dir.x + dir.z * dir.z)));
+			t.setRotationPitchYaw();
+			t.position = origin;
+			engine->m_tracerManager.addTracer(t.getMatrix());
+		}
+
 #ifdef CONNECT_SERVER
 		netClient->updateServerTick(p, engine->mouseLocked);
 		netClient->netEntManager.rB.addState(netClient->netEntManager.self->transform, p.movementFB, p.movementLR, tickNum);
@@ -80,6 +98,9 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		engine->p_netEntManager->selfSimBuffer.newPacket(sP);
 		engine->p_netEntManager->selfMutex.unlock();
 
+		physicsManager->pScene->simulate(SERVER_TIMESTEP);
+		physicsManager->pScene->fetchResults(true);
+
 		std::this_thread::sleep_until(nextTick);
 
 		tickNum++;
@@ -95,7 +116,7 @@ int main() {
 	hyacinthEngine.init();
 
 	PhysicsManager physicsManager;
-	physicsManager.initPhysics(false);
+	physicsManager.initPhysics(true); // initialize PVD?
 	LightLoader loader;
 	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));

@@ -18,6 +18,8 @@
 
 #include "frustumcull.h"
 
+#include "tracer_manager.h"
+
 #include "csm.h"
 #include "time.h"
 #include "fpcam.h"
@@ -49,6 +51,14 @@ const VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
 struct volumeStencilPushConstant {
 	VkDeviceAddress volumeTransformAddress;
 	uint32_t volumeIndex;
+};
+
+struct tracerPushConstant {
+	VkDeviceAddress tracerTransformsAddress;
+	VkDeviceAddress materialBufferAddress;
+	uint32_t matIndex;
+	uint32_t tracerIndex;
+	float alpha;
 };
 
 struct UBO {
@@ -85,6 +95,7 @@ public:
 	std::mutex camMutex;
 	Camera m_camera;
 	SceneGraph						m_scene{};
+	TracerManager					m_tracerManager;
 
 #ifdef DEBUG_NETWORK
 	NetDebugRenderer m_netDebugRenderer;
@@ -102,6 +113,7 @@ private:
 		VkCommandPool	commandPool;
 		VkCommandBuffer commandBuffer;
 		VulkanBuffer	uniformBuffer;
+		VulkanBuffer	tracerTransformBuffer;
 		void*			mappedUniformBuffer;
 		VkDescriptorSet uniformDescriptorSet;
 		VkDescriptorSet shadowDescriptorSet;
@@ -119,6 +131,8 @@ private:
 	uint32_t m_swImageIndex = 0;
 	uint32_t characterDrawOffset = 0;
 	uint32_t pistolDrawOffset = 0;
+	uint32_t tracerDrawOffset = 0;
+	uint32_t maxTracers = 10;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkInstance						m_instance				{ VK_NULL_HANDLE };
@@ -139,6 +153,7 @@ private:
 	std::vector<GBuffer>			m_gBuffers				{};
 	std::vector<VulkanImage>		m_swapChainImages		{}; // a.k.a color resolve
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
+	VulkanPipelineBuilder 			m_tracerPipelineUtil	{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
 	VulkanPipelineBuilder			m_skinnedPipelineUtil   {};
@@ -173,6 +188,7 @@ private:
 	void createCompositePipeline();
 	void createDDGIPipeline();
 	void createDDGIVolumePipeline();
+	void createTracerPipeline();
 	void createBuffers();
 	void createDescriptorSets();
 	void setupImGUI();

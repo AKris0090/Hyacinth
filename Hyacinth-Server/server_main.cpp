@@ -353,7 +353,7 @@ int main()
     // setup physics with base scene as a static mesh
     {
         LightLoader loader;
-        auto path = getExeDir() / "objects" / "sponza_physics.glb";
+        auto path = getExeDir() / "objects" / "test_scene.glb";
 
         physicsManager.initPhysics(true);
         physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));

@@ -208,6 +208,7 @@
     <ClInclude Include="sdlwindow.h" />
     <ClInclude Include="tangentHelper.h" />
     <ClInclude Include="time.h" />
+    <ClInclude Include="tracer_manager.h" />
     <ClInclude Include="unit_cube.h" />
     <ClInclude Include="vkdescriptorutils.h" />
     <ClInclude Include="vkdeviceutils.h" />

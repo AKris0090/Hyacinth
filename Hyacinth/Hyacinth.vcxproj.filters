@@ -347,6 +347,9 @@
     <ClInclude Include="netDebugRenderer.h">
       <Filter>Source Files\network\network_debugging</Filter>
     </ClInclude>
+    <ClInclude Include="tracer_manager.h">
+      <Filter>Source Files\renderer\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\gbuffer.vert">

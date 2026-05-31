@@ -14,6 +14,7 @@
 #include "pvd/PxPvd.h"
 #include "pvd/PxPvdTransport.h"
 #include "pvd/PxPvdSceneClient.h"
+#include "PxPhysicsAPI.h"
 #include "common/PxTolerancesScale.h"
 #include "cooking/PxTriangleMeshDesc.h"
 #include "cooking/PxCooking.h"
@@ -83,6 +84,7 @@ private:
 public:
 	physx::PxScene* pScene = NULL;
 	physx::PxCapsuleGeometry capGeom;
+	std::vector<physx::PxTriangleMeshGeometry> worldGeom;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
@@ -97,6 +99,7 @@ public:
 	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
 	void addNetworkEntityCapsuleCollider(uint32_t cId);
 	void setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId);
+	glm::vec3 traceBullet(Transform& camTransform);
 
 	hitReg playerShooting(uint32_t eId, Transform& t, rewindSnapshot* snapshotToTrace);
 };

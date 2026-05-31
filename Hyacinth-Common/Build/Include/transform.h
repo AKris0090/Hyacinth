@@ -15,7 +15,7 @@ struct Transform {
 	glm::vec3 right = { 0.f, 0.f, 1.f };
 	glm::vec3 up = { 0.f, 1.f, 0.f };
 
-	float pitch = 0.f, yaw = 0.f;
+	float pitch = 0.f, yaw = 0.f, roll = 0.f;
 
 	bool dirty = 0;
 
@@ -40,13 +40,19 @@ struct Transform {
 			sin(glm::radians(pitch)),
 			sin(glm::radians(yaw)) * cos(glm::radians(pitch))
 		));
+
+		glm::mat4 rollMat = glm::rotate(glm::mat4(1.f), glm::radians(roll), forward);
+		right = glm::normalize(glm::vec3(rollMat * glm::vec4(right, 0.f)));
+		up = glm::normalize(glm::vec3(rollMat * glm::vec4(up, 0.f)));
+
 		right = glm::normalize(glm::cross(forward, glm::vec3(0.f, 1.f, 0.f)));
 		up = glm::normalize(glm::cross(right, forward));
 
 		glm::quat qYaw = glm::angleAxis(glm::radians(yaw), glm::vec3(0, -1, 0));
 		glm::quat qPitch = glm::angleAxis(glm::radians(pitch), glm::vec3(0, 0, 1));
+		glm::quat qRoll = glm::angleAxis(glm::radians(roll), glm::vec3(1, 0, 0));
 
-		rotation = qYaw * qPitch;
+		rotation = qYaw * qPitch * qRoll;
 	}
 
 	Transform lerpTo(const Transform& other, float delta) {
