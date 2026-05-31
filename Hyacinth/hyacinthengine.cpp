@@ -398,7 +398,7 @@ void HyacinthEngine::createTracerPipeline() {
     m_tracerPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     m_tracerPipelineUtil.setColorAttachmentFormat(m_swImageFormat.format, 1);
     m_tracerPipelineUtil.setMultisampling(m_msaaSamples);
-    m_tracerPipelineUtil.disableBlending();
+    m_tracerPipelineUtil.enableBlending();
     m_tracerPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
     m_tracerPipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
     m_tracerPipelineUtil.numColorAttachments = 1;
@@ -1366,7 +1366,11 @@ void HyacinthEngine::cleanup()
 	m_owDDGIHelper.shutdown();
     m_rtHelper.shutdown();
     m_uiHelper.shutdown();
+
+
+#ifdef DEBUG_NETWORK
     m_netDebugRenderer.shutdown();
+#endif
 
 	vkdeviceutils::destroyBuffer(m_meshBuffers.indexBuffer);
 	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);
@@ -1388,6 +1392,7 @@ void HyacinthEngine::cleanup()
     m_ddgiPipelineUtil.destroyPipeline();
     m_volumeStencilPipeline.destroyPipeline();
     m_skinnedPipelineUtil.destroyPipeline();
+    m_tracerPipelineUtil.destroyPipeline();
 
     for (auto& tex : m_scene.dummyTextures) {
         vkimageutils::destroyImage(tex);

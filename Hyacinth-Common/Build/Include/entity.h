@@ -14,7 +14,7 @@ enum FIRSTPERSON_STATE {
 };
 
 struct WeaponController {
-	float timeBetweenShots = 0.25f;
+	float timeBetweenShots = 0.15f;
 	float currentShotTimer = 0.f;
 
 	int currentAmmo = 10;
@@ -75,6 +75,8 @@ struct Entity {
 	Transform transform;
 	bool isMoving = false;
 	bool shotAck = false;
+	bool shot = false;
+	glm::vec3 hitPos;
 
 	WeaponController pistolController;
 };

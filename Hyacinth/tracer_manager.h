@@ -32,7 +32,7 @@ public:
 			if (t.currentTime > TRACER_TIME) {
 				numP++;
 			}
-			t.alpha = t.currentTime / TRACER_TIME;
+			t.alpha = 1.f - (t.currentTime / TRACER_TIME);
 		}
 		for (int i = 0; i < numP; i++) tracers.pop_front();
 	}

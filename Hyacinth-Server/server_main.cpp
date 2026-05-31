@@ -27,7 +27,7 @@
 #pragma comment(lib, "Hyacinth-Common.lib")
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
-#define LAG_SIMULATION
+// #define LAG_SIMULATION
 
 constexpr long long CLIENT_TIMEOUT = 3000;
 
@@ -301,14 +301,13 @@ void updateTick(SOCKET* udpSendSocket) {
                 }
                 else {
                     h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
-                    if (h.hit) {
-                        // std::cout << "entity: " << id << " has hit client: " << h.entityHitId << std::endl << std::endl;
-                        // client->entity.shotAck = true;
-                    }
-                    else {
-                        // std::cout << "airball" << std::endl << std::endl;
-                    }
                 }
+
+                client->entity.shotAck = true;
+                client->entity.hitPos = h.hitPos;
+            }
+            else {
+                client->entity.shotAck = false;
             }
 
             client->bufferedPacket.reset();
@@ -317,9 +316,6 @@ void updateTick(SOCKET* udpSendSocket) {
 #ifdef LAG_SIMULATION
             if (canShoot && h.hit) {
                 for (auto& ent : p->entities) {
-                    if (ent.id == client->id) {
-                        ent.shotAck = true;
-                    }
                     if (ent.id == 1) {
                         ent.transform.position = h.footPosHit;
                     }

@@ -244,6 +244,8 @@
     <None Include="shaders\raygen.rgen" />
     <None Include="shaders\shadow.vert" />
     <None Include="shaders\shadowCommon.glsl" />
+    <None Include="shaders\tracer.frag" />
+    <None Include="shaders\tracer.vert" />
     <None Include="shaders\uiTex.frag" />
     <None Include="shaders\uiTex.vert" />
     <None Include="shaders\visibilityBuild.comp" />

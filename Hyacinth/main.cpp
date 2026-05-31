@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 
-// #define CONNECT_SERVER true
+#define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -59,9 +59,6 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 #endif
 			// if shot fired, then draw trace and draw the tracer to connect the two
 			glm::vec3 hitPos = physicsManager->traceBullet(netClient->netEntManager.self->transform);
-			std::cout << "hit: " << hitPos.x << " " << hitPos.y << " " << hitPos.z << std::endl;
-			// add a transform to the tracers list
-			// vector from position to hitposition
 			glm::vec3 origin = netClient->netEntManager.self->transform.position + glm::vec3(0.f, 1.85f, 0.f);
 			origin += netClient->netEntManager.self->transform.forward * 1.6f;
 			origin += netClient->netEntManager.self->transform.right * 0.9f;
@@ -98,8 +95,9 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		engine->p_netEntManager->selfSimBuffer.newPacket(sP);
 		engine->p_netEntManager->selfMutex.unlock();
 
-		physicsManager->pScene->simulate(SERVER_TIMESTEP);
-		physicsManager->pScene->fetchResults(true);
+		// only uncomment if need to view debug in PVD, otherwise interferes with shots
+		// physicsManager->pScene->simulate(SERVER_TIMESTEP);
+		// physicsManager->pScene->fetchResults(true);
 
 		std::this_thread::sleep_until(nextTick);
 
@@ -128,6 +126,7 @@ int main() {
 	netClient.netEntManager.pistolObject = &hyacinthEngine.m_scene.dynamicObjects[2];
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	netClient.netEntManager.inputAccumulator.id = 0;
+	netClient.netEntManager.tracerManager = &hyacinthEngine.m_tracerManager;
 	Entity* thisEnt = nullptr;
 
 #ifdef CONNECT_SERVER

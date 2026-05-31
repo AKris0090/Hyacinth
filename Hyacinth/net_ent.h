@@ -8,6 +8,7 @@
 #include <mutex>
 #include <utility>
 #include <shared_mutex>
+#include "tracer_manager.h"
 
 constexpr float DIFF_THRESHOLD = 0.01f;
 
@@ -58,6 +59,7 @@ class AnimationStateMachine;
 class NetworkEntityManager {
 public:
 	Entity* self;
+	TracerManager* tracerManager;
 	SimulateStruct inputAccumulator;
 	std::mutex inputAccumulatorMutex;
 	InterpolationPacketBuffer selfSimBuffer;

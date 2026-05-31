@@ -41,6 +41,7 @@ struct hitReg {
 	bool hit;
 	uint32_t entityHitId;
 	glm::vec3 footPosHit;
+	glm::vec3 hitPos;
 };
 
 static physx::PxVec3 physxVec(glm::vec3 v) {

@@ -278,6 +278,8 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 	physx::PxReal maxDist = 100.f;
 	physx::PxRaycastBuffer rayHit;
 
+	float cDistance = FLT_MAX;
+
 	for (const auto& e : snapshotToTrace->entityPositions) {
 		if (e.id == shooterId) continue; // if the current entity is the shooter, skip
 
@@ -286,12 +288,29 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 
 		bool didHit = physx::PxGeometryQuery::raycast(origin, dir, capGeom, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
 
-		if (didHit) {
+		if (didHit && hit.distance < cDistance) {
 			h.hit = true;
 			h.entityHitId = e.id;
 			h.footPosHit = e.pos;
+			h.hitPos = glmPhysxVec(hit.position);
 			break;
 		}
+	}
+
+	for (const auto& g : worldGeom) {
+		physx::PxTransform pose(physxVec(glm::vec3(0, 0, 0)));
+		physx::PxRaycastHit hit;
+
+		bool didHit = physx::PxGeometryQuery::raycast(origin, dir, g, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
+
+		if (didHit && hit.distance < cDistance) {
+			cDistance = hit.distance;
+			h.hitPos = glmPhysxVec(hit.position);
+		}
+	}
+
+	if (cDistance == FLT_MAX) {
+		h.hitPos = glmPhysxVec(dir * 1000.f);
 	}
 
 	return h;
@@ -309,11 +328,6 @@ void DrawRaycastPVD(PxPvdSceneClient* pvdClient, const PxVec3& origin, const PxV
 			PxDebugLine(origin, hitPos, PxDebugColor::eARGB_YELLOW)
 		};
 		pvdClient->drawLines(rayToHit, 1);
-
-		// PxDebugLine rayPastHit[] = {
-		// 	PxDebugLine(hitPos, endpoint, PxDebugColor::eARGB_RED)
-		// };
-		// pvdClient->drawLines(rayPastHit, 1);
 
 		PxDebugPoint hitMarker[] = {
 			PxDebugPoint(hitPos, PxDebugColor::eARGB_RED)

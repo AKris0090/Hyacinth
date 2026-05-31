@@ -28,7 +28,7 @@ layout( push_constant ) uniform constants
 	MaterialBuffer materialBuffer;
 	uint matIndex;
 	uint tracerInd;
-	bool alpha;
+	float alpha;
 } pc;
 
 layout(location = 0) out vec4 outAlbedo;
