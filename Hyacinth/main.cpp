@@ -71,6 +71,8 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 			t.setRotationPitchYaw();
 			t.position = origin;
 			engine->m_tracerManager.addTracer(t.getMatrix());
+
+			netClient->netEntManager.self->recoil.startRecoil();
 		}
 
 #ifdef CONNECT_SERVER
@@ -213,7 +215,7 @@ int main() {
 			sS.yaw = p.yaw;
 			hyacinthEngine.m_camera.prevPitch = hyacinthEngine.m_camera.m_transform.pitch;
 			hyacinthEngine.m_camera.prevYaw = hyacinthEngine.m_camera.m_transform.yaw;
-			physicsManager.updateCamera(0, netClient.netEntManager.self->camSpeed, sS, hyacinthEngine.m_camera.m_transform, false, Time::getDeltaTime());
+			physicsManager.updateCamera(0, netClient.netEntManager.self->camSpeed, sS, hyacinthEngine.m_camera.m_transform, false, Time::getDeltaTime(), &netClient.netEntManager.self->recoil);
 
 			hyacinthEngine.p_netEntManager->selfMutex.lock();
 			netClient.netEntManager.self->transform.forward = hyacinthEngine.m_camera.m_transform.forward;

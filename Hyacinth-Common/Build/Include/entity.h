@@ -68,6 +68,29 @@ struct WeaponController {
 	}
 };
 
+constexpr float CAM_RECOIL_TIME = 0.4f;
+constexpr float CAM_RECOIL_AMOUNT = 6.5f;
+
+struct CamRecoil {
+	float recoilTimer = 0.f;
+
+	void startRecoil() {
+		recoilTimer = 0.f;
+	}
+
+	// returns pitch addition
+	float updateRecoil(float deltaTime) {
+		if (recoilTimer > CAM_RECOIL_TIME) {
+			return 0.f;
+		}
+		recoilTimer += deltaTime;
+		if (recoilTimer > CAM_RECOIL_TIME) {
+			recoilTimer = CAM_RECOIL_TIME;
+		}
+		return CAM_RECOIL_AMOUNT * (1.f - (recoilTimer / CAM_RECOIL_TIME));
+	}
+};
+
 struct Entity {
 	uint32_t id;
 	float moveSpeed = MOVE_SPEED;
@@ -79,6 +102,7 @@ struct Entity {
 	glm::vec3 hitPos;
 
 	WeaponController pistolController;
+	CamRecoil recoil;
 };
 
 struct PhysicsEnt {

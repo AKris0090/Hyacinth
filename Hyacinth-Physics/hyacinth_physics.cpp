@@ -185,22 +185,25 @@ void PhysicsManager::addStaticPhysicsObject(LightObject* object) {
 
 // if serverSide is true, then simulateStruct has absolute pitch and yaw values
 // if false, then simulateStruct has delta xRel and yRel mouse raw input values
-void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime) {
+void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime, CamRecoil* r) {
 	if (serverSide) {
 		t.pitch = p.pitch;
 		t.yaw = p.yaw;
 	} else {
-		if (glm::abs(p.pitch) > 0.f || glm::abs(p.yaw) > 0.f) { // simulate struct pitch and yaw are DELTA VALUES
-			float mouseX = p.pitch * camSpeed * deltaTime;
-			float mouseY = p.yaw * camSpeed * deltaTime;
+		// simulate struct pitch and yaw are DELTA VALUES
+		float mouseX = p.pitch * camSpeed * deltaTime;
+		float mouseY = p.yaw * camSpeed * deltaTime;
 
-			t.yaw += mouseX;
-			t.pitch -= mouseY;
+		t.yaw += mouseX;
+		t.pitch -= mouseY;
 
-			if (t.yaw > 360.f)  t.yaw -= 360.f;
-			if (t.yaw < -360.f) t.yaw += 360.f;
-			t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
-		}
+		if (t.yaw > 360.f)  t.yaw -= 360.f;
+		if (t.yaw < -360.f) t.yaw += 360.f;
+
+		float pitchAddition = r->updateRecoil(deltaTime);
+		t.pitchAdditional = pitchAddition;
+
+		t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
 	}
 
 	t.setRotationPitchYaw();

@@ -17,6 +17,8 @@ struct Transform {
 
 	float pitch = 0.f, yaw = 0.f, roll = 0.f;
 
+	float pitchAdditional = 0.f;
+
 	bool dirty = 0;
 
 	glm::mat4 getMatrix() const {

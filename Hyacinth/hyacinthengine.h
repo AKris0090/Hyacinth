@@ -125,7 +125,7 @@ private:
 	float volBViewBias;
 
 	bool m_initialized = false;
-	bool m_showImGui = true;
+	bool m_showImGui = false;
 	bool ambientToggle = false;
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
