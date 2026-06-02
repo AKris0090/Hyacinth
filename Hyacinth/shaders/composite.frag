@@ -48,7 +48,7 @@ void main() {
 	vec3 L    = normalize(ubo.lightPos.xyz - fragPos);
 	vec3 radiance = lightColor * vec3(17.0);
 
-	float NdotL = max(dot(N, L), 0.0);
+	float NdotL = clamp(dot(N, L), 0.0, 1.0);
     float customLambert = (NdotL * 0.35) + 0.025;
     vec3 diffuse = (albedo.rgb / PI) * customLambert * radiance;
 

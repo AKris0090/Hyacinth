@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -64,10 +64,11 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 			origin += netClient->netEntManager.self->transform.right * 0.9f;
 			origin -= netClient->netEntManager.self->transform.up * 0.2f;
 			glm::vec3 dir = hitPos - origin;
+			glm::vec3 normDir = glm::normalize(dir);
 			Transform t;
 			t.scale.x = glm::length(dir);
-			t.yaw = glm::degrees(glm::atan2(dir.z, dir.x));
-			t.pitch = glm::degrees(-glm::atan2(-dir.y, sqrt(dir.x * dir.x + dir.z * dir.z)));
+			t.yaw = glm::degrees(glm::atan2(normDir.z, normDir.x));
+			t.pitch = glm::degrees(glm::asin(normDir.y));
 			t.setRotationPitchYaw();
 			t.position = origin;
 			engine->m_tracerManager.addTracer(t.getMatrix());
@@ -134,9 +135,9 @@ int main() {
 #ifdef CONNECT_SERVER
 	std::string ip;
 	std::cout << "Enter server IP: ";
-	// std::getline(std::cin, ip);
+	std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
-		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		int res = netClient.setup(ip, hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
 		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 		if (res > 0) {
 			exit(EXIT_FAILURE);

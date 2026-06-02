@@ -91,10 +91,11 @@ void NetworkEntityManager::clearPendingPackets(Entity* self) {
 					origin += e.transform.forward * 0.6f;
 					origin -= e.transform.up * 0.5f;
 					glm::vec3 dir = hitPos - origin;
+					glm::vec3 normDir = glm::normalize(dir);
 					Transform t;
 					t.scale.x = glm::length(dir);
-					t.yaw = glm::degrees(glm::atan2(dir.z, dir.x));
-					t.pitch = glm::degrees(-glm::atan2(-dir.y, sqrt(dir.x * dir.x + dir.z * dir.z)));
+					t.yaw = glm::degrees(glm::atan2(normDir.z, normDir.x));
+					t.pitch = glm::degrees(glm::asin(normDir.y));
 					t.setRotationPitchYaw();
 					t.position = origin;
 					tracerManager->addTracer(t.getMatrix());
