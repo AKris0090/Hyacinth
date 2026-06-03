@@ -267,7 +267,12 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
     imageExtents.height = curImage.height;
     imageExtents.depth = 1;
     texImage = vkimageutils::createTextureImage(rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
-    vkimageutils::createImageSampler(texImage);
+    if (object.isTracer) {
+        vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
+    }
+    else {
+        vkimageutils::createImageSampler(texImage);
+    }
     object.textures.push_back(texImage);
     if (curImage.name.empty()) {
         curImage.name = "image_" + curImage.uri;
@@ -322,6 +327,7 @@ void gltfObject::setFPControllerParameters(FirstPersonAnimationController& c, Sk
     c.idleAnimation = &animations[0];
     c.shootAnimation = &animations[1];
     c.spinningAnimation = &animations[2];
+    c.reloadAnimation = &animations[3];
     c.currentAnim = c.idleAnimation;
     c.currentTime = c.currentAnim->start;
 
@@ -342,6 +348,8 @@ void gltfObject::setFPControllerParameters(FirstPersonAnimationController& c, Sk
 void gltfObject::setWeaponControllerParams(PistolAnimationController& c, Skin& skin) {
     c.idleAnimation = &animations[0];
     c.shootAnimation = &animations[1];
+    c.reloadAnimation = &animations[2];
+
     c.currentAnim = c.idleAnimation;
     c.currentTime = c.currentAnim->start;
 }
@@ -422,6 +430,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
             object.materials[i].metallicRoughnessIndex = object.textureIndices[gltfMat.values["metallicRoughnessTexture"].TextureIndex()] + 3;
         }
         else { object.materials[i].metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
+        object.materials[i].alphaCutoff = gltfMat.alphaCutoff;
     }
 
     for (uint32_t i = 0; i < model->images.size(); i++) {
@@ -521,6 +530,7 @@ void SceneGraph::buildSceneGraph() {
     }
 
     for (const auto& obj : combinedObjects) {
+        if (obj->isTracer) tracerMatIdx = materialObjects.size();
         obj->firstMatrix = obj->dynamic ? dynamicTransformMatrices.size() : staticTransformMatrices.size();
         uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
         for (const auto& node: obj->allNodes) {
@@ -587,6 +597,7 @@ void SceneGraph::buildSceneGraph() {
             newMatIndices.baseColorIndex = (mat.baseColorIndex == DUMMY_COLOR_TEX_INDEX) ? DUMMY_COLOR_TEX_INDEX : mat.baseColorIndex + numTextures;
             newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + numTextures;
             newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + numTextures;
+            newMatIndices.alphaCutoff = mat.alphaCutoff;
             materialObjects.push_back(newMatIndices);
         }
 
@@ -720,8 +731,8 @@ void gltfObject::updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPer
     }
 }
 
-void gltfObject::updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut) {
-    animMachine.updateAnimationState(c, state, deltaTime, deltaPitch, deltaYaw, shootTriggerOut);
+void gltfObject::updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut) {
+    animMachine.updateAnimationState(c, state, deltaTime, deltaPitch, deltaYaw, shootTriggerOut, reloadTriggerOut);
 
     for (auto& node : obj->parentNodes) {
         obj->updateJoints(node, pMappedJointMatrixBuffer);

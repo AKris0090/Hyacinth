@@ -19,7 +19,7 @@ struct WeaponController {
 
 	int currentAmmo = 10;
 
-	float reloadLength = 1.25f;
+	float reloadLength = 3.133f;
 	float reloadTimer = 0.f;
 
 	float shootLength = 0.25f;
@@ -28,7 +28,7 @@ struct WeaponController {
 	FIRSTPERSON_STATE state;
 
 	// returns true if shooting is allowed this frame, false otherwise
-	bool updateShooting(float deltaTime, bool lmbDown) {
+	bool updateShooting(float deltaTime, bool lmbDown, bool rkeyDown) {
 		currentShotTimer += deltaTime;
 
 		if (state == RELOADING) {
@@ -58,6 +58,10 @@ struct WeaponController {
 						shootTimer = 0.f;
 						state = SHOOTING;
 						return true;
+					}
+					if (rkeyDown && currentAmmo < MAX_AMMO) {
+						reloadTimer = 0.f;
+						state = RELOADING;
 					}
 					currentShotTimer = timeBetweenShots;
 				}

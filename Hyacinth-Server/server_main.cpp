@@ -288,7 +288,7 @@ void updateTick(SOCKET* udpSendSocket) {
                 client->entity.isMoving = false;
             }
 
-            bool canShoot = client->entity.pistolController.updateShooting(SERVER_TIMESTEP, client->bufferedPacket.shooting);
+            bool canShoot = client->entity.pistolController.updateShooting(SERVER_TIMESTEP, client->bufferedPacket.shooting, client->bufferedPacket.reloading);
 
             hitReg h;
             if (canShoot) {

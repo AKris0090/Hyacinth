@@ -24,7 +24,7 @@ namespace vkimageutils {
 	void	setLinear(VkFormatFeatureFlags flag);
 	bool	getLinearBlit();
 
-	void						createImageSampler(VulkanImage& image);
+	void						createImageSampler(VulkanImage& image, VkSamplerAddressMode samplerMode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
 	VkImageView					createImageView(VulkanImage& image, uint32_t baseArrayLayer, uint32_t layerCount, VkImageAspectFlags aspectFlags);
 	VulkanImage					createImageandView(VkExtent3D size, uint32_t arrayLayers, VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits numSamples, bool mipped, std::string qual = "");
 	VulkanImage					createTextureImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped);

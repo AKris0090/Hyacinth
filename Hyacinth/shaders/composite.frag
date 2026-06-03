@@ -60,7 +60,7 @@ void main() {
     }
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = albedo.rgb * vec3(0.05);//  * ubo.ABOD.w;
+	vec3 ambient = albedo.rgb * glm::vec3(0.15);// irrad * ubo.ABOD.w;
 
 	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
 

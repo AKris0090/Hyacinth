@@ -11,6 +11,7 @@ struct Material {
 	int baseColorIndex;
 	int normalIndex;
 	int metalRoughIndex;
+	float alphaCutoff;
 };
 
 struct DrawData {

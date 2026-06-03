@@ -167,6 +167,9 @@ float shadowTest(vec3 worldPos, float viewSpaceDepth, float nDotL, vec3 normal) 
 void main() {
 	Material m = pc.materialBuffer.mats[matIndex];
     vec4 sampledColor = texture(globalTextures2D[m.baseColorIndex], inUV);
+	if (sampledColor.w < m.alphaCutoff) {
+		discard;
+	}
     vec4 metalRough = texture(globalTextures2D[m.metalRoughIndex], inUV);
 
     vec3 N = texture(globalTextures2D[m.normalIndex], inUV).xyz;

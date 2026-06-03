@@ -34,8 +34,8 @@ layout( push_constant ) uniform constants
 layout(location = 0) out vec4 outAlbedo;
 
 void main() {
-	Material m = pc.materialBuffer.mats[pc.matIndex];
+		Material m = pc.materialBuffer.mats[pc.matIndex];
     	vec4 sampledColor = texture(globalTextures2D[m.baseColorIndex], inUV);
 
-    	outAlbedo = vec4(sampledColor.rgb, pc.alpha);
+    	outAlbedo = vec4(sampledColor.rgb, (sampledColor.w * pc.alpha));
 }

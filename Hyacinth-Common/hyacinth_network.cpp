@@ -18,15 +18,16 @@ void ClientRequestConnectionPacket::fromString(std::string s) {
 
 std::string ClientUpdatePacket::toString() {
 	std::ostringstream oss;
-	oss << id << "," 
+	oss << id << ","
 		<< tick << ","
 		<< ack << ","
-		<< pitch << "," 
-		<< yaw << "," 
+		<< pitch << ","
+		<< yaw << ","
 		<< static_cast<int>(movementFB) << ","
 		<< static_cast<int>(movementLR) << ","
 		<< jump << ","
-		<< lmb << ",";
+		<< lmb << ","
+		<< r << ",";
 	return oss.str();
 }
 
@@ -44,6 +45,7 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	std::getline(es, field, ','); p.movementLR = std::stoi(field);
 	std::getline(es, field, ','); p.jump = std::stoi(field);
 	std::getline(es, field, ','); p.lmb = std::stoi(field);
+	std::getline(es, field, ','); p.r = std::stoi(field);
 
 	return p;
 }
@@ -113,6 +115,7 @@ void SimulateStruct::addPacket(ClientUpdatePacket pack) {
 	movementLR = pack.movementLR;
 	jump = pack.jump;
 	shooting = pack.lmb;
+	reloading = pack.r;
 
 	ackedTick = pack.ack;
 	receivedTimestamp = pack.serverTimestamp;

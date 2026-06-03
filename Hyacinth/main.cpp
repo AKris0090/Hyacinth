@@ -29,6 +29,7 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		p.movementLR = netClient->netEntManager.inputAccumulator.movementLR;
 		p.jump = netClient->netEntManager.inputAccumulator.jump;
 		p.lmb = netClient->netEntManager.inputAccumulator.shooting;
+		p.r = netClient->netEntManager.inputAccumulator.reloading;
 
 		if (b.active) {
 			p.movementLR = b.update(SERVER_TIMESTEP);
@@ -47,7 +48,7 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		p.pitch = netClient->netEntManager.self->transform.pitch;
 		p.yaw = netClient->netEntManager.self->transform.yaw;
 
-		bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb); // update if self is shooting
+		bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb, p.r); // update if self is shooting
 
 		if (shotFired) {
 #ifdef DEBUG_NETWORK
@@ -204,6 +205,7 @@ int main() {
 		p.pitch = mo.first;
 		p.yaw = mo.second;
 		p.lmb = InputManager::mouseDown();
+		p.r = InputManager::reloadKeyDown();
 
 		netClient.netEntManager.inputAccumulatorMutex.lock();
 		netClient.netEntManager.inputAccumulator.addPacket(p);

@@ -20,6 +20,7 @@ namespace InputManager {
 	bool tabKeyDown();
 	bool spaceKeyDown();
 	bool botKeyDown();
+	bool reloadKeyDown();
 
 	void resetMouseMotion();
 	std::pair<float, float> getMouseMotion();

@@ -363,7 +363,7 @@ void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationContr
 	flushQueuedNodeTransforms(c);
 }
 
-void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, FIRSTPERSON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut) {
+void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, FIRSTPERSON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut, bool& reloadOut) {
 	if (previousState != state) {
 		switch (state) {
 		case SHOOTING:
@@ -373,8 +373,9 @@ void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimation
 			currentlyShooting = true;
 			break;
 		case RELOADING:
-			c.currentAnim = c.spinningAnimation;
-			c.currentTime = c.spinningAnimation->start;
+			c.currentAnim = c.reloadAnimation;
+			c.currentTime = c.reloadAnimation->start;
+			reloadOut = true;
 			break;
 		case IDLE_PISTOL:
 			c.currentAnim = c.idleAnimation;
@@ -398,7 +399,11 @@ void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimation
 //////////////////////////////////////////////////////////
 
 void PistolAnimationStateMachine::updateAnimation(PistolAnimationController& c, float deltaTime) {
-	if (c.queueShoot) {
+	if (c.queueReload) {
+		c.queueReload = false;
+		c.currentAnim = c.reloadAnimation;
+		c.currentTime = c.reloadAnimation->start;
+	} else if (c.queueShoot) {
 		c.queueShoot = false;
 		c.currentAnim = c.shootAnimation;
 		c.currentTime = c.currentAnim->start;
