@@ -677,6 +677,17 @@ void SceneGraph::createUITextures() {
         stbi_uc* pixels = nullptr;
         int texWidth, texHeight, texChannels;
         pixels = stbi_load(p.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
+        for (int i = 0; i < texWidth * texHeight; i++) {
+            unsigned char* p = pixels + i * 4;
+            if (p[3] == 0) {
+                p[0] = p[0] * p[3];
+                p[1] = p[1] * p[3];
+                p[2] = p[2] * p[3];
+                p[3] = 1;
+            }
+        }
+
         if (!pixels) {
             throw std::runtime_error("failed to load ui image " + str + "!");
         }
