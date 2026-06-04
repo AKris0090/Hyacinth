@@ -19,6 +19,7 @@
 #include "frustumcull.h"
 
 #include "tracer_manager.h"
+#include "worldspace_health.h"
 
 #include "csm.h"
 #include "time.h"
@@ -91,7 +92,8 @@ public:
 	struct SDL_Window* m_window{ nullptr };
 	SWChainImageFormat				m_swImageFormat{};
 	VkDescriptorSetLayout			m_descriptorSetLayout{ VK_NULL_HANDLE };
-	NetworkEntityManager* p_netEntManager;
+	NetworkEntityManager*			p_netEntManager;
+	WorldHealthManager				m_worldHealthManager;
 	std::mutex camMutex;
 	Camera m_camera;
 	SceneGraph						m_scene{};

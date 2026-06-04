@@ -3,6 +3,7 @@
 #include "animation.h"
 #include "vkmeshutils.h"
 #include "hyacinth_ui.h"
+#include "worldspace_health.h"
 #include "entity.h"
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
@@ -93,6 +94,7 @@ struct SceneGraph {
     uint32_t numNodes = 0;
     uint32_t numAccelNodes = 0;
     uint32_t uiTextureOffset = 0;
+    uint32_t worldUITextureOffset = 0;
     uint32_t tracerMatIdx = 0;
 
     AABB sceneBoundingBox;

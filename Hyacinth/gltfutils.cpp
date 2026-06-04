@@ -678,7 +678,7 @@ void SceneGraph::createUITextures() {
         int texWidth, texHeight, texChannels;
         pixels = stbi_load(p.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         if (!pixels) {
-            throw std::runtime_error("failed to load dummy image " + str + "!");
+            throw std::runtime_error("failed to load ui image " + str + "!");
         }
         texImage.extent.width = texWidth;
         texImage.extent.height = texHeight;
@@ -689,7 +689,32 @@ void SceneGraph::createUITextures() {
         imageExtents.depth = 1;
 
         texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
-        vkimageutils::createImageSampler(texImage);
+        vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_BORDER_COLOR_INT_TRANSPARENT_BLACK);
+
+        uiTextures.push_back(texImage);
+        numTextures++;
+    }
+
+    worldUITextureOffset = numTextures;
+    for (const auto& str : WORLD_UI_TEXTURE_NAMES) {
+        auto p = vkdebugutils::getExeDir() / "ui" / str;
+        VulkanImage texImage{};
+        stbi_uc* pixels = nullptr;
+        int texWidth, texHeight, texChannels;
+        pixels = stbi_load(p.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        if (!pixels) {
+            throw std::runtime_error("failed to load ui image " + str + "!");
+        }
+        texImage.extent.width = texWidth;
+        texImage.extent.height = texHeight;
+
+        VkExtent3D imageExtents{};
+        imageExtents.width = texImage.extent.width;
+        imageExtents.height = texImage.extent.height;
+        imageExtents.depth = 1;
+
+        texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_BORDER_COLOR_INT_TRANSPARENT_BLACK);
 
         uiTextures.push_back(texImage);
         numTextures++;

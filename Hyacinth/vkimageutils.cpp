@@ -20,7 +20,7 @@ namespace vkimageutils {
 		return linear & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
 	}
 
-	void createImageSampler(VulkanImage& image, VkSamplerAddressMode samplerMode) {
+	void createImageSampler(VulkanImage& image, VkSamplerAddressMode samplerMode, VkBorderColor bColor) {
 		VkSamplerCreateInfo samplerCInfo{};
 		samplerCInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		samplerCInfo.magFilter = VK_FILTER_LINEAR;
@@ -35,7 +35,7 @@ namespace vkimageutils {
 		samplerCInfo.maxLod = (float)image.mipLevels;
 		samplerCInfo.anisotropyEnable = VK_TRUE;
 		samplerCInfo.maxAnisotropy = vkimageutils::getMaxAnisotropy();
-		samplerCInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		samplerCInfo.borderColor = bColor;
 
 		VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerCInfo, nullptr, &image.imageSampler));
 	}

@@ -177,6 +177,7 @@
     <ClCompile Include="vkswapchainutils.cpp" />
     <ClCompile Include="hyacinthengine.cpp" />
     <ClCompile Include="volumevis.cpp" />
+    <ClCompile Include="worldspace_health.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.h" />
@@ -218,6 +219,7 @@
     <ClInclude Include="vkpipelineutils.h" />
     <ClInclude Include="vkswapchainutils.h" />
     <ClInclude Include="volumevis.h" />
+    <ClInclude Include="worldspace_health.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\gbuffer.frag" />

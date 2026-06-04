@@ -37,5 +37,5 @@ void main() {
 		Material m = pc.materialBuffer.mats[pc.matIndex];
     	vec4 sampledColor = texture(globalTextures2D[m.baseColorIndex], inUV);
 
-    	outAlbedo = vec4(sampledColor.rgb, (sampledColor.w * pc.alpha));
+    	outAlbedo = vec4(sampledColor.rgb * 2, (sampledColor.w * pc.alpha));
 }

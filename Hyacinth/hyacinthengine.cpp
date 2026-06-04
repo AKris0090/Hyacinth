@@ -841,6 +841,7 @@ void HyacinthEngine::init()
     volBViewBias = m_owDDGIHelper.m_probeVolumes[1].data.spacing.w;
 
     m_uiHelper.setup(m_textureSetLayout, m_scene.uiTextureOffset, glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
+    m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, m_scene.worldUITextureOffset, m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.setup(m_swImageFormat, m_msaaSamples, m_descriptorSetLayout);
@@ -1211,6 +1212,22 @@ void HyacinthEngine::draw()
             vkCmdPushConstants(cmd, m_tracerPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(tracerPushConstant), &tracerPushConstant);
             vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, tracerDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.tracerCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
         }
+        vkCmdEndRendering(cmd);
+        VK_LABEL_END(cmd);
+    }
+
+    {
+        VK_LABEL(cmd, "Health Bars Pass");
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_worldHealthManager.worldUIPipelineUtil.m_pipeline.pipeline);
+        std::array<VkDescriptorSet, 2> healthSets = { m_textureSet, m_frameData[m_frameIndex].uniformDescriptorSet };
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_worldHealthManager.worldUIPipelineUtil.m_pipeline.layout, 0, healthSets.size(), healthSets.data(), 0, nullptr);
+        VkRenderingAttachmentInfo healthBarAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+        VkRenderingAttachmentInfo healthDepthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
+        VkRenderingInfo healthBarRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &healthBarAttachment, &healthDepthAttachment);
+        vkCmdBeginRendering(cmd, &healthBarRenderingInfo);
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+        m_worldHealthManager.draw(cmd);
         vkCmdEndRendering(cmd);
         VK_LABEL_END(cmd);
     }

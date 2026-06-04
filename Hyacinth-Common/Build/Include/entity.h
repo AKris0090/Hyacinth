@@ -19,7 +19,7 @@ struct WeaponController {
 
 	int currentAmmo = 10;
 
-	float reloadLength = 3.133f;
+	float reloadLength = 2.833f;
 	float reloadTimer = 0.f;
 
 	float shootLength = 0.25f;

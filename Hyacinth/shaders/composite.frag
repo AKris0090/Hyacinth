@@ -54,13 +54,13 @@ void main() {
 
 	vec3 r = reflect(-L, N);
     float specular = max(0.0, dot(r, V));
-    specular = pow(specular, 8.0) * albedo.w;
+    specular = pow(specular, 8.0) * albedo.w * 0.4;
     if (depth == 1.0) {
         specular = 0.0;
     }
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = albedo.rgb * glm::vec3(0.15);// irrad * ubo.ABOD.w;
+	vec3 ambient = albedo.rgb * vec3(0.07);// irrad * ubo.ABOD.w;
 
 	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
 

@@ -127,6 +127,9 @@
     <Filter Include="Source Files\shaders\tracers">
       <UniqueIdentifier>{d11ef101-0301-407b-8d8f-20e3e20dfcbb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\core\ui\worldspace_health">
+      <UniqueIdentifier>{31aea9c9-d4db-4812-ac65-b730569de467}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -233,6 +236,9 @@
     </ClCompile>
     <ClCompile Include="netDebugRenderer.cpp">
       <Filter>Source Files\network\network_debugging</Filter>
+    </ClCompile>
+    <ClCompile Include="worldspace_health.cpp">
+      <Filter>Source Files\renderer\core\ui\worldspace_health</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -352,6 +358,9 @@
     </ClInclude>
     <ClInclude Include="tracer_manager.h">
       <Filter>Source Files\renderer\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="worldspace_health.h">
+      <Filter>Source Files\renderer\core\ui\worldspace_health</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

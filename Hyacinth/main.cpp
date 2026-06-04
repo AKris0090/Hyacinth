@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 
-// #define CONNECT_SERVER true
+#define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -39,6 +39,9 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 
 		// update physics
 		engine->p_netEntManager->selfMutex.lock();
+
+		engine->m_camera.prevPitch = engine->m_camera.m_transform.pitch;
+		engine->m_camera.prevYaw = engine->m_camera.m_transform.yaw;
 
 		if (engine->mouseLocked) {
 			physicsManager->updatePlayerMovement(0, netClient->netEntManager.self->moveSpeed, netClient->netEntManager.self->transform, netClient->netEntManager.inputAccumulator);
@@ -136,9 +139,9 @@ int main() {
 #ifdef CONNECT_SERVER
 	std::string ip;
 	std::cout << "Enter server IP: ";
-	std::getline(std::cin, ip);
+	// std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
-		int res = netClient.setup(ip, hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
 		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 		if (res > 0) {
 			exit(EXIT_FAILURE);
@@ -216,8 +219,6 @@ int main() {
 			SimulateStruct sS;
 			sS.pitch = p.pitch;
 			sS.yaw = p.yaw;
-			hyacinthEngine.m_camera.prevPitch = hyacinthEngine.m_camera.m_transform.pitch;
-			hyacinthEngine.m_camera.prevYaw = hyacinthEngine.m_camera.m_transform.yaw;
 			physicsManager.updateCamera(0, netClient.netEntManager.self->camSpeed, sS, hyacinthEngine.m_camera.m_transform, false, Time::getDeltaTime(), &netClient.netEntManager.self->recoil);
 
 			hyacinthEngine.p_netEntManager->selfMutex.lock();
@@ -242,6 +243,8 @@ int main() {
 		// use packet to determine object transforms
 		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id, Time::getDeltaTime());
 		physicsManager.setNetworkEntityCapColliderPosition(&interp, netClient.netEntManager.self->id);
+
+		hyacinthEngine.m_worldHealthManager.update(interp.entities, netClient.netEntManager.self->id, hyacinthEngine.m_camera.m_transform);
 
 #ifdef DEBUG_NETWORK
 		hyacinthEngine.m_netDebugRenderer.serverEntityPosition = glm::vec4(netClient.netEntManager.shotAckPosition, 1.f);
