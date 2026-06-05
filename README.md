@@ -59,3 +59,13 @@ You can see below, with a small volume enclosing only the top windowed corridor 
 |                                   full ddgi eval                         |                         final color                                      |
 | :----------------------------------------------------------------------: | :----------------------------------------------------------------------: |
 |                   ![](readme_images/ddgi.png)                            |                         ![](readme_images/final.png)                     |
+
+## Locomotion
+The hierarchical nature of my gltf loading means that I am able to generate procedural animations by editing the transforms of parent bones, and having that change propagate along child bones. By implementing my own version of a bone mask, I am also able to split my armatures into an upper/lower body, and animate those individually. 
+
+By keeping track of the shoulder and neck bones, I can modulate them with the camera's pitch and yaw values to make it so that the character is always facing the direction that the camera is pointing. For the lower body, I maintain a basis quaternion, and calculate the yaw angle difference between the basis and the camera's yaw. If that angle exceeds 90 degrees in either direction, it plays a turning animation and lerps the basis quaternion towards the new basis direction. The upper body yaw angle is then determined by that interpolated basis and the camera's current world yaw.
+
+https://github.com/user-attachments/assets/2e9d6ad5-6c81-4151-86ed-96d7d9df83c7
+
+# Credits:
+Gun model: https://www.cgtrader.com/free-3d-models/military/gun/stylized-gun
