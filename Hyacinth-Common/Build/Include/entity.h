@@ -14,12 +14,12 @@ enum FIRSTPERSON_STATE {
 };
 
 struct WeaponController {
-	float timeBetweenShots = 0.25f;
+	float timeBetweenShots = 0.15f;
 	float currentShotTimer = 0.f;
 
 	int currentAmmo = 10;
 
-	float reloadLength = 1.25f;
+	float reloadLength = 2.833f;
 	float reloadTimer = 0.f;
 
 	float shootLength = 0.25f;
@@ -28,7 +28,7 @@ struct WeaponController {
 	FIRSTPERSON_STATE state;
 
 	// returns true if shooting is allowed this frame, false otherwise
-	bool updateShooting(float deltaTime, bool lmbDown) {
+	bool updateShooting(float deltaTime, bool lmbDown, bool rkeyDown) {
 		currentShotTimer += deltaTime;
 
 		if (state == RELOADING) {
@@ -59,12 +59,39 @@ struct WeaponController {
 						state = SHOOTING;
 						return true;
 					}
+					if (rkeyDown && currentAmmo < MAX_AMMO) {
+						reloadTimer = 0.f;
+						state = RELOADING;
+					}
 					currentShotTimer = timeBetweenShots;
 				}
 			}
 		}
 
 		return false;
+	}
+};
+
+constexpr float CAM_RECOIL_TIME = 0.4f;
+constexpr float CAM_RECOIL_AMOUNT = 6.5f;
+
+struct CamRecoil {
+	float recoilTimer = 0.f;
+
+	void startRecoil() {
+		recoilTimer = 0.f;
+	}
+
+	// returns pitch addition
+	float updateRecoil(float deltaTime) {
+		if (recoilTimer > CAM_RECOIL_TIME) {
+			return 0.f;
+		}
+		recoilTimer += deltaTime;
+		if (recoilTimer > CAM_RECOIL_TIME) {
+			recoilTimer = CAM_RECOIL_TIME;
+		}
+		return CAM_RECOIL_AMOUNT * (1.f - (recoilTimer / CAM_RECOIL_TIME));
 	}
 };
 
@@ -75,8 +102,19 @@ struct Entity {
 	Transform transform;
 	bool isMoving = false;
 	bool shotAck = false;
+	bool shot = false;
+	float health = 1.f;
+	glm::vec3 hitPos;
 
 	WeaponController pistolController;
+	CamRecoil recoil;
+
+	void takeDamage() {
+		health -= 0.1f;
+		if (health < 0.f) {
+			health = 0.f;
+		}
+	}
 };
 
 struct PhysicsEnt {

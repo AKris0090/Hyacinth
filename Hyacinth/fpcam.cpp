@@ -14,7 +14,13 @@ void Camera::GetFrustumPlanes(glm::vec4* planes, glm::mat4 matrix) {
 }
 
 void Camera::setViewMatrix() {
-    m_view = glm::lookAt(m_transform.position, m_transform.position + m_transform.forward, m_transform.up);
+    glm::vec3 forwad = glm::normalize(glm::vec3(
+        cos(glm::radians(m_transform.yaw)) * cos(glm::radians(m_transform.pitch + m_transform.pitchAdditional)),
+        sin(glm::radians(m_transform.pitch + m_transform.pitchAdditional)),
+        sin(glm::radians(m_transform.yaw)) * cos(glm::radians(m_transform.pitch + m_transform.pitchAdditional))
+    ));
+
+    m_view = glm::lookAt(m_transform.position, m_transform.position + forwad, m_transform.up);
     m_dirtyView = false;
 }
 

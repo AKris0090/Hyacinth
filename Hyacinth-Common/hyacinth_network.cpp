@@ -18,15 +18,16 @@ void ClientRequestConnectionPacket::fromString(std::string s) {
 
 std::string ClientUpdatePacket::toString() {
 	std::ostringstream oss;
-	oss << id << "," 
+	oss << id << ","
 		<< tick << ","
 		<< ack << ","
-		<< pitch << "," 
-		<< yaw << "," 
+		<< pitch << ","
+		<< yaw << ","
 		<< static_cast<int>(movementFB) << ","
 		<< static_cast<int>(movementLR) << ","
 		<< jump << ","
-		<< lmb << ",";
+		<< lmb << ","
+		<< r << ",";
 	return oss.str();
 }
 
@@ -44,6 +45,7 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	std::getline(es, field, ','); p.movementLR = std::stoi(field);
 	std::getline(es, field, ','); p.jump = std::stoi(field);
 	std::getline(es, field, ','); p.lmb = std::stoi(field);
+	std::getline(es, field, ','); p.r = std::stoi(field);
 
 	return p;
 }
@@ -59,7 +61,11 @@ std::string ServerSnapshot::toString() {
 			<< "," << e.transform.pitch
 			<< "," << e.transform.yaw
 			<< "," << e.isMoving
-			<< "," << e.shotAck;
+			<< "," << e.shotAck
+			<< "," << e.hitPos.x
+			<< "," << e.hitPos.y
+			<< "," << e.hitPos.z
+			<< "," << e.health;
 		if (i + 1 < entities.size()) oss << "|";
 	}
 	return oss.str();
@@ -89,6 +95,10 @@ ServerSnapshot ServerSnapshot::fromString(std::string s) {
 		std::getline(es, field, ','); e.transform.yaw = std::stof(field);
 		std::getline(es, field, ','); e.isMoving = std::stoi(field);
 		std::getline(es, field, ','); e.shotAck = std::stoi(field);
+		std::getline(es, field, ','); e.hitPos.x = std::stof(field);
+		std::getline(es, field, ','); e.hitPos.y = std::stof(field);
+		std::getline(es, field, ','); e.hitPos.z = std::stof(field);
+		std::getline(es, field, ','); e.health = std::stof(field);
 
 		e.transform.setRotationPitchYaw();
 
@@ -107,6 +117,7 @@ void SimulateStruct::addPacket(ClientUpdatePacket pack) {
 	movementLR = pack.movementLR;
 	jump = pack.jump;
 	shooting = pack.lmb;
+	reloading = pack.r;
 
 	ackedTick = pack.ack;
 	receivedTimestamp = pack.serverTimestamp;

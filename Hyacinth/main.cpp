@@ -7,20 +7,13 @@
 #include <thread>
 #include <chrono>
 
-// #define CONNECT_SERVER true
+#define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
 std::atomic<uint32_t> tickNum{ 0 };
 BotBehavior b;
 bool dontEnd = true;
-
-std::filesystem::path getExeDir()
-{
-	wchar_t buffer[MAX_PATH];
-	GetModuleFileNameW(nullptr, buffer, MAX_PATH);
-	return std::filesystem::path(buffer).parent_path();
-}
 
 void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, PhysicsManager* physicsManager) {
 	auto epoch = std::chrono::steady_clock::now();
@@ -36,6 +29,7 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		p.movementLR = netClient->netEntManager.inputAccumulator.movementLR;
 		p.jump = netClient->netEntManager.inputAccumulator.jump;
 		p.lmb = netClient->netEntManager.inputAccumulator.shooting;
+		p.r = netClient->netEntManager.inputAccumulator.reloading;
 
 		if (b.active) {
 			p.movementLR = b.update(SERVER_TIMESTEP);
@@ -46,17 +40,8 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		// update physics
 		engine->p_netEntManager->selfMutex.lock();
 
-		bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb);
-
-#ifdef DEBUG_NETWORK
-		if (shotFired) {
-			for (const auto& e : engine->p_netEntManager->entities) {
-				if (e.first == 1) {
-					engine->m_netDebugRenderer.clientEntityPosition = glm::vec4(e.second->transform.position, 1.f);
-				}
-			}
-		}
-#endif
+		engine->m_camera.prevPitch = engine->m_camera.m_transform.pitch;
+		engine->m_camera.prevYaw = engine->m_camera.m_transform.yaw;
 
 		if (engine->mouseLocked) {
 			physicsManager->updatePlayerMovement(0, netClient->netEntManager.self->moveSpeed, netClient->netEntManager.self->transform, netClient->netEntManager.inputAccumulator);
@@ -65,6 +50,36 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 
 		p.pitch = netClient->netEntManager.self->transform.pitch;
 		p.yaw = netClient->netEntManager.self->transform.yaw;
+
+		bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb, p.r); // update if self is shooting
+
+		if (shotFired) {
+#ifdef DEBUG_NETWORK
+			for (const auto& e : engine->p_netEntManager->entities) {
+				if (e.first == 1) {
+					engine->m_netDebugRenderer.clientEntityPosition = glm::vec4(e.second->transform.position, 1.f);
+				}
+			}
+#endif
+			// if shot fired, then draw trace and draw the tracer to connect the two
+			glm::vec3 hitPos = physicsManager->traceBullet(netClient->netEntManager.self->transform);
+			glm::vec3 origin = netClient->netEntManager.self->transform.position + glm::vec3(0.f, 1.85f, 0.f);
+			origin += netClient->netEntManager.self->transform.forward * 1.6f;
+			origin += netClient->netEntManager.self->transform.right * 0.9f;
+			origin -= netClient->netEntManager.self->transform.up * 0.2f;
+			glm::vec3 dir = hitPos - origin;
+			glm::vec3 normDir = glm::normalize(dir);
+			Transform t;
+			t.scale.x = glm::length(dir);
+			t.yaw = glm::degrees(glm::atan2(normDir.z, normDir.x));
+			t.pitch = glm::degrees(glm::asin(normDir.y));
+			t.setRotationPitchYaw();
+			t.position = origin;
+			engine->m_tracerManager.addTracer(t.getMatrix());
+
+			netClient->netEntManager.self->recoil.startRecoil();
+		}
+
 #ifdef CONNECT_SERVER
 		netClient->updateServerTick(p, engine->mouseLocked);
 		netClient->netEntManager.rB.addState(netClient->netEntManager.self->transform, p.movementFB, p.movementLR, tickNum);
@@ -87,6 +102,10 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		engine->p_netEntManager->selfSimBuffer.newPacket(sP);
 		engine->p_netEntManager->selfMutex.unlock();
 
+		// only uncomment if need to view debug in PVD, otherwise interferes with shots
+		// physicsManager->pScene->simulate(SERVER_TIMESTEP);
+		// physicsManager->pScene->fetchResults(true);
+
 		std::this_thread::sleep_until(nextTick);
 
 		tickNum++;
@@ -102,9 +121,9 @@ int main() {
 	hyacinthEngine.init();
 
 	PhysicsManager physicsManager;
-	physicsManager.initPhysics(false);
+	physicsManager.initPhysics(true); // initialize PVD?
 	LightLoader loader;
-	auto path = getExeDir() / "objects" / "sponza_physics.glb";
+	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 	physicsManager.addCharacterController(0);
 
@@ -114,14 +133,15 @@ int main() {
 	netClient.netEntManager.pistolObject = &hyacinthEngine.m_scene.dynamicObjects[2];
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	netClient.netEntManager.inputAccumulator.id = 0;
+	netClient.netEntManager.tracerManager = &hyacinthEngine.m_tracerManager;
 	Entity* thisEnt = nullptr;
 
 #ifdef CONNECT_SERVER
 	std::string ip;
 	std::cout << "Enter server IP: ";
-	// std::getline(std::cin, ip);
+	std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
-		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		int res = netClient.setup(ip, hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
 		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 		if (res > 0) {
 			exit(EXIT_FAILURE);
@@ -188,6 +208,7 @@ int main() {
 		p.pitch = mo.first;
 		p.yaw = mo.second;
 		p.lmb = InputManager::mouseDown();
+		p.r = InputManager::reloadKeyDown();
 
 		netClient.netEntManager.inputAccumulatorMutex.lock();
 		netClient.netEntManager.inputAccumulator.addPacket(p);
@@ -198,9 +219,7 @@ int main() {
 			SimulateStruct sS;
 			sS.pitch = p.pitch;
 			sS.yaw = p.yaw;
-			hyacinthEngine.m_camera.prevPitch = hyacinthEngine.m_camera.m_transform.pitch;
-			hyacinthEngine.m_camera.prevYaw = hyacinthEngine.m_camera.m_transform.yaw;
-			physicsManager.updateCamera(0, netClient.netEntManager.self->camSpeed, sS, hyacinthEngine.m_camera.m_transform, false, Time::getDeltaTime());
+			physicsManager.updateCamera(0, netClient.netEntManager.self->camSpeed, sS, hyacinthEngine.m_camera.m_transform, false, Time::getDeltaTime(), &netClient.netEntManager.self->recoil);
 
 			hyacinthEngine.p_netEntManager->selfMutex.lock();
 			netClient.netEntManager.self->transform.forward = hyacinthEngine.m_camera.m_transform.forward;
@@ -224,6 +243,8 @@ int main() {
 		// use packet to determine object transforms
 		netClient.netEntManager.updateEntitiesFromPacket(interp, netClient.netEntManager.self->id, Time::getDeltaTime());
 		physicsManager.setNetworkEntityCapColliderPosition(&interp, netClient.netEntManager.self->id);
+
+		hyacinthEngine.m_worldHealthManager.update(interp.entities, netClient.netEntManager.self->id, hyacinthEngine.m_camera.m_transform);
 
 #ifdef DEBUG_NETWORK
 		hyacinthEngine.m_netDebugRenderer.serverEntityPosition = glm::vec4(netClient.netEntManager.shotAckPosition, 1.f);

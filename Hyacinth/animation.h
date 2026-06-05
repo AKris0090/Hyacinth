@@ -68,6 +68,7 @@ struct FirstPersonAnimationController {
 	Animation* idleAnimation;
 	Animation* shootAnimation;
 	Animation* spinningAnimation;
+	Animation* reloadAnimation;
 	gltfNode* gunBone;
 
 	gltfNode* leftWrist;
@@ -124,15 +125,17 @@ private:
 	void updateAnimation(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw);
 
 public:
-	void updateAnimationState(FirstPersonAnimationController& c, FIRSTPERSON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut);
+	void updateAnimationState(FirstPersonAnimationController& c, FIRSTPERSON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut, bool& reloadOut);
 };
 
 struct PistolAnimationController {
 	Animation* idleAnimation;
 	Animation* shootAnimation;
+	Animation* reloadAnimation;
 	float currentTime = 0.f;
 	bool done = false;
 	bool queueShoot = false;
+	bool queueReload = false;
 
 	Animation* currentAnim;
 

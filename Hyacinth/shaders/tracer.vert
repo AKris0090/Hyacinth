@@ -1,11 +1,14 @@
 #version 460
 #extension GL_EXT_buffer_reference : require
 
+#include "bufferInfo.glsl"
 #include "shadowCommon.glsl"
 
 layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
+
+layout	(location = 0) out vec2 outUV;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
 	mat4 view;
@@ -20,18 +23,21 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
-layout(buffer_reference, std430) readonly buffer VolumeTransformBuffer { 
-	mat4 transforms[];
-};
-
 layout( push_constant ) uniform constants
 {
-	VolumeTransformBuffer volumeTransforms;
-    int volumeIndex;
+	TransformBuffer transformBuffer;
+	MaterialBuffer materialBuffer;
+	uint matIndex;
+	uint tracerInd;
+	float alpha;
 } pc;
 
 void main() 
 {
-	mat4 volumeT = pc.volumeTransforms.transforms[pc.volumeIndex];
-	gl_Position = ubo.proj * ubo.view * volumeT * vec4(inPosition.xyz, 1.0f);
+	mat4 model = pc.transformBuffer.model[pc.tracerInd];
+
+	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0);
+
+	outUV.x		= inPosition.w;
+	outUV.y		= inNormal.w;
 }

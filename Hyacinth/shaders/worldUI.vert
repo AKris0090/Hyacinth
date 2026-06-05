@@ -7,7 +7,11 @@ layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
 
-layout(set = 0, binding = 0) uniform UniformBufferObject {
+layout  (location = 0) flat out uint texIndex;
+layout	(location = 1) out vec2 outUV;
+layout	(location = 3) out float capXUV;
+
+layout(set = 1, binding = 0) uniform UniformBufferObject {
 	mat4 view;
 	mat4 proj;
 	vec4 viewPos;
@@ -20,18 +24,22 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
-layout(buffer_reference, std430) readonly buffer VolumeTransformBuffer { 
-	mat4 transforms[];
-};
-
 layout( push_constant ) uniform constants
 {
-	VolumeTransformBuffer volumeTransforms;
-    int volumeIndex;
+	mat4 worldUIMat;
+	uint texIndex;
+	float healthPer;
 } pc;
 
 void main() 
 {
-	mat4 volumeT = pc.volumeTransforms.transforms[pc.volumeIndex];
-	gl_Position = ubo.proj * ubo.view * volumeT * vec4(inPosition.xyz, 1.0f);
+	mat4 model = pc.worldUIMat;
+
+	outUV.x		= inPosition.w;
+	outUV.y		= inNormal.w;
+
+	texIndex = pc.texIndex;
+	capXUV = pc.healthPer;
+
+	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0f);
 }

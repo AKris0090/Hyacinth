@@ -13,6 +13,23 @@ AABB getBoundingBox(std::vector<Vertex>& vertices) {
     return bounds;
 }
 
+AABB getWorldSpaceBoundingBox(gltfNode* node) {
+    AABB bounds;
+    bounds.min = glm::vec4(glm::vec3(FLT_MAX), 1.f);
+    bounds.max = glm::vec4(glm::vec3(FLT_MIN), 1.f);
+    glm::mat4 worldMatrix = getNodeMatrix(node);
+    for (const auto& p : node->primitives) {
+        for (const auto& v : p->vertices) {
+            bounds.grow(worldMatrix * glm::vec4(v.pos.x, v.pos.y, v.pos.z, 1.f));
+        }
+    }
+    for (const auto& n : node->children) {
+        bounds.grow(getWorldSpaceBoundingBox(n));
+    }
+
+    return bounds;
+}
+
 void gltfObject::updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer)
 {
     if (node->skinIndex > -1)
@@ -250,7 +267,12 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
     imageExtents.height = curImage.height;
     imageExtents.depth = 1;
     texImage = vkimageutils::createTextureImage(rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
-    vkimageutils::createImageSampler(texImage);
+    if (object.isTracer) {
+        vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
+    }
+    else {
+        vkimageutils::createImageSampler(texImage);
+    }
     object.textures.push_back(texImage);
     if (curImage.name.empty()) {
         curImage.name = "image_" + curImage.uri;
@@ -305,6 +327,7 @@ void gltfObject::setFPControllerParameters(FirstPersonAnimationController& c, Sk
     c.idleAnimation = &animations[0];
     c.shootAnimation = &animations[1];
     c.spinningAnimation = &animations[2];
+    c.reloadAnimation = &animations[3];
     c.currentAnim = c.idleAnimation;
     c.currentTime = c.currentAnim->start;
 
@@ -325,6 +348,8 @@ void gltfObject::setFPControllerParameters(FirstPersonAnimationController& c, Sk
 void gltfObject::setWeaponControllerParams(PistolAnimationController& c, Skin& skin) {
     c.idleAnimation = &animations[0];
     c.shootAnimation = &animations[1];
+    c.reloadAnimation = &animations[2];
+
     c.currentAnim = c.idleAnimation;
     c.currentTime = c.currentAnim->start;
 }
@@ -349,13 +374,14 @@ void gltfObject::setWeaponParentTo(gltfObject* parentObj) {
     gunBaseNode->parent = parentObj->attachmentPoint;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isWeapon) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isWeapon, bool isTracer) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
     object.dynamic = dynamic;
     object.isCharacter = isCharacter;
     object.isWeapon = isWeapon;
+    object.isTracer = isTracer;
     object.imageIsSRGB = new std::unordered_set<uint32_t>();
     tinygltf::Model* model;
     model = new tinygltf::Model();
@@ -393,7 +419,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
         tinygltf::Material gltfMat = model->materials[i];
         if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
             object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 3; // 3 for all dummy textures
-            object.imageIsSRGB->insert(object.materials[i].baseColorIndex - 2);
+            object.imageIsSRGB->insert(object.materials[i].baseColorIndex - 3);
         }
         else { object.materials[i].baseColorIndex = DUMMY_COLOR_TEX_INDEX; }
         if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {
@@ -404,6 +430,7 @@ gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAc
             object.materials[i].metallicRoughnessIndex = object.textureIndices[gltfMat.values["metallicRoughnessTexture"].TextureIndex()] + 3;
         }
         else { object.materials[i].metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
+        object.materials[i].alphaCutoff = gltfMat.alphaCutoff;
     }
 
     for (uint32_t i = 0; i < model->images.size(); i++) {
@@ -503,6 +530,7 @@ void SceneGraph::buildSceneGraph() {
     }
 
     for (const auto& obj : combinedObjects) {
+        if (obj->isTracer) tracerMatIdx = materialObjects.size();
         obj->firstMatrix = obj->dynamic ? dynamicTransformMatrices.size() : staticTransformMatrices.size();
         uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
         for (const auto& node: obj->allNodes) {
@@ -522,6 +550,7 @@ void SceneGraph::buildSceneGraph() {
                 draw.isCharacter = obj->isCharacter;
                 draw.isWeapon = obj->isWeapon;
                 draw.dynamic = obj->dynamic;
+                draw.isTracer = obj->isTracer;
                 draw.firstIndex = firstIndex;
                 draw.indexCount = static_cast<uint32_t>(prim->indices.size());
                 draw.vertexCount = prim->vertices.size();
@@ -555,6 +584,8 @@ void SceneGraph::buildSceneGraph() {
             numNodes++;
             if (node->includeInAccel && node->vertices.size() > 0 && node->indices.size() > 0) {
 				numAccelNodes++;
+
+                sceneBoundingBox.grow(getWorldSpaceBoundingBox(node));
             }
 
             // for acceleration structures
@@ -566,6 +597,7 @@ void SceneGraph::buildSceneGraph() {
             newMatIndices.baseColorIndex = (mat.baseColorIndex == DUMMY_COLOR_TEX_INDEX) ? DUMMY_COLOR_TEX_INDEX : mat.baseColorIndex + numTextures;
             newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + numTextures;
             newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + numTextures;
+            newMatIndices.alphaCutoff = mat.alphaCutoff;
             materialObjects.push_back(newMatIndices);
         }
 
@@ -592,6 +624,9 @@ void SceneGraph::buildSceneGraph() {
             }
             else if (gltfDraw.isWeapon) {
                 pistolDrawCommands.push_back(drawCmd);
+            }
+            else if (gltfDraw.isTracer) {
+                tracerCommands.push_back(drawCmd);
             }
             else {
                 gltfDraw.dynamic ? dynamicDrawCommands.push_back(drawCmd) : staticDrawCommands.push_back(drawCmd);
@@ -642,8 +677,19 @@ void SceneGraph::createUITextures() {
         stbi_uc* pixels = nullptr;
         int texWidth, texHeight, texChannels;
         pixels = stbi_load(p.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
+        for (int i = 0; i < texWidth * texHeight; i++) {
+            unsigned char* p = pixels + i * 4;
+            if (p[3] == 0) {
+                p[0] = p[0] * p[3];
+                p[1] = p[1] * p[3];
+                p[2] = p[2] * p[3];
+                p[3] = 1;
+            }
+        }
+
         if (!pixels) {
-            throw std::runtime_error("failed to load dummy image " + str + "!");
+            throw std::runtime_error("failed to load ui image " + str + "!");
         }
         texImage.extent.width = texWidth;
         texImage.extent.height = texHeight;
@@ -654,7 +700,32 @@ void SceneGraph::createUITextures() {
         imageExtents.depth = 1;
 
         texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
-        vkimageutils::createImageSampler(texImage);
+        vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_BORDER_COLOR_INT_TRANSPARENT_BLACK);
+
+        uiTextures.push_back(texImage);
+        numTextures++;
+    }
+
+    worldUITextureOffset = numTextures;
+    for (const auto& str : WORLD_UI_TEXTURE_NAMES) {
+        auto p = vkdebugutils::getExeDir() / "ui" / str;
+        VulkanImage texImage{};
+        stbi_uc* pixels = nullptr;
+        int texWidth, texHeight, texChannels;
+        pixels = stbi_load(p.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        if (!pixels) {
+            throw std::runtime_error("failed to load ui image " + str + "!");
+        }
+        texImage.extent.width = texWidth;
+        texImage.extent.height = texHeight;
+
+        VkExtent3D imageExtents{};
+        imageExtents.width = texImage.extent.width;
+        imageExtents.height = texImage.extent.height;
+        imageExtents.depth = 1;
+
+        texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_BORDER_COLOR_INT_TRANSPARENT_BLACK);
 
         uiTextures.push_back(texImage);
         numTextures++;
@@ -696,8 +767,8 @@ void gltfObject::updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPer
     }
 }
 
-void gltfObject::updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut) {
-    animMachine.updateAnimationState(c, state, deltaTime, deltaPitch, deltaYaw, shootTriggerOut);
+void gltfObject::updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut) {
+    animMachine.updateAnimationState(c, state, deltaTime, deltaPitch, deltaYaw, shootTriggerOut, reloadTriggerOut);
 
     for (auto& node : obj->parentNodes) {
         obj->updateJoints(node, pMappedJointMatrixBuffer);

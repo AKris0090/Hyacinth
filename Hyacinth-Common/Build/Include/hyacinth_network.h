@@ -70,6 +70,7 @@ struct ClientUpdatePacket {
 	int8_t movementLR = 0;
 	bool jump = false;
 	bool lmb = false;
+	bool r = false;
 
 	uint64_t serverTimestamp;
 
@@ -92,6 +93,7 @@ struct SimulateStruct {
 	int8_t movementLR = 0;
 	bool jump = false;
 	bool shooting = false;
+	bool reloading = false;
 
 	void addPacket(ClientUpdatePacket pack);
 	void reset() {
@@ -170,6 +172,7 @@ public:
 			newEntity.id = fromEntity.id;
 			newEntity.transform = secondEnt->transform;// fromEntity.transform.lerpTo(secondEnt->transform, alpha);
 			newEntity.isMoving = fromEntity.isMoving || secondEnt->isMoving;
+			newEntity.health = secondEnt->health;
 			p.entities.push_back(newEntity);
 		}
 		return p;

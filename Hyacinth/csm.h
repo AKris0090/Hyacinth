@@ -10,10 +10,11 @@
 #include "vkpipelineutils.h"
 #include "vkdescriptorutils.h"
 #include "imgui_impl_vulkan.h"
+#include "vkmeshutils.h"
 #include "fpcam.h"
 
-constexpr int SHADOW_MAP_CASCADE_COUNT = 4;
-constexpr int cascadeImageSize = 4096;
+constexpr int SHADOW_MAP_CASCADE_COUNT = 1;
+constexpr int cascadeImageSize = 8192;
 
 struct shadowUniform {
 	glm::mat4 viewProj[SHADOW_MAP_CASCADE_COUNT];
@@ -21,7 +22,6 @@ struct shadowUniform {
 
 struct Cascade {
 	VkImageView cascadeImageView;
-	float splitDepth;
 	glm::mat4 viewProj;
 	VulkanBuffer cascadeDrawBuffer;
 	glm::vec4 frustumPlanes[6];
@@ -41,10 +41,18 @@ private:
 	VkFormat shadowFormat = VK_FORMAT_D32_SFLOAT;
 	std::vector<glm::vec4> corners;
 
-	void updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view);
+	void updateFrustumCorners(float camNear, float camFar, glm::mat4 proj, glm::mat4 view, AABB sceneWorldBounds);
 
 public:
-	float cascadeSplitLambda = 0.95f;
+	std::array<float, SHADOW_MAP_CASCADE_COUNT> shaderSplits;
+	glm::vec4 cascadeOffsets[SHADOW_MAP_CASCADE_COUNT];
+	glm::vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
+	glm::mat4 shaderShadowMatrix;
+
+	float bias = 0.005;
+	float offsetScale = 0.f;
+
+	float cascadeSplitLambda = 0.85f;
 	float DDGIntensity = 1.25f;
 	Transform transform;
 	Cascade m_cascades[SHADOW_MAP_CASCADE_COUNT];
@@ -60,7 +68,7 @@ public:
 
 	void setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayout);
 	void setupImGui();
-	void update(Camera& cam, int currentFrame);
+	void update(Camera& cam, AABB worldSpaceSceneBouunds, int currentFrame);
 	void drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint32_t frameIndex, VkDeviceAddress& matrixBufferAddress, VkDeviceAddress& drawDataBufferAddress);
 	void shutdown();
 };

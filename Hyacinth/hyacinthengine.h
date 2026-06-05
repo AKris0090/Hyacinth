@@ -18,6 +18,9 @@
 
 #include "frustumcull.h"
 
+#include "tracer_manager.h"
+#include "worldspace_health.h"
+
 #include "csm.h"
 #include "time.h"
 #include "fpcam.h"
@@ -39,7 +42,7 @@ const bool enableValLayers = false;
 const bool enableValLayers = true;
 #endif
 
-#define DEBUG_NETWORK
+// #define DEBUG_NETWORK
 
 constexpr uint8_t CURRENT_BIT = 0x01;
 constexpr uint8_t ANY_BIT = 0x02;
@@ -51,13 +54,25 @@ struct volumeStencilPushConstant {
 	uint32_t volumeIndex;
 };
 
+struct tracerPushConstant {
+	VkDeviceAddress tracerTransformsAddress;
+	VkDeviceAddress materialBufferAddress;
+	uint32_t matIndex;
+	uint32_t tracerIndex;
+	float alpha;
+};
+
 struct UBO {
 	glm::mat4 view;
 	glm::mat4 proj;
 	glm::vec4 viewPos;
 	glm::vec4 lightPos;
+	glm::vec4 ABOD;
+	glm::mat4 globalShadowMatrix;
 	glm::vec4 cascadeSplits;
 	glm::mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	glm::vec4 cascadeOffsets[SHADOW_MAP_CASCADE_COUNT];
+	glm::vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 };
 
 struct GBuffer {
@@ -77,10 +92,12 @@ public:
 	struct SDL_Window* m_window{ nullptr };
 	SWChainImageFormat				m_swImageFormat{};
 	VkDescriptorSetLayout			m_descriptorSetLayout{ VK_NULL_HANDLE };
-	NetworkEntityManager* p_netEntManager;
+	NetworkEntityManager*			p_netEntManager;
+	WorldHealthManager				m_worldHealthManager;
 	std::mutex camMutex;
 	Camera m_camera;
 	SceneGraph						m_scene{};
+	TracerManager					m_tracerManager;
 
 #ifdef DEBUG_NETWORK
 	NetDebugRenderer m_netDebugRenderer;
@@ -98,6 +115,7 @@ private:
 		VkCommandPool	commandPool;
 		VkCommandBuffer commandBuffer;
 		VulkanBuffer	uniformBuffer;
+		VulkanBuffer	tracerTransformBuffer;
 		void*			mappedUniformBuffer;
 		VkDescriptorSet uniformDescriptorSet;
 		VkDescriptorSet shadowDescriptorSet;
@@ -109,12 +127,14 @@ private:
 	float volBViewBias;
 
 	bool m_initialized = false;
-	bool m_showImGui = true;
+	bool m_showImGui = false;
 	bool ambientToggle = false;
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t characterDrawOffset = 0;
 	uint32_t pistolDrawOffset = 0;
+	uint32_t tracerDrawOffset = 0;
+	uint32_t maxTracers = 10;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkInstance						m_instance				{ VK_NULL_HANDLE };
@@ -135,6 +155,7 @@ private:
 	std::vector<GBuffer>			m_gBuffers				{};
 	std::vector<VulkanImage>		m_swapChainImages		{}; // a.k.a color resolve
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
+	VulkanPipelineBuilder 			m_tracerPipelineUtil	{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
 	VulkanPipelineBuilder			m_skinnedPipelineUtil   {};
@@ -169,6 +190,7 @@ private:
 	void createCompositePipeline();
 	void createDDGIPipeline();
 	void createDDGIVolumePipeline();
+	void createTracerPipeline();
 	void createBuffers();
 	void createDescriptorSets();
 	void setupImGUI();

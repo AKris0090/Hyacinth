@@ -28,13 +28,12 @@ void PhysicsManager::initPhysics(bool debug) {
 		PHYSX_ERROR("PxCreateFoundation failed!");
 	}
 
-#ifndef NDEBUG
 	if (debug) {
 		pVirtDebug = PxCreatePvd(*pFoundation);
 		PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
-		pVirtDebug->connect(*transport, PxPvdInstrumentationFlag::eALL);
+		bool connected = pVirtDebug->connect(*transport, PxPvdInstrumentationFlag::eALL);
+		std::cout << "[PHYSICS] Debug Connection Status: " << connected << std::endl;
 	}
-#endif
 
 	pPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *pFoundation, PxTolerancesScale(), recordMemoryAllocations, pVirtDebug);
 	if (!pPhysics) {
@@ -151,6 +150,7 @@ void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightNode* 
 
 		physx::PxMeshGeometryFlags flags(~physx::PxMeshGeometryFlag::eDOUBLE_SIDED);
 		physx::PxTriangleMeshGeometry geo(triMesh, physx::PxMeshScale(physx::PxVec3(1, 1, 1)), flags);
+		worldGeom.push_back(geo);
 
 		physx::PxShapeFlags shapeFlags(physx::PxShapeFlag::eVISUALIZATION | physx::PxShapeFlag::eSCENE_QUERY_SHAPE | physx::PxShapeFlag::eSIMULATION_SHAPE);
 		physx::PxShape* shape = pPhysics->createShape(geo, *pMaterial, shapeFlags);
@@ -185,22 +185,25 @@ void PhysicsManager::addStaticPhysicsObject(LightObject* object) {
 
 // if serverSide is true, then simulateStruct has absolute pitch and yaw values
 // if false, then simulateStruct has delta xRel and yRel mouse raw input values
-void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime) {
+void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime, CamRecoil* r) {
 	if (serverSide) {
 		t.pitch = p.pitch;
 		t.yaw = p.yaw;
 	} else {
-		if (glm::abs(p.pitch) > 0.f || glm::abs(p.yaw) > 0.f) { // simulate struct pitch and yaw are DELTA VALUES
-			float mouseX = p.pitch * camSpeed * deltaTime;
-			float mouseY = p.yaw * camSpeed * deltaTime;
+		// simulate struct pitch and yaw are DELTA VALUES
+		float mouseX = p.pitch * camSpeed * deltaTime;
+		float mouseY = p.yaw * camSpeed * deltaTime;
 
-			t.yaw += mouseX;
-			t.pitch -= mouseY;
+		t.yaw += mouseX;
+		t.pitch -= mouseY;
 
-			if (t.yaw > 360.f)  t.yaw -= 360.f;
-			if (t.yaw < -360.f) t.yaw += 360.f;
-			t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
-		}
+		if (t.yaw > 360.f)  t.yaw -= 360.f;
+		if (t.yaw < -360.f) t.yaw += 360.f;
+
+		float pitchAddition = r->updateRecoil(deltaTime);
+		t.pitchAdditional = pitchAddition;
+
+		t.pitch = glm::clamp(t.pitch, -89.9f, 89.9f);
 	}
 
 	t.setRotationPitchYaw();
@@ -278,6 +281,8 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 	physx::PxReal maxDist = 100.f;
 	physx::PxRaycastBuffer rayHit;
 
+	float cDistance = FLT_MAX;
+
 	for (const auto& e : snapshotToTrace->entityPositions) {
 		if (e.id == shooterId) continue; // if the current entity is the shooter, skip
 
@@ -286,13 +291,94 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 
 		bool didHit = physx::PxGeometryQuery::raycast(origin, dir, capGeom, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
 
-		if (didHit) {
+		if (didHit && hit.distance < cDistance) {
 			h.hit = true;
 			h.entityHitId = e.id;
 			h.footPosHit = e.pos;
+			h.hitPos = glmPhysxVec(hit.position);
+			cDistance = hit.distance;
 			break;
 		}
 	}
 
+	for (const auto& g : worldGeom) {
+		physx::PxTransform pose(physxVec(glm::vec3(0, 0, 0)));
+		physx::PxRaycastHit hit;
+
+		bool didHit = physx::PxGeometryQuery::raycast(origin, dir, g, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
+
+		if (didHit && hit.distance < cDistance) {
+			cDistance = hit.distance;
+			h.entityHitId = INT_MAX;
+			h.footPosHit = glm::vec3(0, -100.f, 0);
+			h.hitPos = glmPhysxVec(hit.position);
+		}
+	}
+
+	if (cDistance == FLT_MAX) {
+		h.hitPos = glmPhysxVec((origin + (dir * 35.f)));
+	}
+
 	return h;
+}
+
+void DrawRaycastPVD(PxPvdSceneClient* pvdClient, const PxVec3& origin, const PxVec3& direction, float distance, bool hit = false, const PxVec3& hitPos = PxVec3(0.f)) {
+	if (!pvdClient)
+		return;
+
+	PxVec3 normalizedDir = direction.getNormalized();
+	PxVec3 endpoint = origin + normalizedDir * distance;
+
+	if (hit) {
+		PxDebugLine rayToHit[] = {
+			PxDebugLine(origin, hitPos, PxDebugColor::eARGB_YELLOW)
+		};
+		pvdClient->drawLines(rayToHit, 1);
+
+		PxDebugPoint hitMarker[] = {
+			PxDebugPoint(hitPos, PxDebugColor::eARGB_RED)
+		};
+		pvdClient->drawPoints(hitMarker, 1);
+	}
+	else {
+		PxDebugLine fullRay[] = {
+			PxDebugLine(origin, endpoint, PxDebugColor::eARGB_GREEN)
+		};
+		pvdClient->drawLines(fullRay, 1);
+	}
+
+	PxDebugPoint originMarker[] = {
+		PxDebugPoint(origin, PxDebugColor::eARGB_WHITE)
+	};
+	pvdClient->drawPoints(originMarker, 1);
+}
+
+glm::vec3 PhysicsManager::traceBullet(Transform& entTransform) {
+	physx::PxVec3 origin = physxVec(entTransform.position + glm::vec3(0.f, 1.85f, 0.f));
+	physx::PxVec3 dir = physxVec(glm::normalize(entTransform.forward));
+	physx::PxReal maxDist = 100.f;
+	physx::PxRaycastBuffer rayHit;
+
+	glm::vec3 hitPos = glm::vec3(0.f);
+	float cDistance = FLT_MAX;
+
+	for(const auto& g : worldGeom) {
+		physx::PxTransform pose(physxVec(glm::vec3(0, 0, 0)));
+		physx::PxRaycastHit hit;
+
+		bool didHit = physx::PxGeometryQuery::raycast(origin, dir, g, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
+
+		if (didHit && hit.distance < cDistance) {
+			cDistance = hit.distance;
+			hitPos = glmPhysxVec(hit.position);
+		}
+	}
+
+	if (cDistance == FLT_MAX) {
+		hitPos = glmPhysxVec((origin + (dir * 35.f)));
+	}
+
+	DrawRaycastPVD(pScene->getScenePvdClient(), origin, dir, 100.f, cDistance != FLT_MAX, cDistance != FLT_MAX ? physxVec(hitPos) : physx::PxVec3(0.f));
+
+	return hitPos;
 }

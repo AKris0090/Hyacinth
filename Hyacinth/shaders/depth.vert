@@ -8,12 +8,16 @@
 layout	(location = 0) in vec4 inPosition;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
-    mat4 view;
-    mat4 proj;
+	mat4 view;
+	mat4 proj;
 	vec4 viewPos;
 	vec4 lightPos;
-    vec4 cascadeSplits;
-    mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	vec4 ABOD; // ambient toggle, bias, offset scale, ddgi intensity
+	mat4 globalShadowMatrix;
+	vec4 cascadeSplits;
+	mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeOffsets[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
 layout( push_constant ) uniform constants

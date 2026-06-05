@@ -177,6 +177,7 @@
     <ClCompile Include="vkswapchainutils.cpp" />
     <ClCompile Include="hyacinthengine.cpp" />
     <ClCompile Include="volumevis.cpp" />
+    <ClCompile Include="worldspace_health.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\DEV\imgui-1.92.5\backends\imgui_impl_sdl3.h" />
@@ -208,6 +209,7 @@
     <ClInclude Include="sdlwindow.h" />
     <ClInclude Include="tangentHelper.h" />
     <ClInclude Include="time.h" />
+    <ClInclude Include="tracer_manager.h" />
     <ClInclude Include="unit_cube.h" />
     <ClInclude Include="vkdescriptorutils.h" />
     <ClInclude Include="vkdeviceutils.h" />
@@ -217,6 +219,7 @@
     <ClInclude Include="vkpipelineutils.h" />
     <ClInclude Include="vkswapchainutils.h" />
     <ClInclude Include="volumevis.h" />
+    <ClInclude Include="worldspace_health.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\gbuffer.frag" />
@@ -243,11 +246,14 @@
     <None Include="shaders\raygen.rgen" />
     <None Include="shaders\shadow.vert" />
     <None Include="shaders\shadowCommon.glsl" />
+    <None Include="shaders\tracer.frag" />
+    <None Include="shaders\tracer.vert" />
     <None Include="shaders\uiTex.frag" />
     <None Include="shaders\uiTex.vert" />
     <None Include="shaders\visibilityBuild.comp" />
     <None Include="shaders\volumeVis.frag" />
     <None Include="shaders\volumeVis.vert" />
+    <None Include="shaders\worldUI.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

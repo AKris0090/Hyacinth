@@ -28,9 +28,13 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./probeMiss.rmiss -o probeMiss.spv --target
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./composite.frag -o composite.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./uiTex.vert -o uiQuadVert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./worldUI.vert -o worldUIVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./uiTex.frag -o uiQuadFrag.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./netEntDebug.vert -o netDebugVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./netEntDebug.frag -o netDebugFrag.spv
+
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./tracer.vert -o tracerVert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./tracer.frag -o tracerFrag.spv
 
 pause

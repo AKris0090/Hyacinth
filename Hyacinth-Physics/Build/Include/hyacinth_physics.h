@@ -14,6 +14,7 @@
 #include "pvd/PxPvd.h"
 #include "pvd/PxPvdTransport.h"
 #include "pvd/PxPvdSceneClient.h"
+#include "PxPhysicsAPI.h"
 #include "common/PxTolerancesScale.h"
 #include "cooking/PxTriangleMeshDesc.h"
 #include "cooking/PxCooking.h"
@@ -40,6 +41,7 @@ struct hitReg {
 	bool hit;
 	uint32_t entityHitId;
 	glm::vec3 footPosHit;
+	glm::vec3 hitPos;
 };
 
 static physx::PxVec3 physxVec(glm::vec3 v) {
@@ -83,6 +85,7 @@ private:
 public:
 	physx::PxScene* pScene = NULL;
 	physx::PxCapsuleGeometry capGeom;
+	std::vector<physx::PxTriangleMeshGeometry> worldGeom;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
@@ -93,10 +96,11 @@ public:
 	void removeCharacterController(uint32_t cId);
 	void addStaticPhysicsObject(LightObject* object);
 	void updatePhysicsServer(EntityManager* entityManager);
-	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime);
+	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime, CamRecoil* r = nullptr);
 	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
 	void addNetworkEntityCapsuleCollider(uint32_t cId);
 	void setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId);
+	glm::vec3 traceBullet(Transform& camTransform);
 
 	hitReg playerShooting(uint32_t eId, Transform& t, rewindSnapshot* snapshotToTrace);
 };

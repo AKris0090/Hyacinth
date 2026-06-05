@@ -3,6 +3,7 @@
 #include "animation.h"
 #include "vkmeshutils.h"
 #include "hyacinth_ui.h"
+#include "worldspace_health.h"
 #include "entity.h"
 
 constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
@@ -30,6 +31,7 @@ struct gltfDrawCommand {
     bool dynamic;
     bool isCharacter;
     bool isWeapon;
+    bool isTracer;
     uint32_t    indexCount;
     uint32_t    firstIndex;
     int32_t     vertexOffset;
@@ -42,6 +44,7 @@ struct gltfObject {
     bool dynamic;
     bool isCharacter;
     bool isWeapon;
+    bool isTracer;
     uint32_t firstMatrix = 0;
     uint32_t numMatrices = 0;
     uint32_t activeAnimation = 0;
@@ -69,7 +72,7 @@ struct gltfObject {
     void setFPControllerParameters(FirstPersonAnimationController& c, Skin& skin);
     void setWeaponControllerParams(PistolAnimationController& c, Skin& skin);
     static void updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
-    static void updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut);
+    static void updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut);
     static void updatePistolAnimation(gltfObject* obj, PistolAnimationStateMachine& animMachine, PistolAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
     void setWeaponParentTo(gltfObject* parentObj);
 };
@@ -91,6 +94,10 @@ struct SceneGraph {
     uint32_t numNodes = 0;
     uint32_t numAccelNodes = 0;
     uint32_t uiTextureOffset = 0;
+    uint32_t worldUITextureOffset = 0;
+    uint32_t tracerMatIdx = 0;
+
+    AABB sceneBoundingBox;
 
     std::vector<VkSampler> imageSamplers;
 
@@ -101,6 +108,7 @@ struct SceneGraph {
     std::vector<VkDrawIndexedIndirectCommand> dynamicDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> characterDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> pistolDrawCommands;
+    std::vector<VkDrawIndexedIndirectCommand> tracerCommands;
 
     std::vector<DrawData> drawData;
     std::vector<GPUMaterialIndices> materialObjects;
@@ -117,5 +125,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isWeapon = false);
+    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isWeapon = false, bool isTracer = false);
 }

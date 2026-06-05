@@ -83,6 +83,24 @@ void NetworkEntityManager::clearPendingPackets(Entity* self) {
 				serverTransform = e.transform;
 				haveShotAck = e.shotAck;
 			}
+			else {
+				// if shot ack, add a tracer
+				if (e.shotAck) {
+					glm::vec3 hitPos = e.hitPos;
+					glm::vec3 origin = e.transform.position + glm::vec3(0.f, 1.85f, 0.f);
+					origin += e.transform.forward * 0.6f;
+					origin -= e.transform.up * 0.5f;
+					glm::vec3 dir = hitPos - origin;
+					glm::vec3 normDir = glm::normalize(dir);
+					Transform t;
+					t.scale.x = glm::length(dir);
+					t.yaw = glm::degrees(glm::atan2(normDir.z, normDir.x));
+					t.pitch = glm::degrees(glm::asin(normDir.y));
+					t.setRotationPitchYaw();
+					t.position = origin;
+					tracerManager->addTracer(t.getMatrix());
+				}
+			}
 		}
 
 		if (haveShotAck) {
