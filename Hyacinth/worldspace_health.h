@@ -15,10 +15,12 @@ constexpr float WORLD_UI_TEXTURE_ASPECT = 342.f / 36.f;
 struct worldUIPC {
 	glm::mat4 worldUIMatrix;
 	uint32_t texIndex = 0;
+	float health = 1.f;
 };
 
 struct healthBarStruct {
 	Transform worldTransform;
+	float health = 1.f;
 };
 
 class WorldHealthManager {

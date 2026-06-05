@@ -253,6 +253,7 @@
     <None Include="shaders\visibilityBuild.comp" />
     <None Include="shaders\volumeVis.frag" />
     <None Include="shaders\volumeVis.vert" />
+    <None Include="shaders\worldUI.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

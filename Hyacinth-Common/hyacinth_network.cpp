@@ -64,7 +64,8 @@ std::string ServerSnapshot::toString() {
 			<< "," << e.shotAck
 			<< "," << e.hitPos.x
 			<< "," << e.hitPos.y
-			<< "," << e.hitPos.z;
+			<< "," << e.hitPos.z
+			<< "," << e.health;
 		if (i + 1 < entities.size()) oss << "|";
 	}
 	return oss.str();
@@ -97,6 +98,7 @@ ServerSnapshot ServerSnapshot::fromString(std::string s) {
 		std::getline(es, field, ','); e.hitPos.x = std::stof(field);
 		std::getline(es, field, ','); e.hitPos.y = std::stof(field);
 		std::getline(es, field, ','); e.hitPos.z = std::stof(field);
+		std::getline(es, field, ','); e.health = std::stof(field);
 
 		e.transform.setRotationPitchYaw();
 

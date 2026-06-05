@@ -103,10 +103,18 @@ struct Entity {
 	bool isMoving = false;
 	bool shotAck = false;
 	bool shot = false;
+	float health = 1.f;
 	glm::vec3 hitPos;
 
 	WeaponController pistolController;
 	CamRecoil recoil;
+
+	void takeDamage() {
+		health -= 0.1f;
+		if (health < 0.f) {
+			health = 0.f;
+		}
+	}
 };
 
 struct PhysicsEnt {

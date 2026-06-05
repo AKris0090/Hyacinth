@@ -172,6 +172,7 @@ public:
 			newEntity.id = fromEntity.id;
 			newEntity.transform = secondEnt->transform;// fromEntity.transform.lerpTo(secondEnt->transform, alpha);
 			newEntity.isMoving = fromEntity.isMoving || secondEnt->isMoving;
+			newEntity.health = secondEnt->health;
 			p.entities.push_back(newEntity);
 		}
 		return p;

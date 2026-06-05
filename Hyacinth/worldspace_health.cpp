@@ -68,6 +68,7 @@ void WorldHealthManager::update(std::vector<Entity>& entities, uint32_t selfID, 
 		}
 
 		healthBarStruct h{};
+		h.health = e.health;
 
 		// for each entity, add a health bar on top of it
 		h.worldTransform.position = e.transform.position + glm::vec3(0.f, UI_TOP_OFFSET, 0.f);
@@ -86,6 +87,7 @@ void WorldHealthManager::draw(VkCommandBuffer& cmd) {
 	pc.texIndex = healthBarTexInd;
 	for (auto& h : worldHealthBars) {
 		pc.worldUIMatrix = h.worldTransform.getMatrix();
+		pc.health = h.health;
 
 		vkCmdPushConstants(cmd, worldUIPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(worldUIPC), &pc);
 		vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);

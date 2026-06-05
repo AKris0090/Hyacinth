@@ -453,5 +453,8 @@
     <None Include="shaders\tracer.vert">
       <Filter>Source Files\shaders\tracers</Filter>
     </None>
+    <None Include="shaders\worldUI.vert">
+      <Filter>Source Files\shaders\network</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -9,6 +9,7 @@ layout	(location = 2) in vec4 inTangent;
 
 layout  (location = 0) flat out uint texIndex;
 layout	(location = 1) out vec2 outUV;
+layout	(location = 3) out float capXUV;
 
 layout(set = 1, binding = 0) uniform UniformBufferObject {
 	mat4 view;
@@ -27,6 +28,7 @@ layout( push_constant ) uniform constants
 {
 	mat4 worldUIMat;
 	uint texIndex;
+	float healthPer;
 } pc;
 
 void main() 
@@ -37,6 +39,7 @@ void main()
 	outUV.y		= inNormal.w;
 
 	texIndex = pc.texIndex;
+	capXUV = pc.healthPer;
 
 	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0f);
 }

@@ -13,6 +13,7 @@ layout	(location = 2) in vec4 inTangent;
 
 layout  (location = 0) flat out uint texIndex;
 layout	(location = 1) out vec2 outUV;
+layout	(location = 3) out float capXUV;
 
 layout(buffer_reference, std430) readonly buffer UITransformBuffer{ 
 	UIObj buff[];
@@ -35,6 +36,7 @@ void main()
 	outUV.y		= inNormal.w;
 
 	texIndex = ui.texIndex;
+	capXUV = 1.0;
 
 	gl_Position = vec4(pos, 1.0f);
 }

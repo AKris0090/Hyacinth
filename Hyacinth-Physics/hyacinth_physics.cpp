@@ -296,6 +296,7 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 			h.entityHitId = e.id;
 			h.footPosHit = e.pos;
 			h.hitPos = glmPhysxVec(hit.position);
+			cDistance = hit.distance;
 			break;
 		}
 	}
@@ -308,6 +309,8 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 
 		if (didHit && hit.distance < cDistance) {
 			cDistance = hit.distance;
+			h.entityHitId = INT_MAX;
+			h.footPosHit = glm::vec3(0, -100.f, 0);
 			h.hitPos = glmPhysxVec(hit.position);
 		}
 	}

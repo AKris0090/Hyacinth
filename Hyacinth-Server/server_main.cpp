@@ -165,7 +165,7 @@ void printPhysicsTick() {
             << std::setw(6) << id
             << std::setw(20) << ipPort
             << std::setw(12) << (std::to_string(client->ping) + "ms")
-            << std::setw(22) << (std::to_string(client->tickBasis))
+            << std::setw(22) << (std::to_string(client->entity.health))
             << "\n";
     }
 
@@ -303,6 +303,10 @@ void updateTick(SOCKET* udpSendSocket) {
                     h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
                 }
 
+                if (h.hit && h.entityHitId != INT_MAX) {
+                    entityManager.clients[h.entityHitId]->entity.takeDamage();
+                }
+
                 client->entity.shotAck = true;
                 client->entity.hitPos = h.hitPos;
             }
@@ -335,7 +339,7 @@ void updateTick(SOCKET* udpSendSocket) {
         }
         currentSnapshot.store(p, std::memory_order_release);
 
-        // printPhysicsTick();
+        printPhysicsTick();
 
         std::this_thread::sleep_until(nextTick);
         currentTick++;
