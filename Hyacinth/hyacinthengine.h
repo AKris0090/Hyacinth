@@ -83,7 +83,10 @@ struct GBuffer {
 	VulkanImage ddgiImage;
 	VulkanImage depth;
 
+	VulkanImage compositeImage;
+
 	VkDescriptorSet					m_compositeSet{ VK_NULL_HANDLE };
+	VkDescriptorSet					m_postProcessSet{ VK_NULL_HANDLE };
 };
 
 class HyacinthEngine {
@@ -160,6 +163,7 @@ private:
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
 	VulkanPipelineBuilder			m_skinnedPipelineUtil   {};
 	VulkanPipelineBuilder			m_volumeStencilPipeline	{};
+	VulkanPipelineBuilder			m_fxaaPipelineUtil		{};
 	GPUMeshBuffers					m_meshBuffers			{};
 	VulkanBuffer 					m_staticIndirectDrawBuffer{};
 	VulkanBuffer					m_dynamicIndirectDrawBuffer{};
@@ -174,6 +178,7 @@ private:
 	VkDescriptorSetLayout			m_shadowSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_compositeSetLayout	{ VK_NULL_HANDLE };
+	VkDescriptorSetLayout			m_postProcessSetLayout	{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
 	owDDGI							m_owDDGIHelper;
@@ -191,6 +196,7 @@ private:
 	void createDDGIPipeline();
 	void createDDGIVolumePipeline();
 	void createTracerPipeline();
+	void createFXAAPipeline();
 	void createBuffers();
 	void createDescriptorSets();
 	void setupImGUI();
