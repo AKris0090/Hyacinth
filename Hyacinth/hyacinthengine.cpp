@@ -526,11 +526,18 @@ void HyacinthEngine::createFXAAPipeline()
     m_fxaaPipelineUtil.m_viewportState.pViewports = &viewport;
     m_fxaaPipelineUtil.m_viewportState.pScissors = &scissor;
 
+    VkPushConstantRange pcRange;
+    pcRange.offset = 0;
+    pcRange.size = sizeof(glm::vec2);
+    pcRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
     std::array<VkDescriptorSetLayout, 1> sets = { m_postProcessSetLayout };
 
     VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pipelineLayoutCInfo.setLayoutCount = sets.size();
     pipelineLayoutCInfo.pSetLayouts = sets.data();
+    pipelineLayoutCInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCInfo.pPushConstantRanges = &pcRange;
 
     VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_fxaaPipelineUtil.m_pipeline.layout));
 
@@ -1292,12 +1299,14 @@ void HyacinthEngine::draw()
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].compositeImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     {
+        glm::vec2 invSS = 1.f / glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height);
         VK_LABEL(cmd, "FXAA Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_fxaaPipelineUtil.m_pipeline.pipeline);
         std::array<VkDescriptorSet, 1> fxaaSet = { m_gBuffers[m_frameIndex].m_postProcessSet };
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_fxaaPipelineUtil.m_pipeline.layout, 0, fxaaSet.size(), fxaaSet.data(), 0, nullptr);
         VkRenderingAttachmentInfo fxaaAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
         VkRenderingInfo fxaaRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &fxaaAttachment, nullptr);
+        vkCmdPushConstants(cmd, m_fxaaPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec2), &invSS);
         vkCmdBeginRendering(cmd, &fxaaRenderingInfo);
         vkCmdSetViewport(cmd, 0, 1, &viewport);
         vkCmdSetScissor(cmd, 0, 1, &scissor);
