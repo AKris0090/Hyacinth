@@ -1431,6 +1431,7 @@ void HyacinthEngine::recreateSwapchain() {
         vkimageutils::destroyImage(m_gBuffers[i].depth);
         vkimageutils::destroyImage(m_gBuffers[i].ddgiImage);
         vkimageutils::destroyImage(m_gBuffers[i].stencilDepth);
+        vkimageutils::destroyImage(m_gBuffers[i].compositeImage);
     }
 
     for (VulkanImage& img : m_swapChainImages) {
@@ -1446,6 +1447,8 @@ void HyacinthEngine::recreateSwapchain() {
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].normal, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].ddgiImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_postProcessSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].compositeImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
     vkdescriptorutils::flushDescriptorWrites();
@@ -1544,6 +1547,7 @@ void HyacinthEngine::cleanup()
     vkDestroyDescriptorSetLayout(m_device, m_textureSetLayout, nullptr);
 	vkDestroyDescriptorSetLayout(m_device, m_compositeSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(m_device, m_shadowSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_device, m_postProcessSetLayout, nullptr);
 
     vmaDestroyAllocator(m_allocator);
 

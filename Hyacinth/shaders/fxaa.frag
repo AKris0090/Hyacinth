@@ -43,7 +43,7 @@ void main() {
 
 	float lumaNE = rgb2lum(textureOffset(compositeMap, inUV, ivec2(1, -1)).xyz);
 	float lumaNW = rgb2lum(textureOffset(compositeMap, inUV, ivec2(-1, -1)).xyz);
-	float lumaSE = rgb2lum(textureOffset(compositeMap, inUV, ivec2(1, -1)).xyz);
+	float lumaSE = rgb2lum(textureOffset(compositeMap, inUV, ivec2(1, 1)).xyz);
 	float lumaSW = rgb2lum(textureOffset(compositeMap, inUV, ivec2(-1, -1)).xyz);
 
 	float downUp = lumaS + lumaN;
