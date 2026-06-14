@@ -52,19 +52,14 @@ void main() {
     float customLambert = (NdotL * 0.35) + 0.025;
     vec3 diffuse = (albedo.rgb / PI) * customLambert * radiance;
 
-	vec3 r = reflect(-L, N);
-    float specular = max(0.0, dot(r, V));
-    specular = pow(specular, 8.0) * albedo.w * 0.4;
-    if (depth == 1.0) {
-        specular = 0.0;
-    }
+	vec3 r = normalize(reflect(-L, N));
+    float specular = clamp(dot(r, V), 0.0, 1.0);
+    specular = pow(specular, 8.0) * albedo.w;
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = albedo.rgb * vec3(0.07);// irrad * ubo.ABOD.w;
+	vec3 ambient = albedo.rgb * irrad * ubo.ABOD.w;
 
 	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
-
-	// vec3 color = diffuse + vec3(specular);
     outColor = vec4(color, 1.0);
 
     if (ubo.ABOD.x == 1.0) {

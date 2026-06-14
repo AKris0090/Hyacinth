@@ -93,3 +93,7 @@ void WorldHealthManager::draw(VkCommandBuffer& cmd) {
 		vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 	}
 }
+
+void WorldHealthManager::shutdown() {
+	worldUIPipelineUtil.destroyPipeline();
+}

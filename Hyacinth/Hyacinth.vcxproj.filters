@@ -456,5 +456,8 @@
     <None Include="shaders\worldUI.vert">
       <Filter>Source Files\shaders\network</Filter>
     </None>
+    <None Include="shaders\fxaa.frag">
+      <Filter>Source Files\shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
