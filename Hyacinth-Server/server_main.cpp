@@ -39,6 +39,7 @@ std::mutex bufferedClientPacketMutex;
 std::queue<ClientUpdatePacket> bufferedClientPackets;
 RewindRingBuffer rewindBuffer;
 std::atomic<uint32_t> currentClientID{ 0 };
+std::atomic<uint32_t> currentWorldID{ 1000 };
 std::atomic<uint32_t> currentTick{ 0 };
 std::atomic<std::shared_ptr<ServerSnapshot>> currentSnapshot;
 
@@ -210,6 +211,7 @@ void updateTick(SOCKET* udpSendSocket) {
                 ServersideClient* newClient = new ServersideClient();
                 newClient->id = e.clientID;
                 newClient->entity.id = e.clientID;
+                newClient->entity.type = E_PLAYER;
                 newClient->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
                 entityManager.clients[e.clientID] = newClient;
@@ -288,27 +290,44 @@ void updateTick(SOCKET* udpSendSocket) {
                 client->entity.isMoving = false;
             }
 
-            bool canShoot = client->entity.pistolController.updateShooting(SERVER_TIMESTEP, client->bufferedPacket.shooting, client->bufferedPacket.reloading);
+            bool canShoot = false;
+            EQUIPPED_WEAPON currentWeapon;
+
+            client->entity.updateWeaponState(SERVER_TIMESTEP, client->bufferedPacket.num1, client->bufferedPacket.num2, client->bufferedPacket.shooting, client->bufferedPacket.reloading, canShoot, currentWeapon);
 
             hitReg h;
             if (canShoot) {
-                // usually, it would be Current Server Time - Packet Latency - Client View Interpolation. In this case, RTT / 2 = 0 because everything is being run locally.
-                // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
-                uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER - (client->ping / SERVER_TIMESTEP_MS.count()); // client ping divided by 
-                rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind); 
-                if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer
-                    std::cout << "couldn't find the right snapshot, too far in the past" << std::endl;
-                }
-                else {
-                    h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
-                }
+                if (currentWeapon == EQUIPPED_WEAPON::PISTOL) {
+                    // usually, it would be Current Server Time - Packet Latency - Client View Interpolation. In this case, RTT / 2 = 0 because everything is being run locally.
+                    // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
+                    uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER - (client->ping / SERVER_TIMESTEP_MS.count()); // client ping divided by 
+                    rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind);
+                    if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer
+                        std::cout << "couldn't find the right snapshot, too far in the past" << std::endl;
+                    }
+                    else {
+                        h = physicsManager.playerShooting(client->id, client->entity.transform, &r);
+                    }
 
-                if (h.hit && h.entityHitId != INT_MAX) {
-                    entityManager.clients[h.entityHitId]->entity.takeDamage();
-                }
+                    if (h.hit && h.entityHitId != INT_MAX) {
+                        entityManager.clients[h.entityHitId]->entity.takeDamage();
+                    }
 
-                client->entity.shotAck = true;
-                client->entity.hitPos = h.hitPos;
+                    client->entity.shotAck = true;
+                    client->entity.hitPos = h.hitPos;
+                }
+                else if (currentWeapon == EQUIPPED_WEAPON::GRENADE) {
+                    // add physics object, throw, add to entity list
+                    glm::vec3 spawnPos = client->entity.transform.position + glm::vec3(0.f, 2.25f, 0.f);
+                    glm::vec3 initialVel = glm::normalize(client->entity.transform.forward + glm::vec3(0.f, 0.25f, 0.f)) * 15.f;
+
+                    currentWorldID++;
+                    Ordnance* o = new Ordnance();
+                    o->entity.type = E_GRENADE;
+                    o->entity.id = currentWorldID;
+                    physicsManager.addDynamicNetworkSphere(o->entity.id, spawnPos, initialVel);
+                    entityManager.worldObjects[o->entity.id] = o;
+                }
             }
             else {
                 client->entity.shotAck = false;
@@ -328,6 +347,13 @@ void updateTick(SOCKET* udpSendSocket) {
 #endif
             r.entityPositions.push_back(entityPositionSnapshot{ id, client->entity.transform.position });
         }
+
+        physicsManager.updateAllWorldObjects(entityManager.worldObjects);
+
+        for (const auto& [id, e] : entityManager.worldObjects) {
+            p->entities.push_back(e->entity);
+        }
+
         rewindBuffer.push(r);
         p->serverTickNum = currentTick;
         for (const auto& [id, client] : entityManager.clients) {

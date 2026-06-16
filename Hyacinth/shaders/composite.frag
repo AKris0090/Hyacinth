@@ -56,6 +56,10 @@ void main() {
     float specular = clamp(dot(r, V), 0.0, 1.0);
     specular = pow(specular, 8.0) * albedo.w;
 
+	if (depth == 1.0) {
+		specular = 0.0;
+	}
+
     vec3 irrad = texture(ddgiImage, inUV).xyz;
 	vec3 ambient = albedo.rgb * irrad * ubo.ABOD.w;
 

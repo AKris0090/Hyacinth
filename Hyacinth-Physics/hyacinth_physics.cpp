@@ -53,7 +53,8 @@ void PhysicsManager::initPhysics(bool debug) {
 		pvdSceneClient->setScenePvdFlag(physx::PxPvdSceneFlag::eTRANSMIT_CONTACTS, true);
 		pvdSceneClient->setScenePvdFlag(physx::PxPvdSceneFlag::eTRANSMIT_SCENEQUERIES, true);
 	}
-	pMaterial = pPhysics->createMaterial(0.f, 0.f, 0.f);
+	pMaterial = pPhysics->createMaterial(0.85f, 0.75f, 0.f);
+	pFrictionMaterial = pPhysics->createMaterial(0.9f, 0.9f, 0.f);
 
 	pCManager = PxCreateControllerManager(*pScene);
 	controllerDesc.radius = 0.5f;
@@ -65,6 +66,7 @@ void PhysicsManager::initPhysics(bool debug) {
 	controllerDesc.scaleCoeff = 1.f;
 
 	capGeom = physx::PxCapsuleGeometry(0.5f, 1.f);
+	sphereGeom = physx::PxSphereGeometry(0.15f);
 
 	std::cout << "[PHYSICS] Physics created!" << std::endl << std::endl;
 }
@@ -101,6 +103,17 @@ void PhysicsManager::removeCharacterController(uint32_t cId) {
 	clientControllers[cId]->release();
 	clientPhysicsObjects.erase(cId);
 	clientControllers.erase(cId);
+}
+
+void PhysicsManager::addDynamicNetworkSphere(uint32_t id, glm::vec3 spawnPos, glm::vec3 initialVel) {
+	physx::PxShape* sphereShape = pPhysics->createShape(sphereGeom, *pFrictionMaterial);
+	physx::PxRigidDynamic* dyn = pPhysics->createRigidDynamic(physx::PxTransform(physxVec(spawnPos)));
+	dyn->setLinearVelocity(physxVec(initialVel));
+	dyn->attachShape(*sphereShape);
+	sphereShape->release();
+	pScene->addActor(*dyn);
+
+	worldObjects[id] = dyn;
 }
 
 void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightNode* node) {
@@ -268,6 +281,12 @@ void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
 		if (e.eventType == SERVER_EVENT::CLIENT_DISCONNECT) {
 			removeCharacterController(e.clientID);
 		}
+	}
+}
+
+void PhysicsManager::updateAllWorldObjects(std::unordered_map<uint32_t, Ordnance*>& ord) {
+	for (const auto& [id, ordn] : ord) {
+		ordn->entity.transform.position = glmPhysxVec(worldObjects[id]->getGlobalPose().p);
 	}
 }
 

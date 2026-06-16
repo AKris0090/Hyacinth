@@ -40,7 +40,6 @@ void gltfObject::updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer)
         std::vector<glm::mat4> finalJointMatrices(numJoints);
         for (size_t i = 0; i < numJoints; i++)
         {
-            
             finalJointMatrices[i] = inverseTransform * (getNodeMatrix(skin.joints[i]) * skin.inverseBindMatrices[i]);
         }
 
@@ -281,13 +280,13 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
 }
 
 void gltfObject::setTPControllerParameters(ThirdPersonAnimationController& c, Skin& skin) {
-    c.idleAnimation = &animations[0];
-    c.runningAnimation = &animations[1];
-    c.leftTurnAnimation = &animations[2];
-    c.rightTurnAnimation = &animations[3];
+    c.animations[A_TP_IDLE] = &animations[0];
+    c.animations[A_TP_RUNNING] = &animations[1];
+    c.animations[A_TP_LEFT_TURN] = &animations[2];
+    c.animations[A_TP_RIGHT_TURN] = &animations[3];
 
-    c.currentUpperBodyAnim = c.currentLowerBodyAnim = c.idleAnimation;
-    c.currentUpperTime = c.currentLowerTime = c.idleAnimation->start;
+    c.currentUpperBodyAnim = c.currentLowerBodyAnim = c.animations[A_TP_IDLE];
+    c.currentUpperTime = c.currentLowerTime = c.animations[A_TP_IDLE]->start;
 
     c.previousAnimationTransforms.resize(skin.joints.size());
 
@@ -324,12 +323,14 @@ void gltfObject::setTPControllerParameters(ThirdPersonAnimationController& c, Sk
 }
 
 void gltfObject::setFPControllerParameters(FirstPersonAnimationController& c, Skin& skin) {
-    c.idleAnimation = &animations[0];
-    c.shootAnimation = &animations[1];
-    c.spinningAnimation = &animations[2];
-    c.reloadAnimation = &animations[3];
-    c.currentAnim = c.idleAnimation;
-    c.currentTime = c.currentAnim->start;
+    c.animations[A_GRENADE_THROW] = &animations[1];
+    c.animations[A_GRENADE_IDLE] = &animations[2];
+    c.animations[A_GRENADE_EQUIP] = &animations[3];
+
+    c.animations[A_PISTOL_RELOAD] = &animations[4];
+    c.animations[A_PISTOL_SHOOT] = &animations[5];
+    c.animations[A_PISTOL_IDLE] = &animations[6];
+    c.animations[A_PISTOL_EQUIP] = &animations[7];
 
     for (int j = 0; j < skin.joints.size(); j++) {
         gltfNode* joint = skin.joints[j];
@@ -374,13 +375,14 @@ void gltfObject::setWeaponParentTo(gltfObject* parentObj) {
     gunBaseNode->parent = parentObj->attachmentPoint;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isWeapon, bool isTracer) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isPistol, bool isTracer, bool isFlash) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
     object.dynamic = dynamic;
     object.isCharacter = isCharacter;
-    object.isWeapon = isWeapon;
+    object.isPistol = isPistol;
+    object.isFlash = isFlash;
     object.isTracer = isTracer;
     object.imageIsSRGB = new std::unordered_set<uint32_t>();
     tinygltf::Model* model;
@@ -548,7 +550,8 @@ void SceneGraph::buildSceneGraph() {
 
                 gltfDrawCommand draw{};
                 draw.isCharacter = obj->isCharacter;
-                draw.isWeapon = obj->isWeapon;
+                draw.isPistol = obj->isPistol;
+                draw.isFlash = obj->isFlash;
                 draw.dynamic = obj->dynamic;
                 draw.isTracer = obj->isTracer;
                 draw.firstIndex = firstIndex;
@@ -622,8 +625,11 @@ void SceneGraph::buildSceneGraph() {
             if (gltfDraw.isCharacter) {
                 characterDrawCommands.push_back(drawCmd);
             }
-            else if (gltfDraw.isWeapon) {
+            else if (gltfDraw.isPistol) {
                 pistolDrawCommands.push_back(drawCmd);
+            }
+            else if (gltfDraw.isFlash) {
+                flashDrawCommands.push_back(drawCmd);
             }
             else if (gltfDraw.isTracer) {
                 tracerCommands.push_back(drawCmd);
@@ -767,7 +773,7 @@ void gltfObject::updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPer
     }
 }
 
-void gltfObject::updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut) {
+void gltfObject::updateFirstPersonAnimation(WEAPON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut) {
     animMachine.updateAnimationState(c, state, deltaTime, deltaPitch, deltaYaw, shootTriggerOut, reloadTriggerOut);
 
     for (auto& node : obj->parentNodes) {
@@ -780,5 +786,11 @@ void gltfObject::updatePistolAnimation(gltfObject* obj, PistolAnimationStateMach
 
     for (auto& node : obj->parentNodes) {
         obj->updateJoints(node, pMappedJointMatrixBuffer);
+    }
+}
+
+void gltfObject::updateGrenadeAnimation(gltfObject* obj, float deltaTime, void* pMappedJointMatrixBuffer) {
+    for (auto& node : obj->parentNodes) {
+            obj->updateJoints(node, pMappedJointMatrixBuffer);
     }
 }

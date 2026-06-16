@@ -30,7 +30,8 @@ struct DrawData {
 struct gltfDrawCommand {
     bool dynamic;
     bool isCharacter;
-    bool isWeapon;
+    bool isPistol;
+    bool isFlash;
     bool isTracer;
     uint32_t    indexCount;
     uint32_t    firstIndex;
@@ -43,7 +44,8 @@ struct gltfDrawCommand {
 struct gltfObject {
     bool dynamic;
     bool isCharacter;
-    bool isWeapon;
+    bool isPistol;
+    bool isFlash;
     bool isTracer;
     uint32_t firstMatrix = 0;
     uint32_t numMatrices = 0;
@@ -72,8 +74,9 @@ struct gltfObject {
     void setFPControllerParameters(FirstPersonAnimationController& c, Skin& skin);
     void setWeaponControllerParams(PistolAnimationController& c, Skin& skin);
     static void updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
-    static void updateFirstPersonAnimation(FIRSTPERSON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut);
+    static void updateFirstPersonAnimation(WEAPON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut);
     static void updatePistolAnimation(gltfObject* obj, PistolAnimationStateMachine& animMachine, PistolAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
+    static void updateGrenadeAnimation(gltfObject* obj, float deltaTime, void* pMappedJointMatrixBuffer);
     void setWeaponParentTo(gltfObject* parentObj);
 };
 
@@ -108,6 +111,7 @@ struct SceneGraph {
     std::vector<VkDrawIndexedIndirectCommand> dynamicDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> characterDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> pistolDrawCommands;
+    std::vector<VkDrawIndexedIndirectCommand> flashDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> tracerCommands;
 
     std::vector<DrawData> drawData;
@@ -125,5 +129,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isWeapon = false, bool isTracer = false);
+    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isPistol = false, bool isTracer = false, bool isFlash = false);
 }
