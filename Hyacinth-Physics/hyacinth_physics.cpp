@@ -54,7 +54,7 @@ void PhysicsManager::initPhysics(bool debug) {
 		pvdSceneClient->setScenePvdFlag(physx::PxPvdSceneFlag::eTRANSMIT_SCENEQUERIES, true);
 	}
 	pMaterial = pPhysics->createMaterial(0.85f, 0.75f, 0.f);
-	pFrictionMaterial = pPhysics->createMaterial(0.9f, 0.9f, 0.f);
+	pFrictionMaterial = pPhysics->createMaterial(0.9f, 0.9f, 0.5f);
 
 	pCManager = PxCreateControllerManager(*pScene);
 	controllerDesc.radius = 0.5f;
@@ -284,9 +284,79 @@ void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
 	}
 }
 
-void PhysicsManager::updateAllWorldObjects(std::unordered_map<uint32_t, Ordnance*>& ord) {
+void PhysicsManager::updateAllWorldObjects(std::unordered_map<uint32_t, Ordnance*>& ord, std::unordered_map<uint32_t, ServersideClient*>& clients) {
+	std::vector<uint32_t> idsToErase;
 	for (const auto& [id, ordn] : ord) {
 		ordn->entity.transform.position = glmPhysxVec(worldObjects[id]->getGlobalPose().p);
+
+		if (ordn->updateFlashState(SERVER_TIMESTEP) == POP) {
+			// loop clients to flash them
+			for (auto& [clientID, client] : clients) {
+				hitReg h = hitReg{ false, INT_MAX };
+
+				// return hitreg struct that reports if the shooter hit anything, or if hit nothing
+				physx::PxVec3 origin = physxVec(ordn->entity.transform.position);
+				physx::PxVec3 dir = physxVec(glm::normalize((client->entity.transform.position + glm::vec3(0.f, 1.85f, 0.f) - ordn->entity.transform.position)));
+				physx::PxReal maxDist = 100.f;
+				physx::PxRaycastBuffer rayHit;
+
+				float cDistance = FLT_MAX;
+
+				physx::PxTransform pose(physxVec(client->entity.transform.position + glm::vec3(0, 1.f, 0)), physx::PxQuat(physx::PxHalfPi, physx::PxVec3(0, 0, 1)));
+				physx::PxRaycastHit hit;
+
+				bool didHit = physx::PxGeometryQuery::raycast(origin, dir, capGeom, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
+
+				if (didHit) {
+					h.hit = true;
+					cDistance = hit.distance;
+				}
+
+				for (const auto& g : worldGeom) {
+					physx::PxTransform pose(physxVec(glm::vec3(0, 0, 0)));
+					physx::PxRaycastHit hit;
+
+					bool didHit = physx::PxGeometryQuery::raycast(origin, dir, g, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
+
+					if (didHit && hit.distance < cDistance) {
+						h.hit = false;
+						cDistance = hit.distance;
+					}
+				}
+
+				if (h.hit) {
+					float dot = glm::dot(glm::normalize(client->entity.transform.forward), glmPhysxVec(dir));
+
+					if (dot < 0.f) {
+						glm::mat4 proj = glm::perspective(glm::radians(90.f), 16.f / 9.f, 0.f, 1000.f);
+						glm::vec3 pos = client->entity.transform.position + glm::vec3(0.f, 1.85f, 0.f);
+						glm::mat4 view = glm::lookAt(pos, pos + client->entity.transform.forward, client->entity.transform.up);
+
+						glm::vec4 ndcpos = proj * view * glm::vec4(ordn->entity.transform.position, 1.f);
+						ndcpos /= ndcpos.w;
+						ndcpos.y *= -1.f;
+
+						bool xinRange = (ndcpos.x < 1.f) && (ndcpos.x > -1.f);
+						bool yinRange = (ndcpos.y < 1.f) && (ndcpos.y > -1.f);
+						if (xinRange && yinRange) {
+							ndcpos.x = glm::clamp(ndcpos.x, -1.f, 1.f);
+							ndcpos.y = glm::clamp(ndcpos.y, -1.f, 1.f);
+
+							client->entity.startFlash(ndcpos.x, ndcpos.y);
+						}
+					}
+					else {
+
+					}
+				}
+			}
+
+			idsToErase.push_back(id);
+		}
+	}
+
+	for (auto& id : idsToErase) {
+		ord.erase(id);
 	}
 }
 

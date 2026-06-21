@@ -7,6 +7,7 @@ UIGPUUnit HyacinthUIManager::calculateUIPosition(UIElement& e, glm::vec2 screenS
 	UIGPUUnit u;
 	u.texIndex = e.texIndex;
 	u.dimensions = e.dimensions / screenSize;
+	u.flashAmntXYApply = glm::vec4(1.f, 0.f, 0.f, 0.f);
 	glm::vec2 ssOffset = ((e.offset / screenSize) * 2.f) - 1.f;
 	switch (e.anchorPos) {
 // 	case TOP_LEFT:
@@ -72,9 +73,20 @@ void HyacinthUIManager::createUIElements(float textureOffset, glm::vec2 screenSi
 		bullet.texIndex = textureOffset + 2;
 		elements.push_back(bullet);
 	}
+
+	UIElement flash;
+	flash.active = true;
+	flash.anchorPos = MIDDLE_MIDDLE;
+	flash.dimensions = screenSize;
+	flash.offset = glm::vec2(screenSize.x / 2.f, screenSize.y / 2.f);
+	flash.texIndex = textureOffset + 3;
+	flash.isFlash = true;
+	elements.push_back(flash);
 }
 
 void HyacinthUIManager::setup(VkDescriptorSetLayout& uiTextureSetLayout, uint32_t textureOffset, glm::vec2 screenSize, SWChainImageFormat& swFormat, VkSampleCountFlagBits& msaaSamples) {
+	ss = screenSize;
+
 	// setup UI pipeline
 	uiPipelineUtil.addShader("shaders/uiQuadVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	uiPipelineUtil.addShader("shaders/uiQuadFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -127,64 +139,35 @@ void HyacinthUIManager::setup(VkDescriptorSetLayout& uiTextureSetLayout, uint32_
 	uiPipelineUtil.buildPipeline();
 
 	// add UI elements
-
-	// crosshair
-	UIElement cH;
-	cH.active = true;
-	cH.anchorPos = MIDDLE_MIDDLE;
-	cH.dimensions = glm::vec2(32, 32);
-	cH.offset = glm::vec2(screenSize.x / 2.f, screenSize.y / 2.f);
-	cH.texIndex = textureOffset;
-	elements.push_back(cH);
-
-	UIElement port;
-	port.active = true;
-	port.anchorPos = BOTTOM_LEFT;
-	port.dimensions = glm::vec2(384, 96);
-	port.offset = glm::vec2(20.f, screenSize.y - 20.f);
-	port.texIndex = textureOffset + 1;
-	elements.push_back(port);
-
-	// bullet array
-	glm::vec2 spacing = glm::vec2(21.f, 0.f);
-	glm::vec2 startBottom = glm::vec2(130.f, screenSize.y - 55.f);
-	for (int i = 0; i < 10; i++) {
-		UIElement bullet;
-		bullet.active = true;
-		bullet.anchorPos = BOTTOM_LEFT;
-		bullet.dimensions = glm::vec2(32, 64);
-		bullet.offset = startBottom + (spacing * (float)i);
-		bullet.texIndex = textureOffset + 2;
-		elements.push_back(bullet);
-	}
+	createUIElements(textureOffset, screenSize);
 
 	// create UI buffer
 	uiUnitStorageBuffer = vkdeviceutils::createBuffer(elements.size() * sizeof(UIGPUUnit), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "ui_storage_ssbo");
-
-	// populate buffer
-	std::vector<UIGPUUnit> units;
-	for (auto& e : elements) {
-		units.push_back(calculateUIPosition(e, screenSize));
-	}
-	memcpy(uiUnitStorageBuffer.pMappedData, units.data(), elements.size() * sizeof(UIGPUUnit));
 }
 
 void HyacinthUIManager::onresize(float textureOffset, glm::vec2 newScreenSize) {
+	ss = newScreenSize;
 	createUIElements(textureOffset, newScreenSize);
-
-	std::vector<UIGPUUnit> units;
-	for (auto& e : elements) {
-		units.push_back(calculateUIPosition(e, newScreenSize));
-	}
-	memcpy(uiUnitStorageBuffer.pMappedData, units.data(), elements.size() * sizeof(UIGPUUnit));
 }
 
-void HyacinthUIManager::update(int ammoDisplay) {
+void HyacinthUIManager::update(int ammoDisplay, float flashPercentage, float ndcX, float ndcY) {
 	int used = ammoDisplay;
 	for (int i = 2; i < 12; i++) {
 		elements[i].active = used > 0;
 		used--;
 	}
+
+	uiUnits.clear();
+	for (auto& e : elements) {
+		if (e.active) {
+			UIGPUUnit u = calculateUIPosition(e, ss);
+			if (e.isFlash) {
+				u.flashAmntXYApply = glm::vec4(flashPercentage, ndcX, ndcY, 1.f);
+			}
+			uiUnits.push_back(u);
+		}
+	}
+	memcpy(uiUnitStorageBuffer.pMappedData, uiUnits.data(), uiUnits.size() * sizeof(UIGPUUnit));
 }
 
 void HyacinthUIManager::draw(VkCommandBuffer& cmd) {

@@ -64,7 +64,6 @@ public:
 	std::mutex inputAccumulatorMutex;
 	InterpolationPacketBuffer selfSimBuffer;
 	std::mutex selfMutex;
-	std::vector<uint32_t> ids;
 	std::unordered_map<uint32_t, Entity*> entities;
 	std::unordered_map<uint32_t, ThirdPersonAnimationController> entityAnimationControllers;
 	std::unordered_map<uint32_t, VulkanBuffer> entityJointBuffers;

@@ -956,7 +956,7 @@ void HyacinthEngine::update() {
         gltfObject::updateGrenadeAnimation(&m_scene.dynamicObjects[3], Time::getDeltaTime(), m_grenadeJMBuffer.pMappedData);
     }
 
-    m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo);
+    m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo, p_netEntManager->self->flashPercentage, p_netEntManager->self->flashNDCX, p_netEntManager->self->flashNDCY);
 
     // update tracers
     m_tracerManager.updateTracers(Time::getDeltaTime());
@@ -1061,8 +1061,8 @@ void HyacinthEngine::drawImGui() {
     ImGui::Text("ft: %.2f ms", Time::getDeltaTime() * 1000.0f);
 
     std::stringstream s;
-    s << "ID: " << p_netEntManager->self->id;
-    
+    s << "ID: " << p_netEntManager->self->id << "\n";
+    s << "FLASH PERCENTAGE: " << p_netEntManager->self->flashPercentage;
     ImGui::Text(s.str().c_str());
 
     ImGui::End();

@@ -290,6 +290,8 @@ void updateTick(SOCKET* udpSendSocket) {
                 client->entity.isMoving = false;
             }
 
+            client->entity.updateFlash(SERVER_TIMESTEP);
+
             bool canShoot = false;
             EQUIPPED_WEAPON currentWeapon;
 
@@ -318,8 +320,8 @@ void updateTick(SOCKET* udpSendSocket) {
                 }
                 else if (currentWeapon == EQUIPPED_WEAPON::GRENADE) {
                     // add physics object, throw, add to entity list
-                    glm::vec3 spawnPos = client->entity.transform.position + glm::vec3(0.f, 2.25f, 0.f);
-                    glm::vec3 initialVel = glm::normalize(client->entity.transform.forward + glm::vec3(0.f, 0.25f, 0.f)) * 15.f;
+                    glm::vec3 spawnPos = client->entity.transform.position + (client->entity.transform.right * 0.75f) + glm::vec3(0.f, 2.25f, 0.f);
+                    glm::vec3 initialVel = glm::normalize(client->entity.transform.forward + glm::vec3(0.f, 0.2f, 0.f)) * FLASH_VELOCTIY;
 
                     currentWorldID++;
                     Ordnance* o = new Ordnance();
@@ -334,7 +336,6 @@ void updateTick(SOCKET* udpSendSocket) {
             }
 
             client->bufferedPacket.reset();
-            p->entities.push_back(client->entity);
 
 #ifdef LAG_SIMULATION
             if (canShoot && h.hit) {
@@ -348,10 +349,14 @@ void updateTick(SOCKET* udpSendSocket) {
             r.entityPositions.push_back(entityPositionSnapshot{ id, client->entity.transform.position });
         }
 
-        physicsManager.updateAllWorldObjects(entityManager.worldObjects);
+        physicsManager.updateAllWorldObjects(entityManager.worldObjects, entityManager.clients);
 
         for (const auto& [id, e] : entityManager.worldObjects) {
             p->entities.push_back(e->entity);
+        }
+
+        for (const auto& [id, client ] : entityManager.clients) {
+            p->entities.push_back(client->entity);
         }
 
         rewindBuffer.push(r);

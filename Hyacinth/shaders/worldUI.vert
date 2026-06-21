@@ -8,8 +8,7 @@ layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
 
 layout  (location = 0) flat out uint texIndex;
-layout	(location = 1) out vec2 outUV;
-layout	(location = 3) out float capXUV;
+layout	(location = 1) out vec4 outUVCapXUVFlashP;
 
 layout(set = 1, binding = 0) uniform UniformBufferObject {
 	mat4 view;
@@ -35,11 +34,13 @@ void main()
 {
 	mat4 model = pc.worldUIMat;
 
-	outUV.x		= inPosition.w;
-	outUV.y		= inNormal.w;
+	outUVCapXUVFlashP.x		= inPosition.w;
+	outUVCapXUVFlashP.y		= inNormal.w;
 
 	texIndex = pc.texIndex;
-	capXUV = pc.healthPer;
+	outUVCapXUVFlashP.z = pc.healthPer;
+
+	outUVCapXUVFlashP.w = 1.f;
 
 	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0f);
 }

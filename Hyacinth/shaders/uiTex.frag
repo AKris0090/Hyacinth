@@ -2,16 +2,17 @@
 #extension GL_EXT_nonuniform_qualifier : require
 
 layout	(location = 0) flat in uint texIndex;
-layout  (location = 1) in vec2 outUV;
-layout	(location = 3) in float capXUV;
+layout  (location = 1) in vec4 outUVCapXUVFlashP;
 
 layout  (set = 0, binding = 0) uniform sampler2D globalTextures2D[];
 
 layout  (location = 0) out vec4 outColor;
 
 void main() {
-	if (outUV.x > capXUV) {
+	if (outUVCapXUVFlashP.x > outUVCapXUVFlashP.z) {
 		discard;
 	}
-	outColor = texture(globalTextures2D[texIndex], outUV);
+	vec4 color = texture(globalTextures2D[texIndex], outUVCapXUVFlashP.xy);
+	color.a *= outUVCapXUVFlashP.w;
+	outColor = color;
 }

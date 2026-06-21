@@ -175,6 +175,9 @@ enum PLAYER_STATUS : uint32_t {
 	FLASHED = 2,
 };
 
+constexpr float FLASH_TIMER = 2.5f;
+constexpr float FLASH_FADEOUT = 0.5f;
+
 struct Entity {
 	uint32_t id;
 	ENTITY_TYPE type;
@@ -185,7 +188,12 @@ struct Entity {
 	bool shotAck = false;
 	bool shot = false;
 	float health = 1.f;
+	float flashPercentage = 0.f;
+	float flashTimer = FLASH_TIMER + FLASH_FADEOUT;
+	float flashNDCX, flashNDCY;
 	glm::vec3 hitPos;
+
+	bool updated = false;
 
 	EQUIPPED_WEAPON currentWeapon;
 	PLAYER_STATUS currentStatus;
@@ -194,6 +202,26 @@ struct Entity {
 	GrenadeController grenadeController;
 	PistolController pistolController;
 	CamRecoil recoil;
+
+	void startFlash(float ndcX, float ndcY) {
+		flashPercentage = 1.f;
+		flashNDCX = ndcX;
+		flashNDCY = ndcY;
+		flashTimer = 0.f;
+	}
+
+	void updateFlash(float deltaTime) {
+		flashTimer += deltaTime;
+		if (flashTimer < FLASH_TIMER) {
+			flashPercentage = 1.f;
+			return;
+		}
+		else if (flashTimer > (FLASH_TIMER + FLASH_FADEOUT)) {
+			flashTimer = FLASH_TIMER + FLASH_FADEOUT;
+		}
+
+		flashPercentage = (1.f - ((flashTimer - FLASH_TIMER) / (FLASH_FADEOUT)));
+	}
 
 	void takeDamage() {
 		health -= 0.1f;

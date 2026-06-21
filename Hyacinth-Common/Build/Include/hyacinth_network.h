@@ -131,9 +131,25 @@ struct ServersideClient {
 	bool getPacketFor(uint32_t tickNum);
 };
 
+constexpr float FLASH_AIR_TIME = 1.6;
+
+enum FLASH_STATE {
+	WINDUP,
+	POP
+};
+
 struct Ordnance {
 	Entity entity;
-	uint32_t lifetime = 0;
+	FLASH_STATE currentState;
+	float lifetimeTimer = 0.f;
+	
+	FLASH_STATE updateFlashState(float deltaTime) {
+		lifetimeTimer += deltaTime;
+		if (lifetimeTimer > FLASH_AIR_TIME) {
+			currentState = POP;
+		}
+		return currentState;
+	}
 };
 
 struct ServerSnapshot {
@@ -184,6 +200,9 @@ public:
 			newEntity.transform = fromEntity.transform.lerpTo(secondEnt->transform, alpha);
 			newEntity.isMoving = fromEntity.isMoving || secondEnt->isMoving;
 			newEntity.health = secondEnt->health;
+			newEntity.flashPercentage = glm::lerp(fromEntity.flashPercentage, secondEnt->flashPercentage, alpha);
+			newEntity.flashNDCX = secondEnt->flashNDCX;
+			newEntity.flashNDCY = secondEnt->flashNDCY;
 			p.entities.push_back(newEntity);
 		}
 		return p;

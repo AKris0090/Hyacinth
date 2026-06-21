@@ -3,11 +3,13 @@
 void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime) {
 	for (const auto& e : p.entities) {
 		if (e.id == currentClientID) {
+			self->flashPercentage = e.flashPercentage;
+			self->flashNDCX = e.flashNDCX;
+			self->flashNDCY = e.flashNDCY;
 			continue;
 		}
 		auto findit = entities.find(e.id);
 		if (findit == entities.end()) { // entity that is sent is not there in current entity list
-			ids.push_back(e.id);
 			entities[e.id] = new Entity();
 			entities[e.id]->type = e.type;
 			entities[e.id]->id = e.id;
@@ -29,10 +31,21 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 			entities[e.id]->transform.yaw = e.transform.yaw;
 			entities[e.id]->isMoving = e.isMoving;
 		}
+		entities[e.id]->updated = true; // saw entity in packet
 	}
-	for (int i = 0; i < ids.size(); i++) {
-		if (entities[ids[i]]->type == E_PLAYER) {
-			gltfObject::updateThirdPersonAnimation(entities[ids[i]], characterObject, *characterObject->thirdPersonAnimStateMachine, entityAnimationControllers[ids[i]], deltaTime, entityJointBuffers[ids[i]].pMappedData);
+	for (const auto& [id, ent] : entities) {
+		if (!ent->updated) {
+			if (ent->type = E_PLAYER) {
+				entityAnimationControllers.erase(id);
+				vkdeviceutils::destroyBuffer(entityJointBuffers[id]);
+				entityJointBuffers.erase(id);
+			}
+			entities.erase(id);
+			continue;
+		}
+		ent->updated = false; // reset flag
+		if (ent->type == E_PLAYER) {
+			gltfObject::updateThirdPersonAnimation(ent, characterObject, *characterObject->thirdPersonAnimStateMachine, entityAnimationControllers[id], deltaTime, entityJointBuffers[id].pMappedData);
 		}
 	}
 }
@@ -46,7 +59,6 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 			newEnt->type = e.type;
 			newEnt->transform.position = e.transform.position;
 			entities[e.id] = newEnt;
-			ids.push_back(e.id);
 			if (newEnt->type == E_PLAYER) {
 				newEnt->transform.pitch = e.transform.pitch;
 				newEnt->transform.yaw = e.transform.yaw;
@@ -70,16 +82,16 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 }
 
 void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, uint32_t grenadeOffset, uint32_t numGrenadeCalls, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
-	for (int i = 0; i < ids.size(); i++) {
-		pc.entityMatrix = entities[ids[i]]->transform.getPositionMatrix();
-		pc.jointBufferAddress = entityJointBuffers[ids[i]].gpuAddress;
+	for (const auto& [id, ent] : entities) {
+		pc.entityMatrix = ent->transform.getPositionMatrix();
+		pc.jointBufferAddress = entityJointBuffers[id].gpuAddress;
 
 		vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pc);
 
-		if (entities[ids[i]]->type == E_PLAYER) {
+		if (ent->type == E_PLAYER) {
 			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, 0, numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 		}
-		else if (entities[ids[i]]->type == E_GRENADE) {
+		else if (ent->type == E_GRENADE) {
 			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, grenadeOffset * sizeof(VkDrawIndexedIndirectCommand), numGrenadeCalls, sizeof(VkDrawIndexedIndirectCommand));
 		}
 	}

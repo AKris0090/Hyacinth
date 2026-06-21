@@ -32,6 +32,7 @@
 using namespace physx;
 
 constexpr float JUMP_VELOCITY = 10.5f;
+constexpr float FLASH_VELOCTIY = 20.f;
 
 struct controllerUserData {
 	uint32_t id;
@@ -105,7 +106,7 @@ public:
 	void setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId);
 
 	void addDynamicNetworkSphere(uint32_t worldID, glm::vec3 spawnPos, glm::vec3 initialVelocity);
-	void updateAllWorldObjects(std::unordered_map<uint32_t, Ordnance*>& ord);
+	void updateAllWorldObjects(std::unordered_map<uint32_t, Ordnance*>& ord, std::unordered_map<uint32_t, ServersideClient*>& clients);
 
 	glm::vec3 traceBullet(Transform& camTransform);
 
