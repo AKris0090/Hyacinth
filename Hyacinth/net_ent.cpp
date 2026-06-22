@@ -3,24 +3,50 @@
 void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime) {
 	for (const auto& e : p.entities) {
 		if (e.id == currentClientID) {
+			self->flashPercentage = e.flashPercentage;
+			self->flashNDCX = e.flashNDCX;
+			self->flashNDCY = e.flashNDCY;
 			continue;
 		}
 		auto findit = entities.find(e.id);
 		if (findit == entities.end()) { // entity that is sent is not there in current entity list
-			ids.push_back(e.id);
 			entities[e.id] = new Entity();
+			entities[e.id]->type = e.type;
 			entities[e.id]->id = e.id;
-			entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
-			entityAnimationControllers[e.id] = ThirdPersonAnimationController();
-			characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
+			if (entities[e.id]->type == E_PLAYER) {
+				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
+				entityAnimationControllers[e.id] = ThirdPersonAnimationController();
+				characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
+			}
+			else {
+				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(grenadeObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
+				glm::mat4 id(1.f);
+				memcpy(entityJointBuffers[e.id].pMappedData, &id, sizeof(glm::mat4));
+			}
 		}
 		entities[e.id]->transform.position = e.transform.position;
-		entities[e.id]->transform.pitch = e.transform.pitch;
-		entities[e.id]->transform.yaw = e.transform.yaw;
-		entities[e.id]->isMoving = e.isMoving;
+
+		if (entities[e.id]->type == E_PLAYER) {
+			entities[e.id]->transform.pitch = e.transform.pitch;
+			entities[e.id]->transform.yaw = e.transform.yaw;
+			entities[e.id]->isMoving = e.isMoving;
+		}
+		entities[e.id]->updated = true; // saw entity in packet
 	}
-	for (int i = 0; i < ids.size(); i++) {
-		gltfObject::updateThirdPersonAnimation(entities[ids[i]], characterObject, *characterObject->thirdPersonAnimStateMachine, entityAnimationControllers[ids[i]], deltaTime, entityJointBuffers[ids[i]].pMappedData);
+	for (const auto& [id, ent] : entities) {
+		if (!ent->updated) {
+			if (ent->type = E_PLAYER) {
+				entityAnimationControllers.erase(id);
+				vkdeviceutils::destroyBuffer(entityJointBuffers[id]);
+				entityJointBuffers.erase(id);
+			}
+			entities.erase(id);
+			continue;
+		}
+		ent->updated = false; // reset flag
+		if (ent->type == E_PLAYER) {
+			gltfObject::updateThirdPersonAnimation(ent, characterObject, *characterObject->thirdPersonAnimStateMachine, entityAnimationControllers[id], deltaTime, entityJointBuffers[id].pMappedData);
+		}
 	}
 }
 
@@ -30,14 +56,21 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 			if (e.id == currentClientID) continue;
 			Entity* newEnt = new Entity;
 			newEnt->id = e.id;
+			newEnt->type = e.type;
 			newEnt->transform.position = e.transform.position;
-			newEnt->transform.pitch = e.transform.pitch;
-			newEnt->transform.yaw = e.transform.yaw;
 			entities[e.id] = newEnt;
-			ids.push_back(e.id);
-			entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
-			entityAnimationControllers[e.id] = ThirdPersonAnimationController();
-			characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
+			if (newEnt->type == E_PLAYER) {
+				newEnt->transform.pitch = e.transform.pitch;
+				newEnt->transform.yaw = e.transform.yaw;
+				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
+				entityAnimationControllers[e.id] = ThirdPersonAnimationController();
+				characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
+			}
+			else if (newEnt->type == E_GRENADE) {
+				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(grenadeObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
+				glm::mat4 id(1.f);
+				memcpy(entityJointBuffers[e.id].pMappedData, &id, sizeof(glm::mat4));
+			}
 		}
 	}
 
@@ -48,14 +81,19 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 	pistolJointBuffer = vkdeviceutils::createBuffer(pistolObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_pistol");
 }
 
-void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
-	for (int i = 0; i < ids.size(); i++) {
-		pc.entityMatrix = entities[ids[i]]->transform.getPositionMatrix();
-		pc.jointBufferAddress = entityJointBuffers[ids[i]].gpuAddress;
+void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, uint32_t grenadeOffset, uint32_t numGrenadeCalls, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
+	for (const auto& [id, ent] : entities) {
+		pc.entityMatrix = ent->transform.getPositionMatrix();
+		pc.jointBufferAddress = entityJointBuffers[id].gpuAddress;
 
 		vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pc);
 
-		vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, 0, numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
+		if (ent->type == E_PLAYER) {
+			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, 0, numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
+		}
+		else if (ent->type == E_GRENADE) {
+			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, grenadeOffset * sizeof(VkDrawIndexedIndirectCommand), numGrenadeCalls, sizeof(VkDrawIndexedIndirectCommand));
+		}
 	}
 }
 

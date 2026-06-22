@@ -669,11 +669,12 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadScene() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";// "test_scene.glb";
+    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
-    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp5.glb";
+    auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
     auto tracerPath = vkdebugutils::getExeDir() / "objects" / "tracer.glb";
+    auto flashPath = vkdebugutils::getExeDir() / "objects" / "flash.glb";
 
     m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true, false, false));
 
@@ -685,6 +686,9 @@ void HyacinthEngine::loadScene() {
 
     m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(pistolPath.string(), false, true, false, true));
     m_scene.dynamicObjects[2].setWeaponParentTo(&m_scene.dynamicObjects[1]);
+
+    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(flashPath.string(), false, true, false, false, false, true));
+    m_scene.dynamicObjects[3].setWeaponParentTo(&m_scene.dynamicObjects[1]);
 
     m_scene.buildSceneGraph();
 
@@ -712,12 +716,18 @@ void HyacinthEngine::createBuffers() {
     size_t dynamicDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.dynamicDrawCommands.size();
     size_t characterDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.characterDrawCommands.size();
     size_t pistolDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.pistolDrawCommands.size();
-    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize + characterDrawCmdSize + pistolDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
+    size_t flashDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.flashDrawCommands.size();
+    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize + characterDrawCmdSize + pistolDrawCmdSize + flashDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
     vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, dynamicDrawCmdSize, m_scene.dynamicDrawCommands.data());
+
     characterDrawOffset = m_scene.dynamicDrawCommands.size();
     vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, characterDrawCmdSize, m_scene.characterDrawCommands.data(), dynamicDrawCmdSize);
+
     pistolDrawOffset = m_scene.dynamicDrawCommands.size() + m_scene.characterDrawCommands.size();
     vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, pistolDrawCmdSize, m_scene.pistolDrawCommands.data(), dynamicDrawCmdSize + characterDrawCmdSize);
+
+    flashDrawOffset = m_scene.dynamicDrawCommands.size() + m_scene.characterDrawCommands.size() + m_scene.pistolDrawCommands.size();
+    vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, flashDrawCmdSize , m_scene.flashDrawCommands.data(), dynamicDrawCmdSize + characterDrawCmdSize + pistolDrawCmdSize);
     
     vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer cmd) {
         for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
@@ -749,6 +759,8 @@ void HyacinthEngine::createBuffers() {
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         m_frameData[i].tracerTransformBuffer = vkdeviceutils::createBuffer(tracerBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "tracer_transform_buffer");
     }
+
+    m_grenadeJMBuffer = vkdeviceutils::createBuffer(sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
 }
 
 void HyacinthEngine::createDescriptorSets()
@@ -933,11 +945,18 @@ void HyacinthEngine::update() {
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     // first person object (self) 
-    gltfObject::updateFirstPersonAnimation(p_netEntManager->self->pistolController.state, &m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw, p_netEntManager->pistolAnimationController.queueShoot, p_netEntManager->pistolAnimationController.queueReload);
-    // pistol object
-    gltfObject::updatePistolAnimation(&m_scene.dynamicObjects[2], *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
+    gltfObject::updateFirstPersonAnimation(p_netEntManager->self->currentState, &m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw, p_netEntManager->pistolAnimationController.queueShoot, p_netEntManager->pistolAnimationController.queueReload);
 
-    m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo);
+    if (p_netEntManager->self->currentWeapon == PISTOL) {
+        // pistol object
+        gltfObject::updatePistolAnimation(&m_scene.dynamicObjects[2], *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
+    }
+    else if (p_netEntManager->self->currentWeapon == GRENADE) {
+        // grenade object
+        gltfObject::updateGrenadeAnimation(&m_scene.dynamicObjects[3], Time::getDeltaTime(), m_grenadeJMBuffer.pMappedData);
+    }
+
+    m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo, p_netEntManager->self->flashPercentage, p_netEntManager->self->flashNDCX, p_netEntManager->self->flashNDCY);
 
     // update tracers
     m_tracerManager.updateTracers(Time::getDeltaTime());
@@ -1042,8 +1061,8 @@ void HyacinthEngine::drawImGui() {
     ImGui::Text("ft: %.2f ms", Time::getDeltaTime() * 1000.0f);
 
     std::stringstream s;
-    s << "ID: " << p_netEntManager->self->id;
-    
+    s << "ID: " << p_netEntManager->self->id << "\n";
+    s << "FLASH PERCENTAGE: " << p_netEntManager->self->flashPercentage;
     ImGui::Text(s.str().c_str());
 
     ImGui::End();
@@ -1179,7 +1198,7 @@ void HyacinthEngine::draw()
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skinnedPipelineUtil.m_pipeline.pipeline);
 
         ///////////// DRAWING NETWORK ENTITIES ////////////////////
-        p_netEntManager->drawEntities(cmd, m_skinnedPipelineUtil, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), m_dynamicIndirectDrawBuffer, pushConstants);
+        p_netEntManager->drawEntities(cmd, m_skinnedPipelineUtil, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), flashDrawOffset, static_cast<uint32_t>(m_scene.flashDrawCommands.size()), m_dynamicIndirectDrawBuffer, pushConstants);
         
         ///////////// DRAWING CHARACTER ////////////////////
         camMutex.lock();
@@ -1189,10 +1208,18 @@ void HyacinthEngine::draw()
         vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
         vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, characterDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.characterDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
 
-        ///////////// DRAWING PISTOL ////////////////////
-        pushConstants.jointBufferAddress = p_netEntManager->pistolJointBuffer.gpuAddress;
-        vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-        vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, pistolDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.pistolDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+        if (p_netEntManager->self->currentWeapon == PISTOL) {
+            ///////////// DRAWING PISTOL ////////////////////
+            pushConstants.jointBufferAddress = p_netEntManager->pistolJointBuffer.gpuAddress;
+            vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+            vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, pistolDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.pistolDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+        }
+        else if (p_netEntManager->self->currentWeapon == GRENADE && p_netEntManager->self->currentState != GRENADE_THROW) {
+            ///////////// DRAWING GRENADE ////////////////////
+            pushConstants.jointBufferAddress = m_grenadeJMBuffer.gpuAddress;
+            vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+            vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, flashDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.flashDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+        }
 
         vkCmdEndRendering(cmd);
         VK_LABEL_END(cmd);
@@ -1483,6 +1510,7 @@ void HyacinthEngine::cleanup()
 	vkdeviceutils::destroyBuffer(m_staticWorldMatrixBuffer);
     vkdeviceutils::destroyBuffer(m_drawDataBuffer);
     vkdeviceutils::destroyBuffer(m_materialBuffer);
+    vkdeviceutils::destroyBuffer(m_grenadeJMBuffer);
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL3_Shutdown();

@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 
-// #define CONNECT_SERVER true
+#define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -30,6 +30,8 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		p.jump = netClient->netEntManager.inputAccumulator.jump;
 		p.lmb = netClient->netEntManager.inputAccumulator.shooting;
 		p.r = netClient->netEntManager.inputAccumulator.reloading;
+		p.num1 = netClient->netEntManager.inputAccumulator.num1;
+		p.num2 = netClient->netEntManager.inputAccumulator.num2;
 
 		if (b.active) {
 			p.movementLR = b.update(SERVER_TIMESTEP);
@@ -51,9 +53,14 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		p.pitch = netClient->netEntManager.self->transform.pitch;
 		p.yaw = netClient->netEntManager.self->transform.yaw;
 
-		bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb, p.r); // update if self is shooting
+		// bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb, p.r); // update if self is shooting
 
-		if (shotFired) {
+		bool shotFiredOut = false;
+		EQUIPPED_WEAPON weaponOut = PISTOL;
+
+		engine->p_netEntManager->self->updateWeaponState(SERVER_TIMESTEP, p.num1, p.num2, p.lmb, p.r, shotFiredOut, weaponOut);
+
+		if (shotFiredOut && netClient->netEntManager.self->currentWeapon == PISTOL) {
 #ifdef DEBUG_NETWORK
 			for (const auto& e : engine->p_netEntManager->entities) {
 				if (e.first == 1) {
@@ -121,9 +128,9 @@ int main() {
 	hyacinthEngine.init();
 
 	PhysicsManager physicsManager;
-	physicsManager.initPhysics(true); // initialize PVD?
+	physicsManager.initPhysics(false); // initialize PVD?
 	LightLoader loader;
-	auto path = vkdebugutils::getExeDir() / "objects" / "sponza_physics.glb";// "test_scene.glb";
+	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 	physicsManager.addCharacterController(0);
 
@@ -131,6 +138,7 @@ int main() {
 	netClient.netEntManager.characterObject = &hyacinthEngine.m_scene.dynamicObjects[0];
 	netClient.netEntManager.firstPersonObject = &hyacinthEngine.m_scene.dynamicObjects[1];
 	netClient.netEntManager.pistolObject = &hyacinthEngine.m_scene.dynamicObjects[2];
+	netClient.netEntManager.grenadeObject = &hyacinthEngine.m_scene.dynamicObjects[3];
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	netClient.netEntManager.inputAccumulator.id = 0;
 	netClient.netEntManager.tracerManager = &hyacinthEngine.m_tracerManager;
@@ -139,9 +147,9 @@ int main() {
 #ifdef CONNECT_SERVER
 	std::string ip;
 	std::cout << "Enter server IP: ";
-	std::getline(std::cin, ip);
+	// std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
-		int res = netClient.setup(ip, hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
 		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 		if (res > 0) {
 			exit(EXIT_FAILURE);
@@ -209,6 +217,8 @@ int main() {
 		p.yaw = mo.second;
 		p.lmb = InputManager::mouseDown();
 		p.r = InputManager::reloadKeyDown();
+		p.num1 = InputManager::num1KeyDown();
+		p.num2 = InputManager::num2KeyDown();
 
 		netClient.netEntManager.inputAccumulatorMutex.lock();
 		netClient.netEntManager.inputAccumulator.addPacket(p);

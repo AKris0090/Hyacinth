@@ -27,7 +27,9 @@ std::string ClientUpdatePacket::toString() {
 		<< static_cast<int>(movementLR) << ","
 		<< jump << ","
 		<< lmb << ","
-		<< r << ",";
+		<< r << ","
+		<< num1 << ","
+		<< num2 << ",";
 	return oss.str();
 }
 
@@ -46,6 +48,8 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	std::getline(es, field, ','); p.jump = std::stoi(field);
 	std::getline(es, field, ','); p.lmb = std::stoi(field);
 	std::getline(es, field, ','); p.r = std::stoi(field);
+	std::getline(es, field, ','); p.num1 = std::stoi(field);
+	std::getline(es, field, ','); p.num2 = std::stoi(field);
 
 	return p;
 }
@@ -55,7 +59,7 @@ std::string ServerSnapshot::toString() {
 	oss << processedTickNum << "," << time << "," << serverTickNum << ",";
 	for (size_t i = 0; i < entities.size(); i++) {
 		const Entity& e = entities[i];
-		oss << e.id << "," << e.transform.position.x
+		oss << e.id << "," << static_cast<uint32_t>(e.type) << "," << e.transform.position.x
 			<< "," << e.transform.position.y
 			<< "," << e.transform.position.z
 			<< "," << e.transform.pitch
@@ -65,7 +69,11 @@ std::string ServerSnapshot::toString() {
 			<< "," << e.hitPos.x
 			<< "," << e.hitPos.y
 			<< "," << e.hitPos.z
-			<< "," << e.health;
+			<< "," << e.health
+
+			<< "," << e.flashPercentage
+			<< "," << e.flashNDCX
+			<< "," << e.flashNDCY;
 		if (i + 1 < entities.size()) oss << "|";
 	}
 	return oss.str();
@@ -88,6 +96,7 @@ ServerSnapshot ServerSnapshot::fromString(std::string s) {
 		Entity e;
 
 		std::getline(es, field, ','); e.id = std::stoi(field);
+		std::getline(es, field, ','); e.type = static_cast<ENTITY_TYPE>(std::stoi(field));
 		std::getline(es, field, ','); e.transform.position.x = std::stof(field);
 		std::getline(es, field, ','); e.transform.position.y = std::stof(field);
 		std::getline(es, field, ','); e.transform.position.z = std::stof(field);
@@ -99,6 +108,10 @@ ServerSnapshot ServerSnapshot::fromString(std::string s) {
 		std::getline(es, field, ','); e.hitPos.y = std::stof(field);
 		std::getline(es, field, ','); e.hitPos.z = std::stof(field);
 		std::getline(es, field, ','); e.health = std::stof(field);
+
+		std::getline(es, field, ','); e.flashPercentage = std::stof(field);
+		std::getline(es, field, ','); e.flashNDCX = std::stof(field);
+		std::getline(es, field, ','); e.flashNDCY = std::stof(field);
 
 		e.transform.setRotationPitchYaw();
 
@@ -118,6 +131,8 @@ void SimulateStruct::addPacket(ClientUpdatePacket pack) {
 	jump = pack.jump;
 	shooting = pack.lmb;
 	reloading = pack.r;
+	num1 = pack.num1;
+	num2 = pack.num2;
 
 	ackedTick = pack.ack;
 	receivedTimestamp = pack.serverTimestamp;

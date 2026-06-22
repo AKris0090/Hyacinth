@@ -115,6 +115,41 @@ void Animation::loadAnimations(tinygltf::Model* input, std::vector<gltfNode*>& n
 	}
 }
 
+static void updateSamplers(Animation* animation, AnimationChannel* channel, Transform* t, float currentTime) {
+	AnimationSampler& sampler = animation->samplers[channel->samplerIndex];
+	for (size_t i = 0; i < sampler.inputs.size() - 1; i++)
+	{
+		if ((currentTime >= sampler.inputs[i]) && (currentTime <= sampler.inputs[i + 1]))
+		{
+			float a = (currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
+			if (channel->path == "translation")
+			{
+				t->position = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
+			}
+			if (channel->path == "rotation")
+			{
+				glm::quat q1;
+				q1.x = sampler.outputsVec4[i].x;
+				q1.y = sampler.outputsVec4[i].y;
+				q1.z = sampler.outputsVec4[i].z;
+				q1.w = sampler.outputsVec4[i].w;
+
+				glm::quat q2;
+				q2.x = sampler.outputsVec4[i + 1].x;
+				q2.y = sampler.outputsVec4[i + 1].y;
+				q2.z = sampler.outputsVec4[i + 1].z;
+				q2.w = sampler.outputsVec4[i + 1].w;
+
+				t->rotation = glm::normalize(glm::slerp(q1, q2, a));
+			}
+			if (channel->path == "scale")
+			{
+				t->scale = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
+			}
+		}
+	}
+}
+
 // THIRD PERSON //////////////////////////////////////////
 //////////////////////////////////////////////////////////
 
@@ -165,41 +200,6 @@ void ThirdPersonAnimationStateMachine::updateFromPlayerState(ThirdPersonAnimatio
 	}
 
 	flushQueuedNodeTransforms(c); // flush all at once so that rotations do not cause weird interactions with each other
-}
-
-void updateSamplers(Animation* animation, AnimationChannel* channel, Transform* t, float currentTime) {
-	AnimationSampler& sampler = animation->samplers[channel->samplerIndex];
-	for (size_t i = 0; i < sampler.inputs.size() - 1; i++)
-	{
-		if ((currentTime >= sampler.inputs[i]) && (currentTime <= sampler.inputs[i + 1]))
-		{
-			float a = (currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
-			if (channel->path == "translation")
-			{
-				t->position = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
-			}
-			if (channel->path == "rotation")
-			{
-				glm::quat q1;
-				q1.x = sampler.outputsVec4[i].x;
-				q1.y = sampler.outputsVec4[i].y;
-				q1.z = sampler.outputsVec4[i].z;
-				q1.w = sampler.outputsVec4[i].w;
-
-				glm::quat q2;
-				q2.x = sampler.outputsVec4[i + 1].x;
-				q2.y = sampler.outputsVec4[i + 1].y;
-				q2.z = sampler.outputsVec4[i + 1].z;
-				q2.w = sampler.outputsVec4[i + 1].w;
-
-				t->rotation = glm::normalize(glm::slerp(q1, q2, a));
-			}
-			if (channel->path == "scale")
-			{
-				t->scale = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
-			}
-		}
-	}
 }
 
 void ThirdPersonAnimationStateMachine::updateUpperAnimation(ThirdPersonAnimationController& c) {
@@ -260,34 +260,34 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 
 			if (deltaAngle < -90.f) {
 				turn(c, yaw);
-				c.currentLowerBodyAnim = c.leftTurnAnimation;
-				c.currentLowerTime = c.leftTurnAnimation->start;
+				c.currentLowerBodyAnim = c.animations[A_TP_LEFT_TURN];
+				c.currentLowerTime = c.animations[A_TP_LEFT_TURN]->start;
 				c.turnState = TURNING;
 			}
 			else if (deltaAngle > 90.f) {
 				turn(c, yaw);
-				c.currentLowerBodyAnim = c.rightTurnAnimation;
-				c.currentLowerTime = c.rightTurnAnimation->start;
+				c.currentLowerBodyAnim = c.animations[A_TP_RIGHT_TURN];
+				c.currentLowerTime = c.animations[A_TP_RIGHT_TURN]->start;
 				c.turnState = TURNING;
 			}
 			else if (c.motionState == MOVING) {
-				transitionToNewAnimation(c, c.runningAnimation, c.idleAnimation); // TODO: once implemented other motion, update this
+				transitionToNewAnimation(c, c.animations[A_TP_RUNNING], c.animations[A_TP_IDLE]); // TODO: once implemented other motion, update this
 				c.motionState = STILL;
 			}
 		}
 	}
 	else {
 		if (c.motionState != MOVING) {
-			transitionToNewAnimation(c, c.idleAnimation, c.runningAnimation); // TODO: once implemented other motion, update this
+			transitionToNewAnimation(c, c.animations[A_TP_IDLE], c.animations[A_TP_RUNNING]); // TODO: once implemented other motion, update this
 			c.motionState = MOVING;
 		}
 		setNewBasis(c, yaw);
 	}
 
 	c.currentLowerTime += deltaTime;
-	if (c.currentLowerBodyAnim == c.rightTurnAnimation || c.currentLowerBodyAnim == c.leftTurnAnimation) {
+	if (c.turnState == TURN_ANIM_STATE::TURNING) {
 		if (c.currentLowerTime >= c.currentLowerBodyAnim->end) {
-			c.currentLowerBodyAnim = c.idleAnimation;
+			c.currentLowerBodyAnim = c.animations[A_TP_IDLE];
 			c.currentLowerTime = c.currentLowerBodyAnim->start;
 			c.turnState = IDLE;
 		}
@@ -298,7 +298,7 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 	c.currentUpperTime = fmod(c.currentUpperTime, c.currentUpperBodyAnim->end);
 
 	float alpha = 1.f;
-	if (c.currentLowerBodyAnim == c.leftTurnAnimation || c.currentLowerBodyAnim == c.rightTurnAnimation) {
+	if (c.turnState == TURN_ANIM_STATE::TURNING) {
 		alpha = c.currentLowerTime / c.currentLowerBodyAnim->end;
 	}
 
@@ -363,33 +363,41 @@ void FirstPersonAnimationStateMachine::updateAnimation(FirstPersonAnimationContr
 	flushQueuedNodeTransforms(c);
 }
 
-void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, FIRSTPERSON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut, bool& reloadOut) {
+void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, WEAPON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut, bool& reloadOut) {
 	if (previousState != state) {
 		switch (state) {
-		case SHOOTING:
-			c.currentAnim = c.shootAnimation;
-			c.currentTime = c.shootAnimation->start;
-			shootingOut = true;
-			currentlyShooting = true;
+		case PISTOL_EQUIP:
+			c.currentAnim = c.animations[A_PISTOL_EQUIP];
+			c.currentTime = c.currentAnim->start;
 			break;
-		case RELOADING:
-			c.currentAnim = c.reloadAnimation;
-			c.currentTime = c.reloadAnimation->start;
+		case PISTOL_SHOOT:
+			c.currentAnim = c.animations[A_PISTOL_SHOOT];
+			c.currentTime = c.currentAnim->start;
+			shootingOut = true;
+			break;
+		case PISTOL_RELOAD:
+			c.currentAnim = c.animations[A_PISTOL_RELOAD];
+			c.currentTime = c.currentAnim->start;
 			reloadOut = true;
 			break;
-		case IDLE_PISTOL:
-			c.currentAnim = c.idleAnimation;
-			c.currentTime = c.idleAnimation->start;
+		case PISTOL_IDLE:
+			c.currentAnim = c.animations[A_PISTOL_IDLE];
+			c.currentTime = c.currentAnim->start;
+			break;
+		case GRENADE_EQUIP:
+			c.currentAnim = c.animations[A_GRENADE_EQUIP];
+			c.currentTime = c.currentAnim->start;
+			break;
+		case GRENADE_IDLE:
+			c.currentAnim = c.animations[A_GRENADE_IDLE];
+			c.currentTime = c.currentAnim->start;
+			break;
+		case GRENADE_THROW:
+			c.currentAnim = c.animations[A_GRENADE_THROW];
+			c.currentTime = c.currentAnim->start;
 			break;
 		}
 		previousState = state;
-	}
-	if (currentlyShooting) {
-		if (c.currentTime + deltaTime > c.currentAnim->end) {
-			currentlyShooting = false;
-			c.currentAnim = c.idleAnimation;
-			c.currentTime = c.idleAnimation->start;
-		}
 	}
 
 	updateAnimation(c, deltaTime, deltaPitch, deltaYaw);

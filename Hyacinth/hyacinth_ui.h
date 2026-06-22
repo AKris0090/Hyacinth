@@ -3,10 +3,11 @@
 #include "vkpipelineutils.h"
 #include <array>
 
-const std::array<std::string, 3> UI_TEXTURE_NAMES = {
+const std::array<std::string, 4> UI_TEXTURE_NAMES = {
 	"crosshair.png",
 	"characterportrait.png",
-	"bullet.png"
+	"bullet.png",
+	"flash.png",
 };
 
 enum UI_ANCHOR {
@@ -27,19 +28,25 @@ struct UIElement {
 	UI_ANCHOR anchorPos;
 	uint32_t texIndex;
 	bool active;
+	bool isFlash = false;
 };
 
 struct UIGPUUnit {
 	glm::vec2 origin;
 	glm::vec2 dimensions;
+	glm::vec4 flashAmntXYApply;
 	uint32_t texIndex;
-	uint32_t _pad[1];
+	uint32_t _pad[3];
 };
 
 class HyacinthUIManager {
 private:
 	std::vector<UIElement> elements;
+	std::vector<UIGPUUnit> uiUnits;
 	VulkanBuffer uiUnitStorageBuffer;
+	glm::vec2 ss;
+
+	float flashNDCX, flashNDCY;
 
 	void createUIElements(float textureOffset, glm::vec2 screenSize);
 	UIGPUUnit calculateUIPosition(UIElement& e, glm::vec2 screenSize);
@@ -48,7 +55,7 @@ public:
 
 	void setup(VkDescriptorSetLayout& uiTextureSetLayout, uint32_t textureOffset, glm::vec2 screenSize, SWChainImageFormat& swFormat, VkSampleCountFlagBits& msaaSamples);
 	void onresize(float textureOffset, glm::vec2 newScreenSize);
-	void update(int ammoDisplay);
+	void update(int ammoDisplay, float flashPercentage, float ndcX, float ndcY);
 	void draw(VkCommandBuffer& cmd);
 	void shutdown();
 };

@@ -64,7 +64,6 @@ public:
 	std::mutex inputAccumulatorMutex;
 	InterpolationPacketBuffer selfSimBuffer;
 	std::mutex selfMutex;
-	std::vector<uint32_t> ids;
 	std::unordered_map<uint32_t, Entity*> entities;
 	std::unordered_map<uint32_t, ThirdPersonAnimationController> entityAnimationControllers;
 	std::unordered_map<uint32_t, VulkanBuffer> entityJointBuffers;
@@ -78,6 +77,8 @@ public:
 	VulkanBuffer pistolJointBuffer;
 	PistolAnimationController pistolAnimationController;
 
+	gltfObject* grenadeObject;
+
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
 	InterpolationPacketBuffer packetBuffer;
@@ -88,7 +89,7 @@ public:
 	
 	void setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
-	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
+	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, uint32_t grenadeOffset, uint32_t numGrenadeCalls, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
 	void shutdown();
 	void clearPendingPackets(Entity* self);
 };

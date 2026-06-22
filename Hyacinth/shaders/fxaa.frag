@@ -44,15 +44,15 @@ void main() {
 	float lumaNE = rgb2lum(textureOffset(compositeMap, inUV, ivec2(1, -1)).xyz);
 	float lumaNW = rgb2lum(textureOffset(compositeMap, inUV, ivec2(-1, -1)).xyz);
 	float lumaSE = rgb2lum(textureOffset(compositeMap, inUV, ivec2(1, 1)).xyz);
-	float lumaSW = rgb2lum(textureOffset(compositeMap, inUV, ivec2(-1, -1)).xyz);
+	float lumaSW = rgb2lum(textureOffset(compositeMap, inUV, ivec2(-1, 1)).xyz);
 
 	float downUp = lumaS + lumaN;
 	float leftRight = lumaE + lumaW;
 	
-	float leftCorners = lumaSW + lumaNW;
-	float downCorners = lumaSE + lumaSW;
+	float leftCorners =  lumaSW + lumaNW;
+	float downCorners =  lumaSE + lumaSW;
 	float rightCorners = lumaSE + lumaNE;
-	float upCorners = lumaNE + lumaNW;
+	float upCorners =    lumaNE + lumaNW;
 
 	// gradient estimation (offset towards edge)
 	float edgeHorizontal =	abs(-2.0 * lumaW + leftCorners)	+ abs(-2.0 * lumaM + downUp ) * 2.0 + abs(-2.0 * lumaE + rightCorners);

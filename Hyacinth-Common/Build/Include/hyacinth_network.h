@@ -17,6 +17,7 @@
 #include <chrono>
 #include <sstream>
 #include <thread>
+#include <utility>
 #include <shared_mutex>
 #include <mutex>
 
@@ -71,6 +72,8 @@ struct ClientUpdatePacket {
 	bool jump = false;
 	bool lmb = false;
 	bool r = false;
+	bool num1 = false;
+	bool num2 = false;
 
 	uint64_t serverTimestamp;
 
@@ -94,6 +97,8 @@ struct SimulateStruct {
 	bool jump = false;
 	bool shooting = false;
 	bool reloading = false;
+	bool num1 = false;
+	bool num2 = false;
 
 	void addPacket(ClientUpdatePacket pack);
 	void reset() {
@@ -124,6 +129,27 @@ struct ServersideClient {
 
 	// returns true if the correct packet for this current tick is found, false otherwise
 	bool getPacketFor(uint32_t tickNum);
+};
+
+constexpr float FLASH_AIR_TIME = 1.6;
+
+enum FLASH_STATE {
+	WINDUP,
+	POP
+};
+
+struct Ordnance {
+	Entity entity;
+	FLASH_STATE currentState;
+	float lifetimeTimer = 0.f;
+	
+	FLASH_STATE updateFlashState(float deltaTime) {
+		lifetimeTimer += deltaTime;
+		if (lifetimeTimer > FLASH_AIR_TIME) {
+			currentState = POP;
+		}
+		return currentState;
+	}
 };
 
 struct ServerSnapshot {
@@ -170,9 +196,13 @@ public:
 			newEntity.camSpeed = fromEntity.camSpeed;
 			newEntity.moveSpeed = fromEntity.moveSpeed;
 			newEntity.id = fromEntity.id;
-			newEntity.transform = secondEnt->transform;// fromEntity.transform.lerpTo(secondEnt->transform, alpha);
+			newEntity.type = fromEntity.type;
+			newEntity.transform = fromEntity.transform.lerpTo(secondEnt->transform, alpha);
 			newEntity.isMoving = fromEntity.isMoving || secondEnt->isMoving;
 			newEntity.health = secondEnt->health;
+			newEntity.flashPercentage = glm::lerp(fromEntity.flashPercentage, secondEnt->flashPercentage, alpha);
+			newEntity.flashNDCX = secondEnt->flashNDCX;
+			newEntity.flashNDCY = secondEnt->flashNDCY;
 			p.entities.push_back(newEntity);
 		}
 		return p;
@@ -183,6 +213,7 @@ struct EntityManager {
 	static constexpr uint8_t MAX = 10;
 	std::shared_mutex clientsMutex;
 	std::unordered_map<uint32_t, ServersideClient*> clients;
+	std::unordered_map<uint32_t, Ordnance*> worldObjects;
 };
 
 enum SERVER_EVENT {

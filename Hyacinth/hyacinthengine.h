@@ -136,6 +136,7 @@ private:
 	uint32_t m_swImageIndex = 0;
 	uint32_t characterDrawOffset = 0;
 	uint32_t pistolDrawOffset = 0;
+	uint32_t flashDrawOffset = 0;
 	uint32_t tracerDrawOffset = 0;
 	uint32_t maxTracers = 10;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -184,6 +185,8 @@ private:
 	owDDGI							m_owDDGIHelper;
 	FrustumCullHelper				m_frustumCullHelper;
 	HyacinthUIManager				m_uiHelper;
+
+	VulkanBuffer					m_grenadeJMBuffer;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();

@@ -32,6 +32,7 @@
 using namespace physx;
 
 constexpr float JUMP_VELOCITY = 10.5f;
+constexpr float FLASH_VELOCTIY = 20.f;
 
 struct controllerUserData {
 	uint32_t id;
@@ -76,6 +77,7 @@ private:
 	physx::PxDefaultCpuDispatcher* pDispatcher;
 	physx::PxTolerancesScale pTolerancesScale;
 	physx::PxMaterial* pMaterial = NULL;
+	physx::PxMaterial* pFrictionMaterial = NULL;
 
 	physx::PxControllerManager* pCManager = NULL;
 	physx::PxCapsuleControllerDesc controllerDesc;
@@ -85,9 +87,11 @@ private:
 public:
 	physx::PxScene* pScene = NULL;
 	physx::PxCapsuleGeometry capGeom;
+	physx::PxSphereGeometry sphereGeom;
 	std::vector<physx::PxTriangleMeshGeometry> worldGeom;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
+	std::unordered_map<uint32_t, physx::PxRigidDynamic*> worldObjects;
 	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
 	ThreadSafeQueue<Event> physicsEventQueue;
 
@@ -100,6 +104,10 @@ public:
 	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
 	void addNetworkEntityCapsuleCollider(uint32_t cId);
 	void setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId);
+
+	void addDynamicNetworkSphere(uint32_t worldID, glm::vec3 spawnPos, glm::vec3 initialVelocity);
+	void updateAllWorldObjects(std::unordered_map<uint32_t, Ordnance*>& ord, std::unordered_map<uint32_t, ServersideClient*>& clients);
+
 	glm::vec3 traceBullet(Transform& camTransform);
 
 	hitReg playerShooting(uint32_t eId, Transform& t, rewindSnapshot* snapshotToTrace);

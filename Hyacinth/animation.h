@@ -25,18 +25,37 @@ static float yawFromQuaternion(glm::quat q) {
 	));
 }
 
-struct ThirdPersonAnimationController {
+enum ANIMATION_TYPE {
+	A_TP_IDLE,
+	A_TP_RUNNING,
+
+	A_TP_LEFT_TURN,
+	A_TP_RIGHT_TURN,
+
+	A_PISTOL_EQUIP,
+	A_PISTOL_IDLE,
+	A_PISTOL_SHOOT,
+	A_PISTOL_RELOAD,
+
+	A_GRENADE_EQUIP,
+	A_GRENADE_IDLE,
+	A_GRENADE_THROW,
+};
+
+class AnimControllerBase {
+public:
+	std::unordered_map<ANIMATION_TYPE, Animation*> animations;
+	void updateTime();
+};
+
+class ThirdPersonAnimationController : public AnimControllerBase {
+public:
 	gltfNode* upperArmL;    // left arm (pitch) controller
 	gltfNode* upperArmR;    // right arm (pitch) controller
 	gltfNode* spine005;     // head neck (pitch) controller
 	gltfNode* spine007;     // lower body yaw controller
 	gltfNode* spine003;     // upper body yaw controller
 	gltfNode* spine;		// full body yaw controller
-
-	Animation* leftTurnAnimation;
-	Animation* rightTurnAnimation;
-	Animation* idleAnimation;
-	Animation* runningAnimation;
 
 	float currentLowerTime = 0.f;
 	float currentUpperTime = 0.f;
@@ -60,17 +79,13 @@ struct ThirdPersonAnimationController {
 
 	ThirdPersonAnimationController() {
 		upperArmL = upperArmR = spine005 = spine007 = spine003 = spine = nullptr;
-		idleAnimation = leftTurnAnimation = rightTurnAnimation = runningAnimation = currentLowerBodyAnim = currentUpperBodyAnim = previousAnimation = nullptr;
+		currentLowerBodyAnim = currentUpperBodyAnim = previousAnimation = nullptr;
 	};
 };
 
-struct FirstPersonAnimationController {
-	Animation* idleAnimation;
-	Animation* shootAnimation;
-	Animation* spinningAnimation;
-	Animation* reloadAnimation;
+class FirstPersonAnimationController : public AnimControllerBase {
+public:
 	gltfNode* gunBone;
-
 	gltfNode* leftWrist;
 	gltfNode* rightWrist;
 
@@ -79,7 +94,6 @@ struct FirstPersonAnimationController {
 	Animation* currentAnim;
 
 	FirstPersonAnimationController() {
-		currentAnim = idleAnimation = shootAnimation = spinningAnimation = nullptr;
 		gunBone = leftWrist = rightWrist = nullptr;
 	};
 };
@@ -119,13 +133,12 @@ private:
 
 	glm::quat currentSwayYaw = { 1.f, 0.f, 0.f, 0.f };
 	glm::quat currentSwayPitch = { 1.f, 0.f, 0.f, 0.f };
-	FIRSTPERSON_STATE previousState;
-	bool currentlyShooting = false;
+	WEAPON_STATE previousState = NULL_STATE;
 	void flushQueuedNodeTransforms(FirstPersonAnimationController& c);
 	void updateAnimation(FirstPersonAnimationController& c, float deltaTime, float deltaPitch, float deltaYaw);
 
 public:
-	void updateAnimationState(FirstPersonAnimationController& c, FIRSTPERSON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut, bool& reloadOut);
+	void updateAnimationState(FirstPersonAnimationController& c, WEAPON_STATE state, float deltaTime, float deltaPitch, float deltaYaw, bool& shootingOut, bool& reloadOut);
 };
 
 struct PistolAnimationController {

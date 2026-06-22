@@ -63,7 +63,7 @@ void WorldHealthManager::update(std::vector<Entity>& entities, uint32_t selfID, 
 	worldHealthBars.clear();
 
 	for (const auto& e : entities) {
-		if (e.id == selfID) {
+		if (e.id == selfID || e.type != E_PLAYER) {
 			continue;
 		}
 
