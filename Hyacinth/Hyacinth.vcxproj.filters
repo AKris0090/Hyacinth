@@ -109,9 +109,6 @@
     <Filter Include="Source Files\shaders\visualization">
       <UniqueIdentifier>{c69f709a-01f3-4965-8c25-49c89f103570}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\renderer\utils\animation">
-      <UniqueIdentifier>{a9b7bf78-bd98-4e41-8174-3c32b5c63198}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\renderer\core\ui">
       <UniqueIdentifier>{dfa97c39-b09b-423a-b4b2-b5522cbdb14e}</UniqueIdentifier>
     </Filter>
@@ -129,6 +126,15 @@
     </Filter>
     <Filter Include="Source Files\renderer\core\ui\worldspace_health">
       <UniqueIdentifier>{31aea9c9-d4db-4812-ac65-b730569de467}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\animation">
+      <UniqueIdentifier>{a9b7bf78-bd98-4e41-8174-3c32b5c63198}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\skybox">
+      <UniqueIdentifier>{31efc7b2-9316-4783-915c-47d8dda360d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\skybox">
+      <UniqueIdentifier>{185e7498-ed6a-4782-8044-bdb6ff94ef03}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -229,7 +235,7 @@
       <Filter>Source Files\network\network_entities</Filter>
     </ClCompile>
     <ClCompile Include="animation.cpp">
-      <Filter>Source Files\renderer\utils\animation</Filter>
+      <Filter>Source Files\renderer\core\animation</Filter>
     </ClCompile>
     <ClCompile Include="hyacinth_ui.cpp">
       <Filter>Source Files\renderer\core\ui</Filter>
@@ -239,6 +245,9 @@
     </ClCompile>
     <ClCompile Include="worldspace_health.cpp">
       <Filter>Source Files\renderer\core\ui\worldspace_health</Filter>
+    </ClCompile>
+    <ClCompile Include="skybox.cpp">
+      <Filter>Source Files\renderer\core\skybox</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -345,7 +354,7 @@
       <Filter>Source Files\network\network_entities</Filter>
     </ClInclude>
     <ClInclude Include="animation.h">
-      <Filter>Source Files\renderer\utils\animation</Filter>
+      <Filter>Source Files\renderer\core\animation</Filter>
     </ClInclude>
     <ClInclude Include="gltfcommon.h">
       <Filter>Source Files\renderer\utils\gltfutils</Filter>
@@ -361,6 +370,9 @@
     </ClInclude>
     <ClInclude Include="worldspace_health.h">
       <Filter>Source Files\renderer\core\ui\worldspace_health</Filter>
+    </ClInclude>
+    <ClInclude Include="skybox.h">
+      <Filter>Source Files\renderer\core\skybox</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -458,6 +470,12 @@
     </None>
     <None Include="shaders\fxaa.frag">
       <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\skybox.vert">
+      <Filter>Source Files\shaders\skybox</Filter>
+    </None>
+    <None Include="shaders\skybox.frag">
+      <Filter>Source Files\shaders\skybox</Filter>
     </None>
   </ItemGroup>
 </Project>

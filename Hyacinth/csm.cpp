@@ -242,7 +242,7 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	m_shadowImage = vkimageutils::createImageandView(extent3D, SHADOW_MAP_CASCADE_COUNT, shadowFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, false, "csm_image");
 
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-		m_cascades[i].cascadeImageView = vkimageutils::createImageView(m_shadowImage, i, 1, VK_IMAGE_ASPECT_DEPTH_BIT);
+		m_cascades[i].cascadeImageView = vkimageutils::createImageView(m_shadowImage, i, 1, VK_IMAGE_ASPECT_DEPTH_BIT, false);
 	}
 
 	VkSamplerCreateInfo samplerInfo { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };

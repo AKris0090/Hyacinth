@@ -27,6 +27,8 @@
 
 #include "imguihelper.h"
 
+#include "skybox.h"
+
 #include "net_ent.h"
 #include "netDebugRenderer.h"
 
@@ -185,6 +187,7 @@ private:
 	owDDGI							m_owDDGIHelper;
 	FrustumCullHelper				m_frustumCullHelper;
 	HyacinthUIManager				m_uiHelper;
+	SkyboxHelper					m_skyboxHelper;
 
 	VulkanBuffer					m_grenadeJMBuffer;
 

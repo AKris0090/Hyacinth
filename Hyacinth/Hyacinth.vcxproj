@@ -166,6 +166,7 @@
     <ClCompile Include="probevis.cpp" />
     <ClCompile Include="raytracing.cpp" />
     <ClCompile Include="sdlwindow.cpp" />
+    <ClCompile Include="skybox.cpp" />
     <ClCompile Include="time.cpp" />
     <ClCompile Include="vkdebugutils.cpp" />
     <ClCompile Include="vkdebugutils.h" />
@@ -207,6 +208,7 @@
     <ClInclude Include="raytracing.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="sdlwindow.h" />
+    <ClInclude Include="skybox.h" />
     <ClInclude Include="tangentHelper.h" />
     <ClInclude Include="time.h" />
     <ClInclude Include="tracer_manager.h" />
@@ -247,6 +249,8 @@
     <None Include="shaders\raygen.rgen" />
     <None Include="shaders\shadow.vert" />
     <None Include="shaders\shadowCommon.glsl" />
+    <None Include="shaders\skybox.frag" />
+    <None Include="shaders\skybox.vert" />
     <None Include="shaders\tracer.frag" />
     <None Include="shaders\tracer.vert" />
     <None Include="shaders\uiTex.frag" />

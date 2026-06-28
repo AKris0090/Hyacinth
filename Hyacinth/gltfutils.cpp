@@ -498,7 +498,7 @@ void SceneGraph::buildNodeBuffers(gltfNode* node) {
 }
 
 void addUnitCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
-    auto cubePath = vkdebugutils::getExeDir() / "objects" / "cube.glb";
+    auto cubePath = vkdebugutils::getExeDir() / "objects" / "cubeOrigin.glb";
     gltfObject boxObject = gltfutils::loadFromFile(cubePath.string(), false);
     gltfNode* node = boxObject.allNodes[0];
     for (const auto& p : node->primitives) {
@@ -644,7 +644,7 @@ void SceneGraph::buildSceneGraph() {
     }
 }
 
-void SceneGraph::createDummyTextures() {
+void SceneGraph::createDummySkyboxTextures(VulkanImage& skyboxImage) {
     // add dummy textures
     int index = 0;
     for (const auto& path : DUMMY_PATHS) {
@@ -672,6 +672,32 @@ void SceneGraph::createDummyTextures() {
         dummyTextures.push_back(texImage);
         index++;
         numTextures++;
+
+        stbi_image_free(pixels);
+    }
+
+    // skybox images
+    std::array<float*, 6> pixels;
+    int texWidth, texHeight, texChannels;
+    index = 0;
+    for (const auto& s : skyboxPaths) {
+        pixels[index] = stbi_loadf(s.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        if (!pixels[index]) {
+            throw std::runtime_error("failed to load skybox image " + s + "!");
+        }
+        index++;
+    }
+
+    VkExtent3D ext;
+    ext.width = texWidth;
+    ext.height = texHeight;
+    ext.depth = 1;
+
+    // create skybox image
+    skyboxImage = vkimageutils::createSkyboxImage(pixels, ext, SKYBOX_FORMAT, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    for (int i = 0; i < 6; i++) {
+        stbi_image_free(pixels[i]);
     }
 }
 
@@ -710,6 +736,8 @@ void SceneGraph::createUITextures() {
 
         uiTextures.push_back(texImage);
         numTextures++;
+
+        stbi_image_free(pixels);
     }
 
     worldUITextureOffset = numTextures;
@@ -735,6 +763,7 @@ void SceneGraph::createUITextures() {
 
         uiTextures.push_back(texImage);
         numTextures++;
+        stbi_image_free(pixels);
     }
 }
 
@@ -761,6 +790,10 @@ void SceneGraph::uploadTextures(VkDescriptorSet& descriptor) {
         textureOffset++;
     }
 	vkdescriptorutils::flushDescriptorWrites();
+}
+
+void SceneGraph::loadSkyboxTexture() {
+
 }
 
 void gltfObject::updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer)

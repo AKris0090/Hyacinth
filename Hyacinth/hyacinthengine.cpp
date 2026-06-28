@@ -227,7 +227,7 @@ void HyacinthEngine::createSwapchain()
     }
 
     for (uint32_t i = 0; i < numImages; i++) {
-        m_swapChainImages[i].imageView = vkimageutils::createImageView(m_swapChainImages[i], 0, 1, VK_IMAGE_ASPECT_COLOR_BIT);
+        m_swapChainImages[i].imageView = vkimageutils::createImageView(m_swapChainImages[i], 0, 1, VK_IMAGE_ASPECT_COLOR_BIT, false);
     }
 
     m_swImageFormat.aspectRatio = (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height;
@@ -693,7 +693,7 @@ void HyacinthEngine::loadScene() {
     m_scene.buildSceneGraph();
 
     m_meshBuffers = vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
-    m_scene.createDummyTextures();
+    m_scene.createDummySkyboxTextures(m_skyboxHelper.m_skyboxImage);
     m_scene.createUITextures();
 }
 
@@ -920,6 +920,7 @@ void HyacinthEngine::init()
 
     m_uiHelper.setup(m_textureSetLayout, m_scene.uiTextureOffset, glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
     m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, m_scene.worldUITextureOffset, m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
+    m_skyboxHelper.setup(m_swImageFormat, m_descriptorSetLayout);
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.setup(m_swImageFormat, m_msaaSamples, m_descriptorSetLayout);
@@ -1269,12 +1270,28 @@ void HyacinthEngine::draw()
         VK_LABEL_END(cmd);
     }
 
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].ddgiImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    {
+        VK_LABEL(cmd, "Skybox Pass");
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxHelper.m_skyboxPipelineUtil.m_pipeline.pipeline);
+
+        std::array<VkDescriptorSet, 2> sets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_skyboxHelper.m_skyboxSet };
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxHelper.m_skyboxPipelineUtil.m_pipeline.layout, 0, sets.size(), sets.data(), 0, nullptr);
+        VkRenderingAttachmentInfo skyboxAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+        VkRenderingInfo skyboxRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &skyboxAttachment, nullptr);
+        vkCmdBeginRendering(cmd, &skyboxRenderingInfo);
+        m_skyboxHelper.drawSkybox(cmd);
+        vkCmdEndRendering(cmd);
+        VK_LABEL_END(cmd);
+    }
+
     {
         VK_LABEL(cmd, "Composite Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.pipeline);
         std::array<VkDescriptorSet, 2> compositeSets = { m_gBuffers[m_frameIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet };
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.layout, 0, compositeSets.size(), compositeSets.data(), 0, nullptr);
-        VkRenderingAttachmentInfo compositeAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo compositeAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
         VkRenderingInfo compositeRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &compositeAttachment, nullptr);
         vkCmdBeginRendering(cmd, &compositeRenderingInfo);
         vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -1331,7 +1348,7 @@ void HyacinthEngine::draw()
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_fxaaPipelineUtil.m_pipeline.pipeline);
         std::array<VkDescriptorSet, 1> fxaaSet = { m_gBuffers[m_frameIndex].m_postProcessSet };
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_fxaaPipelineUtil.m_pipeline.layout, 0, fxaaSet.size(), fxaaSet.data(), 0, nullptr);
-        VkRenderingAttachmentInfo fxaaAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+        VkRenderingAttachmentInfo fxaaAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
         VkRenderingInfo fxaaRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &fxaaAttachment, nullptr);
         vkCmdPushConstants(cmd, m_fxaaPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec2), &invSS);
         vkCmdBeginRendering(cmd, &fxaaRenderingInfo);
@@ -1497,6 +1514,7 @@ void HyacinthEngine::cleanup()
     m_rtHelper.shutdown();
     m_uiHelper.shutdown();
     m_worldHealthManager.shutdown();
+    m_skyboxHelper.shutdown();
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.shutdown();

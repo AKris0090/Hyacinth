@@ -3,6 +3,7 @@
 #include "animation.h"
 #include "vkmeshutils.h"
 #include "hyacinth_ui.h"
+#include "skybox.h"
 #include "worldspace_health.h"
 #include "entity.h"
 
@@ -122,8 +123,9 @@ struct SceneGraph {
     
     void buildNodeBuffers(gltfNode* node);
     void buildSceneGraph();
-    void createDummyTextures();
+    void createDummySkyboxTextures(VulkanImage& skyboxImage);
     void createUITextures();
+    void loadSkyboxTexture();
     void uploadTextures(VkDescriptorSet& descriptor);
 };
 
