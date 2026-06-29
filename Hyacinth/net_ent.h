@@ -53,7 +53,7 @@ private:
 	PhysicsPosFn physicsPosition;
 };
 
-struct gltfObject;
+struct AnimatedGltfObject;
 class AnimationStateMachine;
 
 class NetworkEntityManager {
@@ -67,17 +67,17 @@ public:
 	std::unordered_map<uint32_t, Entity*> entities;
 	std::unordered_map<uint32_t, ThirdPersonAnimationController> entityAnimationControllers;
 	std::unordered_map<uint32_t, VulkanBuffer> entityJointBuffers;
-	gltfObject* characterObject;
+	AnimatedGltfObject* characterObject;
 
-	gltfObject* firstPersonObject;
+	AnimatedGltfObject* firstPersonObject;
 	VulkanBuffer firstPersonJointBuffer;
 	FirstPersonAnimationController firstPersonAnimationController;
 
-	gltfObject* pistolObject;
+	AnimatedGltfObject* pistolObject;
 	VulkanBuffer pistolJointBuffer;
 	PistolAnimationController pistolAnimationController;
 
-	gltfObject* grenadeObject;
+	AnimatedGltfObject* grenadeObject;
 
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
@@ -89,7 +89,7 @@ public:
 	
 	void setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
-	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, gltfObject* characterObject, gltfObject* flashObject, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
+	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, AnimatedGltfObject* characterObject, AnimatedGltfObject* flashObject, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
 	void shutdown();
 	void clearPendingPackets(Entity* self);
 };

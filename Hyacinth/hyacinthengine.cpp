@@ -677,28 +677,37 @@ void HyacinthEngine::loadScene() {
     auto tracerPath = vkdebugutils::getExeDir() / "objects" / "tracer.glb";
     auto flashPath = vkdebugutils::getExeDir() / "objects" / "flash.glb";
 
-    m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), "world", true, false));
-    m_scene.staticObjects.push_back(gltfutils::loadFromFile(tracerPath.string(), "tracer", false, false));
+    worldObject = new GltfObject();
+    worldObject->loadFromFile(path.string(), "world", true);
 
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(thirdPersonCharacterPath.string(), "character", false, true));
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath.string(), "arms", false, true));
+    tracerObject = new GltfObject();
+    tracerObject->loadFromFile(tracerPath.string(), "tracer", false);
 
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(pistolPath.string(), "gun", false, true));
-    m_scene.dynamicObjects[2].setWeaponParentTo(&m_scene.dynamicObjects[1]);
+    characterObject = new AnimatedGltfObject();
+    characterObject->loadFromFile(thirdPersonCharacterPath.string(), "character");
 
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(flashPath.string(), "flashbang", false, true));
-    m_scene.dynamicObjects[3].setWeaponParentTo(&m_scene.dynamicObjects[1]);
+    armsObject = new AnimatedGltfObject();
+    armsObject->loadFromFile(firstPersonCharacterPath.string(), "arms");
+
+    gunObject = new AnimatedGltfObject();
+    gunObject->loadFromFile(pistolPath.string(), "gun");
+
+    flashObject = new AnimatedGltfObject();
+    flashObject->loadFromFile(flashPath.string(), "flashbang");
+
+    m_scene.staticObjects.push_back(worldObject);
+    m_scene.staticObjects.push_back(tracerObject);
+    m_scene.dynamicObjects.push_back(characterObject);
+    m_scene.dynamicObjects.push_back(armsObject);
+    m_scene.dynamicObjects.push_back(gunObject);
+    m_scene.dynamicObjects.push_back(flashObject);
 
     m_scene.buildSceneGraph();
 
-    worldObject = &m_scene.staticObjects[0];
-    tracerObject = &m_scene.staticObjects[1];
-    characterObject = &m_scene.dynamicObjects[0];
-    armsObject = &m_scene.dynamicObjects[1];
-    gunObject = &m_scene.dynamicObjects[2];
-    flashObject = &m_scene.dynamicObjects[3];
+    GltfObject::setWeaponParentTo(gunObject, armsObject);
+    GltfObject::setWeaponParentTo(flashObject, armsObject);
 
-    m_meshBuffers = vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
+    vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes, m_vertexBuffer, m_indexBuffer, m_aabbBuffer);
     m_scene.createDummySkyboxTextures(m_skyboxHelper.m_skyboxImage);
     m_scene.createUITextures();
 }
@@ -937,15 +946,15 @@ void HyacinthEngine::update() {
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     // first person object (self) 
-    gltfObject::updateFirstPersonAnimation(p_netEntManager->self->currentState, &m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw, p_netEntManager->pistolAnimationController.queueShoot, p_netEntManager->pistolAnimationController.queueReload);
+    AnimatedGltfObject::updateFirstPersonAnimation(p_netEntManager->self->currentState, armsObject, *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw, p_netEntManager->pistolAnimationController.queueShoot, p_netEntManager->pistolAnimationController.queueReload);
 
     if (p_netEntManager->self->currentWeapon == PISTOL) {
         // pistol object
-        gltfObject::updatePistolAnimation(&m_scene.dynamicObjects[2], *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
+        AnimatedGltfObject::updatePistolAnimation(gunObject, *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
     }
     else if (p_netEntManager->self->currentWeapon == GRENADE) {
         // grenade object
-        gltfObject::updateGrenadeAnimation(&m_scene.dynamicObjects[3], Time::getDeltaTime(), m_grenadeJMBuffer.pMappedData);
+        AnimatedGltfObject::updateGrenadeAnimation(flashObject, Time::getDeltaTime(), m_grenadeJMBuffer.pMappedData);
     }
 
     m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo, p_netEntManager->self->flashPercentage, p_netEntManager->self->flashNDCX, p_netEntManager->self->flashNDCY);
@@ -1008,8 +1017,8 @@ void HyacinthEngine::setupDraw()
     vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     VkDeviceSize offsets[] = { 0 };
-    vkCmdBindVertexBuffers(cmd, 0, 1, &m_meshBuffers.vertexBuffer.buffer, offsets);
-    vkCmdBindIndexBuffer(cmd, m_meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &m_vertexBuffer.buffer, offsets);
+    vkCmdBindIndexBuffer(cmd, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 }
 
 void HyacinthEngine::drawImGui() {
@@ -1140,11 +1149,11 @@ void HyacinthEngine::draw()
     {
         VK_LABEL(cmd, "Compute Cull Main");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
-        m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_staticIndirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
+        m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_staticIndirectDrawBuffer.gpuAddress, m_aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
         VK_LABEL_END(cmd);
         for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
             VK_LABEL(cmd, "Compute Cull Shadow");
-            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
+            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
             VK_LABEL_END(cmd);
         }
     }
@@ -1512,9 +1521,9 @@ void HyacinthEngine::cleanup()
     m_netDebugRenderer.shutdown();
 #endif
 
-	vkdeviceutils::destroyBuffer(m_meshBuffers.indexBuffer);
-	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);
-	vkdeviceutils::destroyBuffer(m_meshBuffers.aabbBuffer);
+	vkdeviceutils::destroyBuffer(m_indexBuffer);
+	vkdeviceutils::destroyBuffer(m_vertexBuffer);
+	vkdeviceutils::destroyBuffer(m_aabbBuffer);
 	vkdeviceutils::destroyBuffer(m_staticIndirectDrawBuffer);
     vkdeviceutils::destroyBuffer(m_dynamicIndirectDrawBuffer);
 	vkdeviceutils::destroyBuffer(m_staticWorldMatrixBuffer);
@@ -1540,16 +1549,16 @@ void HyacinthEngine::cleanup()
         vkimageutils::destroyImage(tex);
     }
     for (auto& obj : m_scene.staticObjects) {
-        for (auto& node : obj.allNodes) {
+        for (auto& node : obj->allNodes) {
             vkdeviceutils::destroyBuffer(node->accelStructureIndexBuffer);
             vkdeviceutils::destroyBuffer(node->accelStructureVertexBuffer);
         }
-        for (auto& tex : obj.textures) {
+        for (auto& tex : obj->textures) {
             vkimageutils::destroyImage(tex);
         }
     }
     for (auto& obj : m_scene.dynamicObjects) {
-        for (auto& tex : obj.textures) {
+        for (auto& tex : obj->textures) {
             vkimageutils::destroyImage(tex);
         }
     }

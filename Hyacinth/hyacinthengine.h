@@ -104,6 +104,14 @@ public:
 	SceneGraph						m_scene{};
 	TracerManager					m_tracerManager;
 
+	// all objects
+	GltfObject* worldObject;
+	GltfObject* tracerObject;
+	AnimatedGltfObject* armsObject;
+	AnimatedGltfObject* characterObject;
+	AnimatedGltfObject* gunObject;
+	AnimatedGltfObject* flashObject;
+
 #ifdef DEBUG_NETWORK
 	NetDebugRenderer m_netDebugRenderer;
 #endif
@@ -163,7 +171,9 @@ private:
 	VulkanPipelineBuilder			m_skinnedPipelineUtil   {};
 	VulkanPipelineBuilder			m_volumeStencilPipeline	{};
 	VulkanPipelineBuilder			m_fxaaPipelineUtil		{};
-	GPUMeshBuffers					m_meshBuffers			{};
+	VulkanBuffer					m_vertexBuffer			{};
+	VulkanBuffer					m_indexBuffer			{};
+	VulkanBuffer					m_aabbBuffer			{};
 	VulkanBuffer 					m_staticIndirectDrawBuffer{};
 	VulkanBuffer					m_dynamicIndirectDrawBuffer{};
 	VulkanBuffer 					m_staticWorldMatrixBuffer{};
@@ -186,14 +196,6 @@ private:
 	SkyboxHelper					m_skyboxHelper;
 
 	VulkanBuffer					m_grenadeJMBuffer;
-
-	// world stuff
-	gltfObject* worldObject;
-	gltfObject* armsObject;
-	gltfObject* characterObject;
-	gltfObject* gunObject;
-	gltfObject* tracerObject;
-	gltfObject* flashObject;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();

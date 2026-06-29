@@ -125,9 +125,9 @@ void rtHelper::createBottomLevelAS(SceneGraph& scene) {
 
     uint32_t id = 0;
     for(const auto& obj : scene.staticObjects) {
-        for (const auto& node : obj.allNodes) {
+        for (const auto& node : obj->allNodes) {
             if (!node->includeInAccel || node->vertices.empty() || node->indices.empty()) {
-                std::cerr << "Warning: Node " << id << " has no geometry, skipping BLAS creation." << std::endl;
+                std::cout << "Node " << id << " has no geometry, skipping BLAS creation." << std::endl;
                 continue;
 			}
             VkAccelerationStructureGeometryKHR       asGeometry{};
@@ -153,7 +153,7 @@ void rtHelper::createTopLevelAS(SceneGraph& scene) {
 
     uint32_t meshIndex = 0;
     for(const auto& obj : scene.staticObjects) {
-        for (const auto& node : obj.allNodes) {
+        for (const auto& node : obj->allNodes) {
             if (node->includeInAccel == false || node->vertices.empty() || node->indices.empty()) {
                 std::cerr << "Warning: Node " << meshIndex << " is marked as not included in acceleration structure or has no geometry, skipping TLAS instance creation." << std::endl;
                 continue;

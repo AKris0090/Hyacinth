@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 
-// #define CONNECT_SERVER true
+#define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -52,8 +52,6 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 
 		p.pitch = netClient->netEntManager.self->transform.pitch;
 		p.yaw = netClient->netEntManager.self->transform.yaw;
-
-		// bool shotFired = engine->p_netEntManager->self->pistolController.updateShooting(SERVER_TIMESTEP, p.lmb, p.r); // update if self is shooting
 
 		bool shotFiredOut = false;
 		EQUIPPED_WEAPON weaponOut = PISTOL;
@@ -136,10 +134,10 @@ int main() {
 	physicsManager.addCharacterController(0);
 
 	HyacinthNetworkClient netClient;
-	netClient.netEntManager.characterObject = &hyacinthEngine.m_scene.dynamicObjects[0];
-	netClient.netEntManager.firstPersonObject = &hyacinthEngine.m_scene.dynamicObjects[1];
-	netClient.netEntManager.pistolObject = &hyacinthEngine.m_scene.dynamicObjects[2];
-	netClient.netEntManager.grenadeObject = &hyacinthEngine.m_scene.dynamicObjects[3];
+	netClient.netEntManager.characterObject = hyacinthEngine.characterObject;
+	netClient.netEntManager.firstPersonObject = hyacinthEngine.armsObject;
+	netClient.netEntManager.pistolObject = hyacinthEngine.gunObject;
+	netClient.netEntManager.grenadeObject = hyacinthEngine.flashObject;
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	netClient.netEntManager.inputAccumulator.id = 0;
 	netClient.netEntManager.tracerManager = &hyacinthEngine.m_tracerManager;

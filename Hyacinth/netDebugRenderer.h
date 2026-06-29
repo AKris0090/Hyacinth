@@ -10,7 +10,7 @@ struct pCNetDebug {
 
 class NetDebugRenderer {
 private:
-	gltfObject sphereObject;
+	GltfObject sphereObject;
 	uint32_t indexCount;
 
 	VulkanBuffer vertexBuffer;

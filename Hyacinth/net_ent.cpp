@@ -16,7 +16,7 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 			if (entities[e.id]->type == E_PLAYER) {
 				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
 				entityAnimationControllers[e.id] = ThirdPersonAnimationController();
-				characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
+				AnimatedGltfObject::setTPControllerParameters(characterObject, entityAnimationControllers[e.id], characterObject->skins[0]);
 			}
 			else {
 				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(grenadeObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
@@ -45,7 +45,7 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 		}
 		ent->updated = false; // reset flag
 		if (ent->type == E_PLAYER) {
-			gltfObject::updateThirdPersonAnimation(ent, characterObject, *characterObject->thirdPersonAnimStateMachine, entityAnimationControllers[id], deltaTime, entityJointBuffers[id].pMappedData);
+			AnimatedGltfObject::updateThirdPersonAnimation(ent, characterObject, *characterObject->thirdPersonAnimStateMachine, entityAnimationControllers[id], deltaTime, entityJointBuffers[id].pMappedData);
 		}
 	}
 }
@@ -64,7 +64,7 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 				newEnt->transform.yaw = e.transform.yaw;
 				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
 				entityAnimationControllers[e.id] = ThirdPersonAnimationController();
-				characterObject->setTPControllerParameters(entityAnimationControllers[e.id], characterObject->skins[0]);
+				AnimatedGltfObject::setTPControllerParameters(characterObject, entityAnimationControllers[e.id], characterObject->skins[0]);
 			}
 			else if (newEnt->type == E_GRENADE) {
 				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(grenadeObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
@@ -74,14 +74,14 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 		}
 	}
 
-	firstPersonObject->setFPControllerParameters(firstPersonAnimationController, firstPersonObject->skins[0]);
+	AnimatedGltfObject::setFPControllerParameters(firstPersonObject, firstPersonAnimationController, firstPersonObject->skins[0]);
 	firstPersonJointBuffer = vkdeviceutils::createBuffer(firstPersonObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_fp");
 
-	pistolObject->setWeaponControllerParams(pistolAnimationController, pistolObject->skins[0]);
+	AnimatedGltfObject::setWeaponControllerParams(pistolObject, pistolAnimationController, pistolObject->skins[0]);
 	pistolJointBuffer = vkdeviceutils::createBuffer(pistolObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_pistol");
 }
 
-void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, gltfObject* characterObject, gltfObject* flashObject, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
+void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, AnimatedGltfObject* characterObject, AnimatedGltfObject* flashObject, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
 	for (const auto& [id, ent] : entities) {
 		pc.entityMatrix = ent->transform.getPositionMatrix();
 		pc.jointBufferAddress = entityJointBuffers[id].gpuAddress;
@@ -210,13 +210,8 @@ bool RewindBuffer::checkPacketNeedsRewind(Entity* self, std::pair<Transform, Tra
 		}
 	}
 
+	// if the difference in own position is greater than the threshold, initiate rewind
 	if (glm::length(ringBuffer[stateIndex].state.position - serverTransform.position) > DIFF_THRESHOLD) {
-		// std::cout << "tick: " << processedTickNum << " | ";
-		// for (auto& pack : ringBuffer) {
-		// 	std::cout << "|" << pack.tickNum << ":" << (glm::length(pack.state.position - serverTransform.position) <= DIFF_THRESHOLD);
-		// }
-		// std::cout << "|" << std::endl;
-		// std::cout << "diff: " << glm::length(ringBuffer[ind].state.position - serverTransform.position) << std::endl;
 		outTransform = rewindState(serverTransform, processedTickNum);
 		return true;
 	}

@@ -40,51 +40,57 @@ struct gltfDrawCommand {
     AABB        boundingBox;
 };
 
-struct gltfObject {
+class GltfObject {
+public:
     bool dynamic;
     std::string debugName = "";
-    uint32_t firstMatrix = 0;
-    uint32_t numMatrices = 0;
-    uint32_t activeAnimation = 0;
-    uint32_t currentBuffer = 0;
+
     std::vector<gltfNode*> allNodes;
     std::vector<gltfNode*> parentNodes;
     uint32_t nodeCounter;
-    std::vector<Animation> animations;
-    std::vector<Skin> skins;
-    size_t skinSize;
     gltfNode* attachmentPoint;
 
     std::vector<VulkanImage> textures;
     std::vector<uint32_t> textureIndices;
     std::vector<MaterialInstance> materials;
 
-    std::unordered_set<uint32_t>* imageIsSRGB;
-
     VkDeviceSize drawCommandOffset;
     uint32_t numDrawCommands;
     std::vector<gltfDrawCommand> drawCommands;
+
+    static gltfNode* findNode(GltfObject* obj, std::string nodeName);
+    static void setWeaponParentTo(GltfObject* weaponObject, GltfObject* parentObj);
+    void loadFromFile(const std::string& filename, std::string name, bool includeInAccel, bool isDynamic = false, tinygltf::Model* pInputModel = nullptr);
+};
+
+class AnimatedGltfObject : public GltfObject {
+public:
+    std::vector<Animation> animations;
+    std::vector<Skin> skins;
+    size_t skinSize;
 
     ThirdPersonAnimationStateMachine* thirdPersonAnimStateMachine;
     FirstPersonAnimationStateMachine* firstPersonAnimStateMachine;
     PistolAnimationStateMachine* pistolAnimStateMachine;
 
+    static void loadFromObject(AnimatedGltfObject* animatedObj, tinygltf::Model* model);
+
     void updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer);
-    void setTPControllerParameters(ThirdPersonAnimationController& c, Skin& skin);
-    void setFPControllerParameters(FirstPersonAnimationController& c, Skin& skin);
-    void setWeaponControllerParams(PistolAnimationController& c, Skin& skin);
-    static void updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
-    static void updateFirstPersonAnimation(WEAPON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut);
-    static void updatePistolAnimation(gltfObject* obj, PistolAnimationStateMachine& animMachine, PistolAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
-    static void updateGrenadeAnimation(gltfObject* obj, float deltaTime, void* pMappedJointMatrixBuffer);
-    void setWeaponParentTo(gltfObject* parentObj);
+    static void setTPControllerParameters(AnimatedGltfObject* obj, ThirdPersonAnimationController& c, Skin& skin);
+    static void setFPControllerParameters(AnimatedGltfObject* obj, FirstPersonAnimationController& c, Skin& skin);
+    static void setWeaponControllerParams(AnimatedGltfObject* obj, PistolAnimationController& c, Skin& skin);
+
+    static void updateThirdPersonAnimation(Entity* e, AnimatedGltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
+    static void updateFirstPersonAnimation(WEAPON_STATE state, AnimatedGltfObject* armsObject, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut);
+    static void updatePistolAnimation(AnimatedGltfObject* obj, PistolAnimationStateMachine& animMachine, PistolAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer);
+    static void updateGrenadeAnimation(AnimatedGltfObject* obj, float deltaTime, void* pMappedJointMatrixBuffer);
+
+    void loadFromFile(const std::string filename, std::string name);
 };
 
 struct SceneGraph {
-    std::vector<gltfObject> staticObjects;
-    std::vector<gltfObject> dynamicObjects;
-
-    std::vector<gltfObject*> combinedObjects;
+    std::vector<GltfObject*> staticObjects;
+    std::vector<GltfObject*> dynamicObjects;
 
     std::vector<glm::mat4> staticTransformMatrices;
     std::vector<glm::mat4> dynamicTransformMatrices;
@@ -93,7 +99,7 @@ struct SceneGraph {
     std::vector<uint32_t> indices;
     std::vector<VulkanImage> dummyTextures;
     std::vector<VulkanImage> uiTextures;
-    uint32_t numTextures;
+    uint32_t numTextures = 0;
     uint32_t numNodes = 0;
     uint32_t numAccelNodes = 0;
     uint32_t uiTextureOffset = 0;
@@ -101,18 +107,12 @@ struct SceneGraph {
 
     AABB sceneBoundingBox;
 
-    std::vector<VkSampler> imageSamplers;
-
     std::vector<MaterialInstance> materials;
     std::unordered_map<int32_t, std::vector<gltfDrawCommand>> sortedDrawCalls;
     std::unordered_map<uint32_t, std::vector<VkDrawIndexedIndirectCommand>> sortedCommands;
 
     std::vector<VkDrawIndexedIndirectCommand> staticDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> dynamicDrawCommands;
-    std::vector<VkDrawIndexedIndirectCommand> characterDrawCommands;
-    std::vector<VkDrawIndexedIndirectCommand> pistolDrawCommands;
-    std::vector<VkDrawIndexedIndirectCommand> flashDrawCommands;
-    std::vector<VkDrawIndexedIndirectCommand> tracerCommands;
 
     std::vector<DrawData> drawData;
     std::vector<GPUMaterialIndices> materialObjects;
@@ -129,6 +129,5 @@ struct SceneGraph {
 };
 
 namespace gltfutils {
-    void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, std::string debugName, bool includeInAccel, bool dynamic = false);
+    void loadTexture(GltfObject* object, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
 }
