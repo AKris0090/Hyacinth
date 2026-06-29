@@ -2,7 +2,7 @@
 
 void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkDescriptorSetLayout& irradianceVisSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples) {
 	auto spherePath = vkdebugutils::getExeDir() / "objects" / "sphere.glb";
-	sphereObject = gltfutils::loadFromFile(spherePath.string(), false);
+	gltfObject sphereObject = gltfutils::loadFromFile(spherePath.string(), "sphere", false);
 	gltfNode* node = sphereObject.allNodes[0];
 	for (const auto& p : node->primitives) {
 		for (const auto& v : p->vertices) {

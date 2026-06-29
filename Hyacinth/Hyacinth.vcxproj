@@ -149,6 +149,7 @@
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_draw.cpp" />
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_tables.cpp" />
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_widgets.cpp" />
+    <ClCompile Include="amnbient.cpp" />
     <ClCompile Include="animation.cpp" />
     <ClCompile Include="csm.cpp" />
     <ClCompile Include="fpcam.cpp" />
@@ -189,6 +190,7 @@
     <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_rectpack.h" />
     <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_textedit.h" />
     <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_truetype.h" />
+    <ClInclude Include="ambient.h" />
     <ClInclude Include="animation.h" />
     <ClInclude Include="csm.h" />
     <ClInclude Include="fpcam.h" />

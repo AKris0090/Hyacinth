@@ -136,6 +136,9 @@
     <Filter Include="Source Files\shaders\skybox">
       <UniqueIdentifier>{185e7498-ed6a-4782-8044-bdb6ff94ef03}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\core\ao">
+      <UniqueIdentifier>{e020e2b2-d51d-4f70-8adc-b0957857c6d8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -248,6 +251,9 @@
     </ClCompile>
     <ClCompile Include="skybox.cpp">
       <Filter>Source Files\renderer\core\skybox</Filter>
+    </ClCompile>
+    <ClCompile Include="amnbient.cpp">
+      <Filter>Source Files\renderer\core\ao</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -373,6 +379,9 @@
     </ClInclude>
     <ClInclude Include="skybox.h">
       <Filter>Source Files\renderer\core\skybox</Filter>
+    </ClInclude>
+    <ClInclude Include="ambient.h">
+      <Filter>Source Files\renderer\core\ao</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

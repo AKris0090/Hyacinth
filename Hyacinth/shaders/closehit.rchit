@@ -31,7 +31,7 @@ void main()
 			return;
 		}
 	}
-	vec3 radiance = vec3(0.0);
+
 	if (gl_HitKindEXT != gl_HitKindBackFacingTriangleEXT) {
 		ivec3 index = ivec3(pc.indexBufferAddress.indices[3 * gl_PrimitiveID], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 1], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 2]);
 		float b = barycentricWeights.x;

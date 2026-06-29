@@ -81,7 +81,7 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 	pistolJointBuffer = vkdeviceutils::createBuffer(pistolObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_pistol");
 }
 
-void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, uint32_t grenadeOffset, uint32_t numGrenadeCalls, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
+void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, gltfObject* characterObject, gltfObject* flashObject, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
 	for (const auto& [id, ent] : entities) {
 		pc.entityMatrix = ent->transform.getPositionMatrix();
 		pc.jointBufferAddress = entityJointBuffers[id].gpuAddress;
@@ -89,10 +89,10 @@ void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuil
 		vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pc);
 
 		if (ent->type == E_PLAYER) {
-			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, 0, numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
+			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, characterObject->drawCommandOffset, characterObject->numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 		}
 		else if (ent->type == E_GRENADE) {
-			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, grenadeOffset * sizeof(VkDrawIndexedIndirectCommand), numGrenadeCalls, sizeof(VkDrawIndexedIndirectCommand));
+			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, flashObject->drawCommandOffset, flashObject->numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 		}
 	}
 }

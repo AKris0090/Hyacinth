@@ -30,10 +30,8 @@ struct DrawData {
 
 struct gltfDrawCommand {
     bool dynamic;
-    bool isCharacter;
-    bool isPistol;
-    bool isFlash;
-    bool isTracer;
+    uint32_t    matIndex;
+    uint32_t    objectIndex;
     uint32_t    indexCount;
     uint32_t    firstIndex;
     int32_t     vertexOffset;
@@ -44,10 +42,7 @@ struct gltfDrawCommand {
 
 struct gltfObject {
     bool dynamic;
-    bool isCharacter;
-    bool isPistol;
-    bool isFlash;
-    bool isTracer;
+    std::string debugName = "";
     uint32_t firstMatrix = 0;
     uint32_t numMatrices = 0;
     uint32_t activeAnimation = 0;
@@ -65,6 +60,10 @@ struct gltfObject {
     std::vector<MaterialInstance> materials;
 
     std::unordered_set<uint32_t>* imageIsSRGB;
+
+    VkDeviceSize drawCommandOffset;
+    uint32_t numDrawCommands;
+    std::vector<gltfDrawCommand> drawCommands;
 
     ThirdPersonAnimationStateMachine* thirdPersonAnimStateMachine;
     FirstPersonAnimationStateMachine* firstPersonAnimStateMachine;
@@ -99,7 +98,6 @@ struct SceneGraph {
     uint32_t numAccelNodes = 0;
     uint32_t uiTextureOffset = 0;
     uint32_t worldUITextureOffset = 0;
-    uint32_t tracerMatIdx = 0;
 
     AABB sceneBoundingBox;
 
@@ -107,6 +105,7 @@ struct SceneGraph {
 
     std::vector<MaterialInstance> materials;
     std::unordered_map<int32_t, std::vector<gltfDrawCommand>> sortedDrawCalls;
+    std::unordered_map<uint32_t, std::vector<VkDrawIndexedIndirectCommand>> sortedCommands;
 
     std::vector<VkDrawIndexedIndirectCommand> staticDrawCommands;
     std::vector<VkDrawIndexedIndirectCommand> dynamicDrawCommands;
@@ -131,5 +130,5 @@ struct SceneGraph {
 
 namespace gltfutils {
     void loadTexture(gltfObject& node, tinygltf::Model* model, VkFormat format, uint32_t imageIndex);
-    gltfObject loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic = false, bool isCharacter = false, bool isPistol = false, bool isTracer = false, bool isFlash = false);
+    gltfObject loadFromFile(const std::string& filename, std::string debugName, bool includeInAccel, bool dynamic = false);
 }

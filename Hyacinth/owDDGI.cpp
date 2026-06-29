@@ -191,7 +191,6 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	numProbes = densityWidth * densityDepth;
 	volume.totalNumProbes = numProbes * densityHeight;
 
-	// test volume for sponza
 	volume.transform.position = pos;
 	volume.transform.rotation = glm::quat(glm::vec3(0.f)); 
 	volume.transform.scale = scale;
@@ -288,7 +287,7 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4);
 	for (int i = 0; i < m_probeVolumes.size(); i++) {
 		Transform t = m_probeVolumes[i].transform;
-		t.scale -= m_probeVolumes[i].data.spacing;
+		t.scale *= 0.3f;// m_probeVolumes[i].data.spacing;
 		volumeTransforms.push_back(t.getMatrix());
 	}
 	m_volumeVis.volumeTransformBuffers.resize(MAX_FRAMES_IN_FLIGHT);

@@ -2,7 +2,7 @@
 
 void NetDebugRenderer::setup(SWChainImageFormat& swFormat, VkSampleCountFlagBits msaaSamples, VkDescriptorSetLayout& uniformSetLayout) {
 	auto spherePath = vkdebugutils::getExeDir() / "objects" / "capsule.glb";
-	sphereObject = gltfutils::loadFromFile(spherePath.string(), false);
+	sphereObject = gltfutils::loadFromFile(spherePath.string(), "cube", false);
 	gltfNode* node = sphereObject.allNodes[0];
 	for (const auto& p : node->primitives) {
 		for (const auto& v : p->vertices) {

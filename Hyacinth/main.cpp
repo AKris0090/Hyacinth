@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -130,7 +130,8 @@ int main() {
 	PhysicsManager physicsManager;
 	physicsManager.initPhysics(false); // initialize PVD?
 	LightLoader loader;
-	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+	auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
+	// auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 	physicsManager.addCharacterController(0);
 

@@ -266,7 +266,7 @@ void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat
     imageExtents.height = curImage.height;
     imageExtents.depth = 1;
     texImage = vkimageutils::createTextureImage(rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
-    if (object.isTracer) {
+    if (object.debugName == "tracer") {
         vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
     }
     else {
@@ -375,15 +375,12 @@ void gltfObject::setWeaponParentTo(gltfObject* parentObj) {
     gunBaseNode->parent = parentObj->attachmentPoint;
 }
 
-gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isPistol, bool isTracer, bool isFlash) {
+gltfObject gltfutils::loadFromFile(const std::string& filename, std::string debugName, bool includeInAccel, bool dynamic) {
 	std::cout << "Loading GLTF file: " << filename << std::endl;
 
 	gltfObject object{};
     object.dynamic = dynamic;
-    object.isCharacter = isCharacter;
-    object.isPistol = isPistol;
-    object.isFlash = isFlash;
-    object.isTracer = isTracer;
+    object.debugName = debugName;
     object.imageIsSRGB = new std::unordered_set<uint32_t>();
     tinygltf::Model* model;
     model = new tinygltf::Model();
@@ -499,7 +496,7 @@ void SceneGraph::buildNodeBuffers(gltfNode* node) {
 
 void addUnitCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
     auto cubePath = vkdebugutils::getExeDir() / "objects" / "cubeOrigin.glb";
-    gltfObject boxObject = gltfutils::loadFromFile(cubePath.string(), false);
+    gltfObject boxObject = gltfutils::loadFromFile(cubePath.string(), "cube", false);
     gltfNode* node = boxObject.allNodes[0];
     for (const auto& p : node->primitives) {
         for (const auto& v : p->vertices) {
@@ -531,8 +528,8 @@ void SceneGraph::buildSceneGraph() {
         combinedObjects.push_back(&o);
     }
 
-    for (const auto& obj : combinedObjects) {
-        if (obj->isTracer) tracerMatIdx = materialObjects.size();
+    for (int ind = 0; ind < combinedObjects.size(); ind++) {
+        gltfObject* obj = combinedObjects[ind];
         obj->firstMatrix = obj->dynamic ? dynamicTransformMatrices.size() : staticTransformMatrices.size();
         uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
         for (const auto& node: obj->allNodes) {
@@ -549,11 +546,8 @@ void SceneGraph::buildSceneGraph() {
 				uint32_t matIndex = prim->materialIndex + mat_offset;
 
                 gltfDrawCommand draw{};
-                draw.isCharacter = obj->isCharacter;
-                draw.isPistol = obj->isPistol;
-                draw.isFlash = obj->isFlash;
                 draw.dynamic = obj->dynamic;
-                draw.isTracer = obj->isTracer;
+                draw.objectIndex = ind;
                 draw.firstIndex = firstIndex;
                 draw.indexCount = static_cast<uint32_t>(prim->indices.size());
                 draw.vertexCount = prim->vertices.size();
@@ -607,36 +601,32 @@ void SceneGraph::buildSceneGraph() {
 		numTextures += static_cast<uint32_t>(obj->textures.size());
     }
 
-    uint32_t drawCounter = 0;
+    // sorting first by material index so that texture lookups have better cache rates
     for (int matIndex = 0; matIndex < materialObjects.size(); matIndex++) {
         auto& draws = sortedDrawCalls[matIndex];
-        for (const auto& gltfDraw : draws) {
+        for (auto& gltfDraw : draws) {
+            gltfDraw.matIndex = matIndex;
+            combinedObjects[gltfDraw.objectIndex]->drawCommands.push_back(gltfDraw);
+        }
+    }
+
+    uint32_t drawCounter = 0;
+    for (const auto& object : combinedObjects) {
+        object->drawCommandOffset = (object->dynamic ? dynamicDrawCommands.size() : staticDrawCommands.size()) * sizeof(VkDrawIndexedIndirectCommand);
+        object->numDrawCommands = static_cast<uint32_t>(object->drawCommands.size());
+        for (const auto& gltfDraw : object->drawCommands) {
+            DrawData primDrawData{};
+            primDrawData.materialIndex = gltfDraw.matIndex;
+            primDrawData.transformIndex = gltfDraw.transformIndex;
+
             VkDrawIndexedIndirectCommand drawCmd{};
             drawCmd.firstIndex = gltfDraw.firstIndex;
             drawCmd.indexCount = gltfDraw.indexCount;
             drawCmd.instanceCount = 1;
             drawCmd.firstInstance = drawCounter;
 
-            DrawData primDrawData{};
-            primDrawData.materialIndex = matIndex;
-            primDrawData.transformIndex = gltfDraw.transformIndex;
-
             drawData.push_back(primDrawData);
-            if (gltfDraw.isCharacter) {
-                characterDrawCommands.push_back(drawCmd);
-            }
-            else if (gltfDraw.isPistol) {
-                pistolDrawCommands.push_back(drawCmd);
-            }
-            else if (gltfDraw.isFlash) {
-                flashDrawCommands.push_back(drawCmd);
-            }
-            else if (gltfDraw.isTracer) {
-                tracerCommands.push_back(drawCmd);
-            }
-            else {
-                gltfDraw.dynamic ? dynamicDrawCommands.push_back(drawCmd) : staticDrawCommands.push_back(drawCmd);
-            }
+            gltfDraw.dynamic ? dynamicDrawCommands.push_back(drawCmd) : staticDrawCommands.push_back(drawCmd);
             boundingBoxes.push_back(gltfDraw.boundingBox);
 
             drawCounter++;

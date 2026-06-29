@@ -9,8 +9,6 @@ class volumeVisHelper {
 	uint32_t volumeCount;
 	
 	VulkanPipelineBuilder pipelineUtil;
-
-	gltfObject boxObject;
 	
 	struct volumePushContant {
 		VkDeviceAddress volumeTransformAddress;

@@ -79,5 +79,4 @@ void SkyboxHelper::shutdown() {
     vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_skyboxSetLayout, nullptr);
 
     m_skyboxPipelineUtil.destroyPipeline();
-    vkDestroyPipelineLayout(vkdeviceutils::device, m_skyboxPipelineUtil.m_pipeline.layout, nullptr);
 }

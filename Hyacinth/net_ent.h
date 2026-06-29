@@ -89,7 +89,7 @@ public:
 	
 	void setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
-	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, uint32_t numDrawCommands, uint32_t grenadeOffset, uint32_t numGrenadeCalls, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
+	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, gltfObject* characterObject, gltfObject* flashObject, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
 	void shutdown();
 	void clearPendingPackets(Entity* self);
 };

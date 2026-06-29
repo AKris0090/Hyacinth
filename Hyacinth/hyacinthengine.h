@@ -136,10 +136,6 @@ private:
 	bool ambientToggle = false;
 	uint32_t  m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
-	uint32_t characterDrawOffset = 0;
-	uint32_t pistolDrawOffset = 0;
-	uint32_t flashDrawOffset = 0;
-	uint32_t tracerDrawOffset = 0;
 	uint32_t maxTracers = 10;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
@@ -190,6 +186,14 @@ private:
 	SkyboxHelper					m_skyboxHelper;
 
 	VulkanBuffer					m_grenadeJMBuffer;
+
+	// world stuff
+	gltfObject* worldObject;
+	gltfObject* armsObject;
+	gltfObject* characterObject;
+	gltfObject* gunObject;
+	gltfObject* tracerObject;
+	gltfObject* flashObject;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();
