@@ -80,6 +80,7 @@ struct UBO {
 struct GBuffer {
 	VulkanImage albedo;
 	VulkanImage normal;
+	VulkanImage AMR;
 
 	VulkanImage stencilDepth;
 	VulkanImage ddgiImage;
@@ -186,6 +187,8 @@ private:
 	VkDescriptorSetLayout			m_textureSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_shadowSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };
+	VkDescriptorSetLayout			m_diffuseSetLayout		{ VK_NULL_HANDLE };
+	VkDescriptorSetLayout			m_specularSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_compositeSetLayout	{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_postProcessSetLayout	{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;

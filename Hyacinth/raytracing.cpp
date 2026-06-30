@@ -55,7 +55,7 @@ static void primitiveToGeometry(gltfNode* node, VkAccelerationStructureGeometryK
         .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
         .vertexData = {.deviceAddress = node->accelStructureVertexBuffer.gpuAddress },
         .vertexStride = sizeof(glm::vec3),
-        .maxVertex = static_cast<uint32_t>(node->vertices.size()) - 1,
+        .maxVertex = node->numVertices - 1,
         .indexType = VK_INDEX_TYPE_UINT32,
         .indexData = {.deviceAddress = node->accelStructureIndexBuffer.gpuAddress },
     };
@@ -126,13 +126,13 @@ void rtHelper::createBottomLevelAS(SceneGraph& scene) {
     uint32_t id = 0;
     for(const auto& obj : scene.staticObjects) {
         for (const auto& node : obj->allNodes) {
-            if (!node->includeInAccel || node->vertices.empty() || node->indices.empty()) {
+            if (!node->includeInAccel) {
                 std::cout << "Node " << id << " has no geometry, skipping BLAS creation." << std::endl;
                 continue;
 			}
             VkAccelerationStructureGeometryKHR       asGeometry{};
             VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
-            primitiveToGeometry(node, asGeometry, asBuildRangeInfo);
+            primitiveToGeometry(node, asGeometry, asBuildRangeInfo); // turn the primitives into BLAS instances
             createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR, m_blAccelStructures[id], asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
             id++;
         }
@@ -154,7 +154,7 @@ void rtHelper::createTopLevelAS(SceneGraph& scene) {
     uint32_t meshIndex = 0;
     for(const auto& obj : scene.staticObjects) {
         for (const auto& node : obj->allNodes) {
-            if (node->includeInAccel == false || node->vertices.empty() || node->indices.empty()) {
+            if (node->includeInAccel == false) {
                 std::cerr << "Warning: Node " << meshIndex << " is marked as not included in acceleration structure or has no geometry, skipping TLAS instance creation." << std::endl;
                 continue;
 			}

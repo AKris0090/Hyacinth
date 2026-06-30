@@ -6,8 +6,9 @@ const float PI = 3.141592653;
 
 layout 	(set = 0, binding = 0) uniform sampler2D albedoMap;
 layout 	(set = 0, binding = 1) uniform sampler2D normalMap;
-layout	(set = 0, binding = 2) uniform sampler2D depthMap;
-layout  (set = 0, binding = 3) uniform sampler2D ddgiImage;
+layout 	(set = 0, binding = 2) uniform sampler2D AMRMap;
+layout	(set = 0, binding = 3) uniform sampler2D depthMap;
+layout  (set = 0, binding = 4) uniform sampler2D ddgiImage;
 
 layout(set = 1, binding = 0) uniform UniformBufferObject {
 	mat4 view;

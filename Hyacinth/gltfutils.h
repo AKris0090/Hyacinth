@@ -88,7 +88,8 @@ public:
     void loadFromFile(const std::string filename, std::string name);
 };
 
-struct SceneGraph {
+class SceneGraph {
+public:
     std::vector<GltfObject*> staticObjects;
     std::vector<GltfObject*> dynamicObjects;
 
@@ -107,6 +108,8 @@ struct SceneGraph {
 
     AABB sceneBoundingBox;
 
+    std::vector<GltfObject*> combinedObjects;
+
     std::vector<MaterialInstance> materials;
     std::unordered_map<int32_t, std::vector<gltfDrawCommand>> sortedDrawCalls;
     std::unordered_map<uint32_t, std::vector<VkDrawIndexedIndirectCommand>> sortedCommands;
@@ -120,7 +123,9 @@ struct SceneGraph {
     std::vector<AABB> boundingBoxes;
     VulkanBuffer boundingBuffer;
     
+    SceneGraph();
     void buildNodeBuffers(gltfNode* node);
+    void offloadObject(GltfObject* obj);
     void buildSceneGraph();
     void createDummySkyboxTextures(VulkanImage& skyboxImage);
     void createUITextures();

@@ -68,7 +68,11 @@ void VulkanPipelineBuilder::buildPipeline() {
     attachment2.blendEnable = VK_FALSE;
     attachment2.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
-	std::array<VkPipelineColorBlendAttachmentState, 2> blendAttachments = { m_colorBlendAttachment, attachment2 };
+    VkPipelineColorBlendAttachmentState attachment3{};
+    attachment3.blendEnable = VK_FALSE;
+    attachment3.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+	std::array<VkPipelineColorBlendAttachmentState, 3> blendAttachments = { m_colorBlendAttachment, attachment2, attachment3 };
 
     VkPipelineColorBlendStateCreateInfo colorBlending = {};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;

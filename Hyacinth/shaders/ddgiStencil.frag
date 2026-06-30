@@ -16,7 +16,7 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
-layout	(set = 1, binding = 2) uniform sampler2D depthMap;
+layout	(set = 1, binding = 3) uniform sampler2D depthMap;
 
 layout(buffer_reference, std430) readonly buffer VolumeTransformBuffer { 
 	mat4 transforms[];

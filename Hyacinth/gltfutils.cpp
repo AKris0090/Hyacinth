@@ -18,10 +18,8 @@ AABB getWorldSpaceBoundingBox(gltfNode* node) {
     bounds.min = glm::vec4(glm::vec3(FLT_MAX), 1.f);
     bounds.max = glm::vec4(glm::vec3(FLT_MIN), 1.f);
     glm::mat4 worldMatrix = getNodeMatrix(node);
-    for (const auto& p : node->primitives) {
-        for (const auto& v : p->vertices) {
-            bounds.grow(worldMatrix * glm::vec4(v.pos.x, v.pos.y, v.pos.z, 1.f));
-        }
+    for (const auto& v : node->vertices) {
+        bounds.grow(worldMatrix * glm::vec4(v.pos.x, v.pos.y, v.pos.z, 1.f));
     }
     for (const auto& n : node->children) {
         bounds.grow(getWorldSpaceBoundingBox(n));
@@ -563,88 +561,90 @@ void addUnitCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) 
     }
 }
 
-void SceneGraph::buildSceneGraph() {
+SceneGraph::SceneGraph() {
     FullscreenQuad::addFullscreenQuad(vertices, indices);
     addUnitCube(vertices, indices);
+}
 
-    std::vector<GltfObject*> combinedObjects;
-    for (auto& o : staticObjects) {
-        combinedObjects.push_back(o);
-    }
-    for (auto& o : dynamicObjects) {
-        combinedObjects.push_back(o);
-    }
+void SceneGraph::offloadObject(GltfObject* obj) {
+    combinedObjects.push_back(obj);
+    obj->dynamic ? dynamicObjects.push_back(obj) : staticObjects.push_back(obj);
 
-    for (int ind = 0; ind < combinedObjects.size(); ind++) {
-        GltfObject* obj = combinedObjects[ind];
-        uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
-        for (const auto& node: obj->allNodes) {
+    uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
+    for (const auto& node : obj->allNodes) {
+        if (obj->dynamic) {
+            dynamicTransformMatrices.push_back(node->localTransform.getMatrix());
+        }
+        else {
+            staticTransformMatrices.push_back(node->localTransform.getMatrix());
+        }
+        for (const auto& prim : node->primitives) {
+            uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
+            uint32_t firstIndex = static_cast<uint32_t>(indices.size());
+            uint32_t matIndex = prim->materialIndex + mat_offset;
+
+            gltfDrawCommand draw{};
+            draw.dynamic = obj->dynamic;
+            draw.objectIndex = combinedObjects.size() - 1;
+            draw.firstIndex = firstIndex;
+            draw.indexCount = static_cast<uint32_t>(prim->indices.size());
+            draw.vertexCount = prim->vertices.size();
+            draw.boundingBox = getBoundingBox(prim->vertices);
             if (obj->dynamic) {
-                dynamicTransformMatrices.push_back(node->localTransform.getMatrix());
+                draw.transformIndex = dynamicTransformMatrices.size() - 1;
             }
             else {
-                staticTransformMatrices.push_back(node->localTransform.getMatrix());
-            }
-            for (const auto& prim : node->primitives) {
-                uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
-                uint32_t firstIndex = static_cast<uint32_t>(indices.size());
-				uint32_t matIndex = prim->materialIndex + mat_offset;
-
-                gltfDrawCommand draw{};
-                draw.dynamic = obj->dynamic;
-                draw.objectIndex = ind;
-                draw.firstIndex = firstIndex;
-                draw.indexCount = static_cast<uint32_t>(prim->indices.size());
-                draw.vertexCount = prim->vertices.size();
-                draw.boundingBox = getBoundingBox(prim->vertices);
-                if (obj->dynamic) {
-                    draw.transformIndex = dynamicTransformMatrices.size() - 1;
-                }
-                else {
-                    draw.transformIndex = staticTransformMatrices.size() - 1;
-                }
-
-                for (const auto& v : prim->vertices) {
-                    vertices.push_back(v);
-                }
-                for (const auto& index : prim->indices) {
-                    indices.push_back(index + firstVertex);
-				}
-
-                // acceleration structure-specific
-                uint32_t nodeVertOffset = node->vertices.size();
-                for (const auto& v : prim->vertices) {
-                    node->vertices.push_back(v);
-                }
-                for (const auto& i : prim->indices) {
-                    node->indices.push_back(i + nodeVertOffset);
-                }
-
-                sortedDrawCalls[matIndex].push_back(draw);
+                draw.transformIndex = staticTransformMatrices.size() - 1;
             }
 
-            numNodes++;
-            if (node->includeInAccel && node->vertices.size() > 0 && node->indices.size() > 0) {
-				numAccelNodes++;
-                sceneBoundingBox.grow(getWorldSpaceBoundingBox(node));
+            for (const auto& v : prim->vertices) {
+                vertices.push_back(v);
+            }
+            for (const auto& index : prim->indices) {
+                indices.push_back(index + firstVertex);
             }
 
-            // for acceleration structures
-            buildNodeBuffers(node);
-		}
-        
-        for (const auto& mat : obj->materials) {
-            GPUMaterialIndices newMatIndices{};
-            newMatIndices.baseColorIndex = (mat.baseColorIndex == DUMMY_COLOR_TEX_INDEX) ? DUMMY_COLOR_TEX_INDEX : mat.baseColorIndex + numTextures;
-            newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + numTextures;
-            newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + numTextures;
-            newMatIndices.alphaCutoff = mat.alphaCutoff;
-            materialObjects.push_back(newMatIndices);
+            // acceleration structure-specific
+            uint32_t nodeVertOffset = node->vertices.size();
+            for (auto v : prim->vertices) {
+                node->vertices.push_back(v);
+            }
+            for (auto i : prim->indices) {
+                node->indices.push_back(i + nodeVertOffset);
+            }
+
+            prim->vertices.clear();
+            prim->indices.clear();
+
+            sortedDrawCalls[matIndex].push_back(draw);
         }
 
-		numTextures += static_cast<uint32_t>(obj->textures.size());
+        node->numVertices = node->vertices.size();
+        node->numIndices = node->indices.size();
+
+        numNodes++;
+        if (node->includeInAccel && node->vertices.size() > 0 && node->indices.size() > 0) {
+            numAccelNodes++;
+            sceneBoundingBox.grow(getWorldSpaceBoundingBox(node));
+        }
+
+        // for acceleration structures
+        buildNodeBuffers(node);
     }
 
+    for (const auto& mat : obj->materials) {
+        GPUMaterialIndices newMatIndices{};
+        newMatIndices.baseColorIndex = (mat.baseColorIndex == DUMMY_COLOR_TEX_INDEX) ? DUMMY_COLOR_TEX_INDEX : mat.baseColorIndex + numTextures;
+        newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + numTextures;
+        newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + numTextures;
+        newMatIndices.alphaCutoff = mat.alphaCutoff;
+        materialObjects.push_back(newMatIndices);
+    }
+
+    numTextures += static_cast<uint32_t>(obj->textures.size());
+}
+
+void SceneGraph::buildSceneGraph() {
     // sorting first by material index so that texture lookups have better cache rates
     for (int matIndex = 0; matIndex < materialObjects.size(); matIndex++) {
         auto& draws = sortedDrawCalls[matIndex];

@@ -30,8 +30,10 @@ struct gltfNode {
     bool lowerBody = false;
 
     std::vector<Vertex> vertices;
+    uint32_t numVertices = 0;
     VulkanBuffer accelStructureVertexBuffer;
     std::vector<uint32_t> indices;
+    uint32_t numIndices = 0;
     VulkanBuffer accelStructureIndexBuffer;
 
     std::vector<float> queuedYawShifts;

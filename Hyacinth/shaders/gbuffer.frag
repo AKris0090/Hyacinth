@@ -41,6 +41,7 @@ layout(set = 2, binding = 0) uniform sampler2D globalTextures2D[];
 
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outNormal;
+layout(location = 2) out vec4 outAMR;
 
 vec2 ComputeReceiverPlaneDepthBias(vec3 texCoordDX, vec3 texCoordDY)
 {
@@ -183,4 +184,6 @@ void main() {
 
 	N = N * 0.5 + 0.5; // packing the normal
     outNormal = vec4(N, shadow);
+
+	outAMR = vec4(1.0, metalRough.x, metalRough.y, 1.0);
 }
