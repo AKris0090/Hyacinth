@@ -10,7 +10,7 @@ layout	(location = 2) in vec4 inTangent;
 layout  (location = 3) in vec4 jointIndex;
 layout  (location = 4) in vec4 jointWeight;
 
-layout	(location = 0) flat out int matIndex;
+layout	(location = 0) flat out uint matIndex;
 layout  (location = 1) out vec4 viewPos;
 layout  (location = 2) out vec4 outNormal;
 layout	(location = 3) out vec4 fragPos;
@@ -32,12 +32,8 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 
 layout( push_constant ) uniform constants
 {
-	mat4 entityTransformMatrix;
-	TransformBuffer transformBuffer;
-	DrawDataBuffer drawDataBuffer;
-	JointMatricesBuffer jmBuffer;
+	RenderCallBuffer renderCallBuffer;
 	MaterialBuffer materialBuffer;
-    VolumeDataBuffer volumeDataBuffer;
 } pc;
 
 void main() 

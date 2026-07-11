@@ -38,6 +38,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "staticgameobject.h"
+#include "animatedgameobject.h"
+
 #ifdef NDEBUG
 const bool enableValLayers = false;
 #else
@@ -102,16 +105,12 @@ public:
 	WorldHealthManager				m_worldHealthManager;
 	std::mutex camMutex;
 	Camera m_camera;
-	SceneGraph						m_scene{};
 	TracerManager					m_tracerManager;
 
-	// all objects
-	GltfObject* worldObject;
-	GltfObject* tracerObject;
-	AnimatedGltfObject* armsObject;
-	AnimatedGltfObject* characterObject;
-	AnimatedGltfObject* gunObject;
-	AnimatedGltfObject* flashObject;
+	HAssetDrawer					m_assetDrawer;
+
+	std::vector<HStaticGameObject*> m_staticObjects;
+	std::vector<HAnimatedGameObject*> m_animatedObjects;
 
 #ifdef DEBUG_NETWORK
 	NetDebugRenderer m_netDebugRenderer;
@@ -124,12 +123,16 @@ public:
 	void draw();
 	void cleanup();
 
+	void addStaticGameObject(HStaticGameObject* gameObjectRef);
+	void addAnimatedGameObject(HAnimatedGameObject* gameObjectRef);
+
 private:
 	struct perFrame {
 		VkCommandPool	commandPool;
 		VkCommandBuffer commandBuffer;
 		VulkanBuffer	uniformBuffer;
-		VulkanBuffer	tracerTransformBuffer;
+		VulkanBuffer					m_indirectDrawBuffer{};
+		VulkanBuffer					m_renderListBuffer{};
 		void*			mappedUniformBuffer;
 		VkDescriptorSet uniformDescriptorSet;
 		VkDescriptorSet shadowDescriptorSet;
@@ -143,7 +146,7 @@ private:
 	bool m_initialized = false;
 	bool m_showImGui = false;
 	bool ambientToggle = false;
-	uint32_t  m_frameIndex = 0;
+	uint32_t m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t maxTracers = 10;
 	VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -172,21 +175,23 @@ private:
 	VulkanPipelineBuilder			m_skinnedPipelineUtil   {};
 	VulkanPipelineBuilder			m_volumeStencilPipeline	{};
 	VulkanPipelineBuilder			m_fxaaPipelineUtil		{};
-	VulkanBuffer					m_vertexBuffer			{};
-	VulkanBuffer					m_indexBuffer			{};
-	VulkanBuffer					m_aabbBuffer			{};
-	VulkanBuffer 					m_staticIndirectDrawBuffer{};
-	VulkanBuffer					m_dynamicIndirectDrawBuffer{};
-	VulkanBuffer 					m_staticWorldMatrixBuffer{};
-	std::vector<VulkanBuffer>		m_dynamicWorldMatrixBuffer{};
-	VulkanBuffer					m_drawDataBuffer		{};
-	VulkanBuffer					m_materialBuffer		{};
+
+	VulkanBuffer					m_skinnedVertexBuffer   {};
+
+	std::vector<HRenderCall>		m_renderList;
+
+	uint32_t dynamicDrawCommandOffset = 0;
+	std::vector<VkDrawIndexedIndirectCommand> m_drawCommands; // includes static and dynamic
+
 	perFrame						m_uploadFrame			{};
+
 	DescriptorAllocator				m_descriptorAllocator	{};
 	DescriptorAllocator				m_imGuiAllocator		{};
+
 	VkDescriptorSetLayout			m_textureSetLayout		{ VK_NULL_HANDLE };
+	VkDescriptorSet					m_textureSet{ VK_NULL_HANDLE };
+
 	VkDescriptorSetLayout			m_shadowSetLayout		{ VK_NULL_HANDLE };
-	VkDescriptorSet					m_textureSet			{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_diffuseSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_specularSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_compositeSetLayout	{ VK_NULL_HANDLE };
@@ -195,10 +200,8 @@ private:
 	rtHelper						m_rtHelper;
 	owDDGI							m_owDDGIHelper;
 	FrustumCullHelper				m_frustumCullHelper;
-	HyacinthUIManager				m_uiHelper;
+	// HyacinthUIManager				m_uiHelper;
 	SkyboxHelper					m_skyboxHelper;
-
-	VulkanBuffer					m_grenadeJMBuffer;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();
@@ -216,7 +219,9 @@ private:
 	void createDescriptorSets();
 	void setupImGUI();
 	void drawImGui();
-	void loadScene();
+	void loadAssets();
+	void generateRenderList();
+	void generateDrawCommands();
 	void update();
 	void setupDraw();
 	void endDraw();

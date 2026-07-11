@@ -5,7 +5,7 @@
 #include "shadowCommon.glsl"
 #include "bufferInfo.glsl"
 
-layout	(location = 0) flat in int matIndex;
+layout	(location = 0) flat in uint matIndex;
 layout  (location = 1) in vec4 viewPos;
 layout  (location = 2) in vec4 inNormal;
 layout	(location = 3) in vec4 fragPos;
@@ -29,12 +29,8 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 
 layout( push_constant ) uniform constants
 {
-	mat4 entityTransformMatrix;
-	TransformBuffer transformBuffer;
-	DrawDataBuffer drawDataBuffer;
-	JointMatricesBuffer jmBuffer;
+	RenderCallBuffer renderCallBuffer;
 	MaterialBuffer materialBuffer;
-    VolumeDataBuffer volumeDataBuffer;
 } pc;
 
 layout(set = 2, binding = 0) uniform sampler2D globalTextures2D[];
@@ -178,12 +174,12 @@ void main() {
 	N = normalize(TBNMatrix * N);
 
 	float nDotL = clamp(dot(N, normalize(ubo.lightPos.xyz)), 0.0, 1.0);
-	float shadow = shadowTest(fragPos.xyz, -viewPos.z, nDotL, N);
+	// float shadow = shadowTest(fragPos.xyz, -viewPos.z, nDotL, N);
 
     outAlbedo = vec4(sampledColor.rgb, metalRough.x);
 
 	N = N * 0.5 + 0.5; // packing the normal
-    outNormal = vec4(N, shadow);
+    outNormal = vec4(N, 1.0); // vec4(N, shadow);
 
 	outAMR = vec4(1.0, metalRough.x, metalRough.y, 1.0);
 }

@@ -14,14 +14,10 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 			entities[e.id]->type = e.type;
 			entities[e.id]->id = e.id;
 			if (entities[e.id]->type == E_PLAYER) {
-				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
-				entityAnimationControllers[e.id] = ThirdPersonAnimationController();
-				AnimatedGltfObject::setTPControllerParameters(characterObject, entityAnimationControllers[e.id], characterObject->skins[0]);
+				characterObjects[e.id] = new HTPCharacter(characterMeshRef);
 			}
 			else {
-				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(grenadeObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
-				glm::mat4 id(1.f);
-				memcpy(entityJointBuffers[e.id].pMappedData, &id, sizeof(glm::mat4));
+				// add grenade obejct to entityGameObjects
 			}
 		}
 		entities[e.id]->transform.position = e.transform.position;
@@ -35,22 +31,18 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 	}
 	for (const auto& [id, ent] : entities) {
 		if (!ent->updated) {
-			if (ent->type = E_PLAYER) {
-				entityAnimationControllers.erase(id);
-				vkdeviceutils::destroyBuffer(entityJointBuffers[id]);
-				entityJointBuffers.erase(id);
-			}
 			entities.erase(id);
 			continue;
 		}
 		ent->updated = false; // reset flag
 		if (ent->type == E_PLAYER) {
-			AnimatedGltfObject::updateThirdPersonAnimation(ent, characterObject, *characterObject->thirdPersonAnimStateMachine, entityAnimationControllers[id], deltaTime, entityJointBuffers[id].pMappedData);
+			characterObjects[ent->id]->updateAnimation(deltaTime);
 		}
 	}
 }
 
-void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID) {
+void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh* characterMesh, uint32_t currentClientID) {
+	characterMeshRef = characterMeshRef;
 	if (p.entities.size() > 0) {
 		for (const auto& e : p.entities) {
 			if (e.id == currentClientID) continue;
@@ -62,39 +54,29 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, uint32_t cur
 			if (newEnt->type == E_PLAYER) {
 				newEnt->transform.pitch = e.transform.pitch;
 				newEnt->transform.yaw = e.transform.yaw;
-				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(characterObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
-				entityAnimationControllers[e.id] = ThirdPersonAnimationController();
-				AnimatedGltfObject::setTPControllerParameters(characterObject, entityAnimationControllers[e.id], characterObject->skins[0]);
+				characterObjects[e.id] = new HTPCharacter(characterMeshRef);
 			}
-			else if (newEnt->type == E_GRENADE) {
-				entityJointBuffers[e.id] = vkdeviceutils::createBuffer(grenadeObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
-				glm::mat4 id(1.f);
-				memcpy(entityJointBuffers[e.id].pMappedData, &id, sizeof(glm::mat4));
-			}
+			// else if (newEnt->type == E_GRENADE) {
+
+			// }
 		}
 	}
-
-	AnimatedGltfObject::setFPControllerParameters(firstPersonObject, firstPersonAnimationController, firstPersonObject->skins[0]);
-	firstPersonJointBuffer = vkdeviceutils::createBuffer(firstPersonObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_fp");
-
-	AnimatedGltfObject::setWeaponControllerParams(pistolObject, pistolAnimationController, pistolObject->skins[0]);
-	pistolJointBuffer = vkdeviceutils::createBuffer(pistolObject->skinSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer_pistol");
 }
 
-void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, AnimatedGltfObject* characterObject, AnimatedGltfObject* flashObject, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
-	for (const auto& [id, ent] : entities) {
-		pc.entityMatrix = ent->transform.getPositionMatrix();
-		pc.jointBufferAddress = entityJointBuffers[id].gpuAddress;
-
-		vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pc);
-
-		if (ent->type == E_PLAYER) {
-			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, characterObject->drawCommandOffset, characterObject->numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
-		}
-		else if (ent->type == E_GRENADE) {
-			vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, flashObject->drawCommandOffset, flashObject->numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
-		}
-	}
+void NetworkEntityManager::drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc) {
+	// for (const auto& [id, ent] : entities) {
+	// 	pc.entityMatrix = ent->transform.getPositionMatrix();
+	// 	pc.jointBufferAddress = entityJointBuffers[id].gpuAddress;
+	// 
+	// 	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pc);
+	// 
+	// 	if (ent->type == E_PLAYER) {
+	// 		vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, characterObject->drawCommandOffset, characterObject->numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
+	// 	}
+	// 	else if (ent->type == E_GRENADE) {
+	// 		vkCmdDrawIndexedIndirect(cmd, dynamicIndirectBuffer.buffer, flashObject->drawCommandOffset, flashObject->numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
+	// 	}
+	// }
 }
 
 void NetworkEntityManager::clearPendingPackets(Entity* self) {
@@ -158,13 +140,7 @@ void NetworkEntityManager::clearPendingPackets(Entity* self) {
 	}
 }
 
-void NetworkEntityManager::shutdown() {
-	for (auto& [id, buff] : entityJointBuffers) {
-		vkdeviceutils::destroyBuffer(buff);
-	}
-	vkdeviceutils::destroyBuffer(firstPersonJointBuffer);
-	vkdeviceutils::destroyBuffer(pistolJointBuffer);
-}
+void NetworkEntityManager::shutdown() {}
 
 std::pair<Transform, Transform> RewindBuffer::rewindState(Transform newTransform, uint32_t tickNum) {
 	std::shared_lock<std::shared_mutex> lock(rBMutex);

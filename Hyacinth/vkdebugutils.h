@@ -30,7 +30,7 @@
     if (vkdebugutils::EndDebugLabel) \
         vkdebugutils::EndDebugLabel(cmd);
 
-const std::vector<const char*> validationLayers = {
+const static std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
 

@@ -602,7 +602,7 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint3
 		scissor.extent = extent;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numDraws, sizeof(VkDrawIndexedIndirectCommand));
+		// vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numDraws, sizeof(VkDrawIndexedIndirectCommand));
 		vkCmdEndRendering(cmd);
 
 		VK_LABEL_END(cmd);

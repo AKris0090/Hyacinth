@@ -61,9 +61,9 @@ void owDDGI::createRaytraceDescriptors() {
 
 void owDDGI::createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo)
 {
-	uint32_t handleSize = m_rtHelper->m_rtProperties.shaderGroupHandleSize;
-	uint32_t handleAlignment = m_rtHelper->m_rtProperties.shaderGroupHandleAlignment;
-	uint32_t baseAlignment = m_rtHelper->m_rtProperties.shaderGroupBaseAlignment;
+	uint32_t handleSize = rt::s_rtProperties.shaderGroupHandleSize;
+	uint32_t handleAlignment = rt::s_rtProperties.shaderGroupHandleAlignment;
+	uint32_t baseAlignment = rt::s_rtProperties.shaderGroupBaseAlignment;
 	uint32_t groupCount = rtPipelineInfo.groupCount;
 
 	size_t dataSize = handleSize * groupCount;
@@ -170,7 +170,7 @@ void owDDGI::createRaytracePipeline()
 	rtPipelineInfo.pStages = stages.data();
 	rtPipelineInfo.groupCount = static_cast<uint32_t>(shader_groups.size());
 	rtPipelineInfo.pGroups = shader_groups.data();
-	rtPipelineInfo.maxPipelineRayRecursionDepth = std::max(3U, m_rtHelper->m_rtProperties.maxRayRecursionDepth);
+	rtPipelineInfo.maxPipelineRayRecursionDepth = std::max(3U, rt::s_rtProperties.maxRayRecursionDepth);
 	rtPipelineInfo.layout = m_rtPipeline.layout;
 	rt::CreatePipeline(vkdeviceutils::device, {}, {}, 1, & rtPipelineInfo, nullptr, &m_rtPipeline.pipeline);
 
@@ -272,7 +272,7 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	m_probeVolumes.push_back(volume);
 }
 
-void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
+void owDDGI::setup(rtHelper* rtHelper) {
 	m_rtHelper = rtHelper;
 
 	glm::vec3 posA = glm::vec3(-16.044f, -1.4202f, -9.08f);
@@ -309,24 +309,26 @@ void owDDGI::setup(rtHelper* rtHelper, SceneGraph& m_scene) {
 	m_visibilityComputePipeline = vkpipelineutils::createComputePipeline(&m_computeDescriptorLayout, 1, &computePCRange, 1, "shaders/visibilityComp.spv");
 
 	std::vector<DDGIVertex> vertices;
+	vertices.push_back(DDGIVertex{ .pos = glm::vec4(0.f), .normal = glm::vec4(0.f) });
 	std::vector<uint32_t> indices;
-	for (const auto& object : m_scene.staticObjects) {
-		for (const auto& node : object->allNodes) {
-			if (!node->includeInAccel) continue;
-
-			uint32_t startIndex = static_cast<uint32_t>(vertices.size());
-			for (const auto& v : node->vertices) {
-				DDGIVertex vD{
-					.pos = v.pos,
-					.normal = v.normal
-				};
-				vertices.push_back(vD);
-			}
-			for(const auto& idx : node->indices) {
-				indices.push_back(idx + startIndex);
-			}
-		}
-	}
+	indices.push_back(0);
+	// for (const auto& object : m_scene.staticObjects) {
+	// 	for (const auto& node : object->allNodes) {
+	// 		if (!node->includeInAccel) continue;
+	// 
+	// 		uint32_t startIndex = static_cast<uint32_t>(vertices.size());
+	// 		for (const auto& v : node->vertices) {
+	// 			DDGIVertex vD{
+	// 				.pos = v.pos,
+	// 				.normal = v.normal
+	// 			};
+	// 			vertices.push_back(vD);
+	// 		}
+	// 		for(const auto& idx : node->indices) {
+	// 			indices.push_back(idx + startIndex);
+	// 		}
+	// 	}
+	// }
 
 	VkDeviceSize vertexBufferSize = vertices.size() * sizeof(DDGIVertex);
 	VkDeviceSize indexBufferSize = indices.size() * sizeof(uint32_t);
@@ -375,20 +377,20 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
 			vkimageutils::transitionImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 			vkCmdClearColorImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue.color, 1, &subResourceRange);
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.pipeline);
-
-			std::array<VkDescriptorSet, 1> sets = { volume.rayDataDescriptorSet };
-
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.layout, 0, 1, sets.data(), 0, nullptr);
-
-			ddgiPushConstant ddgiPC{
-				.probePositionBufferAddress = volume.probePositionBuffer.gpuAddress,
-				.vertexAddress = closestHitVertexBuffer.gpuAddress,
-				.indexAddress = closestHitIndexBuffer.gpuAddress,
-				.volumeDataAddress = volumeDataBuffer.gpuAddress,
-				.volumeIndex = i
-			};
-			vkCmdPushConstants(cmd, m_rtPipeline.layout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);
+			// vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.pipeline);
+			// 
+			// std::array<VkDescriptorSet, 1> sets = { volume.rayDataDescriptorSet };
+			// 
+			// vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.layout, 0, 1, sets.data(), 0, nullptr);
+			// 
+			// ddgiPushConstant ddgiPC{
+			// 	.probePositionBufferAddress = volume.probePositionBuffer.gpuAddress,
+			// 	.vertexAddress = closestHitVertexBuffer.gpuAddress,
+			// 	.indexAddress = closestHitIndexBuffer.gpuAddress,
+			// 	.volumeDataAddress = volumeDataBuffer.gpuAddress,
+			// 	.volumeIndex = i
+			// };
+			// vkCmdPushConstants(cmd, m_rtPipeline.layout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);
 
 			vkimageutils::transitionImage(cmd, volume.irradianceImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 			vkCmdClearColorImage(cmd, volume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, &irradianceClearValue.color, 1, &subResourceRange);
@@ -397,45 +399,45 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet) {
 			vkCmdClearColorImage(cmd, volume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue.color, 1, &subResourceRange);
 
 			// x should be num rays, y should be num probes per layer, z should be num probes vertically
-			rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, static_cast<uint32_t>(volume.data.inverseSpacing.w), volume.data.densityWidth * volume.data.densityDepth, volume.data.densityHeight);
-			vkimageutils::transitionImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-			// radiance
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline.pipeline);
-
-			ComputePushConstant compPC{
-				.volumeDataAddress = volumeDataBuffer.gpuAddress,
-				.volumeIndex = i
-			};
-			vkCmdPushConstants(cmd, m_irradianceComputePipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstant), &compPC);
-
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline.layout, 0, 1, &volume.computeBuildDescriptorSet, 0, nullptr);
-
-			vkCmdDispatch(cmd, volume.data.densityWidth, volume.data.densityDepth, volume.data.densityHeight);
-
-			VkMemoryBarrier barrier{};
-			barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-			barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-
-			vkCmdPipelineBarrier(
-				cmd,
-				VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-				VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-				0,
-				1, &barrier,
-				0, nullptr,
-				0, nullptr
-			);
-
-			// vis
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline.pipeline);
-
-			vkCmdPushConstants(cmd, m_visibilityComputePipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstant), &compPC);
-
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline.layout, 0, 1, &volume.computeBuildDescriptorSet, 0, nullptr);
-
-			vkCmdDispatch(cmd, volume.data.densityWidth, volume.data.densityDepth, volume.data.densityHeight);
+			// rt::Trace(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, static_cast<uint32_t>(volume.data.inverseSpacing.w), volume.data.densityWidth * volume.data.densityDepth, volume.data.densityHeight);
+			// vkimageutils::transitionImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+			// 
+			// // radiance
+			// vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline.pipeline);
+			// 
+			// ComputePushConstant compPC{
+			// 	.volumeDataAddress = volumeDataBuffer.gpuAddress,
+			// 	.volumeIndex = i
+			// };
+			// vkCmdPushConstants(cmd, m_irradianceComputePipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstant), &compPC);
+			// 
+			// vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_irradianceComputePipeline.layout, 0, 1, &volume.computeBuildDescriptorSet, 0, nullptr);
+			// 
+			// vkCmdDispatch(cmd, volume.data.densityWidth, volume.data.densityDepth, volume.data.densityHeight);
+			// 
+			// VkMemoryBarrier barrier{};
+			// barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+			// barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+			// barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+			// 
+			// vkCmdPipelineBarrier(
+			// 	cmd,
+			// 	VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+			// 	VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+			// 	0,
+			// 	1, &barrier,
+			// 	0, nullptr,
+			// 	0, nullptr
+			// );
+			// 
+			// // vis
+			// vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline.pipeline);
+			// 
+			// vkCmdPushConstants(cmd, m_visibilityComputePipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstant), &compPC);
+			// 
+			// vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_visibilityComputePipeline.layout, 0, 1, &volume.computeBuildDescriptorSet, 0, nullptr);
+			// 
+			// vkCmdDispatch(cmd, volume.data.densityWidth, volume.data.densityDepth, volume.data.densityHeight);
 
 			vkimageutils::transitionImage(cmd, volume.visibilityImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 			vkimageutils::transitionImage(cmd, volume.irradianceImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -453,7 +455,7 @@ void owDDGI::shutdown() {
 	vkdeviceutils::destroyBuffer(volumeDataBuffer);
 
 	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		vkdeviceutils::destroyBuffer(m_volumeVis.volumeTransformBuffers[i]);
+		// vkdeviceutils::destroyBuffer(m_volumeVis.volumeTransformBuffers[i]);
 	}
 
 	for(auto& volume : m_probeVolumes) {
@@ -471,6 +473,6 @@ void owDDGI::shutdown() {
 	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_computeDescriptorLayout, nullptr);
 	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_irradianceVisSetLayout, nullptr);
 
-	m_probeVis.destroy();
+	// m_probeVis.destroy();
 	m_volumeVis.destroy();
 }

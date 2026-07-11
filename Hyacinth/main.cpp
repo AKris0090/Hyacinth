@@ -7,7 +7,7 @@
 #include <thread>
 #include <chrono>
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -117,6 +117,13 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 	}
 }
 
+HStaticGameObject* worldObject;
+
+void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
+	worldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("world"));
+	engine.addStaticGameObject(worldObject);
+}
+
 int main() {
 	SDLWindow sdlwindow;
 	sdlwindow.init("Hyacinth Engine", 1280, 720);
@@ -124,6 +131,8 @@ int main() {
 	HyacinthEngine hyacinthEngine;
 	hyacinthEngine.m_window = sdlwindow.m_window;
 	hyacinthEngine.init();
+
+	// add game objects
 
 	PhysicsManager physicsManager;
 	physicsManager.initPhysics(false); // initialize PVD?
@@ -134,14 +143,12 @@ int main() {
 	physicsManager.addCharacterController(0);
 
 	HyacinthNetworkClient netClient;
-	netClient.netEntManager.characterObject = hyacinthEngine.characterObject;
-	netClient.netEntManager.firstPersonObject = hyacinthEngine.armsObject;
-	netClient.netEntManager.pistolObject = hyacinthEngine.gunObject;
-	netClient.netEntManager.grenadeObject = hyacinthEngine.flashObject;
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	netClient.netEntManager.inputAccumulator.id = 0;
 	netClient.netEntManager.tracerManager = &hyacinthEngine.m_tracerManager;
 	Entity* thisEnt = nullptr;
+
+	addGameObjects(hyacinthEngine, netClient);
 
 #ifdef CONNECT_SERVER
 	std::string ip;
@@ -178,7 +185,7 @@ int main() {
 	s.entities.push_back(*thisEnt);
 	netClient.netEntManager.selfSimBuffer.newPacket(s);
 	netClient.netEntManager.selfSimBuffer.newPacket(s);
-	netClient.netEntManager.setupFromServerPacket(s, 0);
+	netClient.netEntManager.setupFromServerPacket(s, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"), 0);
 #endif
 	Time::setInitialTime();
 

@@ -10,6 +10,9 @@
 #include <shared_mutex>
 #include "tracer_manager.h"
 
+#include "tp_character.h"
+#include "flashbang.h"
+
 constexpr float DIFF_THRESHOLD = 0.01f;
 
 struct StateStorage {
@@ -53,9 +56,6 @@ private:
 	PhysicsPosFn physicsPosition;
 };
 
-struct AnimatedGltfObject;
-class AnimationStateMachine;
-
 class NetworkEntityManager {
 public:
 	Entity* self;
@@ -65,31 +65,20 @@ public:
 	InterpolationPacketBuffer selfSimBuffer;
 	std::mutex selfMutex;
 	std::unordered_map<uint32_t, Entity*> entities;
-	std::unordered_map<uint32_t, ThirdPersonAnimationController> entityAnimationControllers;
-	std::unordered_map<uint32_t, VulkanBuffer> entityJointBuffers;
-	AnimatedGltfObject* characterObject;
-
-	AnimatedGltfObject* firstPersonObject;
-	VulkanBuffer firstPersonJointBuffer;
-	FirstPersonAnimationController firstPersonAnimationController;
-
-	AnimatedGltfObject* pistolObject;
-	VulkanBuffer pistolJointBuffer;
-	PistolAnimationController pistolAnimationController;
-
-	AnimatedGltfObject* grenadeObject;
+	std::unordered_map<uint32_t, HTPCharacter*> characterObjects;
+	// TODO: add flashbang map
 
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
 	InterpolationPacketBuffer packetBuffer;
 	RewindBuffer rB;
 	int tickOffset;
-
+	HSkinnedMesh* characterMeshRef;
 	glm::vec3 shotAckPosition;
 	
-	void setupFromServerPacket(ServerSnapshot& p, uint32_t currentClientID);
+	void setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh* characterMesh, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
-	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, AnimatedGltfObject* characterObject, AnimatedGltfObject* flashObject, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
+	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
 	void shutdown();
 	void clearPendingPackets(Entity* self);
 };

@@ -1,7 +1,32 @@
 #include "skybox.h"
 
-// skybox image should be loaded
+void SkyboxHelper::createSkyboxImage() {
+    std::array<float*, 6> pixels;
+    int texWidth = 0, texHeight = 0, texChannels = 0;
+    int index = 0;
+    for (const auto& s : skyboxPaths) {
+        pixels[index] = stbi_loadf(s.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        if (!pixels[index]) {
+            throw std::runtime_error("failed to load skybox image " + s + "!");
+        }
+        index++;
+    }
+
+    VkExtent3D ext{};
+    ext.width = texWidth;
+    ext.height = texHeight;
+    ext.depth = 1;
+
+    m_skyboxImage = vkimageutils::createSkyboxImage(pixels, ext, SKYBOX_FORMAT, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    for (int i = 0; i < 6; i++) {
+        stbi_image_free(pixels[i]);
+    }
+}
+
 void SkyboxHelper::setup(SWChainImageFormat swapchainImageFormat, VkDescriptorSetLayout& uniformLayout) {
+    createSkyboxImage();
+
     // create skybox descriptor
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
     {

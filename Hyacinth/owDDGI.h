@@ -115,7 +115,7 @@ public:
 
 	bool showVolumes = false;
 
-	void setup(rtHelper* rtHelper, SceneGraph& m_scene);
+	void setup(rtHelper* rtHelper);
 	void bakeDDGI(VkDescriptorSet& textureSet);
 	void shutdown();
 };

@@ -1,0 +1,65 @@
+#include "animatedgameobject.h"
+
+void AnimControllerBase::updateSamplers(HAnimation* animation, HAnimChannel* channel, Transform* t, float currentTime) {
+	HAnimSampler& sampler = animation->samplers[channel->samplerIndex];
+	for (size_t i = 0; i < sampler.inputs.size() - 1; i++)
+	{
+		if ((currentTime >= sampler.inputs[i]) && (currentTime <= sampler.inputs[i + 1]))
+		{
+			float a = (currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
+			if (channel->path == "translation")
+			{
+				t->position = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
+			}
+			if (channel->path == "rotation")
+			{
+				glm::quat q1;
+				q1.x = sampler.outputsVec4[i].x;
+				q1.y = sampler.outputsVec4[i].y;
+				q1.z = sampler.outputsVec4[i].z;
+				q1.w = sampler.outputsVec4[i].w;
+
+				glm::quat q2;
+				q2.x = sampler.outputsVec4[i + 1].x;
+				q2.y = sampler.outputsVec4[i + 1].y;
+				q2.z = sampler.outputsVec4[i + 1].z;
+				q2.w = sampler.outputsVec4[i + 1].w;
+
+				t->rotation = glm::normalize(glm::slerp(q1, q2, a));
+			}
+			if (channel->path == "scale")
+			{
+				t->scale = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
+			}
+		}
+	}
+}
+
+void HAnimatedGameObject::updateJoints() {
+	glm::mat4				inverseTransform = glm::inverse(mesh->meshOwnerNode->getMatrix());
+	size_t					numJoints = (uint32_t) mesh->skin.joints.size();
+	std::vector<glm::mat4>	finalJointMatrices(numJoints);
+	for (size_t i = 0; i < numJoints; i++)
+	{
+		finalJointMatrices[i] = inverseTransform * (mesh->skin.joints[i]->getMatrix() * mesh->skin.inverseBindMatrices[i]);
+	}
+
+	memcpy(jointMatrixBuffer.pMappedData, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
+}
+
+void HAnimatedGameObject::updateAnimation(float deltaTime) {
+	// update samplers in child class
+	// update joint transforms in child class
+
+	updateJoints();
+}
+
+HAnimatedGameObject::HAnimatedGameObject(HSkinnedMesh* meshRef) {
+	mesh = meshRef;
+
+	for (const auto& n : mesh->skin.joints) {
+		nodeTransforms[n->nodeIndex] = Transform{};
+	}
+
+	jointMatrixBuffer = vkdeviceutils::createBuffer(mesh->jointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_joint_matrix_buffer");
+}

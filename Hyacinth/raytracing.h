@@ -3,17 +3,10 @@
 #include "vulkan/vulkan.h"
 #include "vkdeviceutils.h"
 #include "vkmeshutils.h"
-#include "gltfutils.h"
+#include "vkmeshutils.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include <vector>
-
-struct AccelerationStructure
-{
-	VkAccelerationStructureKHR accel{};
-	VkDeviceAddress            address{};
-	VulkanBuffer               buffer;
-};
 
 namespace rt {
 	extern PFN_vkCreateAccelerationStructureKHR				CreateAS;
@@ -25,28 +18,24 @@ namespace rt {
 	extern PFN_vkGetRayTracingShaderGroupHandlesKHR			GetHandles;
 	extern PFN_vkDestroyAccelerationStructureKHR			DestroyAS;
 
+	extern VkPhysicalDeviceRayTracingPipelinePropertiesKHR		s_rtProperties;
+	extern VkPhysicalDeviceAccelerationStructurePropertiesKHR	s_asProperties;
+	extern std::vector<AccelerationStructure> bottomLevelStructures;
+
+	void setRTProperties(VkPhysicalDeviceRayTracingPipelinePropertiesKHR newProps);
+	void setASProperties(VkPhysicalDeviceAccelerationStructurePropertiesKHR newProps);
 	void initAccelerationStructureFunctions(VkDevice& device);
 }
 
 class rtHelper {
-private:
-	std::vector<AccelerationStructure> m_blAccelStructures;
-
-	void createAccelerationStructure( VkAccelerationStructureTypeKHR asType,
-		AccelerationStructure& accelStruct,
-		VkAccelerationStructureGeometryKHR& asGeometry,
-		VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo,
-		VkBuildAccelerationStructureFlagsKHR flags);
-
-	void createBottomLevelAS(SceneGraph& scene);
-	void createTopLevelAS(SceneGraph& scene);
-
 public:
 	AccelerationStructure m_tlAccelStrucutre;
 
-	void setup(SceneGraph& scene);
+	void setup();
+	void createTopLevelAS();
 	void shutdown();
 
-	VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
-	VkPhysicalDeviceAccelerationStructurePropertiesKHR m_asProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR };
+	static void createAccelerationStructure(VkAccelerationStructureTypeKHR asType, AccelerationStructure& accelStruct, VkAccelerationStructureGeometryKHR& asGeometry, VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo, VkBuildAccelerationStructureFlagsKHR flags);
+	static void nodeToAccelStructureGeometry(std::vector<glm::vec3> nodeVertices, std::vector<uint32_t>& nodeIndices, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo);
+	static void createBottomLevelAS(AccelerationStructure& accelStructure, std::vector<glm::vec3>& vertices, std::vector<uint32_t>& indices);
 };

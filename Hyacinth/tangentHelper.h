@@ -10,7 +10,7 @@ class MikkTSpaceHelper {
 public:
 
 	struct MikkTContext {
-		gltfPrimitive* mesh;
+		HPrimGeomCapsule* mesh;
 	};
 
 	static int MikkTGetNumFaces(const SMikkTSpaceContext* context) {
@@ -61,7 +61,7 @@ static SMikkTSpaceInterface MikkTInterface = { .m_getNumFaces = MikkTSpaceHelper
 											   .m_setTSpaceBasic = MikkTSpaceHelper::MikkTSetTSpaceBasic,
 											   .m_setTSpace = nullptr };
 
-static void generateTangents(gltfPrimitive* p, SMikkTSpaceContext& mikktContext) {
+static void generateTangents(HPrimGeomCapsule* p, SMikkTSpaceContext& mikktContext) {
 	//UNPACK VERTICES
 	std::vector<Vertex> unpacked(p->indices.size());
 	uint32_t newInd = 0;

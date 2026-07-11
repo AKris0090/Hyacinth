@@ -7,16 +7,20 @@ const mat4 biasMat = mat4(
 	0.5, 0.5, 0.0, 1.0
 );
 
+struct RenderCall {
+	mat4 instanceMatrix;
+	uint materialIndex;
+	uint indexCount;
+	uint firstIndex;
+	uint vertexOffset;
+	uint meshID;
+};
+
 struct Material {
 	int baseColorIndex;
 	int normalIndex;
 	int metalRoughIndex;
 	float alphaCutoff;
-};
-
-struct DrawData {
-	int transformIndex;
-	int materialIndex;
 };
 
 struct Vertex {
@@ -58,12 +62,8 @@ layout(buffer_reference, std430) readonly buffer MaterialBuffer{
 	Material mats[];
 };
 
-layout(buffer_reference, std430) readonly buffer MaterialIntBuffer {
-	int mats[];
-};
-
-layout(buffer_reference, std430) readonly buffer DrawDataBuffer{
-	DrawData draws[];
+layout(buffer_reference, std430) readonly buffer RenderCallBuffer{
+	RenderCall calls[];
 };
 
 layout(buffer_reference, std430) readonly buffer VertexBuffer {

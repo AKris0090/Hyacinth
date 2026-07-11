@@ -7,6 +7,7 @@
 #include "fullscreen_quad.h"
 #include <string>
 #include <array>
+#include "stb_image.h"
 
 
 const std::array<std::string, 6> skyboxPaths = {
@@ -24,6 +25,8 @@ class SkyboxHelper {
 private:
 	DescriptorAllocator				m_descriptorAllocator{};
 	VkDescriptorSetLayout m_skyboxSetLayout;
+	void createSkyboxImage();
+
 public:
 	VulkanImage				m_skyboxImage;
 	VkDescriptorSet			m_skyboxSet;
