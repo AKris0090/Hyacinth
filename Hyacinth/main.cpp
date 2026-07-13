@@ -8,6 +8,7 @@
 #include <chrono>
 
 #include "fp_arms.h"
+#include "pistol.h"
 
 // #define CONNECT_SERVER true
 
@@ -122,19 +123,28 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 HStaticGameObject* worldObject;
 
 HFPArms* armsObject;
+HPistol* pistolObject;
 
 void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	worldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("world"));
-	engine.addStaticGameObject(worldObject);
+	engine.addStaticGameObject(worldObject);  
 
 	armsObject = new HFPArms(engine.m_assetDrawer.getAnimatedMeshRef("fp_arms"));
 	engine.addAnimatedGameObject(armsObject);
+
+	pistolObject = new HPistol(engine.m_assetDrawer.getAnimatedMeshRef("pistol"));
+	engine.addAnimatedGameObject(pistolObject);
+	pistolObject->setParentObject(armsObject, pistolObject->controller.baseNode, armsObject->controller.gunBone);
 }
 
 void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, 0, 0);
 	armsObject->transform.position = engine.m_camera.m_transform.position;
 	armsObject->transform.rotation = engine.m_camera.m_transform.rotation;
+
+	pistolObject->controller.updateAnimParams(armsObject->controller.shootTrigger, armsObject->controller.reloadTrigger);
+	pistolObject->transform.position = engine.m_camera.m_transform.position;
+	pistolObject->transform.rotation = engine.m_camera.m_transform.rotation;
 }
 
 int main() {

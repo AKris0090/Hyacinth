@@ -43,6 +43,11 @@ glm::mat4 HAnimatedGameObject::getStackedNodeMatrix(HSkinnedMeshNode* node) {
 		nodeMatrix = nodeTransforms[currentParent->nodeIndex].getMatrix() * nodeMatrix;
 		currentParent = currentParent->parent;
 	}
+
+	glm::mat4 parentMatrix(1.f);
+	if (parentObject) {
+		nodeMatrix = parentObject->getStackedNodeMatrix(parentMeshNode) * nodeMatrix;
+	}
 	return nodeMatrix;
 }
 
@@ -77,3 +82,10 @@ void HAnimatedGameObject::destroy() {
 	vkdeviceutils::destroyBuffer(jointMatrixBuffer);
 }
 
+void HAnimatedGameObject::setParentObject(HAnimatedGameObject* aobject, HSkinnedMeshNode* childNode, HSkinnedMeshNode* parentNode) {
+	parentNode->children.push_back(childNode);
+	childNode->parent = parentNode;
+
+	parentObject = aobject;
+	parentMeshNode = parentNode;
+}

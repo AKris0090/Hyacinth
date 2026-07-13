@@ -34,6 +34,8 @@ private:
 	glm::mat4 getStackedNodeMatrix(HSkinnedMeshNode* node);
 
 public:
+	HAnimatedGameObject* parentObject = nullptr;
+	HSkinnedMeshNode* parentMeshNode = nullptr;
 	Transform transform;
 	HSkinnedMesh* mesh = nullptr;
 	std::unordered_map<uint32_t, Transform> nodeTransforms;
@@ -45,4 +47,6 @@ public:
 
 	HAnimatedGameObject() {};
 	HAnimatedGameObject(HSkinnedMesh* meshRef);
+
+	void setParentObject(HAnimatedGameObject* aobject, HSkinnedMeshNode* childNode, HSkinnedMeshNode* parentNode);
 };

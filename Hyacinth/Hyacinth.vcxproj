@@ -171,6 +171,7 @@
     <ClCompile Include="netDebugRenderer.cpp" />
     <ClCompile Include="net_ent.cpp" />
     <ClCompile Include="owDDGI.cpp" />
+    <ClCompile Include="pistol.cpp" />
     <ClCompile Include="probevis.cpp" />
     <ClCompile Include="raytracing.cpp" />
     <ClCompile Include="sdlwindow.cpp" />

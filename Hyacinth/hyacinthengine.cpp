@@ -1259,6 +1259,9 @@ void HyacinthEngine::draw() {
         // draw arms
         vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * 103, 2, sizeof(VkDrawIndexedIndirectCommand));
 
+        // draw pistol
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * 105, 4, sizeof(VkDrawIndexedIndirectCommand));
+
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
 
         // pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;

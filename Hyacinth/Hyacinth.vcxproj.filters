@@ -315,6 +315,9 @@
     <ClCompile Include="tp_character.cpp">
       <Filter>Source Files\game\objects\third_player</Filter>
     </ClCompile>
+    <ClCompile Include="pistol.cpp">
+      <Filter>Source Files\game\objects\guns</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sdlwindow.h">

@@ -18,11 +18,13 @@ public:
 	glm::quat currentSwayPitch = { 1.f, 0.f, 0.f, 0.f };
 
 	float deltaPitch = 0.f, deltaYaw = 0.f;
+	bool reloadTrigger = false;
+	bool shootTrigger = true;
 
 	float currentTime = 0.f;
 
 	FirstPersonAnimationController() {};
-	FirstPersonAnimationController(HSkinnedMesh* mesh);
+	FirstPersonAnimationController(HSkinnedMesh* meshRef);
 	void updateAnimParams(WEAPON_STATE newState, float deltaPitch, float deltaYaw);
 };
 
@@ -37,7 +39,6 @@ public:
 class HFPArms : public HAnimatedGameObject {
 public:
 	FirstPersonAnimationController controller;
-	FirstPersonAnimationStateMachine stateMachine;
 
 	HFPArms(HSkinnedMesh* meshRef);
 	void updateAnimation(float deltaTime) override;

@@ -1,19 +1,19 @@
 #include "fp_arms.h"
 
 // *********************** CONTROLLER *********************** //
-FirstPersonAnimationController::FirstPersonAnimationController(HSkinnedMesh* mesh) {
-	gunBone = mesh->getNodeByName("gun");
-    leftWrist = mesh->getNodeByName("hand.L");
-    rightWrist = mesh->getNodeByName("hand.R");
+FirstPersonAnimationController::FirstPersonAnimationController(HSkinnedMesh* meshRef) {
+	gunBone = meshRef->getNodeByName("gun");
+    leftWrist = meshRef->getNodeByName("hand.L");
+    rightWrist = meshRef->getNodeByName("hand.R");
 
-    animations[A_GRENADE_THROW] = &mesh->animations[1];
-    animations[A_GRENADE_IDLE] = &mesh->animations[2];
-    animations[A_GRENADE_EQUIP] = &mesh->animations[3];
+    animations[A_GRENADE_THROW] = &meshRef->animations[1];
+    animations[A_GRENADE_IDLE] = &meshRef->animations[2];
+    animations[A_GRENADE_EQUIP] = &meshRef->animations[3];
 
-    animations[A_PISTOL_RELOAD] = &mesh->animations[4];
-    animations[A_PISTOL_SHOOT] = &mesh->animations[5];
-    animations[A_PISTOL_IDLE] = &mesh->animations[6];
-    animations[A_PISTOL_EQUIP] = &mesh->animations[7];
+    animations[A_PISTOL_RELOAD] = &meshRef->animations[4];
+    animations[A_PISTOL_SHOOT] = &meshRef->animations[5];
+    animations[A_PISTOL_IDLE] = &meshRef->animations[6];
+    animations[A_PISTOL_EQUIP] = &meshRef->animations[7];
 
     currentAnim = animations[A_PISTOL_IDLE];
 }
@@ -65,6 +65,10 @@ void FirstPersonAnimationStateMachine::updateAnimatedNodeTransforms(FirstPersonA
 }
 
 void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime) {
+	if (c.shootTrigger || c.reloadTrigger) { // reset animation triggers
+		c.shootTrigger = false;
+		c.reloadTrigger = false;
+	}
 	if (c.previousState != c.currentState) {
 		switch (c.currentState) {
 		case PISTOL_EQUIP:
@@ -74,10 +78,12 @@ void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimation
 		case PISTOL_SHOOT:
 			c.currentAnim = c.animations[A_PISTOL_SHOOT];
 			c.currentTime = c.currentAnim->start;
+			c.shootTrigger = true;
 			break;
 		case PISTOL_RELOAD:
 			c.currentAnim = c.animations[A_PISTOL_RELOAD];
 			c.currentTime = c.currentAnim->start;
+			c.reloadTrigger = true;
 			break;
 		case PISTOL_IDLE:
 			c.currentAnim = c.animations[A_PISTOL_IDLE];
