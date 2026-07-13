@@ -573,5 +573,8 @@
     <None Include="shaders\skybox.frag">
       <Filter>Source Files\shaders\skybox</Filter>
     </None>
+    <None Include="shaders\skinning.comp">
+      <Filter>Source Files\shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

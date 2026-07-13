@@ -328,8 +328,8 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.addShader("shaders/vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
     m_pipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    m_skinnedPipelineUtil.addShader("shaders/skinnedVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    m_skinnedPipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    // m_skinnedPipelineUtil.addShader("shaders/skinnedVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    // m_skinnedPipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	m_pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     m_pipelineUtil.setDefaultAttributes();
@@ -342,16 +342,16 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
     m_pipelineUtil.numColorAttachments = 3;
 
-    m_skinnedPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    m_skinnedPipelineUtil.setAnimatedAttribute();
-    m_skinnedPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
-    m_skinnedPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    m_skinnedPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 3);
-    m_skinnedPipelineUtil.setMultisampling(m_msaaSamples);
-    m_skinnedPipelineUtil.disableBlending();
-    m_skinnedPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
-    m_skinnedPipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
-    m_skinnedPipelineUtil.numColorAttachments = 3;
+    // m_skinnedPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    // m_skinnedPipelineUtil.setAnimatedAttribute();
+    // m_skinnedPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
+    // m_skinnedPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    // m_skinnedPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 3);
+    // m_skinnedPipelineUtil.setMultisampling(m_msaaSamples);
+    // m_skinnedPipelineUtil.disableBlending();
+    // m_skinnedPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
+    // m_skinnedPipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
+    // m_skinnedPipelineUtil.numColorAttachments = 3;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -375,8 +375,8 @@ void HyacinthEngine::createGraphicsPipeline()
 	m_pipelineUtil.m_viewportState.pViewports = &viewport;
     m_pipelineUtil.m_viewportState.pScissors = &scissor;
 
-    m_skinnedPipelineUtil.m_viewportState.pViewports = &viewport;
-    m_skinnedPipelineUtil.m_viewportState.pScissors = &scissor;
+    // m_skinnedPipelineUtil.m_viewportState.pViewports = &viewport;
+    // m_skinnedPipelineUtil.m_viewportState.pScissors = &scissor;
 
     VkPushConstantRange range{};
     range.offset = 0;
@@ -396,6 +396,16 @@ void HyacinthEngine::createGraphicsPipeline()
 
 	m_pipelineUtil.buildPipeline();
     // m_skinnedPipelineUtil.buildPipeline();
+
+    createCompSkinPipeline();
+}
+
+void HyacinthEngine::createCompSkinPipeline() {
+    VkPushConstantRange range{};
+    range.offset = 0;
+    range.size = sizeof(computeSkinPushConstant);
+    range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    m_computeSkinPipeline = vkpipelineutils::createComputePipeline(nullptr, 0, &range, 1, "shaders/compSkin.spv");
 }
 
 void HyacinthEngine::createTracerPipeline() {
@@ -685,6 +695,8 @@ void HyacinthEngine::loadAssets() {
     auto tracerPath = vkdebugutils::getExeDir() / "objects" / "tracer.glb";
     auto flashPath = vkdebugutils::getExeDir() / "objects" / "flash.glb";
 
+    m_assetDrawer.addDummyTextures();
+
     gltfutils::loadStaticMesh(m_assetDrawer, path.string(), "world");
     gltfutils::loadStaticMesh(m_assetDrawer, tracerPath.string(), "tracer");
     gltfutils::loadAnimatedMesh(m_assetDrawer, thirdPersonCharacterPath.string(), "tp_character");
@@ -707,6 +719,9 @@ void HyacinthEngine::createBuffers() {
 
         // create indirect draw buffer
         m_frameData[i].m_indirectDrawBuffer = vkdeviceutils::createBuffer(sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "indirect_draw_buffer");
+
+        // create skinnedVertexBuffer
+        m_frameData[i].m_skinnedVertexBuffer = vkdeviceutils::createBuffer(sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "frame_skinned_vertex");
     }
 }
 
@@ -901,6 +916,26 @@ void HyacinthEngine::generateRenderList() {
         }
     }
 
+    uint32_t animatedVertexOffset = 0;
+    for (const auto& ao : m_animatedObjects) {
+        for (const auto& n : ao->mesh->meshedNodes) {
+            for (const auto& p : n->primtives) {
+                m_renderList.push_back(HRenderCall{
+                    .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
+                    .materialIndex = p.materialIndex,
+                    .indexCount = p.indexCount,
+                    .firstIndex = p.firstIndex,
+                    .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
+                    .meshID = p.meshID
+                    });
+            }
+        }
+        animatedVertexOffset += ao->mesh->numVertices;
+    }
+
+    if (m_frameData[m_frameIndex].m_skinnedVertexBuffer.info.size < (animatedVertexOffset * sizeof(Vertex))) {
+        vkdeviceutils::resizeBuffer(m_frameData[m_frameIndex].m_skinnedVertexBuffer, (animatedVertexOffset * sizeof(Vertex)));
+    }
     vkdeviceutils::updateBuffer(m_frameData[m_frameIndex].m_renderListBuffer, m_renderList.size() * sizeof(HRenderCall), m_renderList.data());
 }
 
@@ -931,6 +966,10 @@ void HyacinthEngine::generateDrawCommands() {
 void HyacinthEngine::update() {
     if (InputManager::tabKeyDown()) {
 		m_showImGui = !m_showImGui;
+    }
+
+    for (const auto& ao : m_animatedObjects) {
+        ao->updateAnimation(Time::getDeltaTime());
     }
 
     // m_shadowHelper.update(m_camera, m_scene.sceneBoundingBox,m_frameIndex);
@@ -1144,6 +1183,26 @@ void HyacinthEngine::draw() {
     pushConstants.renderCallBuffer = m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress;
     pushConstants.materialDataAddress = m_assetDrawer.materialInfoBuffer.gpuAddress;
 
+    // compute skin pass
+    {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computeSkinPipeline.pipeline);
+        computeSkinPushConstant cskin;
+        cskin.vertexBufferInAddress = m_assetDrawer.g_vertexBuffer.gpuAddress;
+        cskin.vertexBufferOutAddress = m_frameData[m_frameIndex].m_skinnedVertexBuffer.gpuAddress;
+        uint32_t dstVOffset = 0;
+        for (const auto& ao : m_animatedObjects) {
+            cskin.srcVertexOffset = ao->mesh->vertexOffset;
+            cskin.dstVertexOffset = dstVOffset;
+            cskin.numVertices = ao->mesh->numVertices;
+            cskin.jointBufferAddress = ao->jointMatrixBuffer.gpuAddress;
+
+            vkCmdPushConstants(cmd, m_computeSkinPipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computeSkinPushConstant), &cskin);
+            vkCmdDispatch(cmd, cskin.numVertices, 1, 1);
+
+            dstVOffset += ao->mesh->numVertices;
+        }
+    }
+
     {
         // VK_LABEL(cmd, "Compute Cull Main");
         // vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
@@ -1193,6 +1252,14 @@ void HyacinthEngine::draw() {
 
         // draw world
         vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, 0, 103, sizeof(VkDrawIndexedIndirectCommand));
+
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd, 0, 1, &m_frameData[m_frameIndex].m_skinnedVertexBuffer.buffer, offsets);
+
+        // draw arms
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * 103, 2, sizeof(VkDrawIndexedIndirectCommand));
+
+        vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
 
         // pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
         // 
@@ -1511,6 +1578,10 @@ void HyacinthEngine::cleanup()
 
 	vkDeviceWaitIdle(m_device);
 
+    for (auto& ao : m_animatedObjects) {
+        ao->destroy();
+    }
+
     m_frustumCullHelper.shutdown();
 	m_shadowHelper.shutdown();
 	m_owDDGIHelper.shutdown();
@@ -1518,6 +1589,7 @@ void HyacinthEngine::cleanup()
     // m_uiHelper.shutdown();
     m_worldHealthManager.shutdown();
     m_skyboxHelper.shutdown();
+    m_assetDrawer.shutdown();
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.shutdown();
@@ -1546,6 +1618,7 @@ void HyacinthEngine::cleanup()
     m_skinnedPipelineUtil.destroyPipeline();
     m_tracerPipelineUtil.destroyPipeline();
     m_fxaaPipelineUtil.destroyPipeline();
+    m_computeSkinPipeline.destroy();
 
     // for (auto& obj : m_scene.staticObjects) {
     //     for (auto& node : obj->allNodes) {
@@ -1576,6 +1649,7 @@ void HyacinthEngine::cleanup()
         vkdeviceutils::destroyBuffer(m_frameData[i].m_renderListBuffer);
         vkdeviceutils::destroyBuffer(m_frameData[i].m_indirectDrawBuffer);
         vkdeviceutils::destroyBuffer(m_shadowHelper.m_uniformBuffers[i]);
+        vkdeviceutils::destroyBuffer(m_frameData[i].m_skinnedVertexBuffer);
 	}
 
     for (int i = 0; i < m_swapChainImages.size(); i++) {

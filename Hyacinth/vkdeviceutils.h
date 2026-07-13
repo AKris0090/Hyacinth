@@ -96,6 +96,7 @@ namespace vkdeviceutils {
     void uploadToBuffer(VulkanBuffer& buffer, size_t size, void* data, size_t offset = 0);
 	void stageAndUploadBuffers(VkDeviceSize* pSizes, void** ppData, VulkanBuffer* pBuffers, uint32_t count);
 
+    void resizeBuffer(VulkanBuffer& buffer, size_t newSize);
     // assumes that buffer is mapped
     void updateBuffer(VulkanBuffer& buffer, size_t newSize, void* newData);
 }

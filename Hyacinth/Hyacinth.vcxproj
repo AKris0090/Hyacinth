@@ -269,6 +269,7 @@
     <None Include="shaders\raygen.rgen" />
     <None Include="shaders\shadow.vert" />
     <None Include="shaders\shadowCommon.glsl" />
+    <None Include="shaders\skinning.comp" />
     <None Include="shaders\skybox.frag" />
     <None Include="shaders\skybox.vert" />
     <None Include="shaders\tracer.frag" />

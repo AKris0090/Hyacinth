@@ -31,6 +31,7 @@ public:
 class HAnimatedGameObject {
 private:
 	void updateJoints();
+	glm::mat4 getStackedNodeMatrix(HSkinnedMeshNode* node);
 
 public:
 	Transform transform;
@@ -39,6 +40,8 @@ public:
 	VulkanBuffer jointMatrixBuffer{};
 
 	virtual void updateAnimation(float deltaTime);
+
+	void destroy();
 
 	HAnimatedGameObject() {};
 	HAnimatedGameObject(HSkinnedMesh* meshRef);

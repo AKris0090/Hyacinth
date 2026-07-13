@@ -271,16 +271,20 @@ namespace vkdeviceutils {
 		});
     }
 
+    void resizeBuffer(VulkanBuffer& buffer, size_t newSize) {
+        std::string prevBufferName = buffer.qualName;
+        VkBufferUsageFlags pusageFlags = buffer.usageFlags;
+        VmaMemoryUsage pmemUsage = buffer.memUsage;
+        VmaAllocationCreateFlags pvmaFlags = buffer.vmaFlags;
+        VulkanBuffer prevBuffer = buffer;
+
+        buffer = createBuffer(newSize, pusageFlags, pmemUsage, pvmaFlags, prevBufferName);
+        destroyBuffer(prevBuffer);
+    }
+
     void updateBuffer(VulkanBuffer& buffer, size_t newSize, void* newData) {
         if (buffer.info.size < newSize) { // need to allocate new buffer and replace
-            std::string prevBufferName = buffer.qualName;
-            VkBufferUsageFlags pusageFlags = buffer.usageFlags;
-            VmaMemoryUsage pmemUsage = buffer.memUsage;
-            VmaAllocationCreateFlags pvmaFlags = buffer.vmaFlags;
-            VulkanBuffer prevBuffer = buffer;
-
-            buffer = createBuffer(newSize, pusageFlags, pmemUsage, pvmaFlags, prevBufferName);
-            destroyBuffer(prevBuffer);
+            resizeBuffer(buffer, newSize);
         }
 
         memcpy(buffer.pMappedData, newData, newSize);

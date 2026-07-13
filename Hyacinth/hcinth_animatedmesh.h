@@ -17,10 +17,6 @@ public:
 	std::vector<HSkinnedMeshNode*>	children;
 	std::vector<HMeshPrim>			primtives;
 
-	glm::quat						queuedQuatRotation;
-	std::vector<float>				queuedYawShifts;
-	std::vector<float>				queuedPitchShifts;
-
 	bool upperBody = false;
 	bool lowerBody = false;
 
@@ -66,6 +62,7 @@ public:
 	// refer to index in the global buffer
 	uint32_t firstIndex;
 	uint32_t vertexOffset;
+	uint32_t numVertices = 0;
 	uint32_t indexCount;
 
 	uint32_t meshID;

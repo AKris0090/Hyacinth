@@ -28,7 +28,7 @@ public:
 
 class FirstPersonAnimationStateMachine {
 private:
-	static void flushQueuedNodeTransforms(FirstPersonAnimationController& c);
+	static void flushQueuedNodeTransforms(FirstPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap);
 public:
 	static void updateAnimationState(FirstPersonAnimationController& c, float deltaTime);
 	static void updateAnimatedNodeTransforms(FirstPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap, float deltaTime);

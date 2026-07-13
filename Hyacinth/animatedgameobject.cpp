@@ -35,22 +35,31 @@ void AnimControllerBase::updateSamplers(HAnimation* animation, HAnimChannel* cha
 	}
 }
 
+glm::mat4 HAnimatedGameObject::getStackedNodeMatrix(HSkinnedMeshNode* node) {
+	glm::mat4 nodeMatrix = nodeTransforms[node->nodeIndex].getMatrix();
+	HSkinnedMeshNode* currentParent = node->parent;
+	while (currentParent)
+	{
+		nodeMatrix = nodeTransforms[currentParent->nodeIndex].getMatrix() * nodeMatrix;
+		currentParent = currentParent->parent;
+	}
+	return nodeMatrix;
+}
+
 void HAnimatedGameObject::updateJoints() {
 	glm::mat4				inverseTransform = glm::inverse(mesh->meshOwnerNode->getMatrix());
 	size_t					numJoints = (uint32_t) mesh->skin.joints.size();
 	std::vector<glm::mat4>	finalJointMatrices(numJoints);
 	for (size_t i = 0; i < numJoints; i++)
 	{
-		finalJointMatrices[i] = inverseTransform * (mesh->skin.joints[i]->getMatrix() * mesh->skin.inverseBindMatrices[i]);
+		glm::mat4 jointMatrix = getStackedNodeMatrix(mesh->skin.joints[i]);
+		finalJointMatrices[i] = inverseTransform * (jointMatrix * mesh->skin.inverseBindMatrices[i]);
 	}
 
 	memcpy(jointMatrixBuffer.pMappedData, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
 }
 
 void HAnimatedGameObject::updateAnimation(float deltaTime) {
-	// update samplers in child class
-	// update joint transforms in child class
-
 	updateJoints();
 }
 
@@ -63,3 +72,8 @@ HAnimatedGameObject::HAnimatedGameObject(HSkinnedMesh* meshRef) {
 
 	jointMatrixBuffer = vkdeviceutils::createBuffer(mesh->jointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_joint_matrix_buffer");
 }
+
+void HAnimatedGameObject::destroy() {
+	vkdeviceutils::destroyBuffer(jointMatrixBuffer);
+}
+

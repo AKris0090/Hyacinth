@@ -77,3 +77,13 @@ void HAssetDrawer::addDummyTextures() {
 HAssetDrawer::HAssetDrawer() {
 	FullscreenQuad::addFullscreenQuad(vertices, indices);
 }
+
+void HAssetDrawer::shutdown() {
+	vkdeviceutils::destroyBuffer(g_vertexBuffer);
+	vkdeviceutils::destroyBuffer(g_indexBuffer);
+	vkdeviceutils::destroyBuffer(materialInfoBuffer);
+
+	for (auto& t : textures) {
+		vkimageutils::destroyImage(t);
+	}
+}

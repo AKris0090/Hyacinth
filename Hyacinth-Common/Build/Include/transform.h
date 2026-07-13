@@ -19,6 +19,10 @@ struct Transform {
 
 	float pitchAdditional = 0.f;
 
+	glm::quat						queuedQuatRotation;
+	std::vector<float>				queuedYawShifts;
+	std::vector<float>				queuedPitchShifts;
+
 	bool dirty = 0;
 
 	glm::mat4 getMatrix() const {

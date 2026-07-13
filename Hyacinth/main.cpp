@@ -7,6 +7,8 @@
 #include <thread>
 #include <chrono>
 
+#include "fp_arms.h"
+
 // #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
@@ -119,9 +121,20 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 
 HStaticGameObject* worldObject;
 
+HFPArms* armsObject;
+
 void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	worldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("world"));
 	engine.addStaticGameObject(worldObject);
+
+	armsObject = new HFPArms(engine.m_assetDrawer.getAnimatedMeshRef("fp_arms"));
+	engine.addAnimatedGameObject(armsObject);
+}
+
+void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
+	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, 0, 0);
+	armsObject->transform.position = engine.m_camera.m_transform.position;
+	armsObject->transform.rotation = engine.m_camera.m_transform.rotation;
 }
 
 int main() {
@@ -267,6 +280,7 @@ int main() {
 #endif
 
 #endif
+		updateGameObjects(hyacinthEngine, netClient);
 
 		hyacinthEngine.draw();
 

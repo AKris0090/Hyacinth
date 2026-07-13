@@ -32,6 +32,7 @@ public:
 	std::vector<HMeshNode*> meshedNodes;
 	uint32_t numNodes = 0;
 	uint32_t numMeshedNodes = 0;
+	uint32_t numVertices = 0;
 
 	uint32_t meshID;
 

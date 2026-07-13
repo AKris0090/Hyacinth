@@ -42,4 +42,6 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./tracer.frag -o tracerFrag.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./fxaa.frag -o fxaaFrag.spv
 
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./skinning.comp -o compSkin.spv
+
 pause

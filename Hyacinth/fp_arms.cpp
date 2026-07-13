@@ -26,9 +26,10 @@ void FirstPersonAnimationController::updateAnimParams(WEAPON_STATE newState, flo
 
 // *********************** ANIM STATE MACHINE *********************** //
 
-void FirstPersonAnimationStateMachine::flushQueuedNodeTransforms(FirstPersonAnimationController& c) {
+void FirstPersonAnimationStateMachine::flushQueuedNodeTransforms(FirstPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
 	for (auto& node : { c.leftWrist, c.rightWrist }) {
-		node->transform.rotation = node->queuedQuatRotation * node->transform.rotation;
+		Transform& t = transformMap[node->nodeIndex];
+		t.rotation = t.queuedQuatRotation * t.rotation;
 	}
 }
 
@@ -57,10 +58,10 @@ void FirstPersonAnimationStateMachine::updateAnimatedNodeTransforms(FirstPersonA
 
 		glm::quat qRotPitchLocal = glm::inverse(parentWorldRot) * c.currentSwayPitch * parentWorldRot;
 
-		node->queuedQuatRotation = qRotYawLocal * qRotPitchLocal;
+		transformMap[node->nodeIndex].queuedQuatRotation = qRotYawLocal * qRotPitchLocal;
 	}
 
-	flushQueuedNodeTransforms(c);
+	flushQueuedNodeTransforms(c, transformMap);
 }
 
 void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimationController& c, float deltaTime) {

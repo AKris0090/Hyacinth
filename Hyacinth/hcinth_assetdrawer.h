@@ -15,7 +15,7 @@ constexpr int DUMMY_METALROUGH_TEX_INDEX = 1;
 constexpr int DUMMY_COLOR_TEX_INDEX = 2;
 
 const std::vector<std::pair<std::string, VkFormat>> DUMMY_TEX_PATHS = {
-	{"./shaders/dummyNormal.png", VK_FORMAT_R8G8B8A8_UNORM },
+	{ "./shaders/dummyNormal.png", VK_FORMAT_R8G8B8A8_UNORM },
 	{ "./shaders/dummyMetallicRoughness.png", VK_FORMAT_R8G8B8A8_UNORM },
 	{ "./shaders/dummyColor.png", VK_FORMAT_R8G8B8A8_SRGB }
 };
@@ -64,16 +64,7 @@ public:
 	void createAddTextureFromFile(std::string filepath, VkFormat format);
 	void addDummyTextures();
 	void bindTextures(VkDescriptorSet& textureSet);
+	void shutdown();
 
 	HAssetDrawer();
-
-	~HAssetDrawer() {
-		if (g_vertexBuffer.buffer) vkdeviceutils::destroyBuffer(g_vertexBuffer);
-		if (g_indexBuffer.buffer) vkdeviceutils::destroyBuffer(g_indexBuffer);
-		if (materialInfoBuffer.buffer) vkdeviceutils::destroyBuffer(materialInfoBuffer);
-
-		for (auto& t : textures) {
-			vkimageutils::destroyImage(t);
-		}
-	}
 };

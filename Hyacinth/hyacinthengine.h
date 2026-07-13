@@ -67,6 +67,15 @@ struct tracerPushConstant {
 	float alpha;
 };
 
+struct computeSkinPushConstant {
+	VkDeviceAddress vertexBufferInAddress;
+	VkDeviceAddress vertexBufferOutAddress;
+	VkDeviceAddress jointBufferAddress;
+	uint32_t numVertices;
+	uint32_t srcVertexOffset;
+	uint32_t dstVertexOffset;
+};
+
 struct UBO {
 	glm::mat4 view;
 	glm::mat4 proj;
@@ -133,6 +142,7 @@ private:
 		VulkanBuffer	uniformBuffer;
 		VulkanBuffer					m_indirectDrawBuffer{};
 		VulkanBuffer					m_renderListBuffer{};
+		VulkanBuffer					m_skinnedVertexBuffer{};
 		void*			mappedUniformBuffer;
 		VkDescriptorSet uniformDescriptorSet;
 		VkDescriptorSet shadowDescriptorSet;
@@ -175,8 +185,7 @@ private:
 	VulkanPipelineBuilder			m_skinnedPipelineUtil   {};
 	VulkanPipelineBuilder			m_volumeStencilPipeline	{};
 	VulkanPipelineBuilder			m_fxaaPipelineUtil		{};
-
-	VulkanBuffer					m_skinnedVertexBuffer   {};
+	VulkanPipeline					m_computeSkinPipeline	{};
 
 	std::vector<HRenderCall>		m_renderList;
 
@@ -214,6 +223,7 @@ private:
 	void createDDGIPipeline();
 	void createDDGIVolumePipeline();
 	void createTracerPipeline();
+	void createCompSkinPipeline();
 	void createFXAAPipeline();
 	void createBuffers();
 	void createDescriptorSets();

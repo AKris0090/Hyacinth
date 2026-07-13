@@ -197,7 +197,7 @@ void loadGLTFNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, ME
     node->nodeIndex = nodeIndex;
     node->nodeName = nodeIn.name;
 
-    if (nodeIn.skin > 0) {
+    if (nodeIn.skin > -1) {
         mesh.meshOwnerNode = node;
     }
 
@@ -356,6 +356,7 @@ void loadGLTFNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, ME
             p.indexCount = primCap.indices.size();
             p.firstVertex = scene->vertices.size();
             p.vertexCount = primCap.vertices.size();
+            mesh.numVertices += p.vertexCount;
             p.meshID = mesh.meshID;
 
             if (!tangentsBuff) {
