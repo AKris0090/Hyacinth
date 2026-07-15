@@ -37,15 +37,8 @@ void AnimControllerBase::updateSamplers(HAnimation* animation, HAnimChannel* cha
 
 glm::mat4 HAnimatedGameObject::getStackedNodeMatrix(HSkinnedMeshNode* node) {
 	glm::mat4 nodeMatrix = nodeTransforms[node->nodeIndex].getMatrix();
-	HSkinnedMeshNode* currentParent = node->parent;
-	while (currentParent)
-	{
-		nodeMatrix = nodeTransforms[currentParent->nodeIndex].getMatrix() * nodeMatrix;
-		currentParent = currentParent->parent;
-	}
 
-	glm::mat4 parentMatrix(1.f);
-	if (parentObject) {
+	if (parentObject && parentMeshNode) {
 		nodeMatrix = parentObject->getStackedNodeMatrix(parentMeshNode) * nodeMatrix;
 	}
 	return nodeMatrix;
@@ -75,6 +68,13 @@ HAnimatedGameObject::HAnimatedGameObject(HSkinnedMesh* meshRef) {
 		nodeTransforms[n->nodeIndex] = Transform{};
 	}
 
+	for (const auto& n : mesh->skin.joints) {
+		if (n->parent) {
+			Transform* parentTransform = &nodeTransforms[n->parent->nodeIndex];
+			nodeTransforms[n->nodeIndex].parent = parentTransform;
+		}
+	}
+
 	jointMatrixBuffer = vkdeviceutils::createBuffer(mesh->jointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_joint_matrix_buffer");
 }
 
@@ -83,9 +83,6 @@ void HAnimatedGameObject::destroy() {
 }
 
 void HAnimatedGameObject::setParentObject(HAnimatedGameObject* aobject, HSkinnedMeshNode* childNode, HSkinnedMeshNode* parentNode) {
-	parentNode->children.push_back(childNode);
-	childNode->parent = parentNode;
-
 	parentObject = aobject;
 	parentMeshNode = parentNode;
 }

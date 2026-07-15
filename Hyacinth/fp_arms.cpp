@@ -18,10 +18,11 @@ FirstPersonAnimationController::FirstPersonAnimationController(HSkinnedMesh* mes
     currentAnim = animations[A_PISTOL_IDLE];
 }
 
-void FirstPersonAnimationController::updateAnimParams(WEAPON_STATE newState, float currentDPitch, float currentDYaw) {
+void FirstPersonAnimationController::updateAnimParams(WEAPON_STATE newState, float newPitch, float newYaw) {
 	currentState = newState;
-	deltaPitch = currentDPitch;
-	deltaYaw = currentDYaw;
+
+	deltaPitch = newPitch;
+	deltaYaw = newYaw;
 }
 
 // *********************** ANIM STATE MACHINE *********************** //
@@ -46,21 +47,21 @@ void FirstPersonAnimationStateMachine::updateAnimatedNodeTransforms(FirstPersonA
 	float targetYaw = -c.deltaYaw * HORIZONTAL_GUN_SWAY;
 	glm::quat targetQ = glm::angleAxis(targetYaw, glm::vec3(0, -1, 0));
 	c.currentSwayYaw = glm::slerp(c.currentSwayYaw, targetQ, deltaTime * 10.f);
-
+	
 	float targetPitch = -c.deltaPitch * VERTICAL_GUN_SWAY;
 	glm::quat targetQP = glm::angleAxis(targetPitch, glm::vec3(0, 0, 1));
 	c.currentSwayPitch = glm::slerp(c.currentSwayPitch, targetQP, deltaTime * 10.f);
-
+	
 	for (auto& node : { c.leftWrist, c.rightWrist }) {
-		glm::mat4 parentWorldMat = node->parent ? node->parent->getMatrix() : glm::mat4(1.0f);
+		glm::mat4 parentWorldMat = transformMap[node->parent->nodeIndex].getMatrix();
 		glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
 		glm::quat qRotYawLocal = glm::inverse(parentWorldRot) * c.currentSwayYaw * parentWorldRot;
-
+	
 		glm::quat qRotPitchLocal = glm::inverse(parentWorldRot) * c.currentSwayPitch * parentWorldRot;
-
+	
 		transformMap[node->nodeIndex].queuedQuatRotation = qRotYawLocal * qRotPitchLocal;
 	}
-
+	
 	flushQueuedNodeTransforms(c, transformMap);
 }
 

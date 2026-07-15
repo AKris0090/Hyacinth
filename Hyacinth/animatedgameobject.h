@@ -31,9 +31,9 @@ public:
 class HAnimatedGameObject {
 private:
 	void updateJoints();
-	glm::mat4 getStackedNodeMatrix(HSkinnedMeshNode* node);
 
 public:
+	bool active = true;
 	HAnimatedGameObject* parentObject = nullptr;
 	HSkinnedMeshNode* parentMeshNode = nullptr;
 	Transform transform;
@@ -47,6 +47,6 @@ public:
 
 	HAnimatedGameObject() {};
 	HAnimatedGameObject(HSkinnedMesh* meshRef);
-
+	glm::mat4 getStackedNodeMatrix(HSkinnedMeshNode* node);
 	void setParentObject(HAnimatedGameObject* aobject, HSkinnedMeshNode* childNode, HSkinnedMeshNode* parentNode);
 };

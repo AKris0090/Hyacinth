@@ -9,8 +9,9 @@
 
 #include "fp_arms.h"
 #include "pistol.h"
+#include "flashbang.h"
 
-// #define CONNECT_SERVER true
+#define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -124,6 +125,7 @@ HStaticGameObject* worldObject;
 
 HFPArms* armsObject;
 HPistol* pistolObject;
+HFlashBang* flashObject;
 
 void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	worldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("world"));
@@ -135,16 +137,35 @@ void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	pistolObject = new HPistol(engine.m_assetDrawer.getAnimatedMeshRef("pistol"));
 	engine.addAnimatedGameObject(pistolObject);
 	pistolObject->setParentObject(armsObject, pistolObject->controller.baseNode, armsObject->controller.gunBone);
+	
+	flashObject = new HFlashBang(engine.m_assetDrawer.getAnimatedMeshRef("flashbang"));
+	engine.addAnimatedGameObject(flashObject);
+	flashObject->setParentObject(armsObject, flashObject->controller.baseNode, armsObject->controller.gunBone);
 }
 
 void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
-	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, 0, 0);
+	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, engine.m_camera.m_transform.pitch - engine.m_camera.prevPitch, engine.m_camera.m_transform.yaw - engine.m_camera.prevYaw);
 	armsObject->transform.position = engine.m_camera.m_transform.position;
 	armsObject->transform.rotation = engine.m_camera.m_transform.rotation;
 
-	pistolObject->controller.updateAnimParams(armsObject->controller.shootTrigger, armsObject->controller.reloadTrigger);
+	flashObject->transform.position = engine.m_camera.m_transform.position;
+	flashObject->transform.rotation = engine.m_camera.m_transform.rotation;
 	pistolObject->transform.position = engine.m_camera.m_transform.position;
 	pistolObject->transform.rotation = engine.m_camera.m_transform.rotation;
+	
+	if (netClient.netEntManager.self->currentWeapon == PISTOL) {
+		pistolObject->active = true;
+		pistolObject->controller.updateAnimParams(armsObject->controller.shootTrigger, armsObject->controller.reloadTrigger);
+		flashObject->active = false;
+	}
+	else if (netClient.netEntManager.self->currentWeapon == GRENADE && netClient.netEntManager.self->currentState != GRENADE_THROW) {
+		flashObject->active = true;
+		pistolObject->active = false;
+	}
+	else {
+		flashObject->active = false;
+		pistolObject->active = false;
+	}
 }
 
 int main() {
@@ -178,7 +199,7 @@ int main() {
 	std::cout << "Enter server IP: ";
 	// std::getline(std::cin, ip);
 	if (CONNECT_SERVER) {
-		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout);
+		int res = netClient.setup("", hyacinthEngine.m_swImageFormat, hyacinthEngine.m_descriptorSetLayout, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"), hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("flashbang"));
 		std::cout << (res ? "CONNECTION FAILED" : "CONNECTION SUCCESSFUL") << std::endl;
 		if (res > 0) {
 			exit(EXIT_FAILURE);
@@ -208,7 +229,7 @@ int main() {
 	s.entities.push_back(*thisEnt);
 	netClient.netEntManager.selfSimBuffer.newPacket(s);
 	netClient.netEntManager.selfSimBuffer.newPacket(s);
-	netClient.netEntManager.setupFromServerPacket(s, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"), 0);
+	netClient.netEntManager.setupFromServerPacket(s, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"), hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("flashbang"), 0);
 #endif
 	Time::setInitialTime();
 

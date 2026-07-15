@@ -155,6 +155,7 @@
     <ClCompile Include="animation.cpp" />
     <ClCompile Include="csm.cpp" />
     <ClCompile Include="decals.cpp" />
+    <ClCompile Include="flashbang.cpp" />
     <ClCompile Include="fpcam.cpp" />
     <ClCompile Include="fp_arms.cpp" />
     <ClCompile Include="frustumcull.cpp" />

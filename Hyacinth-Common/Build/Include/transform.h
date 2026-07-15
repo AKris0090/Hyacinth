@@ -7,6 +7,8 @@
 #include "glm/gtx/compatibility.hpp"
 
 struct Transform {
+	Transform* parent = nullptr;
+
 	glm::vec3 position{ 0.f, 0.f, 0.f };
 	glm::quat rotation{ 1.f, 0.f, 0.f, 0.f };
 	glm::vec3 scale{ 1.f, 1.f, 1.f };
@@ -29,6 +31,11 @@ struct Transform {
 		glm::mat4 ret = glm::translate(glm::mat4(1.0f), position);
 		ret *= glm::toMat4(rotation);
 		ret = glm::scale(ret, scale);
+
+		if (parent) {
+			ret = parent->getMatrix() * ret;
+		}
+
 		return ret;
 	}
 

@@ -43,12 +43,12 @@ public:
 
 class ThirdPersonAnimationStateMachine {
 private:
-	static void flushQueuedNodeTransforms(ThirdPersonAnimationController& c);
+	static void flushQueuedNodeTransforms(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap);
 	static void updateUpperAnimation(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap);
 	static void updateLowerAnimation(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap);
 	static void updatePreviousWholeBodyAnimation(ThirdPersonAnimationController& c);
 	static void lerpPreviousCurrentAnimations(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap);
-	static void updateFromPlayerState(ThirdPersonAnimationController& c);
+	static void updateFromPlayerState(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap);
 	static void transitionToNewAnimation(ThirdPersonAnimationController& c, HAnimation* current, HAnimation* next);
 
 public:

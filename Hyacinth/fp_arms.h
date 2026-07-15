@@ -17,6 +17,7 @@ public:
 	glm::quat currentSwayYaw = { 1.f, 0.f, 0.f, 0.f };
 	glm::quat currentSwayPitch = { 1.f, 0.f, 0.f, 0.f };
 
+	float previousPitch = 0.f, previousYaw = 0.f;
 	float deltaPitch = 0.f, deltaYaw = 0.f;
 	bool reloadTrigger = false;
 	bool shootTrigger = true;

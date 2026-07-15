@@ -318,6 +318,9 @@
     <ClCompile Include="pistol.cpp">
       <Filter>Source Files\game\objects\guns</Filter>
     </ClCompile>
+    <ClCompile Include="flashbang.cpp">
+      <Filter>Source Files\game\objects\throwable</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sdlwindow.h">

@@ -2,12 +2,12 @@
 
 // *********************** CONTROLLER *********************** //
 ThirdPersonAnimationController::ThirdPersonAnimationController(HSkinnedMesh* mesh) {
-	HSkinnedMeshNode* upperArmL = mesh->getNodeByName("upper_arm.L");    // left arm (pitch) controller
-	HSkinnedMeshNode* upperArmR = mesh->getNodeByName("upper_arm.R");    // right arm (pitch) controller
-	HSkinnedMeshNode* spine005 = mesh->getNodeByName("spine.005");     // head neck (pitch) controller
-	HSkinnedMeshNode* spine007 = mesh->getNodeByName("spine.007");     // lower body yaw controller
-	HSkinnedMeshNode* spine003 = mesh->getNodeByName("spine.003");     // upper body yaw controller
-	HSkinnedMeshNode* spine = mesh->getNodeByName("spine");
+	upperArmL = mesh->getNodeByName("upper_arm.L");    // left arm (pitch) controller
+	upperArmR = mesh->getNodeByName("upper_arm.R");    // right arm (pitch) controller
+	spine005 = mesh->getNodeByName("spine.005");     // head neck (pitch) controller
+	spine007 = mesh->getNodeByName("spine.007");     // lower body yaw controller
+	spine003 = mesh->getNodeByName("spine.003");     // upper body yaw controller
+	spine = mesh->getNodeByName("spine");
 
 	animations[A_TP_IDLE] = &mesh->animations[0];
 	animations[A_TP_RUNNING] = &mesh->animations[1];
@@ -39,53 +39,53 @@ static void stageTurnAnim(ThirdPersonAnimationController& c, bool leftRight) {
 	c.turnState = leftRight ? NEEDS_TURN_LEFT : NEEDS_TURN_RIGHT;
 }
 
-void ThirdPersonAnimationStateMachine::flushQueuedNodeTransforms(ThirdPersonAnimationController& c) {
-	//for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
-	//	glm::quat finalPitch{ 1.f, 0.f, 0.f, 0.f };
-	//	glm::quat finalYaw{ 1.f, 0.f, 0.f, 0.f };
+void ThirdPersonAnimationStateMachine::flushQueuedNodeTransforms(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
+	for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
+		glm::quat finalPitch{ 1.f, 0.f, 0.f, 0.f };
+		glm::quat finalYaw{ 1.f, 0.f, 0.f, 0.f };
 
-	//	for (const auto f : node->queuedYawShifts) {
-	//		glm::quat yawQuat = glm::angleAxis(glm::radians(f), glm::vec3(0, -1, 0));
-	//		finalYaw = yawQuat * finalYaw;
-	//	}
-	//	for (const auto f : node->queuedPitchShifts) {
-	//		glm::quat pitchQuat = glm::angleAxis(glm::radians(f), glm::vec3(0, 0, 1));
-	//		finalPitch = pitchQuat * finalPitch;
-	//	}
+		for (const auto f : transformMap[node->nodeIndex].queuedYawShifts) {
+			glm::quat yawQuat = glm::angleAxis(glm::radians(f), glm::vec3(0, -1, 0));
+			finalYaw = yawQuat * finalYaw;
+		}
+		for (const auto f : transformMap[node->nodeIndex].queuedPitchShifts) {
+			glm::quat pitchQuat = glm::angleAxis(glm::radians(f), glm::vec3(0, 0, 1));
+			finalPitch = pitchQuat * finalPitch;
+		}
 
-	//	glm::quat finalGlobal = finalPitch * finalYaw;
+		glm::quat finalGlobal = finalPitch * finalYaw;
 
-	//	glm::mat4 parentWorldMat = node->parent ? node->parent->getMatrix() : glm::mat4(1.0f);
-	//	glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
-	//	glm::quat qRotLocal = glm::inverse(parentWorldRot) * finalGlobal * parentWorldRot;
+		glm::mat4 parentWorldMat = node->parent ? node->parent->getMatrix() : glm::mat4(1.0f);
+		glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
+		glm::quat qRotLocal = glm::inverse(parentWorldRot) * finalGlobal * parentWorldRot;
 
-	//	node->queuedQuatRotation = qRotLocal;
+		transformMap[node->nodeIndex].queuedQuatRotation = qRotLocal;
 
-	//	node->queuedPitchShifts.clear();
-	//	node->queuedYawShifts.clear();
-	//}
-	//for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
-	//	node->transform.rotation = node->queuedQuatRotation * node->transform.rotation;
-	//}
+		transformMap[node->nodeIndex].queuedPitchShifts.clear();
+		transformMap[node->nodeIndex].queuedYawShifts.clear();
+	}
+	for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
+		transformMap[node->nodeIndex].rotation = transformMap[node->nodeIndex].queuedQuatRotation * transformMap[node->nodeIndex].rotation;
+	}
 }
 
-void ThirdPersonAnimationStateMachine::updateFromPlayerState(ThirdPersonAnimationController& c) {
-	//glm::quat trueAngleQuat = glm::slerp(c.prevBasisRotation, c.basisRotation, c.alpha);
-	//float bodyAngle = yawFromQuaternion(trueAngleQuat);
-	//c.spine->queuedYawShifts.push_back(bodyAngle);
+void ThirdPersonAnimationStateMachine::updateFromPlayerState(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
+	glm::quat trueAngleQuat = glm::slerp(c.prevBasisRotation, c.basisRotation, c.alpha);
+	float bodyAngle = yawFromQuaternion(trueAngleQuat);
+	transformMap[c.spine->nodeIndex].queuedYawShifts.push_back(bodyAngle);
 
-	//if (!c.isMoving) {
-	//	glm::quat yawQuaternion = glm::angleAxis(glm::radians(c.yaw), glm::vec3(0, 1, 0));	
-	//	glm::quat delta = yawQuaternion * glm::inverse(trueAngleQuat);
-	//	float deltaAngle = yawFromQuaternion(delta);
-	//	c.spine003->queuedYawShifts.push_back(deltaAngle);
-	//}
+	if (!c.isMoving) {
+		glm::quat yawQuaternion = glm::angleAxis(glm::radians(c.yaw), glm::vec3(0, 1, 0));	
+		glm::quat delta = yawQuaternion * glm::inverse(trueAngleQuat);
+		float deltaAngle = yawFromQuaternion(delta);
+		transformMap[c.spine003->nodeIndex].queuedYawShifts.push_back(deltaAngle);
+	}
 
-	//for (auto& node : { c.upperArmL, c.upperArmR, c.spine005 }) {
-	//	node->queuedPitchShifts.push_back(c.pitch);
-	//}
+	for (auto& node : { c.upperArmL, c.upperArmR, c.spine005 }) {
+		transformMap[node->nodeIndex].queuedPitchShifts.push_back(c.pitch);
+	}
 
-	//flushQueuedNodeTransforms(c); // flush all at once so that rotations do not cause weird interactions with each other
+	flushQueuedNodeTransforms(c, transformMap); // flush all at once so that rotations do not cause weird interactions with each other
 }
 
 void ThirdPersonAnimationStateMachine::updateUpperAnimation(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
@@ -201,13 +201,14 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 		}
 	}
 
-	updateFromPlayerState(c);
+	updateFromPlayerState(c, transformMap);
 }
 
 // *********************** OBJECT *********************** //
 
 HTPCharacter::HTPCharacter(HSkinnedMesh* meshIn) : HAnimatedGameObject(meshIn) {
 	controller = ThirdPersonAnimationController(meshIn);
+	controller.previousAnimationTransforms.resize(nodeTransforms.size());
 }
 
 void HTPCharacter::updateAnimation(float deltaTime) {

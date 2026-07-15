@@ -65,8 +65,7 @@ public:
 	InterpolationPacketBuffer selfSimBuffer;
 	std::mutex selfMutex;
 	std::unordered_map<uint32_t, Entity*> entities;
-	std::unordered_map<uint32_t, HTPCharacter*> characterObjects;
-	// TODO: add flashbang map
+	std::unordered_map<uint32_t, HAnimatedGameObject*> gameObjects;
 
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
@@ -74,11 +73,11 @@ public:
 	RewindBuffer rB;
 	int tickOffset;
 	HSkinnedMesh* characterMeshRef;
+	HSkinnedMesh* flashMeshRef;
 	glm::vec3 shotAckPosition;
 	
-	void setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh* characterMesh, uint32_t currentClientID);
+	void setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh* characterMesh, HSkinnedMesh* flashMesh, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
-	void drawEntities(VkCommandBuffer& cmd, VulkanPipelineBuilder& pipelineUtil, VulkanBuffer& dynamicIndirectBuffer, GPUDrawPushConstants& pc);
 	void shutdown();
 	void clearPendingPackets(Entity* self);
 };

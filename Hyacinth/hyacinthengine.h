@@ -153,6 +153,9 @@ private:
 	float volAViewBias;
 	float volBViewBias;
 
+	uint32_t numStaticDrawCommands;
+	uint32_t numDynamicDrawCommands;
+
 	bool m_initialized = false;
 	bool m_showImGui = false;
 	bool ambientToggle = false;

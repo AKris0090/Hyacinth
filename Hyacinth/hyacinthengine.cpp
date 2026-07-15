@@ -699,10 +699,10 @@ void HyacinthEngine::loadAssets() {
 
     gltfutils::loadStaticMesh(m_assetDrawer, path.string(), "world");
     gltfutils::loadStaticMesh(m_assetDrawer, tracerPath.string(), "tracer");
+    gltfutils::loadAnimatedMesh(m_assetDrawer, flashPath.string(), "flashbang");
     gltfutils::loadAnimatedMesh(m_assetDrawer, thirdPersonCharacterPath.string(), "tp_character");
     gltfutils::loadAnimatedMesh(m_assetDrawer, firstPersonCharacterPath.string(), "fp_arms");
     gltfutils::loadAnimatedMesh(m_assetDrawer, pistolPath.string(), "pistol");
-    gltfutils::loadAnimatedMesh(m_assetDrawer, flashPath.string(), "flashbang");
 }
 
 void HyacinthEngine::createBuffers() {
@@ -715,7 +715,6 @@ void HyacinthEngine::createBuffers() {
 
         // create render call buffer
         m_frameData[i].m_renderListBuffer = vkdeviceutils::createBuffer(sizeof(HRenderCall), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "render_list_buffer");
-        std::cout << "BUFFER CREATION: " << m_frameData[i].m_renderListBuffer.gpuAddress << std::endl;
 
         // create indirect draw buffer
         m_frameData[i].m_indirectDrawBuffer = vkdeviceutils::createBuffer(sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "indirect_draw_buffer");
@@ -916,8 +915,27 @@ void HyacinthEngine::generateRenderList() {
         }
     }
 
+    numStaticDrawCommands = m_renderList.size();
+
     uint32_t animatedVertexOffset = 0;
     for (const auto& ao : m_animatedObjects) {
+        if (!ao->active) continue;
+        for (const auto& n : ao->mesh->meshedNodes) {
+            for (const auto& p : n->primtives) {
+                m_renderList.push_back(HRenderCall{
+                    .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
+                    .materialIndex = p.materialIndex,
+                    .indexCount = p.indexCount,
+                    .firstIndex = p.firstIndex,
+                    .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
+                    .meshID = p.meshID
+                    });
+            }
+        }
+        animatedVertexOffset += ao->mesh->numVertices;
+    }
+    for (const auto& [id, ao] : p_netEntManager->gameObjects) {
+        if (!ao->active) continue;
         for (const auto& n : ao->mesh->meshedNodes) {
             for (const auto& p : n->primtives) {
                 m_renderList.push_back(HRenderCall{
@@ -933,6 +951,8 @@ void HyacinthEngine::generateRenderList() {
         animatedVertexOffset += ao->mesh->numVertices;
     }
 
+    numDynamicDrawCommands = m_renderList.size() - numStaticDrawCommands;
+
     if (m_frameData[m_frameIndex].m_skinnedVertexBuffer.info.size < (animatedVertexOffset * sizeof(Vertex))) {
         vkdeviceutils::resizeBuffer(m_frameData[m_frameIndex].m_skinnedVertexBuffer, (animatedVertexOffset * sizeof(Vertex)));
     }
@@ -941,23 +961,16 @@ void HyacinthEngine::generateRenderList() {
 
 void HyacinthEngine::generateDrawCommands() {
     m_drawCommands.clear();
-    std::unordered_map<uint32_t, std::vector<HRenderCall*>> sortedRenderCalls;
-    for (auto& r : m_renderList) {
-        sortedRenderCalls[r.meshID].push_back(&r);
-    }
-
     uint32_t drawIndex = 0;
-    for (const auto& [meshID, drawList] : sortedRenderCalls) {
-        for (const auto& d : drawList) {
-            VkDrawIndexedIndirectCommand dCom;
-            dCom.firstIndex = d->firstIndex;
-            dCom.firstInstance = drawIndex;
-            dCom.indexCount = d->indexCount;
-            dCom.instanceCount = 1;
-            dCom.vertexOffset = d->vertexOffset;
-            m_drawCommands.push_back(dCom);
-            drawIndex++;
-        }
+    for (const auto& d : m_renderList) {
+        VkDrawIndexedIndirectCommand dCom;
+        dCom.firstIndex = d.firstIndex;
+        dCom.firstInstance = drawIndex;
+        dCom.indexCount = d.indexCount;
+        dCom.instanceCount = 1;
+        dCom.vertexOffset = d.vertexOffset;
+        m_drawCommands.push_back(dCom);
+        drawIndex++;
     }
 
     vkdeviceutils::updateBuffer(m_frameData[m_frameIndex].m_indirectDrawBuffer, m_drawCommands.size() * sizeof(VkDrawIndexedIndirectCommand), m_drawCommands.data());
@@ -1191,6 +1204,19 @@ void HyacinthEngine::draw() {
         cskin.vertexBufferOutAddress = m_frameData[m_frameIndex].m_skinnedVertexBuffer.gpuAddress;
         uint32_t dstVOffset = 0;
         for (const auto& ao : m_animatedObjects) {
+            if (!ao->active) continue;
+            cskin.srcVertexOffset = ao->mesh->vertexOffset;
+            cskin.dstVertexOffset = dstVOffset;
+            cskin.numVertices = ao->mesh->numVertices;
+            cskin.jointBufferAddress = ao->jointMatrixBuffer.gpuAddress;
+
+            vkCmdPushConstants(cmd, m_computeSkinPipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computeSkinPushConstant), &cskin);
+            vkCmdDispatch(cmd, cskin.numVertices, 1, 1);
+
+            dstVOffset += ao->mesh->numVertices;
+        }
+        for (const auto& [id, ao] : p_netEntManager->gameObjects) {
+            if (!ao->active) continue;
             cskin.srcVertexOffset = ao->mesh->vertexOffset;
             cskin.dstVertexOffset = dstVOffset;
             cskin.numVertices = ao->mesh->numVertices;
@@ -1251,16 +1277,13 @@ void HyacinthEngine::draw() {
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
         // draw world
-        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, 0, 103, sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, 0, numStaticDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_frameData[m_frameIndex].m_skinnedVertexBuffer.buffer, offsets);
 
         // draw arms
-        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * 103, 2, sizeof(VkDrawIndexedIndirectCommand));
-
-        // draw pistol
-        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * 105, 4, sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDrawCommands, numDynamicDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
 
@@ -1593,6 +1616,8 @@ void HyacinthEngine::cleanup()
     m_worldHealthManager.shutdown();
     m_skyboxHelper.shutdown();
     m_assetDrawer.shutdown();
+
+    p_netEntManager->shutdown();
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.shutdown();

@@ -235,7 +235,7 @@ void loadGLTFNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, ME
             const tinygltf::Primitive& gltfPrim = gltfMesh.primitives[i];
             HPrimGeomCapsule primCap;
             HMeshPrim p;
-            p.materialIndex = gltfPrim.material + materialOffset;
+            p.materialIndex = (gltfPrim.material < 0 ? 0 : gltfPrim.material) + materialOffset;
             bool hasSkin = false;
 
             uint32_t currentNumIndices = 0;
@@ -444,6 +444,14 @@ namespace gltfutils {
             else { material.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
             material.alphaCutoff = gltfMat.alphaCutoff;
 
+            scene.materials.push_back(material);
+        }
+
+        if (model->materials.size() == 0) {
+            MaterialInstance material;
+            material.baseColorIndex = DUMMY_COLOR_TEX_INDEX;
+            material.normalIndex = DUMMY_NORMAL_TEX_INDEX;
+            material.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX;
             scene.materials.push_back(material);
         }
 

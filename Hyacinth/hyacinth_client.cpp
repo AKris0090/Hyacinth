@@ -62,7 +62,7 @@ void HyacinthNetworkClient::listenForServer(SOCKET twoWayUDPSocket) {
     closesocket(twoWayUDPSocket);
 }
 
-int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout, HSkinnedMesh* characterMeshRef) {
+int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout, HSkinnedMesh* characterMeshRef, HSkinnedMesh* flashMeshRef) {
     netEntManager.self = new Entity();
 
     WSADATA wsaData;
@@ -151,7 +151,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
     sp = ServerSnapshot::fromString(snapshot);
     netEntManager.imageFormat = swImageFormat;
     netEntManager.uniformSetLayout = &uniformLayout;
-    netEntManager.setupFromServerPacket(sp, characterMeshRef, clientID);
+    netEntManager.setupFromServerPacket(sp, characterMeshRef, flashMeshRef, clientID);
 
     connected = true;
 
@@ -168,6 +168,4 @@ void HyacinthNetworkClient::updateServerTick(ClientUpdatePacket& p, bool mouseLo
     sendto(twoWayUDPSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);
 }
 
-void HyacinthNetworkClient::shutdownNet() {
-    netEntManager.shutdown();
-}
+void HyacinthNetworkClient::shutdownNet() {}
