@@ -17,9 +17,6 @@ public:
 	std::vector<HSkinnedMeshNode*>	children;
 	std::vector<HMeshPrim>			primtives;
 
-	bool upperBody = false;
-	bool lowerBody = false;
-
 	// refers to indices in the global buffer
 	uint32_t firstIndex;
 	uint32_t indexCount;
@@ -51,8 +48,6 @@ struct HSkin {
 	std::vector<HSkinnedMeshNode*>		joints;
 };
 
-static bool isParentOf(HSkinnedMeshNode* search, HSkinnedMeshNode* target);
-
 class HSkinnedMesh {
 public:
 	std::string meshName;
@@ -77,4 +72,5 @@ public:
 
 	HSkinnedMeshNode* getNodeByIndex(uint32_t index);
 	HSkinnedMeshNode* getNodeByName(std::string nodeName);
+	static bool isParentOf(HSkinnedMeshNode* search, HSkinnedMeshNode* target);
 };

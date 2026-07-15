@@ -15,6 +15,16 @@ ThirdPersonAnimationController::ThirdPersonAnimationController(HSkinnedMesh* mes
 	animations[A_TP_RIGHT_TURN] = &mesh->animations[3];
 
 	currentLowerBodyAnim = currentUpperBodyAnim = previousAnimation = animations[A_TP_IDLE];
+
+	isUpperFlag = std::vector<bool>(mesh->numNodes, false);
+	isLowerFlag = std::vector<bool>(mesh->numNodes, false);
+
+	isLowerFlag[spine->nodeIndex] = true;
+
+	for (const auto& jointNode : mesh->skin.joints) {
+		if (HSkinnedMesh::isParentOf(jointNode, spine003)) isUpperFlag[jointNode->nodeIndex] = true;
+		if (HSkinnedMesh::isParentOf(jointNode, spine007)) isLowerFlag[jointNode->nodeIndex] = true;
+	}
 };
 
 void ThirdPersonAnimationController::updateAnimParams(Entity* entity) {
@@ -43,7 +53,7 @@ void ThirdPersonAnimationStateMachine::flushQueuedNodeTransforms(ThirdPersonAnim
 	for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
 		glm::quat finalPitch{ 1.f, 0.f, 0.f, 0.f };
 		glm::quat finalYaw{ 1.f, 0.f, 0.f, 0.f };
-
+	
 		for (const auto f : transformMap[node->nodeIndex].queuedYawShifts) {
 			glm::quat yawQuat = glm::angleAxis(glm::radians(f), glm::vec3(0, -1, 0));
 			finalYaw = yawQuat * finalYaw;
@@ -52,18 +62,19 @@ void ThirdPersonAnimationStateMachine::flushQueuedNodeTransforms(ThirdPersonAnim
 			glm::quat pitchQuat = glm::angleAxis(glm::radians(f), glm::vec3(0, 0, 1));
 			finalPitch = pitchQuat * finalPitch;
 		}
-
+	
 		glm::quat finalGlobal = finalPitch * finalYaw;
-
-		glm::mat4 parentWorldMat = node->parent ? node->parent->getMatrix() : glm::mat4(1.0f);
+	
+		glm::mat4 parentWorldMat = transformMap[node->parent->nodeIndex].getMatrix();
 		glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
 		glm::quat qRotLocal = glm::inverse(parentWorldRot) * finalGlobal * parentWorldRot;
-
+	
 		transformMap[node->nodeIndex].queuedQuatRotation = qRotLocal;
-
+	
 		transformMap[node->nodeIndex].queuedPitchShifts.clear();
 		transformMap[node->nodeIndex].queuedYawShifts.clear();
 	}
+
 	for (auto& node : { c.spine, c.spine003, c.upperArmL, c.upperArmR, c.spine005 }) {
 		transformMap[node->nodeIndex].rotation = transformMap[node->nodeIndex].queuedQuatRotation * transformMap[node->nodeIndex].rotation;
 	}
@@ -73,25 +84,25 @@ void ThirdPersonAnimationStateMachine::updateFromPlayerState(ThirdPersonAnimatio
 	glm::quat trueAngleQuat = glm::slerp(c.prevBasisRotation, c.basisRotation, c.alpha);
 	float bodyAngle = yawFromQuaternion(trueAngleQuat);
 	transformMap[c.spine->nodeIndex].queuedYawShifts.push_back(bodyAngle);
-
+	
 	if (!c.isMoving) {
 		glm::quat yawQuaternion = glm::angleAxis(glm::radians(c.yaw), glm::vec3(0, 1, 0));	
 		glm::quat delta = yawQuaternion * glm::inverse(trueAngleQuat);
 		float deltaAngle = yawFromQuaternion(delta);
 		transformMap[c.spine003->nodeIndex].queuedYawShifts.push_back(deltaAngle);
 	}
-
+	
 	for (auto& node : { c.upperArmL, c.upperArmR, c.spine005 }) {
 		transformMap[node->nodeIndex].queuedPitchShifts.push_back(c.pitch);
 	}
-
+	
 	flushQueuedNodeTransforms(c, transformMap); // flush all at once so that rotations do not cause weird interactions with each other
 }
 
 void ThirdPersonAnimationStateMachine::updateUpperAnimation(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
 	for (auto& channel : c.currentUpperBodyAnim->channels)
 	{
-		if (!channel.node->upperBody) continue;
+		if (!c.isUpperFlag[channel.node->nodeIndex]) continue;
 		AnimControllerBase::updateSamplers(c.currentUpperBodyAnim, &channel, &transformMap[channel.node->nodeIndex], c.currentUpperTime);
 	}
 }
@@ -99,7 +110,7 @@ void ThirdPersonAnimationStateMachine::updateUpperAnimation(ThirdPersonAnimation
 void ThirdPersonAnimationStateMachine::updateLowerAnimation(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
 	for (auto& channel : c.currentLowerBodyAnim->channels)
 	{
-		if (!channel.node->lowerBody) continue;
+		if (!c.isLowerFlag[channel.node->nodeIndex]) continue;
 		AnimControllerBase::updateSamplers(c.currentLowerBodyAnim, &channel, &transformMap[channel.node->nodeIndex], c.currentLowerTime);
 	}
 }
@@ -107,8 +118,8 @@ void ThirdPersonAnimationStateMachine::updateLowerAnimation(ThirdPersonAnimation
 void ThirdPersonAnimationStateMachine::updatePreviousWholeBodyAnimation(ThirdPersonAnimationController& c) {
 	for (auto& channel : c.previousAnimation->channels)
 	{
-		Transform& t = c.previousAnimationTransforms[channel.node->nodeIndex];
-		AnimControllerBase::updateSamplers(c.previousAnimation, &channel, &t, c.currentUpperTime);
+		Transform* t = &c.previousAnimationTransforms[channel.node->nodeIndex];
+		AnimControllerBase::updateSamplers(c.previousAnimation, &channel, t, c.currentUpperTime);
 	}
 }
 
@@ -134,11 +145,11 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 	if (!c.isMoving) {
 		if (c.turnState == IDLE || c.turnState == TURNING) {
 			glm::quat yawQuaternion = glm::angleAxis(glm::radians(c.yaw), glm::vec3(0, 1, 0));
-
+	
 			// get delta quaternion
 			glm::quat delta = yawQuaternion * glm::inverse(c.basisRotation);
 			float deltaAngle = yawFromQuaternion(delta);
-
+	
 			if (deltaAngle < -90.f) {
 				turn(c, c.yaw);
 				c.currentLowerBodyAnim = c.animations[A_TP_LEFT_TURN];
@@ -164,7 +175,7 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 		}
 		setNewBasis(c, c.yaw);
 	}
-
+	
 	c.currentLowerTime += deltaTime;
 	if (c.turnState == TURN_ANIM_STATE::TURNING) {
 		if (c.currentLowerTime >= c.currentLowerBodyAnim->end) {
@@ -174,10 +185,10 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 		}
 	}
 	c.currentLowerTime = fmod(c.currentLowerTime, c.currentLowerBodyAnim->end);
-
+	
 	c.currentUpperTime += deltaTime;
 	c.currentUpperTime = fmod(c.currentUpperTime, c.currentUpperBodyAnim->end);
-
+	
 	float alpha = 1.f;
 	if (c.turnState == TURN_ANIM_STATE::TURNING) {
 		alpha = c.currentLowerTime / c.currentLowerBodyAnim->end;
@@ -195,12 +206,12 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 			c.previousTime += deltaTime;
 			c.previousTime = fmod(c.previousTime, c.previousAnimation->end);
 			updatePreviousWholeBodyAnimation(c);
-
+	
 			// lerp between animation channel nodes and previous animation transforms
 			lerpPreviousCurrentAnimations(c, transformMap);
 		}
 	}
-
+	
 	updateFromPlayerState(c, transformMap);
 }
 
@@ -208,7 +219,10 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 
 HTPCharacter::HTPCharacter(HSkinnedMesh* meshIn) : HAnimatedGameObject(meshIn) {
 	controller = ThirdPersonAnimationController(meshIn);
-	controller.previousAnimationTransforms.resize(nodeTransforms.size());
+
+	for (const auto& n : mesh->parentNodes) {
+		addNodeTransform(n, controller.previousAnimationTransforms);
+	}
 }
 
 void HTPCharacter::updateAnimation(float deltaTime) {

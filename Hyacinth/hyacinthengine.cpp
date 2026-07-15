@@ -689,7 +689,7 @@ void HyacinthEngine::createDDGIPipeline()
 void HyacinthEngine::loadAssets() {
     // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
-    auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
+    auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
     auto tracerPath = vkdebugutils::getExeDir() / "objects" / "tracer.glb";

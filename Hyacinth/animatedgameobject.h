@@ -45,6 +45,10 @@ public:
 
 	void destroy();
 
+	// helpers for setting up node transform storage
+	static void hookUpTransformParents(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms);
+	static void addNodeTransform(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms);
+
 	HAnimatedGameObject() {};
 	HAnimatedGameObject(HSkinnedMesh* meshRef);
 	glm::mat4 getStackedNodeMatrix(HSkinnedMeshNode* node);

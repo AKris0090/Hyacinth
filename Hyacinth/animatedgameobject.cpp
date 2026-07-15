@@ -45,7 +45,7 @@ glm::mat4 HAnimatedGameObject::getStackedNodeMatrix(HSkinnedMeshNode* node) {
 }
 
 void HAnimatedGameObject::updateJoints() {
-	glm::mat4				inverseTransform = glm::inverse(mesh->meshOwnerNode->getMatrix());
+	glm::mat4				inverseTransform = glm::inverse(nodeTransforms[mesh->meshOwnerNode->nodeIndex].getMatrix());
 	size_t					numJoints = (uint32_t) mesh->skin.joints.size();
 	std::vector<glm::mat4>	finalJointMatrices(numJoints);
 	for (size_t i = 0; i < numJoints; i++)
@@ -61,18 +61,34 @@ void HAnimatedGameObject::updateAnimation(float deltaTime) {
 	updateJoints();
 }
 
+void HAnimatedGameObject::hookUpTransformParents(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
+	if (n->parent) {
+		Transform* parentTransform = &nodeTransforms[n->parent->nodeIndex];
+		nodeTransforms[n->nodeIndex].parent = parentTransform;
+	}
+
+	for (const auto& nc : n->children) {
+		hookUpTransformParents(nc, nodeTransforms);
+	}
+}
+
+void HAnimatedGameObject::addNodeTransform(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
+	nodeTransforms[n->nodeIndex] = n->transform; // need base pose
+
+	for (const auto& nc : n->children) {
+		addNodeTransform(nc, nodeTransforms);
+	}
+}
+
 HAnimatedGameObject::HAnimatedGameObject(HSkinnedMesh* meshRef) {
 	mesh = meshRef;
 
-	for (const auto& n : mesh->skin.joints) {
-		nodeTransforms[n->nodeIndex] = Transform{};
+	for (const auto& n : mesh->parentNodes) {
+		addNodeTransform(n, nodeTransforms);
 	}
 
-	for (const auto& n : mesh->skin.joints) {
-		if (n->parent) {
-			Transform* parentTransform = &nodeTransforms[n->parent->nodeIndex];
-			nodeTransforms[n->nodeIndex].parent = parentTransform;
-		}
+	for (const auto& n : mesh->parentNodes) {
+		hookUpTransformParents(n, nodeTransforms);
 	}
 
 	jointMatrixBuffer = vkdeviceutils::createBuffer(mesh->jointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_joint_matrix_buffer");

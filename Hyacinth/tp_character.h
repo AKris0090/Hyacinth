@@ -17,7 +17,7 @@ public:
 	float previousTime = 0.f;
 
 	HAnimation* previousAnimation = nullptr;
-	std::vector<Transform> previousAnimationTransforms;
+	std::unordered_map<uint32_t, Transform> previousAnimationTransforms;
 
 	HAnimation* currentLowerBodyAnim = nullptr;
 	HAnimation* currentUpperBodyAnim = nullptr;
@@ -29,11 +29,15 @@ public:
 	float						  fadeLength = 0.15f;
 	bool						  transitioning = false;
 
+
+	std::vector<bool> isUpperFlag;
+	std::vector<bool> isLowerFlag;
+
 	CURRENT_PLAYER_MOTION_STATE motionState = STILL;
 	TURN_ANIM_STATE turnState = IDLE;
 
-	float pitch, yaw, alpha;
-	bool isMoving;
+	float pitch, yaw, alpha = 0;
+	bool isMoving = false;
 
 	ThirdPersonAnimationController() {};
 	ThirdPersonAnimationController(HSkinnedMesh* mesh);

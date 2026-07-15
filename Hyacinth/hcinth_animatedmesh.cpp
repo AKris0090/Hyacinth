@@ -1,6 +1,6 @@
 #include "hcinth_animatedmesh.h"
 
-bool isParentOf(HSkinnedMeshNode* search, HSkinnedMeshNode* target) {
+bool HSkinnedMesh::isParentOf(HSkinnedMeshNode* search, HSkinnedMeshNode* target) {
 	if (search == nullptr) {
 		return false;
 	}
