@@ -100,31 +100,29 @@ void ThirdPersonAnimationStateMachine::updateFromPlayerState(ThirdPersonAnimatio
 }
 
 void ThirdPersonAnimationStateMachine::updateUpperAnimation(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
-	for (auto& channel : c.currentUpperBodyAnim->channels)
-	{
+	for (auto& channel : c.currentUpperBodyAnim->channels) {
 		if (!c.isUpperFlag[channel.node->nodeIndex]) continue;
 		AnimControllerBase::updateSamplers(c.currentUpperBodyAnim, &channel, &transformMap[channel.node->nodeIndex], c.currentUpperTime);
 	}
 }
 
 void ThirdPersonAnimationStateMachine::updateLowerAnimation(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
-	for (auto& channel : c.currentLowerBodyAnim->channels)
-	{
+	for (auto& channel : c.currentLowerBodyAnim->channels) {
 		if (!c.isLowerFlag[channel.node->nodeIndex]) continue;
 		AnimControllerBase::updateSamplers(c.currentLowerBodyAnim, &channel, &transformMap[channel.node->nodeIndex], c.currentLowerTime);
 	}
 }
 
 void ThirdPersonAnimationStateMachine::updatePreviousWholeBodyAnimation(ThirdPersonAnimationController& c) {
-	for (auto& channel : c.previousAnimation->channels)
-	{
+	for (auto& channel : c.previousAnimation->channels) {
 		Transform* t = &c.previousAnimationTransforms[channel.node->nodeIndex];
-		AnimControllerBase::updateSamplers(c.previousAnimation, &channel, t, c.currentUpperTime);
+		AnimControllerBase::updateSamplers(c.previousAnimation, &channel, t, c.previousTime);
 	}
 }
 
 void ThirdPersonAnimationStateMachine::transitionToNewAnimation(ThirdPersonAnimationController& c, HAnimation* current, HAnimation* next) {
 	c.previousAnimation = current;
+	c.previousTime = c.currentLowerTime;
 	c.transitioning = true;
 	c.fadeTimer = 0.f;
 	c.currentLowerBodyAnim = next;
@@ -134,10 +132,10 @@ void ThirdPersonAnimationStateMachine::transitionToNewAnimation(ThirdPersonAnima
 
 void ThirdPersonAnimationStateMachine::lerpPreviousCurrentAnimations(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
 	float alpha = c.fadeTimer / c.fadeLength;
-	for (auto& channel : c.currentLowerBodyAnim->channels)
+	for (auto& [id, nodeT] : c.previousAnimationTransforms)
 	{
-		Transform& t = c.previousAnimationTransforms[channel.node->nodeIndex];
-		transformMap[channel.node->nodeIndex] = t.lerpToNoSet(transformMap[channel.node->nodeIndex], alpha);
+		Transform lerpedT = nodeT.lerpToNoSet(transformMap[id], alpha);
+		transformMap[id].copy(lerpedT); // TODO: try assignemnt and run tests to make sure nothing else breaks
 	}
 }
 
@@ -189,9 +187,9 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 	c.currentUpperTime += deltaTime;
 	c.currentUpperTime = fmod(c.currentUpperTime, c.currentUpperBodyAnim->end);
 	
-	float alpha = 1.f;
+	c.alpha = 1.f;
 	if (c.turnState == TURN_ANIM_STATE::TURNING) {
-		alpha = c.currentLowerTime / c.currentLowerBodyAnim->end;
+		c.alpha = c.currentLowerTime / c.currentLowerBodyAnim->end;
 	}
 
 	updateUpperAnimation(c, transformMap);

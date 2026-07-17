@@ -94,4 +94,13 @@ struct Transform {
 
 	Transform() {};
 	Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale) : position(position), rotation(rotation), scale(scale) {}
+
+	void copy(Transform& o) {
+		position = o.position;
+		rotation = o.rotation;
+		scale = o.scale;
+
+		pitch = o.pitch;
+		yaw = o.yaw;
+	}
 };
