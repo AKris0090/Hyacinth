@@ -134,9 +134,14 @@ void NetworkEntityManager::clearPendingPackets(Entity* self) {
 	}
 }
 
-void NetworkEntityManager::shutdown() {
+void NetworkEntityManager::shutdown() { // TODO: figure this out, no idea why it reads as >0 size
+	if (gameObjects.size() == 0) return;
+	std::vector<uint32_t> ids;
 	for (auto& [id, ao] : gameObjects) {
-		if (ao) ao->destroy();
+		ids.push_back(id);
+	}
+	for (const auto& id : ids) {
+		if (gameObjects.find(id) != gameObjects.end()) gameObjects[id]->destroy();
 	}
 }
 

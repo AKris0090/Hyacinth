@@ -3,13 +3,6 @@
 #include "vkpipelineutils.h"
 #include <array>
 
-const std::array<std::string, 4> UI_TEXTURE_NAMES = {
-	"crosshair.png",
-	"characterportrait.png",
-	"bullet.png",
-	"flash.png",
-};
-
 enum UI_ANCHOR {
 	TOP_LEFT,
 	TOP_MIDDLE,

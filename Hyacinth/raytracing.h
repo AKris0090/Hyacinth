@@ -9,6 +9,13 @@
 #include <vector>
 
 namespace rt {
+	struct nodeAccelBuildPacket {
+		VkDeviceAddress vertexAddress;
+		VkDeviceAddress indexAddress;
+		uint32_t numVertices;
+		uint32_t numIndices;
+	};
+
 	extern PFN_vkCreateAccelerationStructureKHR				CreateAS;
 	extern PFN_vkCmdBuildAccelerationStructuresKHR			BuildAS;
 	extern PFN_vkGetAccelerationStructureBuildSizesKHR		GetBuildSizes;
@@ -36,6 +43,6 @@ public:
 	void shutdown();
 
 	static void createAccelerationStructure(VkAccelerationStructureTypeKHR asType, AccelerationStructure& accelStruct, VkAccelerationStructureGeometryKHR& asGeometry, VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo, VkBuildAccelerationStructureFlagsKHR flags);
-	static void nodeToAccelStructureGeometry(std::vector<glm::vec3> nodeVertices, std::vector<uint32_t>& nodeIndices, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo);
-	static void createBottomLevelAS(AccelerationStructure& accelStructure, std::vector<glm::vec3>& vertices, std::vector<uint32_t>& indices);
+	static void nodeToAccelStructureGeometry(rt::nodeAccelBuildPacket packet, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo);
+	static void createBottomLevelAS(AccelerationStructure& accelStructure, rt::nodeAccelBuildPacket packet);
 };

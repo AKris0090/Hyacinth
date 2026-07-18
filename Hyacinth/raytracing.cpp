@@ -58,21 +58,21 @@ void rt::initAccelerationStructureFunctions(VkDevice& device) {
 }
 
 // static function to translate a gltfNode to a geometry structure
-void rtHelper::nodeToAccelStructureGeometry(std::vector<glm::vec3> nodeVertices, std::vector<uint32_t>& nodeIndices, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo)
+void rtHelper::nodeToAccelStructureGeometry(rt::nodeAccelBuildPacket packet, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo)
 {
-    const auto triangleCount = (static_cast<uint32_t>(nodeIndices.size())) / 3U;
+    const auto triangleCount = packet.numIndices / 3U;
 
-    VkAccelerationStructureGeometryTrianglesDataKHR triangles{
+    VkAccelerationStructureGeometryTrianglesDataKHR triangles {
         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
         .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
-        .vertexData = {.hostAddress = nodeVertices.data()},
+        .vertexData = {.deviceAddress = packet.vertexAddress},
         .vertexStride = sizeof(glm::vec3),
-        .maxVertex = (static_cast<uint32_t>(nodeVertices.size())) - 1,
+        .maxVertex = packet.numVertices - 1,
         .indexType = VK_INDEX_TYPE_UINT32,
-        .indexData = {.hostAddress = nodeIndices.data()},
+        .indexData = {.deviceAddress = packet.indexAddress},
     };
 
-    geometry = VkAccelerationStructureGeometryKHR{
+    geometry = VkAccelerationStructureGeometryKHR {
         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
         .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
         .geometry = {.triangles = triangles},
@@ -131,10 +131,10 @@ void rtHelper::createAccelerationStructure(VkAccelerationStructureTypeKHR asType
 }
 
 // this should loop over all of the nodes in the scenegraph and create their accelerations structures
-void rtHelper::createBottomLevelAS(AccelerationStructure& accelStructure, std::vector<glm::vec3>& vertices, std::vector<uint32_t>& indices) {
+void rtHelper::createBottomLevelAS(AccelerationStructure& accelStructure, rt::nodeAccelBuildPacket packet) {
     VkAccelerationStructureGeometryKHR       asGeometry{};
     VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
-    nodeToAccelStructureGeometry(vertices, indices, asGeometry, asBuildRangeInfo);
+    nodeToAccelStructureGeometry(packet, asGeometry, asBuildRangeInfo);
     createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR, accelStructure, asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 }
 

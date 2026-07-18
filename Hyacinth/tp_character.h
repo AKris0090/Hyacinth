@@ -36,7 +36,7 @@ public:
 	CURRENT_PLAYER_MOTION_STATE motionState = STILL;
 	TURN_ANIM_STATE turnState = IDLE;
 
-	float pitch, yaw, alpha = 0;
+	float pitch = 0, yaw = 0, alpha = 0;
 	bool isMoving = false;
 
 	ThirdPersonAnimationController() {};

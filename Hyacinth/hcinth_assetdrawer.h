@@ -20,6 +20,17 @@ const std::vector<std::pair<std::string, VkFormat>> DUMMY_TEX_PATHS = {
 	{ "./shaders/dummyColor.png", VK_FORMAT_R8G8B8A8_SRGB }
 };
 
+const std::vector<std::pair<std::string, VkFormat>> UI_TEXTURE_PATHS = {
+	{ "./ui/crosshair.png", VK_FORMAT_R8G8B8A8_SRGB },
+	{ "./ui/characterportrait.png", VK_FORMAT_R8G8B8A8_SRGB },
+	{ "./ui/bullet.png", VK_FORMAT_R8G8B8A8_SRGB },
+	{ "./ui/flash.png", VK_FORMAT_R8G8B8A8_SRGB }
+};
+
+const std::vector<std::pair<std::string, VkFormat>> WORLD_UI_TEXTURE_PATHS = {
+	{ "./ui/healthbar.png", VK_FORMAT_R8G8B8A8_SRGB }
+};
+
 static std::string getFilePathExtension(const std::string& FileName) {
 	if (FileName.find_last_of(".") != std::string::npos)
 		return FileName.substr(FileName.find_last_of(".") + 1);
@@ -63,6 +74,7 @@ public:
 	void uploadBuffersToGPU();
 	void createAddTextureFromFile(std::string filepath, VkFormat format);
 	void addDummyTextures();
+	void addUITextures();
 	void bindTextures(VkDescriptorSet& textureSet);
 	void shutdown();
 

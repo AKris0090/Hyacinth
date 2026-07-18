@@ -11,7 +11,7 @@
 #include "pistol.h"
 #include "flashbang.h"
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -49,9 +49,8 @@ void simulationTick(HyacinthEngine* engine, HyacinthNetworkClient* netClient, Ph
 		engine->m_camera.prevPitch = engine->m_camera.m_transform.pitch;
 		engine->m_camera.prevYaw = engine->m_camera.m_transform.yaw;
 
-		if (engine->mouseLocked) {
-			physicsManager->updatePlayerMovement(0, netClient->netEntManager.self->moveSpeed, netClient->netEntManager.self->transform, netClient->netEntManager.inputAccumulator);
-		}
+		physicsManager->updatePlayerMovement(0, netClient->netEntManager.self->moveSpeed, netClient->netEntManager.self->transform, netClient->netEntManager.inputAccumulator);
+
 		engine->p_netEntManager->inputAccumulatorMutex.unlock();
 
 		p.pitch = netClient->netEntManager.self->transform.pitch;
@@ -181,8 +180,8 @@ int main() {
 	PhysicsManager physicsManager;
 	physicsManager.initPhysics(false); // initialize PVD?
 	LightLoader loader;
-	auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
-	// auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+	// auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
+	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
 	physicsManager.addCharacterController(0);
 
@@ -262,6 +261,7 @@ int main() {
 		p.id = netClient.netEntManager.self->id;
 		p.movementFB = m[0];
 		p.movementLR = m[1];
+		p.movementUD = m[2];
 		p.jump = InputManager::getSpaceButton();
 		p.pitch = mo.first;
 		p.yaw = mo.second;
@@ -270,30 +270,38 @@ int main() {
 		p.num1 = InputManager::num1KeyDown();
 		p.num2 = InputManager::num2KeyDown();
 
-		netClient.netEntManager.inputAccumulatorMutex.lock();
-		netClient.netEntManager.inputAccumulator.addPacket(p);
-		netClient.netEntManager.inputAccumulatorMutex.unlock();
-
 		if (hyacinthEngine.mouseLocked) {
-			hyacinthEngine.camMutex.lock();
-			SimulateStruct sS;
-			sS.pitch = p.pitch;
-			sS.yaw = p.yaw;
-			physicsManager.updateCamera(0, netClient.netEntManager.self->camSpeed, sS, hyacinthEngine.m_camera.m_transform, false, Time::getDeltaTime(), &netClient.netEntManager.self->recoil);
+			if (!InputManager::getf1()) {
+				netClient.netEntManager.inputAccumulatorMutex.lock();
+				netClient.netEntManager.inputAccumulator.addPacket(p);
+				netClient.netEntManager.inputAccumulatorMutex.unlock();
 
-			hyacinthEngine.p_netEntManager->selfMutex.lock();
-			netClient.netEntManager.self->transform.forward = hyacinthEngine.m_camera.m_transform.forward;
-			netClient.netEntManager.self->transform.right = hyacinthEngine.m_camera.m_transform.right;
-			netClient.netEntManager.self->transform.pitch = hyacinthEngine.m_camera.m_transform.pitch;
-			netClient.netEntManager.self->transform.yaw = hyacinthEngine.m_camera.m_transform.yaw;
-			hyacinthEngine.p_netEntManager->selfMutex.unlock();
+				hyacinthEngine.camMutex.lock();
+				SimulateStruct sS;
+				sS.pitch = p.pitch;
+				sS.yaw = p.yaw;
+				physicsManager.updateCamera(0, netClient.netEntManager.self->camSpeed, sS, hyacinthEngine.m_camera.m_transform, false, Time::getDeltaTime(), &netClient.netEntManager.self->recoil);
 
-			ServerSnapshot selfInterp = netClient.netEntManager.selfSimBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
-			hyacinthEngine.m_camera.m_transform.position = selfInterp.entities[0].transform.position;
-			hyacinthEngine.m_camera.m_transform.position.y += 1.85f;
+				hyacinthEngine.p_netEntManager->selfMutex.lock();
+				netClient.netEntManager.self->transform.forward = hyacinthEngine.m_camera.m_transform.forward;
+				netClient.netEntManager.self->transform.right = hyacinthEngine.m_camera.m_transform.right;
+				netClient.netEntManager.self->transform.pitch = hyacinthEngine.m_camera.m_transform.pitch;
+				netClient.netEntManager.self->transform.yaw = hyacinthEngine.m_camera.m_transform.yaw;
+				hyacinthEngine.p_netEntManager->selfMutex.unlock();
 
-			hyacinthEngine.m_camera.update();
-			hyacinthEngine.camMutex.unlock();
+				ServerSnapshot selfInterp = netClient.netEntManager.selfSimBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
+				hyacinthEngine.m_camera.m_transform.position = selfInterp.entities[0].transform.position;
+				hyacinthEngine.m_camera.m_transform.position.y += 1.85f;
+
+				hyacinthEngine.m_camera.update(false);
+				hyacinthEngine.camMutex.unlock();
+			}
+			else {
+				hyacinthEngine.camMutex.lock();
+				hyacinthEngine.m_camera.updateFlyCamera(p, Time::getDeltaTime(), netClient.netEntManager.self->camSpeed, netClient.netEntManager.self->moveSpeed);
+				hyacinthEngine.m_camera.update(true);
+				hyacinthEngine.camMutex.unlock();
+			}
 		}
 
 #ifdef CONNECT_SERVER

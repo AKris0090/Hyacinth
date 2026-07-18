@@ -32,6 +32,8 @@
 #include "net_ent.h"
 #include "netDebugRenderer.h"
 
+#include "hyacinth_ui.h"
+
 #include "vk_mem_alloc.h"
 
 #include <glm/glm.hpp>
@@ -212,7 +214,7 @@ private:
 	rtHelper						m_rtHelper;
 	owDDGI							m_owDDGIHelper;
 	FrustumCullHelper				m_frustumCullHelper;
-	// HyacinthUIManager				m_uiHelper;
+	HyacinthUIManager				m_uiHelper;
 	SkyboxHelper					m_skyboxHelper;
 
 	void createInstance(); // also creates vma allocator

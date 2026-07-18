@@ -74,8 +74,18 @@ void HAssetDrawer::addDummyTextures() {
 	}
 }
 
+void HAssetDrawer::addUITextures() {
+	for (const auto& [path, format] : UI_TEXTURE_PATHS) {
+		createAddTextureFromFile(path, format);
+	}
+	for (const auto& [path, format] : WORLD_UI_TEXTURE_PATHS) {
+		createAddTextureFromFile(path, format);
+	}
+}
+
 HAssetDrawer::HAssetDrawer() {
 	FullscreenQuad::addFullscreenQuad(vertices, indices);
+	UnitCube::addUnitCube(vertices, indices);
 }
 
 void HAssetDrawer::shutdown() {
