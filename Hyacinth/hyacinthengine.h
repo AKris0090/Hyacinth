@@ -227,7 +227,6 @@ private:
 	void createCompositePipeline();
 	void createDDGIPipeline();
 	void createDDGIVolumePipeline();
-	void createTracerPipeline();
 	void createCompSkinPipeline();
 	void createFXAAPipeline();
 	void createBuffers();
@@ -238,7 +237,7 @@ private:
 	void generateRenderList();
 	void generateDrawCommands();
 	void update();
-	void setupDraw();
+	int setupDraw();
 	void endDraw();
 
 	inline perFrame& getCurrentFrame() {

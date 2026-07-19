@@ -114,7 +114,7 @@ namespace vkimageutils {
 		return newImage;
 	}
 
-	void vkimageutils::transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask)
+	void vkimageutils::transitionImage(VkCommandBuffer& cmd, VulkanImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask)
 	{
 		VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
 		imageBarrier.pNext = nullptr;
@@ -134,7 +134,7 @@ namespace vkimageutils {
 		subImage.baseArrayLayer = 0;
 		subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
 		imageBarrier.subresourceRange = subImage;
-		imageBarrier.image = image;
+		imageBarrier.image = image.image;
 
 		VkDependencyInfo depInfo{};
 		depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -144,6 +144,8 @@ namespace vkimageutils {
 		depInfo.pImageMemoryBarriers = &imageBarrier;
 
 		vkCmdPipelineBarrier2(cmd, &depInfo);
+
+		image.layout = newLayout;
 	}
 
 	VulkanImage createTextureImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped) {
@@ -153,7 +155,7 @@ namespace vkimageutils {
 		VulkanImage newImage = vkimageutils::createImageandView(size, 1, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, mipped, "texture_image");
 
 		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
-			vkimageutils::transitionImage(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+			vkimageutils::transitionImage(cmd, newImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 			VkBufferImageCopy copyRegion = {};
 			copyRegion.bufferOffset = 0;
@@ -188,7 +190,7 @@ namespace vkimageutils {
 		skyboxImage.arrayLayers = 6;
 
 		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
-			vkimageutils::transitionImage(cmd, skyboxImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+			vkimageutils::transitionImage(cmd, skyboxImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 			VkBufferImageCopy copyRegion = {};
 			copyRegion.bufferOffset = 0;
