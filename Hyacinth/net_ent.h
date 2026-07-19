@@ -79,5 +79,5 @@ public:
 	void setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh* characterMesh, HSkinnedMesh* flashMesh, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
 	void shutdown();
-	void clearPendingPackets(Entity* self);
+	void clearPendingPackets(Entity* self, HMesh* meshRef);
 };

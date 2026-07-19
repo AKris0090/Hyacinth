@@ -174,12 +174,12 @@ void main() {
 	N = normalize(TBNMatrix * N);
 
 	float nDotL = clamp(dot(N, normalize(ubo.lightPos.xyz)), 0.0, 1.0);
-	// float shadow = shadowTest(fragPos.xyz, -viewPos.z, nDotL, N);
+	float shadow = shadowTest(fragPos.xyz, -viewPos.z, nDotL, N);
 
     outAlbedo = vec4(sampledColor.rgb, metalRough.x);
 
 	N = N * 0.5 + 0.5; // packing the normal
-    outNormal = vec4(N, 1.0); // vec4(N, shadow);
+    outNormal = vec4(N, shadow);
 
 	outAMR = vec4(1.0, metalRough.x, metalRough.y, 1.0);
 }

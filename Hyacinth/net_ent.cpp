@@ -73,7 +73,7 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh
 	}
 }
 
-void NetworkEntityManager::clearPendingPackets(Entity* self) {
+void NetworkEntityManager::clearPendingPackets(Entity* self, HMesh* meshRef) {
 	while (!rB.pendingPackets.empty()) {
 		uint32_t checkTick = rB.ringBuffer.front().tickNum;
 
@@ -112,7 +112,7 @@ void NetworkEntityManager::clearPendingPackets(Entity* self) {
 					t.pitch = glm::degrees(glm::asin(normDir.y));
 					t.setRotationPitchYaw();
 					t.position = origin;
-					tracerManager->addTracer(t.getMatrix());
+					tracerManager->addTracer(t.getMatrix(), meshRef);
 				}
 			}
 		}

@@ -2,6 +2,7 @@
 
 #include <deque>
 #include "glm/glm.hpp"
+#include "staticgameobject.h"
 
 constexpr int MAX_TRACERS = 15.f;
 constexpr float TRACER_TIME = 0.35f;
@@ -9,18 +10,20 @@ constexpr float TRACER_TIME = 0.35f;
 struct Tracer {
 	float alpha;
 	float currentTime;
-	glm::mat4 worldMat;
+	glm::mat4 matrix;
+	HStaticGameObject* gameObject;
 };
 
 class TracerManager {
 public:
 	std::deque<Tracer> tracers;
 
-	void addTracer(glm::mat4 worldMatrix) {
+	void addTracer(glm::mat4 worldMatrix, HMesh* meshRef) {
 		Tracer t;
 		t.alpha = 1.f;
 		t.currentTime = 0.f;
-		t.worldMat = worldMatrix;
+		t.matrix = worldMatrix;
+		t.gameObject = new HStaticGameObject(meshRef);
 
 		tracers.push_back(t);
 	}

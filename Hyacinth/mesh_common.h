@@ -16,15 +16,19 @@ struct HMeshPrim {
 
 	uint32_t meshID;
 	uint32_t materialIndex;
+
+	AABB boundingBox;
 };
 
 struct HRenderCall {
 	glm::mat4 transformMatrix;
-	uint32_t materialIndex;
+	alignas(16) glm::vec3 aaBBMin;
+	alignas(16) glm::vec3 aabbMax;
 
+	uint32_t	materialIndex;
 	uint32_t    indexCount;
 	uint32_t    firstIndex;
 	uint32_t    vertexOffset;
 
-	alignas(16) uint32_t meshID;
+	uint32_t meshID;
 };

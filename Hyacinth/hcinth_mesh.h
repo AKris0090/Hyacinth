@@ -34,6 +34,8 @@ public:
 	uint32_t numMeshedNodes = 0;
 	uint32_t numVertices = 0;
 
+	AABB boundingBox;
+
 	uint32_t meshID;
 
 	HMeshNode* meshOwnerNode; // ignore

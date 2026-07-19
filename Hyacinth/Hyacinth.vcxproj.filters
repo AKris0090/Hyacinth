@@ -543,9 +543,6 @@
     <None Include="shaders\probeVis.vert">
       <Filter>Source Files\shaders\visualization</Filter>
     </None>
-    <None Include="shaders\gbufferSkinned.vert">
-      <Filter>Source Files\shaders</Filter>
-    </None>
     <None Include="shaders\uiTex.vert">
       <Filter>Source Files\shaders\ui</Filter>
     </None>

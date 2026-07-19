@@ -60,6 +60,8 @@ public:
 	uint32_t numVertices = 0;
 	uint32_t indexCount;
 
+	AABB boundingBox;
+
 	uint32_t meshID;
 
 	std::vector<HSkinnedMeshNode*> parentNodes;

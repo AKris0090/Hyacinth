@@ -37,19 +37,17 @@ void FrustumCullHelper::update(CameraFrustumPlanes& planes, int index) {
     memcpy(m_uniformPlaneBuffers[index].pMappedData, &planes, sizeof(CameraFrustumPlanes));
 }
 
-void FrustumCullHelper::executeCull(VkCommandBuffer& cmd, VkDescriptorSet& set, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& bbAddress, VkDeviceAddress& matrixAddress, VkDeviceAddress& drawDataAddress, uint32_t numDraws) {
+void FrustumCullHelper::executeCull(VkCommandBuffer& cmd, VkDescriptorSet& set, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& renderCallAddress, uint32_t numDraws) {
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computeCullPipeline.layout, 0, 1, &set, 0, nullptr);
 
     ComputeCullPushConstant pc{};
     pc.drawBufferAddress = drawBufferAddress;
-    pc.bbAddress = bbAddress;
-    pc.matrixAddress = matrixAddress;
-    pc.drawDataAddress = drawDataAddress;
+    pc.renderCallAddress = renderCallAddress;
     pc.numDraws = numDraws;
 
     vkCmdPushConstants(cmd, m_computeCullPipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputeCullPushConstant), &pc);
 
-    uint32_t groupCount = (numDraws + 255) / 256;
+    uint32_t groupCount = numDraws;
     vkCmdDispatch(cmd, groupCount, 1, 1);
 }
 

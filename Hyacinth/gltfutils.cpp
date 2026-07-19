@@ -9,30 +9,15 @@
 
 #include "tiny_gltf.h"
 
-// AABB getBoundingBox(std::vector<Vertex>& vertices) {
-//     AABB bounds;
-//     bounds.min = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
-//     bounds.max = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
-//     for (const auto& v : vertices) {
-//         bounds.grow(v);
-//     }
-//     return bounds;
-// }
-// 
-// AABB getWorldSpaceBoundingBox(gltfNode* node) {
-//     AABB bounds;
-//     bounds.min = glm::vec4(glm::vec3(FLT_MAX), 1.f);
-//     bounds.max = glm::vec4(glm::vec3(FLT_MIN), 1.f);
-//     glm::mat4 worldMatrix = node);
-//     for (const auto& v : node->vertices) {
-//         bounds.grow(worldMatrix * glm::vec4(v.pos.x, v.pos.y, v.pos.z, 1.f));
-//     }
-//     for (const auto& n : node->children) {
-//         bounds.grow(getWorldSpaceBoundingBox(n));
-//     }
-// 
-//     return bounds;
-// }
+AABB getBoundingBox(std::vector<Vertex>& vertices) {
+    AABB bounds;
+    bounds.min = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
+    bounds.max = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
+    for (const auto& v : vertices) {
+        bounds.grow(glm::vec4(v.pos.x, v.pos.y, v.pos.z, 1.f));
+    }
+    return bounds;
+}
 
 VulkanImage loadTexture(tinygltf::Model* model, VkFormat format, uint32_t imageIndex) {
     tinygltf::Image& curImage = model->images[imageIndex];
@@ -358,6 +343,9 @@ void loadGLTFNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, ME
             p.vertexCount = primCap.vertices.size();
             mesh.numVertices += p.vertexCount;
             p.meshID = mesh.meshID;
+            p.boundingBox = getBoundingBox(primCap.vertices);
+
+            mesh.boundingBox.grow(p.boundingBox);
 
             if (!tangentsBuff) {
                 generateTangents(&primCap, mikktContext);
@@ -384,6 +372,7 @@ void loadGLTFNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, ME
         if (nodeIn.mesh > -1) mesh.meshedNodes.push_back(mesh.parentNodes[mesh.parentNodes.size() - 1]);
     }
 }
+
 namespace gltfutils {
     void gltfutils::loadAnimatedMesh(HAssetDrawer& scene, std::string path, std::string meshName) {
         HSkinnedMesh mesh;

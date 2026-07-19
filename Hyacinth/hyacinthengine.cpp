@@ -717,7 +717,6 @@ void HyacinthEngine::createBuffers() {
         m_frameData[i].uniformBuffer = vkdeviceutils::createBuffer(sizeof(UBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frame_uniform");
         m_frameData[i].mappedUniformBuffer = m_frameData[i].uniformBuffer.info.pMappedData;
 
-
         // create render call buffer
         m_frameData[i].m_renderListBuffer = vkdeviceutils::createBuffer(sizeof(HRenderCall), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "render_list_buffer");
 
@@ -726,6 +725,10 @@ void HyacinthEngine::createBuffers() {
 
         // create skinnedVertexBuffer
         m_frameData[i].m_skinnedVertexBuffer = vkdeviceutils::createBuffer(sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "frame_skinned_vertex");
+    }
+
+    for (int j = 0; j < SHADOW_MAP_CASCADE_COUNT; j++) {
+        m_shadowHelper.m_cascades[j].cascadeDrawBuffer = vkdeviceutils::createBuffer(sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "shadow_draw_buffer");
     }
 }
 
@@ -910,6 +913,25 @@ void HyacinthEngine::generateRenderList() {
             for (const auto& p : n->primtives) {
                 m_renderList.push_back(HRenderCall{
                     .transformMatrix = o->transform.getMatrix() * n->getMatrix(),
+                    .aaBBMin = p.boundingBox.min,
+                    .aabbMax = p.boundingBox.max,
+                    .materialIndex = p.materialIndex,
+                    .indexCount = p.indexCount,
+                    .firstIndex = p.firstIndex,
+                    .vertexOffset = p.firstVertex,
+                    .meshID = p.meshID
+                });
+            }
+        }
+    }
+
+    for (const auto& tracer : m_tracerManager.tracers) {
+        for (const auto& n : tracer.gameObject->mesh->meshedNodes) {
+            for (const auto& p : n->primtives) {
+                m_renderList.push_back(HRenderCall{
+                    .transformMatrix = tracer.matrix * n->getMatrix(),
+                    .aaBBMin = p.boundingBox.min,
+                    .aabbMax = p.boundingBox.max,
                     .materialIndex = p.materialIndex,
                     .indexCount = p.indexCount,
                     .firstIndex = p.firstIndex,
@@ -979,6 +1001,9 @@ void HyacinthEngine::generateDrawCommands() {
     }
 
     vkdeviceutils::updateBuffer(m_frameData[m_frameIndex].m_indirectDrawBuffer, m_drawCommands.size() * sizeof(VkDrawIndexedIndirectCommand), m_drawCommands.data());
+    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+        vkdeviceutils::updateBuffer(m_shadowHelper.m_cascades[i].cascadeDrawBuffer, m_drawCommands.size() * sizeof(VkDrawIndexedIndirectCommand), m_drawCommands.data());
+    }
 }
 
 void HyacinthEngine::update() {
@@ -990,8 +1015,8 @@ void HyacinthEngine::update() {
         ao->updateAnimation(Time::getDeltaTime());
     }
 
-    // m_shadowHelper.update(m_camera, m_scene.sceneBoundingBox,m_frameIndex);
-    // m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
+    m_shadowHelper.update(m_camera, m_assetDrawer.getStaticMeshRef("world")->boundingBox, m_frameIndex);
+    m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
 
     // std::vector<VolumeData> volumeData;
     // for (auto& vol : m_owDDGIHelper.m_probeVolumes) {
@@ -1003,28 +1028,11 @@ void HyacinthEngine::update() {
     // volumeData[1].spacing.w = volBViewBias;
     // memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
-    // // first person object (self) 
-    // SkinnedGltfObject::updateFirstPersonAnimation(p_netEntManager->self->currentState, armsObject, *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw, p_netEntManager->pistolAnimationController.queueShoot, p_netEntManager->pistolAnimationController.queueReload);
-    // 
-    // if (p_netEntManager->self->currentWeapon == PISTOL) {
-    //     // pistol object
-    //     SkinnedGltfObject::updatePistolAnimation(gunObject, *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
-    // }
-    // else if (p_netEntManager->self->currentWeapon == GRENADE) {
-    //     // grenade object
-    //     SkinnedGltfObject::updateGrenadeAnimation(flashObject, Time::getDeltaTime(), m_grenadeJMBuffer.pMappedData);
-    // }
-
     m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo, p_netEntManager->self->flashPercentage, p_netEntManager->self->flashNDCX, p_netEntManager->self->flashNDCY);
 
     // update tracers
-    // m_tracerManager.updateTracers(Time::getDeltaTime());
-    // std::vector<glm::mat4> tracerTransforms;
-    // for (int i = 0; i < m_tracerManager.tracers.size(); i++) {
-    //     tracerTransforms.push_back(m_tracerManager.tracers[i].worldMat);
-    // }
-    // memcpy(m_frameData[m_frameIndex].tracerTransformBuffer.pMappedData, tracerTransforms.data(), sizeof(glm::mat4) * tracerTransforms.size());
-    // 
+    m_tracerManager.updateTracers(Time::getDeltaTime());
+    
     // std::vector<glm::mat4> matrices;
     // for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
     //     Transform t = m_owDDGIHelper.m_probeVolumes[i].transform;
@@ -1224,21 +1232,28 @@ void HyacinthEngine::draw() {
     }
 
     {
-        // VK_LABEL(cmd, "Compute Cull Main");
-        // vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
-        // m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_staticIndirectDrawBuffer.gpuAddress, m_aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, worldObject->numDrawCommands);
-        // VK_LABEL_END(cmd);
-        // for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-        //     VK_LABEL(cmd, "Compute Cull Shadow");
-        //     m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, worldObject->numDrawCommands);
-        //     VK_LABEL_END(cmd);
-        // }
+        VK_LABEL(cmd, "Compute Cull Main");
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
+        m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_frameData[m_frameIndex].m_indirectDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
+        VK_LABEL_END(cmd);
+        for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+            VK_LABEL(cmd, "Compute Cull Shadow");
+            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
+            VK_LABEL_END(cmd);
+        }
     }
 
+    // barrier for skin and cull write out
+    VkMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+
     // shadows
-    // {
-    //     m_shadowHelper.drawShadowMaps(cmd, worldObject->numDrawCommands, m_frameIndex, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress);
-    // }
+    {
+        m_shadowHelper.drawShadowMaps(cmd, numStaticDrawCommands, numDynamicDrawCommands, m_frameIndex, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_assetDrawer.g_vertexBuffer, m_frameData[m_frameIndex].m_skinnedVertexBuffer);
+    }
 
     // main render pass
     {
@@ -1276,7 +1291,7 @@ void HyacinthEngine::draw() {
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_frameData[m_frameIndex].m_skinnedVertexBuffer.buffer, offsets);
 
-        // draw arms
+        // draw animated objects
         vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDrawCommands, numDynamicDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
@@ -1362,27 +1377,6 @@ void HyacinthEngine::draw() {
     }
 
     vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-    // {
-    //     VK_LABEL(cmd, "Bullet Tracers Pass");
-    //     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tracerPipelineUtil.m_pipeline.pipeline);
-    //     std::array<VkDescriptorSet, 2> tracerSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_textureSet };
-    //     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tracerPipelineUtil.m_pipeline.layout, 0, tracerSets.size(), tracerSets.data(), 0, nullptr);
-    //     VkRenderingAttachmentInfo tracerAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-    //     VkRenderingAttachmentInfo tracerDepthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
-    //     VkRenderingInfo tracerRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &tracerAttachment, &tracerDepthAttachment);
-    //     vkCmdBeginRendering(cmd, &tracerRenderingInfo);
-    //     vkCmdSetViewport(cmd, 0, 1, &viewport);
-    //     vkCmdSetScissor(cmd, 0, 1, &scissor);
-    //     for (int i = 0; i < m_tracerManager.tracers.size(); i++) {
-    //         tracerPushConstant.tracerIndex = i;
-    //         tracerPushConstant.alpha = m_tracerManager.tracers[i].alpha;
-    //         vkCmdPushConstants(cmd, m_tracerPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(tracerPushConstant), &tracerPushConstant);
-    //         vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, tracerObject->drawCommandOffset, tracerObject->numDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
-    //     }
-    //     vkCmdEndRendering(cmd);
-    //     VK_LABEL_END(cmd);
-    // }
     
     {
         VK_LABEL(cmd, "Health Bars Pass");

@@ -9,6 +9,8 @@ const mat4 biasMat = mat4(
 
 struct RenderCall {
 	mat4 instanceMatrix;
+	vec3 aabbMin;
+	vec3 aabbMax;
 	uint materialIndex;
 	uint indexCount;
 	uint firstIndex;

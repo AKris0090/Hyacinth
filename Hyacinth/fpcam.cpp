@@ -13,14 +13,18 @@ void Camera::GetFrustumPlanes(glm::vec4* planes, glm::mat4 matrix) {
     planes[FRONT]   = glm::normalize(transposed[BOTTOM] - transposed[TOP]);
 }
 
-void Camera::setViewMatrix(Transform& t) { // pitchadditional is for camera recoil
-    glm::vec3 forwad = glm::normalize(glm::vec3(
+glm::mat4 createViewMatrix(Transform& t) {
+    glm::vec3 forward = glm::normalize(glm::vec3(
         cos(glm::radians(t.yaw)) * cos(glm::radians(t.pitch + t.pitchAdditional)),
         sin(glm::radians(t.pitch + t.pitchAdditional)),
         sin(glm::radians(t.yaw)) * cos(glm::radians(t.pitch + t.pitchAdditional))
     ));
 
-    m_view = glm::lookAt(t.position, t.position + forwad, t.up);
+    return glm::lookAt(t.position, t.position + forward, t.up);
+}
+
+void Camera::setViewMatrix(Transform& t) { // pitchadditional is for camera recoil
+    m_view = createViewMatrix(t);
     m_dirtyView = false;
 }
 
@@ -31,11 +35,13 @@ void Camera::setProjectionMatrix() {
     m_dirtyProj = false;
 }
 
-void Camera::update(bool whichType) { // true is flycam, false is player cam
-    setProjectionMatrix();
+void Camera::update(bool flycam) { // true is flycam, false is player cam
+    setProjectionMatrix();       
 
-    setViewMatrix(whichType ? m_flyTransform : m_transform);
-    GetFrustumPlanes(m_frustumPlanes.planes, m_proj * m_view);
+    setViewMatrix(flycam ? m_flyTransform : m_transform);
+
+    glm::mat4 planesMat = flycam ? createViewMatrix(m_transform) : m_view;
+    GetFrustumPlanes(m_frustumPlanes.planes, m_proj * planesMat); // frustum planes should always come from player camera
 }
 
 void Camera::updateFlyCamera(const ClientUpdatePacket& p, float deltaTime, float lookSpeed, float camSpeed) {
@@ -60,7 +66,11 @@ void Camera::updateFlyCamera(const ClientUpdatePacket& p, float deltaTime, float
     localDisplacement += static_cast<float>(p.movementUD) * m_flyTransform.up;
 
     if (glm::length(localDisplacement) > 0) {
-        m_flyTransform.position += (glm::normalize(localDisplacement) * camSpeed);
+        m_flyTransform.position += (glm::normalize(localDisplacement) * (camSpeed * 100.f) * deltaTime);
+    }
+
+    if (InputManager::reloadKeyDown()) {
+        m_flyTransform.position = glm::vec3(0.f);
     }
 }
 

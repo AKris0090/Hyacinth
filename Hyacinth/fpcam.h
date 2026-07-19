@@ -37,7 +37,7 @@ public:
 
     Camera() {};
     Camera(float aspect, float fov, float nearC, float farC);
-    void update(bool whichType);
+    void update(bool flycam);
 
     void updateFlyCamera(const ClientUpdatePacket& p, float deltaTime, float lookSpeed, float camSpeed);
     static void GetFrustumPlanes(glm::vec4* planes, glm::mat4 matrix);
