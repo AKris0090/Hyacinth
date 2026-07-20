@@ -12,8 +12,14 @@ namespace rt {
 	struct nodeAccelBuildPacket {
 		VkDeviceAddress vertexAddress;
 		VkDeviceAddress indexAddress;
-		uint32_t numVertices;
-		uint32_t numIndices;
+
+		struct primAccel {
+			uint32_t vertexOffset;
+			uint32_t firstIndex;
+			uint32_t numVertices;
+			uint32_t numIndices;
+		};
+		std::vector<primAccel> prims;
 	};
 
 	extern PFN_vkCreateAccelerationStructureKHR				CreateAS;
@@ -42,7 +48,7 @@ public:
 	void createTopLevelAS();
 	void shutdown();
 
-	static void createAccelerationStructure(VkAccelerationStructureTypeKHR asType, AccelerationStructure& accelStruct, VkAccelerationStructureGeometryKHR& asGeometry, VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo, VkBuildAccelerationStructureFlagsKHR flags);
-	static void nodeToAccelStructureGeometry(rt::nodeAccelBuildPacket packet, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo);
+	static void createAccelerationStructure(VkAccelerationStructureTypeKHR asType, AccelerationStructure& accelStruct, std::vector<VkAccelerationStructureGeometryKHR>& asGeometry, std::vector<VkAccelerationStructureBuildRangeInfoKHR>& asBuildRangeInfo, VkBuildAccelerationStructureFlagsKHR flags);
+	static void nodeToAccelStructureGeometry(rt::nodeAccelBuildPacket packet, std::vector<VkAccelerationStructureGeometryKHR>& geometry, std::vector<VkAccelerationStructureBuildRangeInfoKHR>& rangeInfo);
 	static void createBottomLevelAS(AccelerationStructure& accelStructure, rt::nodeAccelBuildPacket packet);
 };

@@ -630,10 +630,6 @@ void HyacinthEngine::loadAssets() {
     gltfutils::loadAnimatedMesh(m_assetDrawer, thirdPersonCharacterPath.string(), "tp_character");
     gltfutils::loadAnimatedMesh(m_assetDrawer, firstPersonCharacterPath.string(), "fp_arms");
     gltfutils::loadAnimatedMesh(m_assetDrawer, pistolPath.string(), "pistol");
-
-    m_assetDrawer.getStaticMeshRef("world")->generateBLAccelStructures(m_assetDrawer.vertices, m_assetDrawer.indices);
-
-    m_rtHelper.createTopLevelAS();
 }
 
 void HyacinthEngine::createBuffers() {
@@ -783,6 +779,9 @@ void HyacinthEngine::init()
     m_shadowHelper.setup(MAX_FRAMES_IN_FLIGHT, m_frustumCullHelper.m_computeLayout);
 
     createBuffers();
+
+    m_assetDrawer.getStaticMeshRef("world")->generateBLAccelStructures(m_assetDrawer.g_vertexBuffer.gpuAddress, m_assetDrawer.g_indexBuffer.gpuAddress);
+    m_rtHelper.createTopLevelAS();
 
     createDescriptorSets();
 
@@ -1453,14 +1452,6 @@ void HyacinthEngine::endDraw()
 
 void HyacinthEngine::recreateSwapchain() {
     vkDeviceWaitIdle(m_device);
-
-    VkImageLayout albLayout;
-    VkImageLayout normLayout;
-    VkImageLayout amrLayout;
-    VkImageLayout depthLayout;
-    VkImageLayout ddgiImageLayout;
-    VkImageLayout stencilDepthLayout;
-    VkImageLayout compositeImageLayout;
 
     for (int i = 0; i < m_swapChainImages.size(); i++) {
         vkimageutils::destroyImage(m_gBuffers[i].albedo);

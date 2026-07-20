@@ -23,12 +23,12 @@ HSkinnedMesh* HAssetDrawer::getAnimatedMeshRef(std::string meshName) {
 void HAssetDrawer::uploadBuffersToGPU() {
 	// vertex buffer
 	size_t vertexBufferSize = sizeof(Vertex) * vertices.size();
-	g_vertexBuffer = vkdeviceutils::createBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "vertex_buffer");
+	g_vertexBuffer = vkdeviceutils::createBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "vertex_buffer");
 	vkdeviceutils::uploadToBuffer(g_vertexBuffer, vertexBufferSize, vertices.data());
 
 	// index buffer
 	size_t indexBufferSize = sizeof(uint32_t) * indices.size();
-	g_indexBuffer = vkdeviceutils::createBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "index_buffer");
+	g_indexBuffer = vkdeviceutils::createBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "index_buffer");
 	vkdeviceutils::uploadToBuffer(g_indexBuffer, indexBufferSize, indices.data());
 
 	// material info buffer

@@ -45,5 +45,5 @@ public:
 	uint32_t vertexOffset;
 	uint32_t indexCount;
 
-	void generateBLAccelStructures(std::vector<Vertex>& assetVertices, std::vector<uint32_t>& assetIndices); // would pass whole asset drawer, but then I would have to deal with backward declarations
+	void generateBLAccelStructures(VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress); // would pass whole asset drawer, but then I would have to deal with backward declarations
 };

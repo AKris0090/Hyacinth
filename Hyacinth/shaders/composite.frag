@@ -61,7 +61,7 @@ void main() {
     float specular = clamp(dot(r, V), 0.0, 1.0);
     specular = pow(specular, 8.0) * albedo.w;
 
-    vec3 irrad = texture(ddgiImage, inUV).xyz;
+    vec3 irrad = vec3(0.25);// texture(ddgiImage, inUV).xyz;
 	vec3 ambient = albedo.rgb * irrad * ubo.ABOD.w;
 
 	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
