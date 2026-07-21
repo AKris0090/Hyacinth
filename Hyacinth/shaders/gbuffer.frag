@@ -5,7 +5,7 @@
 #include "shadowCommon.glsl"
 #include "bufferInfo.glsl"
 
-layout	(location = 0) flat in int matIndex;
+layout	(location = 0) flat in uint matIndex;
 layout  (location = 1) in vec4 viewPos;
 layout  (location = 2) in vec4 inNormal;
 layout	(location = 3) in vec4 fragPos;
@@ -29,18 +29,15 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 
 layout( push_constant ) uniform constants
 {
-	mat4 entityTransformMatrix;
-	TransformBuffer transformBuffer;
-	DrawDataBuffer drawDataBuffer;
-	JointMatricesBuffer jmBuffer;
+	RenderCallBuffer renderCallBuffer;
 	MaterialBuffer materialBuffer;
-    VolumeDataBuffer volumeDataBuffer;
 } pc;
 
 layout(set = 2, binding = 0) uniform sampler2D globalTextures2D[];
 
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outNormal;
+layout(location = 2) out vec4 outAMR;
 
 vec2 ComputeReceiverPlaneDepthBias(vec3 texCoordDX, vec3 texCoordDY)
 {
@@ -183,4 +180,6 @@ void main() {
 
 	N = N * 0.5 + 0.5; // packing the normal
     outNormal = vec4(N, shadow);
+
+	outAMR = vec4(1.0, metalRough.x, metalRough.y, 1.0);
 }

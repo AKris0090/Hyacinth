@@ -1,67 +1,190 @@
 #include "gltfutils.h"
 #include "vkimageutils.h"
+
+#include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
 #include "tangentHelper.h"
+#include <unordered_set>
+
+#include "tiny_gltf.h"
 
 AABB getBoundingBox(std::vector<Vertex>& vertices) {
     AABB bounds;
     bounds.min = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
     bounds.max = glm::vec4(glm::vec3(vertices[0].pos), 1.f);
     for (const auto& v : vertices) {
-        bounds.grow(v);
+        bounds.grow(glm::vec4(v.pos.x, v.pos.y, v.pos.z, 1.f));
     }
     return bounds;
 }
 
-AABB getWorldSpaceBoundingBox(gltfNode* node) {
-    AABB bounds;
-    bounds.min = glm::vec4(glm::vec3(FLT_MAX), 1.f);
-    bounds.max = glm::vec4(glm::vec3(FLT_MIN), 1.f);
-    glm::mat4 worldMatrix = getNodeMatrix(node);
-    for (const auto& p : node->primitives) {
-        for (const auto& v : p->vertices) {
-            bounds.grow(worldMatrix * glm::vec4(v.pos.x, v.pos.y, v.pos.z, 1.f));
-        }
-    }
-    for (const auto& n : node->children) {
-        bounds.grow(getWorldSpaceBoundingBox(n));
-    }
+VulkanImage loadTexture(tinygltf::Model* model, VkFormat format, uint32_t imageIndex) {
+    tinygltf::Image& curImage = model->images[imageIndex];
+    VulkanImage texImage{};
+    std::vector<unsigned char> rgba;
+    rgba.resize(curImage.width * curImage.height * 4);
 
-    return bounds;
-}
-
-void gltfObject::updateJoints(gltfNode* node, void* pMappedJointMatrixBuffer)
-{
-    if (node->skinIndex > -1)
-    {
-        glm::mat4              inverseTransform = glm::inverse(getNodeMatrix(node));
-        Skin&                  skin = skins[node->skinIndex];
-        size_t                 numJoints = (uint32_t)skin.joints.size();
-        std::vector<glm::mat4> finalJointMatrices(numJoints);
-        for (size_t i = 0; i < numJoints; i++)
+    switch (curImage.component) {
+        case 4:
+            memcpy(rgba.data(), curImage.image.data(), rgba.size());
+            break;
+        case 3:
         {
-            finalJointMatrices[i] = inverseTransform * (getNodeMatrix(skin.joints[i]) * skin.inverseBindMatrices[i]);
+            std::vector<unsigned char> rgb;
+            rgb.resize(curImage.width * curImage.height * 3);
+            memcpy(rgb.data(), curImage.image.data(), rgb.size());
+            for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
+                rgba[j * 4] = rgb[j * 3];
+                rgba[j * 4 + 1] = rgb[j * 3 + 1];
+                rgba[j * 4 + 2] = rgb[j * 3 + 2];
+                rgba[j * 4 + 3] = 255;
+            }
+            break;
+        }
+        case 1:
+        {
+            std::vector<unsigned char> r;
+            r.resize(curImage.width * curImage.height);
+            memcpy(r.data(), curImage.image.data(), r.size());
+            for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
+                rgba[j * 4] = rgba[j * 4 + 1] = rgba[j * 4 + 2] = rgba[j * 4 + 3] = r[j];
+            }
+            break;
+        }
+    }
+    VkExtent3D imageExtents{};
+    imageExtents.width = curImage.width;
+    imageExtents.height = curImage.height;
+    imageExtents.depth = 1;
+    texImage = vkimageutils::createTextureImage(rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+    vkimageutils::createImageSampler(texImage);
+
+    if (curImage.name.empty()) {
+        curImage.name = "image_" + curImage.uri;
+    }
+    std::cout << "created image: " << curImage.name << std::endl;
+
+    return texImage;
+}
+
+void loadSkins(tinygltf::Model* input, HSkinnedMesh& mesh) {
+	tinygltf::Skin glTFSkin = input->skins[0];
+	mesh.jointMatrixSize = glTFSkin.joints.size() * sizeof(glm::mat4);
+    HSkin& skinOut = mesh.skin;
+	
+	for (int jointIndex : glTFSkin.joints)
+	{
+	    HSkinnedMeshNode* node = mesh.getNodeByIndex(jointIndex);
+	    if (node)
+	    {
+			skinOut.joints.push_back(node);
+	    }
+	}
+	
+	if (glTFSkin.inverseBindMatrices > -1)
+	{
+	    const tinygltf::Accessor& accessor = input->accessors[glTFSkin.inverseBindMatrices];
+	    const tinygltf::BufferView& bufferView = input->bufferViews[accessor.bufferView];
+	    const tinygltf::Buffer& buffer = input->buffers[bufferView.buffer];
+		skinOut.inverseBindMatrices.resize(accessor.count);
+	    memcpy(skinOut.inverseBindMatrices.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(glm::mat4));
+	}
+}
+
+void loadAnimations(tinygltf::Model* input, HSkinnedMesh& mesh)
+{
+    mesh.animations.resize(input->animations.size());
+
+    for (size_t i = 0; i < input->animations.size(); i++)
+    {
+        tinygltf::Animation glTFAnimation = input->animations[i];
+
+        mesh.animations[i].samplers.resize(glTFAnimation.samplers.size());
+        for (size_t j = 0; j < glTFAnimation.samplers.size(); j++)
+        {
+            tinygltf::AnimationSampler glTFSampler = glTFAnimation.samplers[j];
+            HAnimSampler& dstSampler = mesh.animations[i].samplers[j];
+            dstSampler.interpolation = glTFSampler.interpolation;
+
+            {
+                const tinygltf::Accessor& accessor = input->accessors[glTFSampler.input];
+                const tinygltf::BufferView& bufferView = input->bufferViews[accessor.bufferView];
+                const tinygltf::Buffer& buffer = input->buffers[bufferView.buffer];
+                const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
+                const float* buf = static_cast<const float*>(dataPtr);
+                for (size_t index = 0; index < accessor.count; index++)
+                {
+                    dstSampler.inputs.push_back(buf[index]);
+                }
+                for (auto input : mesh.animations[i].samplers[j].inputs)
+                {
+                    if (input < mesh.animations[i].start)
+                    {
+                        mesh.animations[i].start = input;
+                    };
+                    if (input > mesh.animations[i].end)
+                    {
+                        mesh.animations[i].end = input;
+                    }
+                }
+            }
+
+            {
+                const tinygltf::Accessor& accessor = input->accessors[glTFSampler.output];
+                const tinygltf::BufferView& bufferView = input->bufferViews[accessor.bufferView];
+                const tinygltf::Buffer& buffer = input->buffers[bufferView.buffer];
+                const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
+                switch (accessor.type)
+                {
+                case TINYGLTF_TYPE_VEC3: {
+                    const glm::vec3* buf = static_cast<const glm::vec3*>(dataPtr);
+                    for (size_t index = 0; index < accessor.count; index++)
+                    {
+                        dstSampler.outputsVec4.push_back(glm::vec4(buf[index], 0.0f));
+                    }
+                    break;
+                }
+                case TINYGLTF_TYPE_VEC4: {
+                    const glm::vec4* buf = static_cast<const glm::vec4*>(dataPtr);
+                    for (size_t index = 0; index < accessor.count; index++)
+                    {
+                        dstSampler.outputsVec4.push_back(buf[index]);
+                    }
+                    break;
+                }
+                default: {
+                    std::cout << "unknown type" << std::endl;
+                    break;
+                }
+                }
+            }
         }
 
-        memcpy(pMappedJointMatrixBuffer, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
-    }
-
-    for (auto& child : node->children)
-    {
-        updateJoints(child, pMappedJointMatrixBuffer);
+        mesh.animations[i].channels.resize(glTFAnimation.channels.size());
+        for (size_t j = 0; j < glTFAnimation.channels.size(); j++)
+        {
+            tinygltf::AnimationChannel glTFChannel = glTFAnimation.channels[j];
+            HAnimChannel& dstChannel = mesh.animations[i].channels[j];
+            dstChannel.path = glTFChannel.target_path;
+            dstChannel.samplerIndex = glTFChannel.sampler;
+            dstChannel.node = mesh.getNodeByIndex(glTFChannel.target_node);
+        }
     }
 }
 
-static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, const tinygltf::Model* model, const tinygltf::Node& nodeIn, uint32_t nodeIndex, gltfNode* parent, std::vector<gltfNode*>& parentNodes) {
+template<typename MESH, typename MESHNODE>
+void loadGLTFNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, MESH& mesh, uint32_t nodeIndex, MESHNODE* parent, HAssetDrawer* scene, uint32_t materialOffset) {
     SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
 
-    auto node = new gltfNode();
+    MESHNODE* node = new MESHNODE();
     node->parent = parent;
-    node->index = nodeIndex;
-    node->skinIndex = nodeIn.skin;
-	node->includeInAccel = includeInAccel;
-    node->dynamic = dynamic;
+    node->nodeIndex = nodeIndex;
     node->nodeName = nodeIn.name;
+
+    if (nodeIn.skin > -1) {
+        mesh.meshOwnerNode = node;
+    }
 
     if (nodeIn.matrix.size() == 16) {
         glm::mat4 m = glm::make_mat4x4(nodeIn.matrix.data());
@@ -69,33 +192,35 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
         glm::vec3 skew;
         glm::vec4 perspective;
 
-        glm::decompose(m, node->localTransform.scale, node->localTransform.rotation, node->localTransform.position, skew, perspective);
+        glm::decompose(m, node->transform.scale, node->transform.rotation, node->transform.position, skew, perspective);
     }
     else {
         if (nodeIn.translation.size() == 3) {
-            node->localTransform.position = glm::make_vec3(nodeIn.translation.data());
+            node->transform.position = glm::make_vec3(nodeIn.translation.data());
         }
         if (nodeIn.rotation.size() == 4) {
-            node->localTransform.rotation = glm::make_quat(nodeIn.rotation.data());
+            node->transform.rotation = glm::make_quat(nodeIn.rotation.data());
         }
         if (nodeIn.scale.size() == 3) {
-            node->localTransform.scale = glm::make_vec3(nodeIn.scale.data());
+            node->transform.scale = glm::make_vec3(nodeIn.scale.data());
         }
     }
 
     if (nodeIn.children.size() > 0) {
         for (size_t i = 0; i < nodeIn.children.size(); i++) {
-            loadGLTFNode(obj, includeInAccel, dynamic, model, model->nodes[nodeIn.children[i]], nodeIn.children[i], node, parentNodes);
+            mesh.numNodes++;
+            loadGLTFNode<MESH, MESHNODE>(model, model->nodes[nodeIn.children[i]], mesh, nodeIn.children[i], node, scene, materialOffset);
         }
     }
 
     if (nodeIn.mesh > -1) {
-        const tinygltf::Mesh mesh = model->meshes[nodeIn.mesh];
-        for (size_t i = 0; i < mesh.primitives.size(); i++) {
-            const tinygltf::Primitive& gltfPrim = mesh.primitives[i];
-			auto p = new gltfPrimitive();
-			node->primitives.push_back(std::move(p));
-            p->materialIndex = gltfPrim.material;
+        mesh.numMeshedNodes++;
+        const tinygltf::Mesh gltfMesh = model->meshes[nodeIn.mesh];
+        for (size_t i = 0; i < gltfMesh.primitives.size(); i++) {
+            const tinygltf::Primitive& gltfPrim = gltfMesh.primitives[i];
+            HPrimGeomCapsule primCap;
+            HMeshPrim p;
+            p.materialIndex = (gltfPrim.material < 0 ? 0 : gltfPrim.material) + materialOffset;
             bool hasSkin = false;
 
             uint32_t currentNumIndices = 0;
@@ -178,7 +303,7 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
                     v.jointIndices = glm::vec4(0.0f);
                 }
                 v.jointWeights = hasSkin ? glm::make_vec4(&jointWeightsBuffer[vert * 4]) : glm::vec4(0.0f);
-                p->vertices.push_back(v);
+                primCap.vertices.push_back(v);
             }
 
             const tinygltf::Accessor& accessor = model->accessors[gltfPrim.indices];
@@ -189,608 +314,220 @@ static void loadGLTFNode(gltfObject& obj, bool includeInAccel, bool dynamic, con
             case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
                 const uint32_t* buf = reinterpret_cast<const uint32_t*>(&buffer.data[accessor.byteOffset + view.byteOffset]);
                 for (size_t index = 0; index < accessor.count; index++) {
-                    p->indices.push_back(buf[index]);
+                    primCap.indices.push_back(buf[index]);
                 }
                 break;
             }
             case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
                 const uint16_t* buf = reinterpret_cast<const uint16_t*>(&buffer.data[accessor.byteOffset + view.byteOffset]);
                 for (size_t index = 0; index < accessor.count; index++) {
-                    p->indices.push_back(buf[index]);
+                    primCap.indices.push_back(buf[index]);
                 }
                 break;
             }
             case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
                 const uint8_t* buf = reinterpret_cast<const uint8_t*>(&buffer.data[accessor.byteOffset + view.byteOffset]);
                 for (size_t index = 0; index < accessor.count; index++) {
-                    p->indices.push_back(buf[index]);
-                }
+                    primCap.indices.push_back(buf[index]);
+                }    
                 break;
             }
             default:
                 std::cout << "index component type not supported" << std::endl;
-                std::_Xruntime_error("index component type not supported");
+                throw std::runtime_error("index component type not supported");
             }
 
+            p.firstIndex = scene->indices.size();
+            p.indexCount = primCap.indices.size();
+            p.firstVertex = scene->vertices.size();
+            p.vertexCount = primCap.vertices.size();
+            mesh.numVertices += p.vertexCount;
+            p.meshID = mesh.meshID;
+            p.boundingBox = getBoundingBox(primCap.vertices);
+
+            mesh.boundingBox.grow(p.boundingBox);
+
             if (!tangentsBuff) {
-                generateTangents(p, mikktContext);
+                generateTangents(&primCap, mikktContext);
             }
+
+            for (auto& v : primCap.vertices) {
+                scene->vertices.push_back(v);
+            }
+
+            for (auto& i : primCap.indices) {
+                scene->indices.push_back(i);
+            }
+
+            node->primtives.push_back(p);
         }
     }
 
     if (parent) {
         parent->children.push_back(node);
+        if (nodeIn.mesh > -1) mesh.meshedNodes.push_back(parent->children[parent->children.size() - 1]);
     }
     else {
-        parentNodes.push_back(node);
-    }
-    obj.allNodes.push_back(node);
-}
-
-void gltfutils::loadTexture(gltfObject& object, tinygltf::Model* model, VkFormat format, uint32_t imageIndex) {
-    tinygltf::Image& curImage = model->images[imageIndex];
-    VulkanImage texImage{};
-    std::vector<unsigned char> rgba;
-    rgba.resize(curImage.width * curImage.height * 4);
-
-    switch (curImage.component) {
-    case 4:
-        memcpy(rgba.data(), curImage.image.data(), rgba.size());
-        break;
-    case 3:
-    {
-        std::vector<unsigned char> rgb;
-        rgb.resize(curImage.width * curImage.height * 3);
-        memcpy(rgb.data(), curImage.image.data(), rgb.size());
-        for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
-            rgba[j * 4] = rgb[j * 3];
-            rgba[j * 4 + 1] = rgb[j * 3 + 1];
-            rgba[j * 4 + 2] = rgb[j * 3 + 2];
-            rgba[j * 4 + 3] = 255;
-        }
-        break;
-    }
-    case 1:
-    {
-        std::vector<unsigned char> r;
-        r.resize(curImage.width * curImage.height);
-        memcpy(r.data(), curImage.image.data(), r.size());
-        for (size_t j = 0; j < (size_t)curImage.width * curImage.height; j++) {
-            rgba[j * 4] = rgba[j * 4 + 1] = rgba[j * 4 + 2] = rgba[j * 4 + 3] = r[j];
-        }
-        break;
-    }
-    }
-    VkExtent3D imageExtents{};
-    imageExtents.width = curImage.width;
-    imageExtents.height = curImage.height;
-    imageExtents.depth = 1;
-    texImage = vkimageutils::createTextureImage(rgba.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
-    if (object.isTracer) {
-        vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER);
-    }
-    else {
-        vkimageutils::createImageSampler(texImage);
-    }
-    object.textures.push_back(texImage);
-    if (curImage.name.empty()) {
-        curImage.name = "image_" + curImage.uri;
-    }
-    std::cout << "created image: " << curImage.name << std::endl;
-}
-
-void gltfObject::setTPControllerParameters(ThirdPersonAnimationController& c, Skin& skin) {
-    c.animations[A_TP_IDLE] = &animations[0];
-    c.animations[A_TP_RUNNING] = &animations[1];
-    c.animations[A_TP_LEFT_TURN] = &animations[2];
-    c.animations[A_TP_RIGHT_TURN] = &animations[3];
-
-    c.currentUpperBodyAnim = c.currentLowerBodyAnim = c.animations[A_TP_IDLE];
-    c.currentUpperTime = c.currentLowerTime = c.animations[A_TP_IDLE]->start;
-
-    c.previousAnimationTransforms.resize(skin.joints.size());
-
-    for (int j = 0; j < skin.joints.size(); j++) {
-        gltfNode* joint = skin.joints[j];
-        if (joint->nodeName == "spine.005") {
-            c.spine005 = joint;
-        }
-        else if (joint->nodeName == "upper_arm.L") {
-            c.upperArmL = joint;
-        }
-        else if (joint->nodeName == "upper_arm.R") {
-            c.upperArmR = joint;
-        }
-        else if (joint->nodeName == "spine.007") {
-            c.spine007 = joint;
-        }
-        else if (joint->nodeName == "spine.003") {
-            c.spine003 = joint;
-        }
-        else if (joint->nodeName == "spine") {
-            c.spine = joint;
-            c.spine->lowerBody = true;
-        }
-    }
-    for (auto& node : allNodes) {
-        if (isParentOf(node, c.spine003)) {
-            node->upperBody = true;
-        }
-        else if (isParentOf(node, c.spine007)) {
-            node->lowerBody = true;
-        }
+        mesh.parentNodes.push_back(node);
+        if (nodeIn.mesh > -1) mesh.meshedNodes.push_back(mesh.parentNodes[mesh.parentNodes.size() - 1]);
     }
 }
 
-void gltfObject::setFPControllerParameters(FirstPersonAnimationController& c, Skin& skin) {
-    c.animations[A_GRENADE_THROW] = &animations[1];
-    c.animations[A_GRENADE_IDLE] = &animations[2];
-    c.animations[A_GRENADE_EQUIP] = &animations[3];
+namespace gltfutils {
+    void gltfutils::loadAnimatedMesh(HAssetDrawer& scene, std::string path, std::string meshName) {
+        HSkinnedMesh mesh;
+        mesh.firstIndex = scene.indices.size();
+        mesh.vertexOffset = scene.vertices.size();
+        mesh.meshID = scene.meshCount;
+        mesh.meshName = meshName;
 
-    c.animations[A_PISTOL_RELOAD] = &animations[4];
-    c.animations[A_PISTOL_SHOOT] = &animations[5];
-    c.animations[A_PISTOL_IDLE] = &animations[6];
-    c.animations[A_PISTOL_EQUIP] = &animations[7];
+        tinygltf::Model* model = new tinygltf::Model();
+        tinygltf::TinyGLTF gltfContext;
+        std::string error, warning;
 
-    for (int j = 0; j < skin.joints.size(); j++) {
-        gltfNode* joint = skin.joints[j];
-        if (joint->nodeName == "gun") {
-            c.gunBone = joint;
-        }
-        else if (joint->nodeName == "hand.L") {
-            c.leftWrist = joint;
-        }
-        else if (joint->nodeName == "hand.R") {
-            c.rightWrist = joint;
-        }
-    }
-}
-
-void gltfObject::setWeaponControllerParams(PistolAnimationController& c, Skin& skin) {
-    c.idleAnimation = &animations[0];
-    c.shootAnimation = &animations[1];
-    c.reloadAnimation = &animations[2];
-
-    c.currentAnim = c.idleAnimation;
-    c.currentTime = c.currentAnim->start;
-}
-
-void gltfObject::setWeaponParentTo(gltfObject* parentObj) {
-    if (parentObj->attachmentPoint == nullptr) {
-        std::cout << "no attachment node" << std::endl;
-        throw std::runtime_error("attachment node not there");
-    }
-
-    gltfNode* gunBaseNode = nullptr;
-    for (int j = 0; j < skins[0].joints.size(); j++) {
-        if (skins[0].joints[j]->nodeName == "base") {
-            gunBaseNode = skins[0].joints[j];
-        }
-    }
-    if (gunBaseNode == nullptr) {
-        std::cout << "no gun base node" << std::endl;
-        throw std::runtime_error("base node not there");
-    }
-
-    gunBaseNode->parent = parentObj->attachmentPoint;
-}
-
-gltfObject gltfutils::loadFromFile(const std::string& filename, bool includeInAccel, bool dynamic, bool isCharacter, bool isPistol, bool isTracer, bool isFlash) {
-	std::cout << "Loading GLTF file: " << filename << std::endl;
-
-	gltfObject object{};
-    object.dynamic = dynamic;
-    object.isCharacter = isCharacter;
-    object.isPistol = isPistol;
-    object.isFlash = isFlash;
-    object.isTracer = isTracer;
-    object.imageIsSRGB = new std::unordered_set<uint32_t>();
-    tinygltf::Model* model;
-    model = new tinygltf::Model();
-    tinygltf::TinyGLTF gltfContext;
-    std::string error, warning;
-
-    bool loaded = false;
-    if (getFilePathExtension(filename) == "glb") {
-        loaded = gltfContext.LoadBinaryFromFile(model, &error, &warning, filename);
-    }
-    else {
-        loaded = gltfContext.LoadASCIIFromFile(model, &error, &warning, filename);
-    }
-
-    std::cout << "ERRORS: " << error.c_str() << std::endl;
-    std::cout << "WARNINGS: " << warning.c_str() << std::endl;
-
-    if (!loaded) {
-		throw std::runtime_error("Failed to load glTF file: " + filename);
-	}
-
-    const tinygltf::Scene& scene = model->scenes[model->defaultScene];
-    for (size_t i = 0; i < scene.nodes.size(); i++) {
-        const tinygltf::Node node = model->nodes[scene.nodes[i]];
-        loadGLTFNode(object, includeInAccel, dynamic, model, node, -1, nullptr, object.parentNodes);
-    }
-
-    object.textureIndices.resize(model->textures.size());
-    for (size_t i = 0; i < model->textures.size(); i++) {
-        object.textureIndices[i] = model->textures[i].source;
-    }
-
-    object.materials.resize(model->materials.size());
-    for (size_t i = 0; i < model->materials.size(); i++) {
-        tinygltf::Material gltfMat = model->materials[i];
-        if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
-            object.materials[i].baseColorIndex = object.textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + 3; // 3 for all dummy textures
-            object.imageIsSRGB->insert(object.materials[i].baseColorIndex - 3);
-        }
-        else { object.materials[i].baseColorIndex = DUMMY_COLOR_TEX_INDEX; }
-        if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {
-            object.materials[i].normalIndex = object.textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + 3;
-        }
-        else { object.materials[i].normalIndex = DUMMY_NORMAL_TEX_INDEX; }
-        if (gltfMat.values.find("metallicRoughnessTexture") != gltfMat.values.end()) {
-            object.materials[i].metallicRoughnessIndex = object.textureIndices[gltfMat.values["metallicRoughnessTexture"].TextureIndex()] + 3;
-        }
-        else { object.materials[i].metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
-        object.materials[i].alphaCutoff = gltfMat.alphaCutoff;
-    }
-
-    for (uint32_t i = 0; i < model->images.size(); i++) {
-        VkFormat format = (object.imageIsSRGB->find(i) == object.imageIsSRGB->end()) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
-        loadTexture(object, model, format, i);
-    }
-
-    bool skinned = Skin::loadSkins(model, object.parentNodes, object.skins);
-    if (skinned) {
-        for (const auto& n : object.skins[0].joints) {
-            if (n->nodeName == "gun") {
-                object.attachmentPoint = n;
-            }
-        }
-        object.skinSize = sizeof(glm::mat4) * object.skins[0].joints.size();
-    }
-    Animation::loadAnimations(model, object.parentNodes, object.animations);
-
-    object.thirdPersonAnimStateMachine = new ThirdPersonAnimationStateMachine();
-    object.firstPersonAnimStateMachine = new FirstPersonAnimationStateMachine();
-    object.pistolAnimStateMachine = new PistolAnimationStateMachine();
-
-	delete model;
-	return object;
-}
-
-void SceneGraph::buildNodeBuffers(gltfNode* node) {
-    if (node->primitives.size() == 0 || node->includeInAccel == false) {
-        return;
-	}
-
-    // for building acceleration structures
-    std::vector<glm::vec3> positions;
-    for (const auto& v : node->vertices) {
-        positions.push_back(v.pos);
-    }
-    VkDeviceSize vertexBufferSize = positions.size() * sizeof(glm::vec3);
-    VkDeviceSize indexBufferSize = node->indices.size() * sizeof(uint32_t);
-    node->accelStructureVertexBuffer = vkdeviceutils::createBuffer(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_vertex");
-    node->accelStructureIndexBuffer = vkdeviceutils::createBuffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, "accel_index");
-
-    VulkanBuffer staging = vkdeviceutils::createBuffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-    memcpy(staging.info.pMappedData, positions.data(), vertexBufferSize);
-    memcpy((char*)staging.info.pMappedData + vertexBufferSize, node->indices.data(), indexBufferSize);
-
-    VkBufferCopy vertexCopyRegion{};
-    vertexCopyRegion.srcOffset = 0;
-    vertexCopyRegion.dstOffset = 0;
-    vertexCopyRegion.size = vertexBufferSize;
-
-    VkBufferCopy indexCopyRegion{};
-    indexCopyRegion.srcOffset = vertexBufferSize;
-    indexCopyRegion.dstOffset = 0;
-    indexCopyRegion.size = indexBufferSize;
-
-    vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
-        vkCmdCopyBuffer(cmd, staging.buffer, node->accelStructureVertexBuffer.buffer, 1, &vertexCopyRegion);
-        vkCmdCopyBuffer(cmd, staging.buffer, node->accelStructureIndexBuffer.buffer, 1, &indexCopyRegion);
-        });
-
-    vkdeviceutils::destroyBuffer(staging);
-}
-
-void addUnitCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
-    auto cubePath = vkdebugutils::getExeDir() / "objects" / "cube.glb";
-    gltfObject boxObject = gltfutils::loadFromFile(cubePath.string(), false);
-    gltfNode* node = boxObject.allNodes[0];
-    for (const auto& p : node->primitives) {
-        for (const auto& v : p->vertices) {
-            node->vertices.push_back(v);
-        }
-        for (const auto& index : p->indices) {
-            node->indices.push_back(index);
-        }
-    }
-
-    for (int i = 0; i < node->vertices.size(); i++) {
-        Vertex vert{};
-        vert.pos = glm::vec4(glm::vec3(node->vertices[i].pos), 0.f);
-        vertices.push_back(vert);
-    }
-    for (auto& i : node->indices) {
-        indices.push_back(i);
-    }
-}
-
-void SceneGraph::buildSceneGraph() {
-    FullscreenQuad::addFullscreenQuad(vertices, indices);
-    addUnitCube(vertices, indices);
-
-    for (auto& o : staticObjects) {
-        combinedObjects.push_back(&o);
-    }
-    for (auto& o : dynamicObjects) {
-        combinedObjects.push_back(&o);
-    }
-
-    for (const auto& obj : combinedObjects) {
-        if (obj->isTracer) tracerMatIdx = materialObjects.size();
-        obj->firstMatrix = obj->dynamic ? dynamicTransformMatrices.size() : staticTransformMatrices.size();
-        uint32_t mat_offset = static_cast<uint32_t>(materialObjects.size());
-        for (const auto& node: obj->allNodes) {
-            if (obj->dynamic) {
-                dynamicTransformMatrices.push_back(node->localTransform.getMatrix());
-            }
-            else {
-                staticTransformMatrices.push_back(node->localTransform.getMatrix());
-            }
-            obj->numMatrices++;
-            for (const auto& prim : node->primitives) {
-                uint32_t firstVertex = static_cast<uint32_t>(vertices.size());
-                uint32_t firstIndex = static_cast<uint32_t>(indices.size());
-				uint32_t matIndex = prim->materialIndex + mat_offset;
-
-                gltfDrawCommand draw{};
-                draw.isCharacter = obj->isCharacter;
-                draw.isPistol = obj->isPistol;
-                draw.isFlash = obj->isFlash;
-                draw.dynamic = obj->dynamic;
-                draw.isTracer = obj->isTracer;
-                draw.firstIndex = firstIndex;
-                draw.indexCount = static_cast<uint32_t>(prim->indices.size());
-                draw.vertexCount = prim->vertices.size();
-                draw.boundingBox = getBoundingBox(prim->vertices);
-                if (obj->dynamic) {
-                    draw.transformIndex = dynamicTransformMatrices.size() - 1;
-                }
-                else {
-                    draw.transformIndex = staticTransformMatrices.size() - 1;
-                }
-
-                for (const auto& v : prim->vertices) {
-                    vertices.push_back(v);
-                }
-                for (const auto& index : prim->indices) {
-                    indices.push_back(index + firstVertex);
-				}
-
-                // acceleration structure-specific
-                uint32_t nodeVertOffset = node->vertices.size();
-                for (const auto& v : prim->vertices) {
-                    node->vertices.push_back(v);
-                }
-                for (const auto& i : prim->indices) {
-                    node->indices.push_back(i + nodeVertOffset);
-                }
-
-                sortedDrawCalls[matIndex].push_back(draw);
-            }
-
-            numNodes++;
-            if (node->includeInAccel && node->vertices.size() > 0 && node->indices.size() > 0) {
-				numAccelNodes++;
-
-                sceneBoundingBox.grow(getWorldSpaceBoundingBox(node));
-            }
-
-            // for acceleration structures
-            buildNodeBuffers(node);
-		}
-        
-        for (const auto& mat : obj->materials) {
-            GPUMaterialIndices newMatIndices{};
-            newMatIndices.baseColorIndex = (mat.baseColorIndex == DUMMY_COLOR_TEX_INDEX) ? DUMMY_COLOR_TEX_INDEX : mat.baseColorIndex + numTextures;
-            newMatIndices.normalIndex = (mat.normalIndex == DUMMY_NORMAL_TEX_INDEX) ? DUMMY_NORMAL_TEX_INDEX : mat.normalIndex + numTextures;
-            newMatIndices.metallicRoughnessIndex = (mat.metallicRoughnessIndex == DUMMY_METALROUGH_TEX_INDEX) ? DUMMY_METALROUGH_TEX_INDEX : mat.metallicRoughnessIndex + numTextures;
-            newMatIndices.alphaCutoff = mat.alphaCutoff;
-            materialObjects.push_back(newMatIndices);
-        }
-
-		numTextures += static_cast<uint32_t>(obj->textures.size());
-    }
-
-    uint32_t drawCounter = 0;
-    for (int matIndex = 0; matIndex < materialObjects.size(); matIndex++) {
-        auto& draws = sortedDrawCalls[matIndex];
-        for (const auto& gltfDraw : draws) {
-            VkDrawIndexedIndirectCommand drawCmd{};
-            drawCmd.firstIndex = gltfDraw.firstIndex;
-            drawCmd.indexCount = gltfDraw.indexCount;
-            drawCmd.instanceCount = 1;
-            drawCmd.firstInstance = drawCounter;
-
-            DrawData primDrawData{};
-            primDrawData.materialIndex = matIndex;
-            primDrawData.transformIndex = gltfDraw.transformIndex;
-
-            drawData.push_back(primDrawData);
-            if (gltfDraw.isCharacter) {
-                characterDrawCommands.push_back(drawCmd);
-            }
-            else if (gltfDraw.isPistol) {
-                pistolDrawCommands.push_back(drawCmd);
-            }
-            else if (gltfDraw.isFlash) {
-                flashDrawCommands.push_back(drawCmd);
-            }
-            else if (gltfDraw.isTracer) {
-                tracerCommands.push_back(drawCmd);
-            }
-            else {
-                gltfDraw.dynamic ? dynamicDrawCommands.push_back(drawCmd) : staticDrawCommands.push_back(drawCmd);
-            }
-            boundingBoxes.push_back(gltfDraw.boundingBox);
-
-            drawCounter++;
-        }
-    }
-}
-
-void SceneGraph::createDummyTextures() {
-    // add dummy textures
-    int index = 0;
-    for (const auto& path : DUMMY_PATHS) {
-        VulkanImage texImage{};
-        stbi_uc* pixels = nullptr;
-        int texWidth, texHeight, texChannels;
-        pixels = stbi_load(path.data(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        if (!pixels) {
-            throw std::runtime_error("failed to load dummy image " + path + "!");
-        }
-        texImage.extent.width = texWidth;
-        texImage.extent.height = texHeight;
-
-        VkExtent3D imageExtents{};
-        imageExtents.width = texImage.extent.width;
-        imageExtents.height = texImage.extent.height;
-        imageExtents.depth = 1;
-        if (index != 2) {
-            texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+        bool loaded = false;
+        if (getFilePathExtension(path) == "glb") {
+            loaded = gltfContext.LoadBinaryFromFile(model, &error, &warning, path);
         }
         else {
-            texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
+            loaded = gltfContext.LoadASCIIFromFile(model, &error, &warning, path);
         }
-        vkimageutils::createImageSampler(texImage);
-        dummyTextures.push_back(texImage);
-        index++;
-        numTextures++;
-    }
-}
 
-void SceneGraph::createUITextures() {
-    uiTextureOffset = numTextures;
-    for (const auto& str : UI_TEXTURE_NAMES) {
-        auto p = vkdebugutils::getExeDir() / "ui" / str;
-        VulkanImage texImage{};
-        stbi_uc* pixels = nullptr;
-        int texWidth, texHeight, texChannels;
-        pixels = stbi_load(p.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        std::cout << "ERRORS: " << error.c_str() << std::endl;
+        std::cout << "WARNINGS: " << warning.c_str() << std::endl;
 
-        for (int i = 0; i < texWidth * texHeight; i++) {
-            unsigned char* p = pixels + i * 4;
-            if (p[3] == 0) {
-                p[0] = p[0] * p[3];
-                p[1] = p[1] * p[3];
-                p[2] = p[2] * p[3];
-                p[3] = 1;
+        if (!loaded) {
+            throw std::runtime_error("Failed to load glTF file: " + path);
+        }
+
+        uint32_t materialOffset = static_cast<uint32_t>(scene.materials.size());
+        const tinygltf::Scene& gltfScene = model->scenes[model->defaultScene];
+        for (size_t i = 0; i < gltfScene.nodes.size(); i++) {
+            const tinygltf::Node node = model->nodes[gltfScene.nodes[i]];
+            loadGLTFNode<HSkinnedMesh, HSkinnedMeshNode>(model, node, mesh, -1, nullptr, &scene, materialOffset);
+        }
+
+        uint32_t textureOffset = scene.textures.size();
+
+        std::vector<uint32_t> textureIndices(model->textures.size());
+        for (size_t i = 0; i < model->textures.size(); i++) {
+            textureIndices[i] = model->textures[i].source;
+        }
+
+        std::unordered_set<uint32_t> imageIsSRGB;
+        for (size_t i = 0; i < model->materials.size(); i++) {
+            MaterialInstance material;
+            tinygltf::Material gltfMat = model->materials[i];
+            if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
+                material.baseColorIndex = textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + textureOffset; // 3 for all dummy textures
+                imageIsSRGB.insert(material.baseColorIndex - textureOffset);
             }
+            else { material.baseColorIndex = DUMMY_COLOR_TEX_INDEX; }
+            if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {
+                material.normalIndex = textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + textureOffset;
+            }
+            else { material.normalIndex = DUMMY_NORMAL_TEX_INDEX; }
+            if (gltfMat.values.find("metallicRoughnessTexture") != gltfMat.values.end()) {
+                material.metallicRoughnessIndex = textureIndices[gltfMat.values["metallicRoughnessTexture"].TextureIndex()] + textureOffset;
+            }
+            else { material.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
+            material.alphaCutoff = gltfMat.alphaCutoff;
+
+            scene.materials.push_back(material);
         }
 
-        if (!pixels) {
-            throw std::runtime_error("failed to load ui image " + str + "!");
+        if (model->materials.size() == 0) {
+            MaterialInstance material;
+            material.baseColorIndex = DUMMY_COLOR_TEX_INDEX;
+            material.normalIndex = DUMMY_NORMAL_TEX_INDEX;
+            material.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX;
+            scene.materials.push_back(material);
         }
-        texImage.extent.width = texWidth;
-        texImage.extent.height = texHeight;
 
-        VkExtent3D imageExtents{};
-        imageExtents.width = texImage.extent.width;
-        imageExtents.height = texImage.extent.height;
-        imageExtents.depth = 1;
-
-        texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
-        vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_BORDER_COLOR_INT_TRANSPARENT_BLACK);
-
-        uiTextures.push_back(texImage);
-        numTextures++;
-    }
-
-    worldUITextureOffset = numTextures;
-    for (const auto& str : WORLD_UI_TEXTURE_NAMES) {
-        auto p = vkdebugutils::getExeDir() / "ui" / str;
-        VulkanImage texImage{};
-        stbi_uc* pixels = nullptr;
-        int texWidth, texHeight, texChannels;
-        pixels = stbi_load(p.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        if (!pixels) {
-            throw std::runtime_error("failed to load ui image " + str + "!");
+        for (uint32_t i = 0; i < model->images.size(); i++) {
+            VkFormat format = (imageIsSRGB.find(i) == imageIsSRGB.end()) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
+            scene.textures.push_back(loadTexture(model, format, i));
         }
-        texImage.extent.width = texWidth;
-        texImage.extent.height = texHeight;
 
-        VkExtent3D imageExtents{};
-        imageExtents.width = texImage.extent.width;
-        imageExtents.height = texImage.extent.height;
-        imageExtents.depth = 1;
+        loadSkins(model, mesh);
+        loadAnimations(model, mesh);
 
-        texImage = vkimageutils::createTextureImage((void*)pixels, imageExtents, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT, true); // also creates imageView
-        vkimageutils::createImageSampler(texImage, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_BORDER_COLOR_INT_TRANSPARENT_BLACK);
+        scene.skinnedMeshes[meshName] = mesh;
+        scene.meshCount++;
 
-        uiTextures.push_back(texImage);
-        numTextures++;
+        delete model;
     }
-}
 
-void SceneGraph::uploadTextures(VkDescriptorSet& descriptor) {
-    uint32_t textureOffset = 0;
-    for (auto& tex : dummyTextures) {
-        vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        textureOffset++;
-    }
-    for (auto& obj : staticObjects) {
-        for (auto& tex : obj.textures) {
-            vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-            textureOffset++;
+    void gltfutils::loadStaticMesh(HAssetDrawer& scene, std::string path, std::string meshName) {
+        HMesh mesh;
+        mesh.firstIndex = scene.indices.size();
+        mesh.vertexOffset = scene.vertices.size();
+        mesh.meshID = scene.meshCount;
+        mesh.meshName = meshName;
+
+        tinygltf::Model* model = new tinygltf::Model();
+        tinygltf::TinyGLTF gltfContext;
+        std::string error, warning;
+
+        bool loaded = false;
+        if (getFilePathExtension(path) == "glb") {
+            loaded = gltfContext.LoadBinaryFromFile(model, &error, &warning, path);
         }
-    }
-    for (auto& obj : dynamicObjects) {
-        for (auto& tex : obj.textures) {
-            vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-            textureOffset++;
+        else {
+            loaded = gltfContext.LoadASCIIFromFile(model, &error, &warning, path);
         }
-    }
-    for (auto& tex : uiTextures) {
-        vkdescriptorutils::queueWriteImage(descriptor, 0, textureOffset, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, tex, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        textureOffset++;
-    }
-	vkdescriptorutils::flushDescriptorWrites();
-}
 
-void gltfObject::updateThirdPersonAnimation(Entity* e, gltfObject* obj, ThirdPersonAnimationStateMachine& animMachine, ThirdPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer)
-{
-    animMachine.updateAnimationState(c, deltaTime, e->isMoving ? 1.f : 0.f, 0.f, e->transform.pitch, e->transform.yaw);
+        std::cout << "ERRORS: " << error.c_str() << std::endl;
+        std::cout << "WARNINGS: " << warning.c_str() << std::endl;
 
-    for (auto& node : obj->parentNodes)
-    {
-        obj->updateJoints(node, pMappedJointMatrixBuffer);
-    }
-}
+        if (!loaded) {
+            throw std::runtime_error("Failed to load glTF file: " + path);
+        }
 
-void gltfObject::updateFirstPersonAnimation(WEAPON_STATE state, gltfObject* obj, FirstPersonAnimationStateMachine& animMachine, FirstPersonAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer, bool leftClick, float deltaPitch, float deltaYaw, bool& shootTriggerOut, bool& reloadTriggerOut) {
-    animMachine.updateAnimationState(c, state, deltaTime, deltaPitch, deltaYaw, shootTriggerOut, reloadTriggerOut);
+        uint32_t materialOffset = static_cast<uint32_t>(scene.materials.size());
+        const tinygltf::Scene& gltfScene = model->scenes[model->defaultScene];
+        for (size_t i = 0; i < gltfScene.nodes.size(); i++) {
+            const tinygltf::Node node = model->nodes[gltfScene.nodes[i]];
+            loadGLTFNode<HMesh, HMeshNode>(model, node, mesh, -1, nullptr, &scene, materialOffset);
+        }
 
-    for (auto& node : obj->parentNodes) {
-        obj->updateJoints(node, pMappedJointMatrixBuffer);
-    }
-}
+        uint32_t textureOffset = scene.textures.size();
 
-void gltfObject::updatePistolAnimation(gltfObject* obj, PistolAnimationStateMachine& animMachine, PistolAnimationController& c, float deltaTime, void* pMappedJointMatrixBuffer) {
-    animMachine.updateAnimationState(c, deltaTime);
+        std::vector<uint32_t> textureIndices(model->textures.size());
+        for (size_t i = 0; i < model->textures.size(); i++) {
+            textureIndices[i] = model->textures[i].source;
+        }
 
-    for (auto& node : obj->parentNodes) {
-        obj->updateJoints(node, pMappedJointMatrixBuffer);
-    }
-}
+        std::unordered_set<uint32_t> imageIsSRGB;
+        for (size_t i = 0; i < model->materials.size(); i++) {
+            MaterialInstance material;
+            tinygltf::Material gltfMat = model->materials[i];
+            if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
+                material.baseColorIndex = textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + textureOffset;
+                imageIsSRGB.insert(material.baseColorIndex - textureOffset);
+            }
+            else { material.baseColorIndex = DUMMY_COLOR_TEX_INDEX; }
+            if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {
+                material.normalIndex = textureIndices[gltfMat.additionalValues["normalTexture"].TextureIndex()] + textureOffset;
+            }
+            else { material.normalIndex = DUMMY_NORMAL_TEX_INDEX; }
+            if (gltfMat.values.find("metallicRoughnessTexture") != gltfMat.values.end()) {
+                material.metallicRoughnessIndex = textureIndices[gltfMat.values["metallicRoughnessTexture"].TextureIndex()] + textureOffset;
+            }
+            else { material.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
+            material.alphaCutoff = gltfMat.alphaCutoff;
 
-void gltfObject::updateGrenadeAnimation(gltfObject* obj, float deltaTime, void* pMappedJointMatrixBuffer) {
-    for (auto& node : obj->parentNodes) {
-            obj->updateJoints(node, pMappedJointMatrixBuffer);
+            scene.materials.push_back(material);
+        }
+
+        for (uint32_t i = 0; i < model->images.size(); i++) {
+            VkFormat format = (imageIsSRGB.find(i) == imageIsSRGB.end()) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
+            scene.textures.push_back(loadTexture(model, format, i));
+        }
+
+        scene.meshes[meshName] = mesh;
+        scene.meshCount++;
+
+        delete model;
     }
 }

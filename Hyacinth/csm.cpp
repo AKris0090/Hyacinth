@@ -242,7 +242,7 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	m_shadowImage = vkimageutils::createImageandView(extent3D, SHADOW_MAP_CASCADE_COUNT, shadowFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, false, "csm_image");
 
 	for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-		m_cascades[i].cascadeImageView = vkimageutils::createImageView(m_shadowImage, i, 1, VK_IMAGE_ASPECT_DEPTH_BIT);
+		m_cascades[i].cascadeImageView = vkimageutils::createImageView(m_shadowImage, i, 1, VK_IMAGE_ASPECT_DEPTH_BIT, false);
 	}
 
 	VkSamplerCreateInfo samplerInfo { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -552,10 +552,10 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 	}
 }
 
-void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint32_t frameIndex, VkDeviceAddress& matrixBufferAddress, VkDeviceAddress& drawDataBufferAddress) {
+void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer) {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipelineUtil.m_pipeline.pipeline);
 
-	vkimageutils::transitionImage(cmd, m_shadowImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+	vkimageutils::transitionImage(cmd, m_shadowImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VkRenderingInfo renderingInfo{};
 	renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -584,8 +584,7 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint3
 
 		shadowGPUPushConstant pushConstants{};
 		pushConstants.cascadeIndex = i;
-		pushConstants.transformAddress = matrixBufferAddress;
-		pushConstants.drawDataAddress = drawDataBufferAddress;
+		pushConstants.renderCallAddress = renderCallAddress;
 		vkCmdPushConstants(cmd, m_shadowPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(shadowGPUPushConstant), &pushConstants);
 
 		VkViewport viewport{};
@@ -602,13 +601,21 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint3
 		scissor.extent = extent;
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numDraws, sizeof(VkDrawIndexedIndirectCommand));
+		// draw world
+		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numStaticDraws, sizeof(VkDrawIndexedIndirectCommand));
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(cmd, 0, 1, &skinnedVertBuffer.buffer, offsets);
+
+		// draw animated objects
+		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDraws, numDynamicDraws, sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdBindVertexBuffers(cmd, 0, 1, &vertBuffer.buffer, offsets);
+
 		vkCmdEndRendering(cmd);
 
 		VK_LABEL_END(cmd);
 	}
 
-	vkimageutils::transitionImage(cmd, m_shadowImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+	vkimageutils::transitionImage(cmd, m_shadowImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 
 void shadowHelper::shutdown() {

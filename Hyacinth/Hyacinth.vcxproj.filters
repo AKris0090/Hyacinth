@@ -13,12 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\input">
-      <UniqueIdentifier>{f25ec508-37e2-41f9-ad07-a3a2f13df47d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\time">
-      <UniqueIdentifier>{938847ef-989a-48a3-be34-df5e0b89a124}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\mikktspace">
       <UniqueIdentifier>{28cdfd25-0448-43d4-b39c-261578067c74}</UniqueIdentifier>
     </Filter>
@@ -85,18 +79,6 @@
     <Filter Include="Source Files\renderer\utils\vkutils\debug">
       <UniqueIdentifier>{a485a8ad-8016-4cc6-b187-7a33ab7d3646}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\renderer\utils\probe_vis">
-      <UniqueIdentifier>{4a0508bc-e29d-44fe-8251-d0f3b69564a9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\renderer\utils\probe_volume_vis">
-      <UniqueIdentifier>{995ad00e-5499-4fe6-b1b8-1ab1208537a2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\renderer\utils\fullscreen_quad">
-      <UniqueIdentifier>{edea1441-0d30-4f42-9484-be16bfe1a40b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\renderer\utils\unit_cube">
-      <UniqueIdentifier>{94830179-1217-4f4c-8484-a4d21b906f2d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\network">
       <UniqueIdentifier>{608d8ed5-3a42-42ba-8667-a4bb85a63498}</UniqueIdentifier>
     </Filter>
@@ -108,9 +90,6 @@
     </Filter>
     <Filter Include="Source Files\shaders\visualization">
       <UniqueIdentifier>{c69f709a-01f3-4965-8c25-49c89f103570}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\renderer\utils\animation">
-      <UniqueIdentifier>{a9b7bf78-bd98-4e41-8174-3c32b5c63198}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\renderer\core\ui">
       <UniqueIdentifier>{dfa97c39-b09b-423a-b4b2-b5522cbdb14e}</UniqueIdentifier>
@@ -129,6 +108,69 @@
     </Filter>
     <Filter Include="Source Files\renderer\core\ui\worldspace_health">
       <UniqueIdentifier>{31aea9c9-d4db-4812-ac65-b730569de467}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\animation">
+      <UniqueIdentifier>{a9b7bf78-bd98-4e41-8174-3c32b5c63198}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\skybox">
+      <UniqueIdentifier>{31efc7b2-9316-4783-915c-47d8dda360d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\skybox">
+      <UniqueIdentifier>{185e7498-ed6a-4782-8044-bdb6ff94ef03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\ao">
+      <UniqueIdentifier>{e020e2b2-d51d-4f70-8adc-b0957857c6d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\decal">
+      <UniqueIdentifier>{9ade2af1-9618-40a5-a238-9f906dfd0a27}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\extra objects">
+      <UniqueIdentifier>{41f15d87-6749-4ab9-89da-2ae3ca64397a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\extra objects\fullscreen_quad">
+      <UniqueIdentifier>{edea1441-0d30-4f42-9484-be16bfe1a40b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\extra objects\unit_cube">
+      <UniqueIdentifier>{94830179-1217-4f4c-8484-a4d21b906f2d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\extra objects\probe_vis">
+      <UniqueIdentifier>{4a0508bc-e29d-44fe-8251-d0f3b69564a9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\utils\extra objects\probe_volume_vis">
+      <UniqueIdentifier>{995ad00e-5499-4fe6-b1b8-1ab1208537a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game">
+      <UniqueIdentifier>{6c1d628c-62db-4db1-a915-fb24578e3c9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game\time">
+      <UniqueIdentifier>{938847ef-989a-48a3-be34-df5e0b89a124}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game\input">
+      <UniqueIdentifier>{f25ec508-37e2-41f9-ad07-a3a2f13df47d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\mesh">
+      <UniqueIdentifier>{01861ab1-4a1e-4d2a-b117-e8e8ddb30020}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\mesh\static">
+      <UniqueIdentifier>{90d7c6c6-cd20-4929-b3ca-2bb19a52abe8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\mesh\skinned">
+      <UniqueIdentifier>{7faf6b8b-4136-401a-aa71-36c4703e957b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game\objects">
+      <UniqueIdentifier>{aa3b738b-8e9f-40d7-b76a-d75816c51b5e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game\objects\third_player">
+      <UniqueIdentifier>{3fec5b7c-ed10-447b-aef0-8eb5cbf04933}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game\objects\first_person">
+      <UniqueIdentifier>{22d78818-3203-4924-b17b-5f852bae97c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game\objects\guns">
+      <UniqueIdentifier>{536425c2-1098-43dc-bb6e-333f2dc7ab57}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game\objects\throwable">
+      <UniqueIdentifier>{d468a352-76cb-4b7c-908c-c257db298a65}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -154,10 +196,10 @@
       <Filter>Source Files\renderer\utils\vkutils\descriptor</Filter>
     </ClCompile>
     <ClCompile Include="input.cpp">
-      <Filter>Source Files\input</Filter>
+      <Filter>Source Files\game\input</Filter>
     </ClCompile>
     <ClCompile Include="time.cpp">
-      <Filter>Source Files\time</Filter>
+      <Filter>Source Files\game\time</Filter>
     </ClCompile>
     <ClCompile Include="vkimageutils.cpp">
       <Filter>Source Files\renderer\utils\vkutils\image</Filter>
@@ -217,10 +259,10 @@
       <Filter>Source Files\renderer\utils\vkutils\debug</Filter>
     </ClCompile>
     <ClCompile Include="probevis.cpp">
-      <Filter>Source Files\renderer\utils\probe_vis</Filter>
+      <Filter>Source Files\renderer\utils\extra objects\probe_vis</Filter>
     </ClCompile>
     <ClCompile Include="volumevis.cpp">
-      <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
+      <Filter>Source Files\renderer\utils\extra objects\probe_volume_vis</Filter>
     </ClCompile>
     <ClCompile Include="hyacinth_client.cpp">
       <Filter>Source Files\network</Filter>
@@ -229,7 +271,7 @@
       <Filter>Source Files\network\network_entities</Filter>
     </ClCompile>
     <ClCompile Include="animation.cpp">
-      <Filter>Source Files\renderer\utils\animation</Filter>
+      <Filter>Source Files\renderer\core\animation</Filter>
     </ClCompile>
     <ClCompile Include="hyacinth_ui.cpp">
       <Filter>Source Files\renderer\core\ui</Filter>
@@ -239,6 +281,45 @@
     </ClCompile>
     <ClCompile Include="worldspace_health.cpp">
       <Filter>Source Files\renderer\core\ui\worldspace_health</Filter>
+    </ClCompile>
+    <ClCompile Include="skybox.cpp">
+      <Filter>Source Files\renderer\core\skybox</Filter>
+    </ClCompile>
+    <ClCompile Include="amnbient.cpp">
+      <Filter>Source Files\renderer\core\ao</Filter>
+    </ClCompile>
+    <ClCompile Include="decals.cpp">
+      <Filter>Source Files\renderer\core\decal</Filter>
+    </ClCompile>
+    <ClCompile Include="hcinth_assetdrawer.cpp">
+      <Filter>Source Files\renderer\core\mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="animatedgameobject.h">
+      <Filter>Source Files\game\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="hcinth_animatedmesh.cpp">
+      <Filter>Source Files\renderer\core\mesh\skinned</Filter>
+    </ClCompile>
+    <ClCompile Include="fp_arms.cpp">
+      <Filter>Source Files\game\objects\first_person</Filter>
+    </ClCompile>
+    <ClCompile Include="animatedgameobject.cpp">
+      <Filter>Source Files\game\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="staticgameobject.cpp">
+      <Filter>Source Files\game\objects</Filter>
+    </ClCompile>
+    <ClCompile Include="hcinth_mesh.cpp">
+      <Filter>Source Files\renderer\core\mesh\static</Filter>
+    </ClCompile>
+    <ClCompile Include="tp_character.cpp">
+      <Filter>Source Files\game\objects\third_player</Filter>
+    </ClCompile>
+    <ClCompile Include="pistol.cpp">
+      <Filter>Source Files\game\objects\guns</Filter>
+    </ClCompile>
+    <ClCompile Include="flashbang.cpp">
+      <Filter>Source Files\game\objects\throwable</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -264,10 +345,10 @@
       <Filter>Source Files\renderer\utils\vkutils\descriptor</Filter>
     </ClInclude>
     <ClInclude Include="input.h">
-      <Filter>Source Files\input</Filter>
+      <Filter>Source Files\game\input</Filter>
     </ClInclude>
     <ClInclude Include="time.h">
-      <Filter>Source Files\time</Filter>
+      <Filter>Source Files\game\time</Filter>
     </ClInclude>
     <ClInclude Include="vkimageutils.h">
       <Filter>Source Files\renderer\utils\vkutils\image</Filter>
@@ -327,16 +408,16 @@
       <Filter>Source Files\renderer\utils</Filter>
     </ClInclude>
     <ClInclude Include="probevis.h">
-      <Filter>Source Files\renderer\utils\probe_vis</Filter>
+      <Filter>Source Files\renderer\utils\extra objects\probe_vis</Filter>
     </ClInclude>
     <ClInclude Include="volumevis.h">
-      <Filter>Source Files\renderer\utils\probe_volume_vis</Filter>
+      <Filter>Source Files\renderer\utils\extra objects\probe_volume_vis</Filter>
     </ClInclude>
     <ClInclude Include="fullscreen_quad.h">
-      <Filter>Source Files\renderer\utils\fullscreen_quad</Filter>
+      <Filter>Source Files\renderer\utils\extra objects\fullscreen_quad</Filter>
     </ClInclude>
     <ClInclude Include="unit_cube.h">
-      <Filter>Source Files\renderer\utils\unit_cube</Filter>
+      <Filter>Source Files\renderer\utils\extra objects\unit_cube</Filter>
     </ClInclude>
     <ClInclude Include="hyacinth_client.h">
       <Filter>Source Files\network</Filter>
@@ -345,10 +426,7 @@
       <Filter>Source Files\network\network_entities</Filter>
     </ClInclude>
     <ClInclude Include="animation.h">
-      <Filter>Source Files\renderer\utils\animation</Filter>
-    </ClInclude>
-    <ClInclude Include="gltfcommon.h">
-      <Filter>Source Files\renderer\utils\gltfutils</Filter>
+      <Filter>Source Files\renderer\core\animation</Filter>
     </ClInclude>
     <ClInclude Include="hyacinth_ui.h">
       <Filter>Source Files\renderer\core\ui</Filter>
@@ -356,11 +434,47 @@
     <ClInclude Include="netDebugRenderer.h">
       <Filter>Source Files\network\network_debugging</Filter>
     </ClInclude>
-    <ClInclude Include="tracer_manager.h">
-      <Filter>Source Files\renderer\utils</Filter>
-    </ClInclude>
     <ClInclude Include="worldspace_health.h">
       <Filter>Source Files\renderer\core\ui\worldspace_health</Filter>
+    </ClInclude>
+    <ClInclude Include="skybox.h">
+      <Filter>Source Files\renderer\core\skybox</Filter>
+    </ClInclude>
+    <ClInclude Include="ambient.h">
+      <Filter>Source Files\renderer\core\ao</Filter>
+    </ClInclude>
+    <ClInclude Include="decals.h">
+      <Filter>Source Files\renderer\core\decal</Filter>
+    </ClInclude>
+    <ClInclude Include="hcinth_assetdrawer.h">
+      <Filter>Source Files\renderer\core\mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="tracer_manager.h">
+      <Filter>Source Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="hcinth_animatedmesh.h">
+      <Filter>Source Files\renderer\core\mesh\skinned</Filter>
+    </ClInclude>
+    <ClInclude Include="hcinth_mesh.h">
+      <Filter>Source Files\renderer\core\mesh\static</Filter>
+    </ClInclude>
+    <ClInclude Include="pistol.h">
+      <Filter>Source Files\game\objects\guns</Filter>
+    </ClInclude>
+    <ClInclude Include="fp_arms.h">
+      <Filter>Source Files\game\objects\first_person</Filter>
+    </ClInclude>
+    <ClInclude Include="tp_character.h">
+      <Filter>Source Files\game\objects\third_player</Filter>
+    </ClInclude>
+    <ClInclude Include="mesh_common.h">
+      <Filter>Source Files\renderer\core\mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="staticgameobject.h">
+      <Filter>Source Files\game\objects</Filter>
+    </ClInclude>
+    <ClInclude Include="flashbang.h">
+      <Filter>Source Files\game\objects\throwable</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -429,9 +543,6 @@
     <None Include="shaders\probeVis.vert">
       <Filter>Source Files\shaders\visualization</Filter>
     </None>
-    <None Include="shaders\gbufferSkinned.vert">
-      <Filter>Source Files\shaders</Filter>
-    </None>
     <None Include="shaders\uiTex.vert">
       <Filter>Source Files\shaders\ui</Filter>
     </None>
@@ -457,6 +568,15 @@
       <Filter>Source Files\shaders\network</Filter>
     </None>
     <None Include="shaders\fxaa.frag">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\skybox.vert">
+      <Filter>Source Files\shaders\skybox</Filter>
+    </None>
+    <None Include="shaders\skybox.frag">
+      <Filter>Source Files\shaders\skybox</Filter>
+    </None>
+    <None Include="shaders\skinning.comp">
       <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>

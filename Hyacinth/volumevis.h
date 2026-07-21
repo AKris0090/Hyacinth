@@ -1,16 +1,14 @@
 #pragma once
 
-#include "raytracing.h"
 #include "vkdescriptorutils.h"
 #include "vkpipelineutils.h"
 #include "unit_cube.h"
+#include "fullscreen_quad.h"
 
 class volumeVisHelper {
 	uint32_t volumeCount;
 	
 	VulkanPipelineBuilder pipelineUtil;
-
-	gltfObject boxObject;
 	
 	struct volumePushContant {
 		VkDeviceAddress volumeTransformAddress;

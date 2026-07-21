@@ -57,6 +57,7 @@ struct ddgiPushConstant {
 	VkDeviceAddress probePositionBufferAddress;
 	VkDeviceAddress vertexAddress;
 	VkDeviceAddress indexAddress;
+	VkDeviceAddress renderCallAddress;
 	VkDeviceAddress volumeDataAddress;
 	uint32_t volumeIndex;
 };
@@ -91,9 +92,6 @@ private:
 
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
 
-	VulkanBuffer closestHitVertexBuffer;
-	VulkanBuffer closestHitIndexBuffer;
-
 	void createRaytraceDescriptors();
 	void createRaytracePipeline();
 	void createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
@@ -115,7 +113,7 @@ public:
 
 	bool showVolumes = false;
 
-	void setup(rtHelper* rtHelper, SceneGraph& m_scene);
-	void bakeDDGI(VkDescriptorSet& textureSet);
+	void setup(rtHelper* rtHelper);
+	void bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAddress, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress);
 	void shutdown();
 };

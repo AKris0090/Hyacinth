@@ -1,6 +1,10 @@
 #include "raytracing.h"
 
 namespace rt {
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR		s_rtProperties = {};
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR	s_asProperties = {};
+    std::vector<AccelerationStructure> bottomLevelStructures;
+
     PFN_vkCreateAccelerationStructureKHR            CreateAS = nullptr;
     PFN_vkCmdBuildAccelerationStructuresKHR         BuildAS = nullptr;
     PFN_vkGetAccelerationStructureBuildSizesKHR     GetBuildSizes = nullptr;
@@ -9,6 +13,14 @@ namespace rt {
     PFN_vkCmdTraceRaysKHR                           Trace = nullptr;
     PFN_vkGetRayTracingShaderGroupHandlesKHR        GetHandles = nullptr;
 	PFN_vkDestroyAccelerationStructureKHR           DestroyAS = nullptr;
+
+    void setRTProperties(VkPhysicalDeviceRayTracingPipelinePropertiesKHR newProps) {
+        s_rtProperties = newProps;
+    }
+
+    void setASProperties(VkPhysicalDeviceAccelerationStructurePropertiesKHR newProps) {
+        s_asProperties = newProps;
+    }
 }
 
 void rt::initAccelerationStructureFunctions(VkDevice& device) {
@@ -45,35 +57,37 @@ void rt::initAccelerationStructureFunctions(VkDevice& device) {
     if (!rt::DestroyAS) throw std::runtime_error("Failed to load vkDestroyAccelerationStructureKHR");
 }
 
-// this should translate a gltfNode to a geometry structure
-static void primitiveToGeometry(gltfNode* node, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo)
+// static function to translate a gltfNode to a geometry structure
+void rtHelper::nodeToAccelStructureGeometry(rt::nodeAccelBuildPacket packet, std::vector<VkAccelerationStructureGeometryKHR>& geometry, std::vector<VkAccelerationStructureBuildRangeInfoKHR>& rangeInfo)
 {
-    const auto triangleCount = static_cast<uint32_t>(node->indices.size() / 3U);
+    for (const auto& p : packet.prims) {
+        const auto triangleCount = p.numIndices / 3U;
 
-    VkAccelerationStructureGeometryTrianglesDataKHR triangles{
-        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-        .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
-        .vertexData = {.deviceAddress = node->accelStructureVertexBuffer.gpuAddress },
-        .vertexStride = sizeof(glm::vec3),
-        .maxVertex = static_cast<uint32_t>(node->vertices.size()) - 1,
-        .indexType = VK_INDEX_TYPE_UINT32,
-        .indexData = {.deviceAddress = node->accelStructureIndexBuffer.gpuAddress },
-    };
+        VkAccelerationStructureGeometryTrianglesDataKHR triangles{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+            .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
+            .vertexData = {.deviceAddress = packet.vertexAddress + ((sizeof(Vertex) * p.vertexOffset) + offsetof(Vertex, pos))},
+            .vertexStride = sizeof(Vertex),
+            .maxVertex = (p.firstIndex + p.numIndices),
+            .indexType = VK_INDEX_TYPE_UINT32,
+            .indexData = {.deviceAddress = packet.indexAddress + (sizeof(uint32_t) * p.firstIndex)},
+        };
 
-    geometry = VkAccelerationStructureGeometryKHR{
-        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
-        .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
-        .geometry = {.triangles = triangles},
-        .flags = VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR | VK_GEOMETRY_OPAQUE_BIT_KHR,
-    };
+        geometry.push_back(VkAccelerationStructureGeometryKHR{
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+            .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+            .geometry = {.triangles = triangles},
+            .flags = VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR | VK_GEOMETRY_OPAQUE_BIT_KHR,
+        });
 
-    rangeInfo = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = triangleCount };
+        rangeInfo.push_back(VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = triangleCount });
+    }
 }
 
 void rtHelper::createAccelerationStructure(VkAccelerationStructureTypeKHR asType,
                                            AccelerationStructure& accelStruct,
-                                           VkAccelerationStructureGeometryKHR& asGeometry,
-                                           VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo,
+                                           std::vector<VkAccelerationStructureGeometryKHR>& asGeometry,
+                                           std::vector<VkAccelerationStructureBuildRangeInfoKHR>& asBuildRangeInfo,
                                            VkBuildAccelerationStructureFlagsKHR flags) {
     auto alignUp = [](auto value, size_t alignment) noexcept { return ((value + alignment - 1) & ~(alignment - 1)); };
 
@@ -82,18 +96,20 @@ void rtHelper::createAccelerationStructure(VkAccelerationStructureTypeKHR asType
         .type = asType,
         .flags = flags,
         .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
-        .geometryCount = 1,
-        .pGeometries = &asGeometry,
+        .geometryCount = static_cast<uint32_t>(asGeometry.size()), //  TODO: can have more than one geometry, use primitives for geometries
+        .pGeometries = asGeometry.data(),
     };
-    std::vector<uint32_t> maxPrimCount(1);
-    maxPrimCount[0] = asBuildRangeInfo.primitiveCount;
+    std::vector<uint32_t> maxPrimCount;
+    for (const auto& asb : asBuildRangeInfo) {
+        maxPrimCount.push_back(asb.primitiveCount);
+    }
 
     VkAccelerationStructureBuildSizesInfoKHR asBuildSize{ .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
     rt::GetBuildSizes(vkdeviceutils::device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &asBuildInfo,
         maxPrimCount.data(), &asBuildSize);
 
-    VkDeviceSize scratchSize = alignUp(asBuildSize.buildScratchSize, m_asProperties.minAccelerationStructureScratchOffsetAlignment);
-    VulkanBuffer scratchBuffer = vkdeviceutils::createBufferWithAlignment(scratchSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, m_asProperties.minAccelerationStructureScratchOffsetAlignment, "accel_scratch_buffer");
+    VkDeviceSize scratchSize = alignUp(asBuildSize.buildScratchSize, rt::s_asProperties.minAccelerationStructureScratchOffsetAlignment);
+    VulkanBuffer scratchBuffer = vkdeviceutils::createBufferWithAlignment(scratchSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VMA_MEMORY_USAGE_GPU_ONLY, 0, rt::s_asProperties.minAccelerationStructureScratchOffsetAlignment, "accel_scratch_buffer");
 
     VkAccelerationStructureCreateInfoKHR createInfo{
         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
@@ -111,7 +127,7 @@ void rtHelper::createAccelerationStructure(VkAccelerationStructureTypeKHR asType
         asBuildInfo.dstAccelerationStructure = accelStruct.accel;
         asBuildInfo.scratchData.deviceAddress = scratchBuffer.gpuAddress;
 
-        VkAccelerationStructureBuildRangeInfoKHR* pBuildRangeInfo = &asBuildRangeInfo;
+        VkAccelerationStructureBuildRangeInfoKHR* pBuildRangeInfo = asBuildRangeInfo.data();
         rt::BuildAS(cmd, 1, &asBuildInfo, &pBuildRangeInfo);
     });
 
@@ -119,28 +135,15 @@ void rtHelper::createAccelerationStructure(VkAccelerationStructureTypeKHR asType
 }
 
 // this should loop over all of the nodes in the scenegraph and create their accelerations structures
-void rtHelper::createBottomLevelAS(SceneGraph& scene) {
-    m_blAccelStructures.resize(scene.numAccelNodes);
-    std::cout << "building bottom-level accel structures" << std::endl;
-
-    uint32_t id = 0;
-    for(const auto& obj : scene.staticObjects) {
-        for (const auto& node : obj.allNodes) {
-            if (!node->includeInAccel || node->vertices.empty() || node->indices.empty()) {
-                std::cerr << "Warning: Node " << id << " has no geometry, skipping BLAS creation." << std::endl;
-                continue;
-			}
-            VkAccelerationStructureGeometryKHR       asGeometry{};
-            VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
-            primitiveToGeometry(node, asGeometry, asBuildRangeInfo);
-            createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR, m_blAccelStructures[id], asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
-            id++;
-        }
-    }
+void rtHelper::createBottomLevelAS(AccelerationStructure& accelStructure, rt::nodeAccelBuildPacket packet) {
+    std::vector<VkAccelerationStructureGeometryKHR> asGeometry{};
+    std::vector<VkAccelerationStructureBuildRangeInfoKHR> asBuildRangeInfo{};
+    nodeToAccelStructureGeometry(packet, asGeometry, asBuildRangeInfo);
+    createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR, accelStructure, asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 }
 
 // this creates a single TLAS instance per BLAS (gltfNode). Matrix is also stored in gltfNode
-void rtHelper::createTopLevelAS(SceneGraph& scene) {
+void rtHelper::createTopLevelAS() {
     auto toTransformMatrixKHR = [](const glm::mat4& m) {
         VkTransformMatrixKHR t;
         memcpy(&t, glm::value_ptr(glm::transpose(m)), sizeof(t));
@@ -149,25 +152,18 @@ void rtHelper::createTopLevelAS(SceneGraph& scene) {
 
     // Prepare instance data for TLAS
     std::vector<VkAccelerationStructureInstanceKHR> tlasInstances;
-    tlasInstances.reserve(scene.numAccelNodes);
 
     uint32_t meshIndex = 0;
-    for(const auto& obj : scene.staticObjects) {
-        for (const auto& node : obj.allNodes) {
-            if (node->includeInAccel == false || node->vertices.empty() || node->indices.empty()) {
-                std::cerr << "Warning: Node " << meshIndex << " is marked as not included in acceleration structure or has no geometry, skipping TLAS instance creation." << std::endl;
-                continue;
-			}
-            VkAccelerationStructureInstanceKHR asInstance{};
-            asInstance.transform = toTransformMatrixKHR(node->localTransform.getMatrix());
-            asInstance.instanceCustomIndex = meshIndex;                       // gl_InstanceCustomIndexEXT
-            asInstance.accelerationStructureReference = m_blAccelStructures[meshIndex].address;
-            asInstance.instanceShaderBindingTableRecordOffset = 0;
-            asInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
-            asInstance.mask = 0xFF;
-            tlasInstances.emplace_back(asInstance);
-            meshIndex++;
-        }
+    for(const auto& accel : rt::bottomLevelStructures) {
+        VkAccelerationStructureInstanceKHR asInstance{};
+        asInstance.transform = toTransformMatrixKHR(accel.instanceMatrix);
+        asInstance.instanceCustomIndex = meshIndex;                       // gl_InstanceCustomIndexEXT
+        asInstance.accelerationStructureReference = accel.address;
+        asInstance.instanceShaderBindingTableRecordOffset = 0;
+        asInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
+        asInstance.mask = 0xFF;
+        tlasInstances.push_back(asInstance);
+        meshIndex += accel.numGeometries;
     }
 
     std::cout << "building top-level accel structures" << std::endl;
@@ -184,21 +180,24 @@ void rtHelper::createTopLevelAS(SceneGraph& scene) {
         asGeometry = { .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
                             .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
                             .geometry = {.instances = geometryInstances} };
-        asBuildRangeInfo = { .primitiveCount = scene.numAccelNodes };
+        asBuildRangeInfo = { .primitiveCount = static_cast<uint32_t>(rt::bottomLevelStructures.size()) };
 
-        createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, m_tlAccelStrucutre, asGeometry, asBuildRangeInfo, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+        std::vector<VkAccelerationStructureGeometryKHR> asg{};
+        asg.push_back(asGeometry);
+        std::vector<VkAccelerationStructureBuildRangeInfoKHR> asb{};
+        asb.push_back(asBuildRangeInfo);
+
+        createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, m_tlAccelStrucutre, asg, asb, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
     }
     vkdeviceutils::destroyBuffer(tlasInstanceBuffer);
 }
 
-void rtHelper::setup(SceneGraph& scene) {
+void rtHelper::setup() {
     rt::initAccelerationStructureFunctions(vkdeviceutils::device);
-    createBottomLevelAS(scene);
-    createTopLevelAS(scene);
 }
 
 void rtHelper::shutdown() {
-    for (auto& blas : m_blAccelStructures) {
+    for (auto& blas : rt::bottomLevelStructures) {
         rt::DestroyAS(vkdeviceutils::device, blas.accel, nullptr);
         vkdeviceutils::destroyBuffer(blas.buffer);
     }

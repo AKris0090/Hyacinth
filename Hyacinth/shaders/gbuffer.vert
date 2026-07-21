@@ -8,7 +8,7 @@ layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
 
-layout	(location = 0) flat out int matIndex;
+layout	(location = 0) flat out uint matIndex;
 layout  (location = 1) out vec4 viewPos;
 layout  (location = 2) out vec4 outNormal;
 layout	(location = 3) out vec4 fragPos;
@@ -30,26 +30,21 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 
 layout( push_constant ) uniform constants
 {
-	mat4 entityTransformMatrix;
-	TransformBuffer transformBuffer;
-	DrawDataBuffer drawDataBuffer;
-	JointMatricesBuffer jmBuffer;
+	RenderCallBuffer renderCallBuffer;
 	MaterialBuffer materialBuffer;
-    VolumeDataBuffer volumeDataBuffer;
 } pc;
 
 void main() 
 {
-	DrawData draw = pc.drawDataBuffer.draws[gl_InstanceIndex];
-	mat4 model = pc.transformBuffer.model[draw.transformIndex];
-	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0);
+	RenderCall draw = pc.renderCallBuffer.calls[gl_InstanceIndex];
+	gl_Position = ubo.proj * ubo.view * draw.instanceMatrix * vec4(inPosition.xyz, 1.0);
 
-	fragPos = model * vec4(inPosition.xyz, 1.0);
+	fragPos = draw.instanceMatrix * vec4(inPosition.xyz, 1.0);
 
 	vec4 biTangent = vec4(normalize(cross(inNormal.xyz, inTangent.xyz)), 0.0);
-	vec3 T = normalize(vec3(model * vec4(inTangent.xyz, 0.0)));
-	vec3 B = normalize(vec3(model * biTangent));
-	vec3 N = normalize(vec3(model * vec4(inNormal.xyz, 0.0)));
+	vec3 T = normalize(vec3(draw.instanceMatrix * vec4(inTangent.xyz, 0.0)));
+	vec3 B = normalize(vec3(draw.instanceMatrix * biTangent));
+	vec3 N = normalize(vec3(draw.instanceMatrix * vec4(inNormal.xyz, 0.0)));
 	TBNMatrix = mat3(T, B, N);
 
 	matIndex = draw.materialIndex;

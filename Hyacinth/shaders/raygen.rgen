@@ -15,6 +15,7 @@ layout( push_constant ) uniform constants
 	ProbePositionBuffer probePosAddress;
 	VertexBuffer vertexBufferAddress;
 	IndexBuffer indexBufferAddress;
+	RenderCallBuffer renderBufferAddress;
 	VolumeDataBuffer volumeDataAddress;
 	int volumeIndex;
 } pc;

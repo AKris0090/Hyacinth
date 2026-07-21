@@ -1,4 +1,4 @@
-#version 460
+   #version 460
 #extension GL_EXT_ray_tracing : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_buffer_reference : enable
@@ -17,6 +17,9 @@ layout( push_constant ) uniform constants
 	ProbePositionBuffer probePosAddress;
 	VertexBuffer vertexBufferAddress;
 	IndexBuffer indexBufferAddress;
+	RenderCallBuffer renderBufferAddress;
+	VolumeDataBuffer volumeDataAddress;
+	int volumeIndex;
 } pc;
 
 const vec3 lightColor = vec3(1.0); // vec3(0.99, 0.98, 0.83);
@@ -31,16 +34,18 @@ void main()
 			return;
 		}
 	}
-	vec3 radiance = vec3(0.0);
+
 	if (gl_HitKindEXT != gl_HitKindBackFacingTriangleEXT) {
-		ivec3 index = ivec3(pc.indexBufferAddress.indices[3 * gl_PrimitiveID], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 1], pc.indexBufferAddress.indices[3 * gl_PrimitiveID + 2]);
+		RenderCall r = pc.renderBufferAddress.calls[gl_InstanceCustomIndexEXT + gl_GeometryIndexEXT];
+		uint idx0 = r.firstIndex + 3 * gl_PrimitiveID;
+		ivec3 index = ivec3(pc.indexBufferAddress.indices[idx0], pc.indexBufferAddress.indices[idx0 + 1], pc.indexBufferAddress.indices[idx0 + 2]);
 		float b = barycentricWeights.x;
         float c = barycentricWeights.y;
         float a = 1 - b - c;
 
-		Vertex v0 = pc.vertexBufferAddress.vertices[index.x];
-		Vertex v1 = pc.vertexBufferAddress.vertices[index.y];
-		Vertex v2 = pc.vertexBufferAddress.vertices[index.z];
+		Vertex v0 = pc.vertexBufferAddress.vertices[index.x + r.vertexOffset];
+		Vertex v1 = pc.vertexBufferAddress.vertices[index.y + r.vertexOffset];
+		Vertex v2 = pc.vertexBufferAddress.vertices[index.z + r.vertexOffset];
 
 		vec3 normal = normalize(a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz);
 

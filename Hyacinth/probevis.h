@@ -11,7 +11,6 @@ class probeVisObjects {
 
 	VulkanBuffer vertexBuffer;
 	VulkanBuffer indexBuffer;
-	gltfObject sphereObject;
 
 	struct probeVisPushContant {
 		VkDeviceAddress probePositionAddress;

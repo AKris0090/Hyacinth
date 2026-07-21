@@ -37,15 +37,26 @@ struct VulkanBuffer {
 	VkDeviceAddress gpuAddress;
     VmaAllocation allocation;
     VmaAllocationInfo info;
+
+    std::string qualName;
+
+    VkBufferUsageFlags usageFlags;
+    VmaMemoryUsage memUsage;
+    VmaAllocationCreateFlags vmaFlags;
 };
 
 struct GPUDrawPushConstants {
-    glm::mat4 entityMatrix;
-    VkDeviceAddress transformAddress;
-    VkDeviceAddress drawDataAddress;
-    VkDeviceAddress jointBufferAddress;
-    VkDeviceAddress materialAddress;
-    VkDeviceAddress volumeDataAddress;
+    VkDeviceAddress renderCallBuffer;
+    VkDeviceAddress materialDataAddress;
+};
+
+struct AccelerationStructure
+{
+    VkAccelerationStructureKHR accel{};
+    VkDeviceAddress            address{};
+    VulkanBuffer               buffer;
+    glm::mat4                  instanceMatrix;
+    uint32_t                   numGeometries = 0;
 };
 
 namespace vkdeviceutils {
@@ -85,4 +96,8 @@ namespace vkdeviceutils {
     void destroyBuffer(VulkanBuffer& buffer);
     void uploadToBuffer(VulkanBuffer& buffer, size_t size, void* data, size_t offset = 0);
 	void stageAndUploadBuffers(VkDeviceSize* pSizes, void** ppData, VulkanBuffer* pBuffers, uint32_t count);
+
+    void resizeBuffer(VulkanBuffer& buffer, size_t newSize);
+    // assumes that buffer is mapped
+    void updateBuffer(VulkanBuffer& buffer, size_t newSize, void* newData);
 }

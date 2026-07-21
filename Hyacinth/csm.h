@@ -31,9 +31,8 @@ struct Cascade {
 };
 
 struct shadowGPUPushConstant {
+	VkDeviceAddress renderCallAddress;
 	uint32_t cascadeIndex;
-	VkDeviceAddress transformAddress;
-	VkDeviceAddress drawDataAddress;
 };
 
 class shadowHelper {
@@ -69,6 +68,6 @@ public:
 	void setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayout);
 	void setupImGui();
 	void update(Camera& cam, AABB worldSpaceSceneBouunds, int currentFrame);
-	void drawShadowMaps(VkCommandBuffer& cmd, uint32_t numDraws, uint32_t frameIndex, VkDeviceAddress& matrixBufferAddress, VkDeviceAddress& drawDataBufferAddress);
+	void drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer);
 	void shutdown();
 };

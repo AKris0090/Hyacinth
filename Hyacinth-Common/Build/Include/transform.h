@@ -7,6 +7,8 @@
 #include "glm/gtx/compatibility.hpp"
 
 struct Transform {
+	Transform* parent = nullptr;
+
 	glm::vec3 position{ 0.f, 0.f, 0.f };
 	glm::quat rotation{ 1.f, 0.f, 0.f, 0.f };
 	glm::vec3 scale{ 1.f, 1.f, 1.f };
@@ -19,12 +21,21 @@ struct Transform {
 
 	float pitchAdditional = 0.f;
 
+	glm::quat						queuedQuatRotation;
+	std::vector<float>				queuedYawShifts;
+	std::vector<float>				queuedPitchShifts;
+
 	bool dirty = 0;
 
 	glm::mat4 getMatrix() const {
 		glm::mat4 ret = glm::translate(glm::mat4(1.0f), position);
 		ret *= glm::toMat4(rotation);
 		ret = glm::scale(ret, scale);
+
+		if (parent) {
+			ret = parent->getMatrix() * ret;
+		}
+
 		return ret;
 	}
 
@@ -83,4 +94,13 @@ struct Transform {
 
 	Transform() {};
 	Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale) : position(position), rotation(rotation), scale(scale) {}
+
+	void copy(Transform& o) {
+		position = o.position;
+		rotation = o.rotation;
+		scale = o.scale;
+
+		pitch = o.pitch;
+		yaw = o.yaw;
+	}
 };

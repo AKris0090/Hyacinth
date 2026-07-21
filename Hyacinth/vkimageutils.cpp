@@ -40,7 +40,7 @@ namespace vkimageutils {
 		VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerCInfo, nullptr, &image.imageSampler));
 	}
 
-	VkImageView createImageView(VulkanImage& image, uint32_t baseArrayLayer, uint32_t layerCount, VkImageAspectFlags aspectFlags) {
+	VkImageView createImageView(VulkanImage& image, uint32_t baseArrayLayer, uint32_t layerCount, VkImageAspectFlags aspectFlags, bool cube) {
 		VkImageView imageView;
 
 		VkImageViewCreateInfo viewInfo{};
@@ -50,6 +50,10 @@ namespace vkimageutils {
 
 		if (layerCount > 1) {
 			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+		}
+
+		if (cube) {
+			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
 		}
 
 		viewInfo.format = image.imageFormat;
@@ -63,7 +67,7 @@ namespace vkimageutils {
 		return imageView;
 	}
 
-	VulkanImage createImageandView(VkExtent3D size, uint32_t arrayLayers, VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits numSamples, bool mipped, std::string qual) {
+	VulkanImage createImageandView(VkExtent3D size, uint32_t arrayLayers, VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits numSamples, bool mipped, std::string qual, bool cube) {
 		VulkanImage newImage{};
 		newImage.imageFormat = format;
 		newImage.extent = VkExtent3D{ size.width, size.height, 1 };
@@ -78,6 +82,10 @@ namespace vkimageutils {
 		imgInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		imgInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		imgInfo.mipLevels = 1;
+
+		if (cube) {
+			imgInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+		}
 
 		if (mipped) {
 			imgInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2((std::max)(size.width, size.height)))) + 1;
@@ -101,12 +109,12 @@ namespace vkimageutils {
 			aspectFlag = VK_IMAGE_ASPECT_STENCIL_BIT;
 		}
 
-		newImage.imageView = vkimageutils::createImageView(newImage, 0, arrayLayers, aspectFlag);
+		newImage.imageView = vkimageutils::createImageView(newImage, 0, arrayLayers, aspectFlag, cube);
 
 		return newImage;
 	}
 
-	void vkimageutils::transitionImage(VkCommandBuffer& cmd, VkImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask)
+	void vkimageutils::transitionImage(VkCommandBuffer& cmd, VulkanImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask)
 	{
 		VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
 		imageBarrier.pNext = nullptr;
@@ -126,7 +134,7 @@ namespace vkimageutils {
 		subImage.baseArrayLayer = 0;
 		subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
 		imageBarrier.subresourceRange = subImage;
-		imageBarrier.image = image;
+		imageBarrier.image = image.image;
 
 		VkDependencyInfo depInfo{};
 		depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -136,16 +144,18 @@ namespace vkimageutils {
 		depInfo.pImageMemoryBarriers = &imageBarrier;
 
 		vkCmdPipelineBarrier2(cmd, &depInfo);
+
+		image.layout = newLayout;
 	}
 
 	VulkanImage createTextureImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipped) {
 		size_t dataSize = size.depth * size.width * size.height * 4;
 		VulkanBuffer uploadBuffer = vkdeviceutils::createBuffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
-		memcpy(uploadBuffer.info.pMappedData, data, dataSize);
+		memcpy(uploadBuffer.info.pMappedData, data, dataSize);	
 		VulkanImage newImage = vkimageutils::createImageandView(size, 1, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, mipped, "texture_image");
 
 		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
-			vkimageutils::transitionImage(cmd, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+			vkimageutils::transitionImage(cmd, newImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 			VkBufferImageCopy copyRegion = {};
 			copyRegion.bufferOffset = 0;
@@ -165,6 +175,44 @@ namespace vkimageutils {
 		vkdeviceutils::destroyBuffer(uploadBuffer);
 		vmaSetAllocationName(vkdeviceutils::allocator, newImage.imageAllocation, "texture_image");
 		return newImage;
+	}
+
+	VulkanImage createSkyboxImage(std::array<float*, 6>& data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage) {
+		size_t layerSize = size.width * size.height * 16;
+		size_t totalImageSize = 6 * layerSize;
+		VulkanBuffer uploadBuffer = vkdeviceutils::createBuffer(totalImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+
+		for (int i = 0; i < 6; i++) {
+			memcpy(static_cast<char*>(uploadBuffer.pMappedData) + static_cast<size_t>(layerSize * i), data[i], static_cast<size_t>(layerSize));
+		}
+
+		VulkanImage skyboxImage = vkimageutils::createImageandView(size, 6, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, true, "texture_image_skybox", true);
+		skyboxImage.arrayLayers = 6;
+
+		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
+			vkimageutils::transitionImage(cmd, skyboxImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+			VkBufferImageCopy copyRegion = {};
+			copyRegion.bufferOffset = 0;
+			copyRegion.bufferRowLength = 0;
+			copyRegion.bufferImageHeight = 0;
+
+			copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			copyRegion.imageSubresource.mipLevel = 0;
+			copyRegion.imageSubresource.baseArrayLayer = 0;
+			copyRegion.imageSubresource.layerCount = 6;
+			copyRegion.imageExtent = size;
+
+			vkCmdCopyBufferToImage(cmd, uploadBuffer.buffer, skyboxImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+			vkimageutils::generateMipmaps(cmd, skyboxImage);
+		});
+
+		vkdeviceutils::destroyBuffer(uploadBuffer);
+		vmaSetAllocationName(vkdeviceutils::allocator, skyboxImage.imageAllocation, "texture_image_hdr");
+
+		createImageSampler(skyboxImage);
+
+		return skyboxImage;
 	}
 
 	VkRenderingAttachmentInfo createColorAttachmentInfo(VkImageView& msaaColorView, const VkClearValue& clearColor, VkImageLayout imageLayout, bool clear) {
@@ -230,7 +278,7 @@ namespace vkimageutils {
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		barrier.subresourceRange.baseArrayLayer = 0;
-		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.layerCount = image.arrayLayers;
 		barrier.subresourceRange.levelCount = 1;
 
 		int32_t mipWidth = image.extent.width;
@@ -255,13 +303,13 @@ namespace vkimageutils {
 			blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			blit.srcSubresource.mipLevel = i - 1;
 			blit.srcSubresource.baseArrayLayer = 0;
-			blit.srcSubresource.layerCount = 1;
+			blit.srcSubresource.layerCount = image.arrayLayers;
 			blit.dstOffsets[0] = { 0, 0, 0 };
 			blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
 			blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			blit.dstSubresource.mipLevel = i;
 			blit.dstSubresource.baseArrayLayer = 0;
-			blit.dstSubresource.layerCount = 1;
+			blit.dstSubresource.layerCount = image.arrayLayers;
 
 			vkCmdBlitImage(commandBuffer,
 				image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,

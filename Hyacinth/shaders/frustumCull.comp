@@ -11,15 +11,13 @@ layout(set = 0, binding = 0) uniform UBO
 layout(push_constant) uniform pushConstant
 {
     OutputIndirectDraws drawBufferAddress;
-	BoundingBoxes bbAddress;
-	TransformBuffer matrixAddress;
-	DrawDataBuffer drawDataAddress;
+	RenderCallBuffer renderCallBuff;
 	int numDraws;
 } pc;
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-bool frustumCheck(vec4 min, vec4 max)
+bool frustumCheck(vec3 min, vec3 max)
 {
 	for (int i = 0; i < 6; i++) {
 		int num = 0;
@@ -33,9 +31,6 @@ bool frustumCheck(vec4 min, vec4 max)
 		num += ((dot(ubo.frustumPlanes[i], vec4(max.x, max.y, max.z, 1.0f)) < 0.0) ? 1 : 0);
 		if (num == 8) return false;
     }
-
-	// TODO: add frustum points for true culling
-
 	return true;
 }
 
@@ -47,11 +42,10 @@ void main()
 		return;
     }
 
-	DrawData d = pc.drawDataAddress.draws[idx];
-	mat4 modelMatrix = pc.matrixAddress.model[d.transformIndex];
+	RenderCall r = pc.renderCallBuff.calls[idx];
 
-	vec4 currentMin = modelMatrix * pc.bbAddress.boxes[idx].min;
-	vec4 currentMax = modelMatrix * pc.bbAddress.boxes[idx].max;
+	vec3 currentMin = (r.instanceMatrix * vec4(r.aabbMin, 1.0)).xyz;
+	vec3 currentMax = (r.instanceMatrix * vec4(r.aabbMax, 1.0)).xyz;
 
    	if (frustumCheck(currentMin, currentMax)) 
 	{

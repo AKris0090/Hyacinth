@@ -5,8 +5,7 @@
 #include "bufferInfo.glsl"
 
 layout 	(set = 0, binding = 1) uniform sampler2D normalMap;
-layout	(set = 0, binding = 2) uniform sampler2D depthMap;
-layout  (set = 0, binding = 3) uniform sampler2D ddgiImage;
+layout	(set = 0, binding = 3) uniform sampler2D depthMap;
 
 layout(set = 1, binding = 0) uniform UniformBufferObject {
 	mat4 view;

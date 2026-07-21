@@ -69,6 +69,7 @@ struct ClientUpdatePacket {
 	float yaw = 0.f;
 	int8_t movementFB = 0;
 	int8_t movementLR = 0;
+	int8_t movementUD = 0;
 	bool jump = false;
 	bool lmb = false;
 	bool r = false;

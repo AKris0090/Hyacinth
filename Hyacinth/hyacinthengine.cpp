@@ -146,10 +146,16 @@ void HyacinthEngine::createInstance()
     vkGetDeviceQueue(m_device, m_qfIndices.presentFamily.value(), 0, &m_presentQueue);
 	vkdeviceutils::setGraphicsQueue(m_graphicsQueue);
 
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR		rtProperties = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR	asProperties = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR };
+
     VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
-    m_rtHelper.m_rtProperties.pNext = &m_rtHelper.m_asProperties;
-    prop2.pNext = &m_rtHelper.m_rtProperties;
+    rtProperties.pNext = &asProperties;
+    prop2.pNext = &rtProperties;
     vkGetPhysicalDeviceProperties2(m_physicalDevice, &prop2);
+
+    rt::setRTProperties(rtProperties);
+    rt::setASProperties(asProperties);
 
     VkFormatProperties formatProperties;
     vkGetPhysicalDeviceFormatProperties(m_physicalDevice, VK_FORMAT_R8G8B8A8_SRGB, &formatProperties);
@@ -227,7 +233,7 @@ void HyacinthEngine::createSwapchain()
     }
 
     for (uint32_t i = 0; i < numImages; i++) {
-        m_swapChainImages[i].imageView = vkimageutils::createImageView(m_swapChainImages[i], 0, 1, VK_IMAGE_ASPECT_COLOR_BIT);
+        m_swapChainImages[i].imageView = vkimageutils::createImageView(m_swapChainImages[i], 0, 1, VK_IMAGE_ASPECT_COLOR_BIT, false);
     }
 
     m_swImageFormat.aspectRatio = (float)m_swImageFormat.extent.width / (float)m_swImageFormat.extent.height;
@@ -245,11 +251,13 @@ void HyacinthEngine::createColorImages() {
         gb.depth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "depth_image");
         gb.albedo = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "albedo_image");
 		gb.normal = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "normal_image");
+        gb.AMR = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "amr_image");
         gb.ddgiImage = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "ddgi_image");
         gb.stencilDepth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "stencil_depth_image");
         gb.compositeImage = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "composite_image");
 	    vkimageutils::createImageSampler(gb.albedo);
 	    vkimageutils::createImageSampler(gb.normal);
+        vkimageutils::createImageSampler(gb.AMR);
         vkimageutils::createImageSampler(gb.depth);
         vkimageutils::createImageSampler(gb.ddgiImage);
         vkimageutils::createImageSampler(gb.compositeImage);
@@ -320,30 +328,16 @@ void HyacinthEngine::createGraphicsPipeline()
     m_pipelineUtil.addShader("shaders/vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
     m_pipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    m_skinnedPipelineUtil.addShader("shaders/skinnedVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    m_skinnedPipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
 	m_pipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     m_pipelineUtil.setDefaultAttributes();
 	m_pipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
 	m_pipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	m_pipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 2);
+	m_pipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 3);
     m_pipelineUtil.setMultisampling(m_msaaSamples);
 	m_pipelineUtil.disableBlending();
     m_pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
     m_pipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
-    m_pipelineUtil.numColorAttachments = 2;
-
-    m_skinnedPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    m_skinnedPipelineUtil.setAnimatedAttribute();
-    m_skinnedPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
-    m_skinnedPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    m_skinnedPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 2);
-    m_skinnedPipelineUtil.setMultisampling(m_msaaSamples);
-    m_skinnedPipelineUtil.disableBlending();
-    m_skinnedPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
-    m_skinnedPipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
-    m_skinnedPipelineUtil.numColorAttachments = 2;
+    m_pipelineUtil.numColorAttachments = 3;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -367,9 +361,6 @@ void HyacinthEngine::createGraphicsPipeline()
 	m_pipelineUtil.m_viewportState.pViewports = &viewport;
     m_pipelineUtil.m_viewportState.pScissors = &scissor;
 
-    m_skinnedPipelineUtil.m_viewportState.pViewports = &viewport;
-    m_skinnedPipelineUtil.m_viewportState.pScissors = &scissor;
-
     VkPushConstantRange range{};
     range.offset = 0;
     range.size = sizeof(GPUDrawPushConstants);
@@ -384,65 +375,18 @@ void HyacinthEngine::createGraphicsPipeline()
 	pipelineLayoutCInfo.pSetLayouts = sets.data();
 
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
-    VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_skinnedPipelineUtil.m_pipeline.layout));
 
 	m_pipelineUtil.buildPipeline();
-    m_skinnedPipelineUtil.buildPipeline();
+
+    createCompSkinPipeline();
 }
 
-void HyacinthEngine::createTracerPipeline() {
-    m_tracerPipelineUtil.addShader("shaders/tracerVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    m_tracerPipelineUtil.addShader("shaders/tracerFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
-    m_tracerPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    m_tracerPipelineUtil.setDefaultAttributes();
-    m_tracerPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
-    m_tracerPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    m_tracerPipelineUtil.setColorAttachmentFormat(m_swImageFormat.format, 1);
-    m_tracerPipelineUtil.setMultisampling(m_msaaSamples);
-    m_tracerPipelineUtil.enableBlending();
-    m_tracerPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
-    m_tracerPipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
-    m_tracerPipelineUtil.numColorAttachments = 1;
-
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = (float)m_swImageFormat.extent.width;
-    viewport.height = (float)m_swImageFormat.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissor{};
-    scissor.offset = { 0, 0 };
-    scissor.extent = m_swImageFormat.extent;
-
-    VkPipelineViewportStateCreateInfo viewportState{};
-    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportState.viewportCount = 1;
-    viewportState.pViewports = &viewport;
-    viewportState.scissorCount = 1;
-    viewportState.pScissors = &scissor;
-
-    m_tracerPipelineUtil.m_viewportState.pViewports = &viewport;
-    m_tracerPipelineUtil.m_viewportState.pScissors = &scissor;
-
-    VkPushConstantRange volumeInfoRange{};
-    volumeInfoRange.offset = 0;
-    volumeInfoRange.size = sizeof(tracerPushConstant);
-    volumeInfoRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    std::array<VkDescriptorSetLayout, 2> sets = { m_descriptorSetLayout, m_textureSetLayout };
-
-    VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    pipelineLayoutCInfo.setLayoutCount = sets.size();
-    pipelineLayoutCInfo.pSetLayouts = sets.data();
-    pipelineLayoutCInfo.pushConstantRangeCount = 1;
-    pipelineLayoutCInfo.pPushConstantRanges = &volumeInfoRange;
-
-    VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_tracerPipelineUtil.m_pipeline.layout));
-
-    m_tracerPipelineUtil.buildPipeline();
+void HyacinthEngine::createCompSkinPipeline() {
+    VkPushConstantRange range{};
+    range.offset = 0;
+    range.size = sizeof(computeSkinPushConstant);
+    range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    m_computeSkinPipeline = vkpipelineutils::createComputePipeline(nullptr, 0, &range, 1, "shaders/compSkin.spv");
 }
 
 void HyacinthEngine::createCompositePipeline()
@@ -665,102 +609,49 @@ void HyacinthEngine::createDDGIPipeline()
 
     VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_ddgiPipelineUtil.m_pipeline.layout));
 
-    m_ddgiPipelineUtil.buildPipeline();
+    m_ddgiPipelineUtil.buildPipeline(); 
 }
 
-void HyacinthEngine::loadScene() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
-    auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned.glb";
+void HyacinthEngine::loadAssets() {
+    // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
     auto tracerPath = vkdebugutils::getExeDir() / "objects" / "tracer.glb";
     auto flashPath = vkdebugutils::getExeDir() / "objects" / "flash.glb";
 
-    m_scene.staticObjects.push_back(gltfutils::loadFromFile(path.string(), true, false, false));
+    m_assetDrawer.addDummyTextures();
+    m_assetDrawer.addUITextures();
 
-    m_scene.staticObjects.push_back(gltfutils::loadFromFile(tracerPath.string(), false, false, false, false, true));
-
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(thirdPersonCharacterPath.string(), false, true, false));
-
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(firstPersonCharacterPath.string(), false, true, true));
-
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(pistolPath.string(), false, true, false, true));
-    m_scene.dynamicObjects[2].setWeaponParentTo(&m_scene.dynamicObjects[1]);
-
-    m_scene.dynamicObjects.push_back(gltfutils::loadFromFile(flashPath.string(), false, true, false, false, false, true));
-    m_scene.dynamicObjects[3].setWeaponParentTo(&m_scene.dynamicObjects[1]);
-
-    m_scene.buildSceneGraph();
-
-    m_meshBuffers = vkmeshutils::uploadMesh(m_scene.indices, m_scene.vertices, m_scene.boundingBoxes);
-    m_scene.createDummyTextures();
-    m_scene.createUITextures();
+    gltfutils::loadStaticMesh(m_assetDrawer, path.string(), "world");
+    gltfutils::loadStaticMesh(m_assetDrawer, tracerPath.string(), "tracer");
+    gltfutils::loadAnimatedMesh(m_assetDrawer, flashPath.string(), "flashbang");
+    gltfutils::loadAnimatedMesh(m_assetDrawer, thirdPersonCharacterPath.string(), "tp_character");
+    gltfutils::loadAnimatedMesh(m_assetDrawer, firstPersonCharacterPath.string(), "fp_arms");
+    gltfutils::loadAnimatedMesh(m_assetDrawer, pistolPath.string(), "pistol");
 }
 
 void HyacinthEngine::createBuffers() {
-    size_t drawDataBufferSize = sizeof(DrawData) * m_scene.drawData.size();
-    m_drawDataBuffer = vkdeviceutils::createBuffer(drawDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "draw_data_ssbo");
-    vkdeviceutils::uploadToBuffer(m_drawDataBuffer, drawDataBufferSize, m_scene.drawData.data());
+    m_assetDrawer.uploadBuffersToGPU();
 
-    size_t materialDataBufferSize = sizeof(GPUMaterialIndices) * m_scene.materialObjects.size();
-    m_materialBuffer = vkdeviceutils::createBuffer(materialDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "material_ssbo");
-    vkdeviceutils::uploadToBuffer(m_materialBuffer, materialDataBufferSize, m_scene.materialObjects.data());
-
-	size_t drawCmdBufferSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.staticDrawCommands.size();
-    size_t tracerDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.tracerCommands.size();
-    m_staticIndirectDrawBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize + tracerDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_ssbo");
-	vkdeviceutils::uploadToBuffer(m_staticIndirectDrawBuffer, drawCmdBufferSize, m_scene.staticDrawCommands.data());
-    tracerDrawOffset = m_scene.staticDrawCommands.size();
-    vkdeviceutils::uploadToBuffer(m_staticIndirectDrawBuffer, tracerDrawCmdSize, m_scene.tracerCommands.data(), drawCmdBufferSize);
-
-    size_t dynamicDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.dynamicDrawCommands.size();
-    size_t characterDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.characterDrawCommands.size();
-    size_t pistolDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.pistolDrawCommands.size();
-    size_t flashDrawCmdSize = sizeof(VkDrawIndexedIndirectCommand) * m_scene.flashDrawCommands.size();
-    m_dynamicIndirectDrawBuffer = vkdeviceutils::createBuffer(dynamicDrawCmdSize + characterDrawCmdSize + pistolDrawCmdSize + flashDrawCmdSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_dynamic_ssbo");
-    vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, dynamicDrawCmdSize, m_scene.dynamicDrawCommands.data());
-
-    characterDrawOffset = m_scene.dynamicDrawCommands.size();
-    vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, characterDrawCmdSize, m_scene.characterDrawCommands.data(), dynamicDrawCmdSize);
-
-    pistolDrawOffset = m_scene.dynamicDrawCommands.size() + m_scene.characterDrawCommands.size();
-    vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, pistolDrawCmdSize, m_scene.pistolDrawCommands.data(), dynamicDrawCmdSize + characterDrawCmdSize);
-
-    flashDrawOffset = m_scene.dynamicDrawCommands.size() + m_scene.characterDrawCommands.size() + m_scene.pistolDrawCommands.size();
-    vkdeviceutils::uploadToBuffer(m_dynamicIndirectDrawBuffer, flashDrawCmdSize , m_scene.flashDrawCommands.data(), dynamicDrawCmdSize + characterDrawCmdSize + pistolDrawCmdSize);
-    
-    vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer cmd) {
-        for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-            m_shadowHelper.m_cascades[i].cascadeDrawBuffer = vkdeviceutils::createBuffer(drawCmdBufferSize, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "indirect_shadow_ssbo");
-
-            VkBufferCopy copyRegion{};
-            copyRegion.srcOffset = 0;
-            copyRegion.dstOffset = 0;
-            copyRegion.size = drawCmdBufferSize;
-			vkCmdCopyBuffer(cmd, m_staticIndirectDrawBuffer.buffer, m_shadowHelper.m_cascades[i].cascadeDrawBuffer.buffer, 1, &copyRegion);
-        }
-    });
-
-	size_t matrixBuffSize = sizeof(glm::mat4) * m_scene.staticTransformMatrices.size();
-    m_staticWorldMatrixBuffer = vkdeviceutils::createBuffer(matrixBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "world_mat_ssbo");
-	vkdeviceutils::uploadToBuffer(m_staticWorldMatrixBuffer, matrixBuffSize, m_scene.staticTransformMatrices.data());
-
-    size_t dynamicWorldMatSize = sizeof(glm::mat4) * m_scene.dynamicTransformMatrices.size();
-    m_dynamicWorldMatrixBuffer.resize(MAX_FRAMES_IN_FLIGHT);
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         m_frameData[i].uniformBuffer = vkdeviceutils::createBuffer(sizeof(UBO), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "frame_uniform");
         m_frameData[i].mappedUniformBuffer = m_frameData[i].uniformBuffer.info.pMappedData;
 
-        m_dynamicWorldMatrixBuffer[i] = vkdeviceutils::createBuffer(dynamicWorldMatSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "dynamic_world_mat_ssbo");
-        vkdeviceutils::uploadToBuffer(m_dynamicWorldMatrixBuffer[i], dynamicWorldMatSize, m_scene.dynamicTransformMatrices.data());
+        // create render call buffer
+        m_frameData[i].m_renderListBuffer = vkdeviceutils::createBuffer(sizeof(HRenderCall), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "render_list_buffer");
+
+        // create indirect draw buffer
+        m_frameData[i].m_indirectDrawBuffer = vkdeviceutils::createBuffer(sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "indirect_draw_buffer");
+
+        // create skinnedVertexBuffer
+        m_frameData[i].m_skinnedVertexBuffer = vkdeviceutils::createBuffer(sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "frame_skinned_vertex");
     }
 
-    size_t tracerBuffSize = sizeof(glm::mat4) * MAX_TRACERS;
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        m_frameData[i].tracerTransformBuffer = vkdeviceutils::createBuffer(tracerBuffSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "tracer_transform_buffer");
+    for (int j = 0; j < SHADOW_MAP_CASCADE_COUNT; j++) {
+        m_shadowHelper.m_cascades[j].cascadeDrawBuffer = vkdeviceutils::createBuffer(sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "shadow_draw_buffer");
     }
-
-    m_grenadeJMBuffer = vkdeviceutils::createBuffer(sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_skin_matrix_buffer");
 }
 
 void HyacinthEngine::createDescriptorSets()
@@ -768,7 +659,7 @@ void HyacinthEngine::createDescriptorSets()
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
     {
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.f },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (((float)(m_scene.numTextures)) / (float)MAX_FRAMES_IN_FLIGHT) }, // divided because multiplied by maxSets later. we only want 1 descriptor per texture, not 3
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (((float)(m_assetDrawer.textures.size())) / (float)MAX_FRAMES_IN_FLIGHT)}, // divided because multiplied by maxSets later. we only want 1 descriptor per texture, not 3
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (float)(1.f / MAX_FRAMES_IN_FLIGHT) } // for shadows, only 1 (not 3)
     };
     m_descriptorAllocator.initPool(MAX_FRAMES_IN_FLIGHT * 5, sizes);
@@ -787,7 +678,7 @@ void HyacinthEngine::createDescriptorSets()
 
     {
         DescriptorLayoutBuilder layoutBuilder;
-        layoutBuilder.addBinding(0, m_scene.numTextures + 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR); // + 3 for all 3 dummy textures
+        layoutBuilder.addBinding(0, m_assetDrawer.textures.size(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
         m_textureSetLayout = layoutBuilder.buildLayout(nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
     }
 
@@ -795,8 +686,9 @@ void HyacinthEngine::createDescriptorSets()
         DescriptorLayoutBuilder layoutBuilder;
 		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // albedo
         layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // normal
-        layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // depth
-        layoutBuilder.addBinding(3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // ddgi
+        layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // ambient, metallic, rough
+        layoutBuilder.addBinding(3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // depth
+        layoutBuilder.addBinding(4, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // ddgi
         m_compositeSetLayout = layoutBuilder.buildLayout(nullptr, 0);
     }
 
@@ -807,7 +699,7 @@ void HyacinthEngine::createDescriptorSets()
     }
 
 	m_textureSet = m_descriptorAllocator.allocate(m_textureSetLayout);
-    m_scene.uploadTextures(m_textureSet);
+    m_assetDrawer.bindTextures(m_textureSet);
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         m_frameData[i].uniformDescriptorSet = m_descriptorAllocator.allocate(m_descriptorSetLayout);
@@ -820,8 +712,9 @@ void HyacinthEngine::createDescriptorSets()
 		m_gBuffers[i].m_compositeSet = m_descriptorAllocator.allocate(m_compositeSetLayout);
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].albedo, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].normal, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].ddgiImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].AMR, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 4, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].ddgiImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         m_gBuffers[i].m_postProcessSet = m_descriptorAllocator.allocate(m_postProcessSetLayout);
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_postProcessSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].compositeImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -863,6 +756,11 @@ void HyacinthEngine::setupImGUI()
     bool res = ImGui_ImplVulkan_Init(&init_info);
 }
 
+void HyacinthEngine::bakeDDGI() {
+    generateRenderList();
+    m_owDDGIHelper.bakeDDGI(m_textureSet, m_frameData[0].m_renderListBuffer.gpuAddress, m_assetDrawer.g_vertexBuffer.gpuAddress, m_assetDrawer.g_indexBuffer.gpuAddress);
+}
+
 void HyacinthEngine::init()
 {
 	createInstance();
@@ -877,7 +775,9 @@ void HyacinthEngine::init()
 
     createColorImages();
 
-    loadScene();
+    m_rtHelper.setup();
+
+    loadAssets();
 
     m_frustumCullHelper.setup();
 
@@ -885,12 +785,13 @@ void HyacinthEngine::init()
 
     createBuffers();
 
+    m_assetDrawer.getStaticMeshRef("world")->generateBLAccelStructures(m_assetDrawer.g_vertexBuffer.gpuAddress, m_assetDrawer.g_indexBuffer.gpuAddress);
+    m_rtHelper.createTopLevelAS();
+
     createDescriptorSets();
 
-    m_rtHelper.setup(m_scene);
-
-    m_owDDGIHelper.setup(&m_rtHelper, m_scene);
-    m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
+    m_owDDGIHelper.setup(&m_rtHelper);
+    // m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
@@ -903,27 +804,134 @@ void HyacinthEngine::init()
 
     createDDGIVolumePipeline();
 
-    createTracerPipeline();
-
     setupImGUI();
 
     m_shadowHelper.setupImGui();
 
-    m_owDDGIHelper.bakeDDGI(m_textureSet);
-
     m_initialized = true;
 
-    volANormalBias = m_owDDGIHelper.m_probeVolumes[0].data.pos.w;
-    volBNormalBias = m_owDDGIHelper.m_probeVolumes[1].data.pos.w;
-    volAViewBias = m_owDDGIHelper.m_probeVolumes[0].data.spacing.w;
-    volBViewBias = m_owDDGIHelper.m_probeVolumes[1].data.spacing.w;
+    // volANormalBias = m_owDDGIHelper.m_probeVolumes[0].data.pos.w;
+    // volBNormalBias = m_owDDGIHelper.m_probeVolumes[1].data.pos.w;
+    // volAViewBias = m_owDDGIHelper.m_probeVolumes[0].data.spacing.w;
+    // volBViewBias = m_owDDGIHelper.m_probeVolumes[1].data.spacing.w;
 
-    m_uiHelper.setup(m_textureSetLayout, m_scene.uiTextureOffset, glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
-    m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, m_scene.worldUITextureOffset, m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
+    m_uiHelper.setup(m_textureSetLayout, DUMMY_TEX_PATHS.size(), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
+    m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, DUMMY_TEX_PATHS.size() + UI_TEXTURE_PATHS.size(), m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
+    m_skyboxHelper.setup(m_swImageFormat, m_descriptorSetLayout);
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.setup(m_swImageFormat, m_msaaSamples, m_descriptorSetLayout);
 #endif
+}
+
+void HyacinthEngine::addStaticGameObject(HStaticGameObject* gameObjectRef) {
+    m_staticObjects.push_back(gameObjectRef);
+}
+
+void HyacinthEngine::addAnimatedGameObject(HAnimatedGameObject* gameObjectRef) {
+    m_animatedObjects.push_back(gameObjectRef);
+}
+
+void HyacinthEngine::generateRenderList() {
+    m_renderList.clear();
+    for (const auto& o : m_staticObjects) {
+        for (const auto& n : o->mesh->meshedNodes) {
+            for (const auto& p : n->primtives) {
+                m_renderList.push_back(HRenderCall{
+                    .transformMatrix = o->transform.getMatrix() * n->getMatrix(),
+                    .aaBBMin = p.boundingBox.min,
+                    .aabbMax = p.boundingBox.max,
+                    .materialIndex = p.materialIndex,
+                    .indexCount = p.indexCount,
+                    .firstIndex = p.firstIndex,
+                    .vertexOffset = p.firstVertex,
+                    .meshID = p.meshID
+                });
+            }
+        }
+    }
+
+    for (const auto& tracer : m_tracerManager.tracers) {
+        for (const auto& n : tracer.gameObject->mesh->meshedNodes) {
+            for (const auto& p : n->primtives) {
+                m_renderList.push_back(HRenderCall{
+                    .transformMatrix = tracer.matrix * n->getMatrix(),
+                    .aaBBMin = p.boundingBox.min,
+                    .aabbMax = p.boundingBox.max,
+                    .materialIndex = p.materialIndex,
+                    .indexCount = p.indexCount,
+                    .firstIndex = p.firstIndex,
+                    .vertexOffset = p.firstVertex,
+                    .meshID = p.meshID
+                });
+            }
+        }
+    }
+
+    numStaticDrawCommands = m_renderList.size();
+
+    uint32_t animatedVertexOffset = 0;
+    for (const auto& ao : m_animatedObjects) {
+        if (!ao->active) continue;
+        for (const auto& n : ao->mesh->meshedNodes) {
+            for (const auto& p : n->primtives) {
+                m_renderList.push_back(HRenderCall{
+                    .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
+                    .materialIndex = p.materialIndex,
+                    .indexCount = p.indexCount,
+                    .firstIndex = p.firstIndex,
+                    .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
+                    .meshID = p.meshID
+                    });
+            }
+        }
+        animatedVertexOffset += ao->mesh->numVertices;
+    }
+    if (p_netEntManager) {
+        for (const auto& [id, ao] : p_netEntManager->gameObjects) {
+            if (!ao->active) continue;
+            for (const auto& n : ao->mesh->meshedNodes) {
+                for (const auto& p : n->primtives) {
+                    m_renderList.push_back(HRenderCall{
+                        .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
+                        .materialIndex = p.materialIndex,
+                        .indexCount = p.indexCount,
+                        .firstIndex = p.firstIndex,
+                        .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
+                        .meshID = p.meshID
+                        });
+                }
+            }
+            animatedVertexOffset += ao->mesh->numVertices;
+        }
+    }
+
+    numDynamicDrawCommands = m_renderList.size() - numStaticDrawCommands;
+
+    if (m_frameData[m_frameIndex].m_skinnedVertexBuffer.info.size < (animatedVertexOffset * sizeof(Vertex))) {
+        vkdeviceutils::resizeBuffer(m_frameData[m_frameIndex].m_skinnedVertexBuffer, (animatedVertexOffset * sizeof(Vertex)));
+    }
+    vkdeviceutils::updateBuffer(m_frameData[m_frameIndex].m_renderListBuffer, m_renderList.size() * sizeof(HRenderCall), m_renderList.data());
+}
+
+void HyacinthEngine::generateDrawCommands() {
+    m_drawCommands.clear();
+    uint32_t drawIndex = 0;
+    for (const auto& d : m_renderList) {
+        VkDrawIndexedIndirectCommand dCom;
+        dCom.firstIndex = d.firstIndex;
+        dCom.firstInstance = drawIndex;
+        dCom.indexCount = d.indexCount;
+        dCom.instanceCount = 1;
+        dCom.vertexOffset = d.vertexOffset;
+        m_drawCommands.push_back(dCom);
+        drawIndex++;
+    }
+
+    vkdeviceutils::updateBuffer(m_frameData[m_frameIndex].m_indirectDrawBuffer, m_drawCommands.size() * sizeof(VkDrawIndexedIndirectCommand), m_drawCommands.data());
+    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+        vkdeviceutils::updateBuffer(m_shadowHelper.m_cascades[i].cascadeDrawBuffer, m_drawCommands.size() * sizeof(VkDrawIndexedIndirectCommand), m_drawCommands.data());
+    }
 }
 
 void HyacinthEngine::update() {
@@ -931,45 +939,32 @@ void HyacinthEngine::update() {
 		m_showImGui = !m_showImGui;
     }
 
-    m_shadowHelper.update(m_camera, m_scene.sceneBoundingBox,m_frameIndex);
+    for (const auto& ao : m_animatedObjects) {
+        ao->updateAnimation(Time::getDeltaTime());
+    }
+
+    m_shadowHelper.update(m_camera, m_assetDrawer.getStaticMeshRef("world")->boundingBox, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
 
-    std::vector<VolumeData> volumeData;
-    for (auto& vol : m_owDDGIHelper.m_probeVolumes) {
-        volumeData.push_back(vol.data);
-    }
-    volumeData[0].pos.w = volANormalBias;
-    volumeData[1].pos.w = volBNormalBias;
-    volumeData[0].spacing.w = volAViewBias;
-    volumeData[1].spacing.w = volBViewBias;
-    memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
-
-    // first person object (self) 
-    gltfObject::updateFirstPersonAnimation(p_netEntManager->self->currentState, &m_scene.dynamicObjects[1], *p_netEntManager->characterObject->firstPersonAnimStateMachine, p_netEntManager->firstPersonAnimationController, Time::getDeltaTime(), p_netEntManager->firstPersonJointBuffer.pMappedData, InputManager::mouseDown(), m_camera.m_transform.pitch - m_camera.prevPitch, m_camera.m_transform.yaw - m_camera.prevYaw, p_netEntManager->pistolAnimationController.queueShoot, p_netEntManager->pistolAnimationController.queueReload);
-
-    if (p_netEntManager->self->currentWeapon == PISTOL) {
-        // pistol object
-        gltfObject::updatePistolAnimation(&m_scene.dynamicObjects[2], *p_netEntManager->pistolObject->pistolAnimStateMachine, p_netEntManager->pistolAnimationController, Time::getDeltaTime(), p_netEntManager->pistolJointBuffer.pMappedData);
-    }
-    else if (p_netEntManager->self->currentWeapon == GRENADE) {
-        // grenade object
-        gltfObject::updateGrenadeAnimation(&m_scene.dynamicObjects[3], Time::getDeltaTime(), m_grenadeJMBuffer.pMappedData);
-    }
+    // std::vector<VolumeData> volumeData;
+    // for (auto& vol : m_owDDGIHelper.m_probeVolumes) {
+    //     volumeData.push_back(vol.data);
+    // }
+    // volumeData[0].pos.w = volANormalBias;
+    // volumeData[1].pos.w = volBNormalBias;
+    // volumeData[0].spacing.w = volAViewBias;
+    // volumeData[1].spacing.w = volBViewBias;
+    // memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo, p_netEntManager->self->flashPercentage, p_netEntManager->self->flashNDCX, p_netEntManager->self->flashNDCY);
 
     // update tracers
     m_tracerManager.updateTracers(Time::getDeltaTime());
-    std::vector<glm::mat4> tracerTransforms;
-    for (int i = 0; i < m_tracerManager.tracers.size(); i++) {
-        tracerTransforms.push_back(m_tracerManager.tracers[i].worldMat);
-    }
-    memcpy(m_frameData[m_frameIndex].tracerTransformBuffer.pMappedData, tracerTransforms.data(), sizeof(glm::mat4) * tracerTransforms.size());
-
+    
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
         Transform t = m_owDDGIHelper.m_probeVolumes[i].transform;
-        t.scale -= m_owDDGIHelper.m_probeVolumes[i].data.spacing;
+        t.scale *= 2.f;
         matrices.push_back(t.getMatrix());
 	}
     m_owDDGIHelper.m_volumeVis.update(matrices, m_frameIndex);
@@ -991,14 +986,21 @@ void HyacinthEngine::update() {
 
     memcpy(m_frameData[m_frameIndex].mappedUniformBuffer, &newuniform, sizeof(UBO));
     camMutex.unlock();
+
+    generateRenderList();
+    generateDrawCommands();
 }
 
-void HyacinthEngine::setupDraw()
+int HyacinthEngine::setupDraw()
 {
     VK_CHECK(vkWaitForFences(m_device, 1, &m_inFlightFences[m_frameIndex], VK_TRUE, UINT64_MAX));
     vkResetFences(m_device, 1, &m_inFlightFences[m_frameIndex]);
 
-    VkResult res2 = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_imageAcquiredSemas[m_frameIndex], VK_NULL_HANDLE, &m_swImageIndex);
+    VkResult res = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_imageAcquiredSemas[m_frameIndex], VK_NULL_HANDLE, &m_swImageIndex);
+    if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+        recreateSwapchain();
+        return 1;
+    }
 
     update();
 
@@ -1006,18 +1008,21 @@ void HyacinthEngine::setupDraw()
     VK_CHECK(vkResetCommandBuffer(cmd, 0));
     vkdeviceutils::beginCommandBuffer(cmd);
 
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].albedo.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].normal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].ddgiImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].compositeImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].stencilDepth.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_STENCIL_BIT);
-
-    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].albedo, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].normal, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].AMR, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].ddgiImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].compositeImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].depth, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].stencilDepth, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_STENCIL_BIT);
+    
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     VkDeviceSize offsets[] = { 0 };
-    vkCmdBindVertexBuffers(cmd, 0, 1, &m_meshBuffers.vertexBuffer.buffer, offsets);
-    vkCmdBindIndexBuffer(cmd, m_meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
+    vkCmdBindIndexBuffer(cmd, m_assetDrawer.g_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    return 0;
 }
 
 void HyacinthEngine::drawImGui() {
@@ -1105,27 +1110,7 @@ void HyacinthEngine::drawImGui() {
     ImGui::End();
 }
 
-void HyacinthEngine::draw()
-{
-    GPUDrawPushConstants pushConstants{};
-    pushConstants.transformAddress = m_staticWorldMatrixBuffer.gpuAddress;
-    pushConstants.materialAddress = m_materialBuffer.gpuAddress;
-    pushConstants.drawDataAddress = m_drawDataBuffer.gpuAddress;
-    pushConstants.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
-    pushConstants.jointBufferAddress = 0;
-    pushConstants.entityMatrix = glm::mat4{ 1.0f };
-
-    ComputePushConstant ddgiPushConstant{};
-    ddgiPushConstant.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
-
-    volumeStencilPushConstant vsPushConstant{};
-    vsPushConstant.volumeTransformAddress = m_owDDGIHelper.m_volumeVis.volumeTransformBuffers[m_frameIndex].gpuAddress;
-
-    tracerPushConstant tracerPushConstant{};
-    tracerPushConstant.tracerTransformsAddress = m_frameData[m_frameIndex].tracerTransformBuffer.gpuAddress;
-    tracerPushConstant.materialBufferAddress = m_materialBuffer.gpuAddress;
-    tracerPushConstant.matIndex = m_scene.tracerMatIdx;
-
+void HyacinthEngine::draw() {
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -1138,38 +1123,83 @@ void HyacinthEngine::draw()
     scissor.offset = { 0, 0 };
     scissor.extent = m_swImageFormat.extent;
 
-    uint32_t numStaticDraws = static_cast<uint32_t>(m_scene.staticDrawCommands.size());
+    if (setupDraw() > 0) {
+        return;
+    }
 
     drawImGui();
-
-    setupDraw();
     VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
+
+    GPUDrawPushConstants pushConstants{};
+    pushConstants.renderCallBuffer = m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress;
+    pushConstants.materialDataAddress = m_assetDrawer.materialInfoBuffer.gpuAddress;
+
+    // compute skin pass
+    {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computeSkinPipeline.pipeline);
+        computeSkinPushConstant cskin;
+        cskin.vertexBufferInAddress = m_assetDrawer.g_vertexBuffer.gpuAddress;
+        cskin.vertexBufferOutAddress = m_frameData[m_frameIndex].m_skinnedVertexBuffer.gpuAddress;
+        uint32_t dstVOffset = 0;
+        for (const auto& ao : m_animatedObjects) {
+            if (!ao->active) continue;
+            cskin.srcVertexOffset = ao->mesh->vertexOffset;
+            cskin.dstVertexOffset = dstVOffset;
+            cskin.numVertices = ao->mesh->numVertices;
+            cskin.jointBufferAddress = ao->jointMatrixBuffer.gpuAddress;
+
+            vkCmdPushConstants(cmd, m_computeSkinPipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computeSkinPushConstant), &cskin);
+            vkCmdDispatch(cmd, cskin.numVertices, 1, 1);
+
+            dstVOffset += ao->mesh->numVertices;
+        }
+        for (const auto& [id, ao] : p_netEntManager->gameObjects) {
+            if (!ao->active) continue;
+            cskin.srcVertexOffset = ao->mesh->vertexOffset;
+            cskin.dstVertexOffset = dstVOffset;
+            cskin.numVertices = ao->mesh->numVertices;
+            cskin.jointBufferAddress = ao->jointMatrixBuffer.gpuAddress;
+
+            vkCmdPushConstants(cmd, m_computeSkinPipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computeSkinPushConstant), &cskin);
+            vkCmdDispatch(cmd, cskin.numVertices, 1, 1);
+
+            dstVOffset += ao->mesh->numVertices;
+        }
+    }
 
     {
         VK_LABEL(cmd, "Compute Cull Main");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
-        m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_staticIndirectDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
+        m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_frameData[m_frameIndex].m_indirectDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
         VK_LABEL_END(cmd);
         for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
             VK_LABEL(cmd, "Compute Cull Shadow");
-            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_meshBuffers.aabbBuffer.gpuAddress, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress, numStaticDraws);
+            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
             VK_LABEL_END(cmd);
         }
     }
 
+    // barrier for skin and cull write out
+    VkMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+
     // shadows
     {
-        m_shadowHelper.drawShadowMaps(cmd, numStaticDraws, m_frameIndex, m_staticWorldMatrixBuffer.gpuAddress, m_drawDataBuffer.gpuAddress);
+        m_shadowHelper.drawShadowMaps(cmd, numStaticDrawCommands, numDynamicDrawCommands, m_frameIndex, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_assetDrawer.g_vertexBuffer, m_frameData[m_frameIndex].m_skinnedVertexBuffer);
     }
 
     // main render pass
     {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
-        VkRenderingAttachmentInfo albedoAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].albedo.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        VkRenderingAttachmentInfo normalAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].normal.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView);
-        std::array<VkRenderingAttachmentInfo, 2> colorAttachments = { albedoAttachment, normalAttachment };
-        VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 2, colorAttachments.data(), &depthAttachment);
+        VkRenderingAttachmentInfo albedoAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].albedo.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo normalAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].normal.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo amrattachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].AMR.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex].depth.imageView);
+        std::array<VkRenderingAttachmentInfo, 3> colorAttachments = { albedoAttachment, normalAttachment, amrattachment };
+        VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 3, colorAttachments.data(), &depthAttachment);
         VK_LABEL(cmd, "G Buffer Pass");
         vkCmdBeginRendering(cmd, &renderingInfo);
 
@@ -1191,76 +1221,65 @@ void HyacinthEngine::draw()
         vkCmdSetViewport(cmd, 0, 1, &viewport);
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-        vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, 0, static_cast<uint32_t>(m_scene.staticDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
+        // draw world
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, 0, numStaticDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 
-        pushConstants.transformAddress = m_dynamicWorldMatrixBuffer[m_frameIndex].gpuAddress;
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd, 0, 1, &m_frameData[m_frameIndex].m_skinnedVertexBuffer.buffer, offsets);
 
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skinnedPipelineUtil.m_pipeline.pipeline);
+        // draw animated objects
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDrawCommands, numDynamicDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 
-        ///////////// DRAWING NETWORK ENTITIES ////////////////////
-        p_netEntManager->drawEntities(cmd, m_skinnedPipelineUtil, static_cast<uint32_t>(m_scene.dynamicDrawCommands.size()), flashDrawOffset, static_cast<uint32_t>(m_scene.flashDrawCommands.size()), m_dynamicIndirectDrawBuffer, pushConstants);
-        
-        ///////////// DRAWING CHARACTER ////////////////////
-        camMutex.lock();
-        pushConstants.entityMatrix = m_camera.m_transform.getMatrix();
-        camMutex.unlock();
-        pushConstants.jointBufferAddress = p_netEntManager->firstPersonJointBuffer.gpuAddress;
-        vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-        vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, characterDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.characterDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
-
-        if (p_netEntManager->self->currentWeapon == PISTOL) {
-            ///////////// DRAWING PISTOL ////////////////////
-            pushConstants.jointBufferAddress = p_netEntManager->pistolJointBuffer.gpuAddress;
-            vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-            vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, pistolDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.pistolDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
-        }
-        else if (p_netEntManager->self->currentWeapon == GRENADE && p_netEntManager->self->currentState != GRENADE_THROW) {
-            ///////////// DRAWING GRENADE ////////////////////
-            pushConstants.jointBufferAddress = m_grenadeJMBuffer.gpuAddress;
-            vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-            vkCmdDrawIndexedIndirect(cmd, m_dynamicIndirectDrawBuffer.buffer, flashDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.flashDrawCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
-        }
+        vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
 
         vkCmdEndRendering(cmd);
         VK_LABEL_END(cmd);
     }
 
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].albedo.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].normal.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].depth, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].albedo, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].normal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].AMR, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     {
         VK_LABEL(cmd, "DDGI Pass");
+
+        ComputePushConstant ddgiPushConstant{};
+        ddgiPushConstant.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
+
         for (int i = m_owDDGIHelper.m_probeVolumes.size() - 1; i >= 0; i--) {
             ddgiPushConstant.volumeIndex = i;
-            vsPushConstant.volumeIndex = i;
 
+            volumeStencilPushConstant vsPushConstant{};
+            vsPushConstant.volumeTransformAddress = m_owDDGIHelper.m_volumeVis.volumeTransformBuffers[m_frameIndex].gpuAddress;
+            vsPushConstant.volumeIndex = i;
+     
             VK_LABEL(cmd, "Stencil Volume");
             // bind stencil pipeline
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.pipeline);
-            VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_frameIndex].stencilDepth.imageView, (i == m_owDDGIHelper.m_probeVolumes.size() - 1));
+            VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].stencilDepth.imageView, (i == m_owDDGIHelper.m_probeVolumes.size() - 1));
             VkRenderingInfo volumeStencilRenderingInfo = vkdeviceutils::createStencilRenderingInfo(m_swImageFormat.extent, &stencilAttachmentInfo);
             vkCmdBeginRendering(cmd, &volumeStencilRenderingInfo);
             vkCmdSetViewport(cmd, 0, 1, &viewport);
             vkCmdSetScissor(cmd, 0, 1, &scissor);
-            std::array<VkDescriptorSet, 2> stencilSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_frameIndex].m_compositeSet };
+            std::array<VkDescriptorSet, 2> stencilSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_swImageIndex].m_compositeSet };
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.layout, 0, stencilSets.size(), stencilSets.data(), 0, nullptr);
             vkCmdPushConstants(cmd, m_volumeStencilPipeline.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &vsPushConstant);
             // draw volume to stencil buffer
             vkCmdDrawIndexed(cmd, UNIT_CUBE_INDEX_COUNT, 1, QUAD_INDEX_COUNT, QUAD_VERTEX_COUNT, 0);
             vkCmdEndRendering(cmd);
             VK_LABEL_END(cmd);
-
+     
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.pipeline);
-            VkRenderingAttachmentInfo ddgiAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].ddgiImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, (i == m_owDDGIHelper.m_probeVolumes.size() - 1));
-            VkRenderingAttachmentInfo stencilAttachment = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_frameIndex].stencilDepth.imageView, false);
+            VkRenderingAttachmentInfo ddgiAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].ddgiImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, (i == m_owDDGIHelper.m_probeVolumes.size() - 1));
+            VkRenderingAttachmentInfo stencilAttachment = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].stencilDepth.imageView, false);
             VkRenderingInfo ddgiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &ddgiAttachment, nullptr);
             ddgiRenderingInfo.pStencilAttachment = &stencilAttachment;
             vkCmdBeginRendering(cmd, &ddgiRenderingInfo);
             vkCmdSetViewport(cmd, 0, 1, &viewport);
             vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-            std::array<VkDescriptorSet, 3> ddgiSets = { m_gBuffers[m_frameIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet };
+    
+            std::array<VkDescriptorSet, 3> ddgiSets = { m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet };
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.layout, 0, ddgiSets.size(), ddgiSets.data(), 0, nullptr);
             vkCmdPushConstants(cmd, m_ddgiPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &ddgiPushConstant);
             vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
@@ -1269,12 +1288,28 @@ void HyacinthEngine::draw()
         VK_LABEL_END(cmd);
     }
 
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].ddgiImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    { 
+        VK_LABEL(cmd, "Skybox Pass");
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxHelper.m_skyboxPipelineUtil.m_pipeline.pipeline);
+    
+        std::array<VkDescriptorSet, 2> sets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_skyboxHelper.m_skyboxSet };
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxHelper.m_skyboxPipelineUtil.m_pipeline.layout, 0, sets.size(), sets.data(), 0, nullptr);
+        VkRenderingAttachmentInfo skyboxAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+        VkRenderingInfo skyboxRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &skyboxAttachment, nullptr);
+        vkCmdBeginRendering(cmd, &skyboxRenderingInfo);
+        m_skyboxHelper.drawSkybox(cmd);
+        vkCmdEndRendering(cmd);
+        VK_LABEL_END(cmd);
+    }
+
     {
         VK_LABEL(cmd, "Composite Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.pipeline);
-        std::array<VkDescriptorSet, 2> compositeSets = { m_gBuffers[m_frameIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet };
+        std::array<VkDescriptorSet, 2> compositeSets = { m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet };
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.layout, 0, compositeSets.size(), compositeSets.data(), 0, nullptr);
-        VkRenderingAttachmentInfo compositeAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo compositeAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
         VkRenderingInfo compositeRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &compositeAttachment, nullptr);
         vkCmdBeginRendering(cmd, &compositeRenderingInfo);
         vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -1284,36 +1319,15 @@ void HyacinthEngine::draw()
         VK_LABEL_END(cmd);
     }
 
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].depth.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-    {
-        VK_LABEL(cmd, "Bullet Tracers Pass");
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tracerPipelineUtil.m_pipeline.pipeline);
-        std::array<VkDescriptorSet, 2> tracerSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_textureSet };
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_tracerPipelineUtil.m_pipeline.layout, 0, tracerSets.size(), tracerSets.data(), 0, nullptr);
-        VkRenderingAttachmentInfo tracerAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-        VkRenderingAttachmentInfo tracerDepthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
-        VkRenderingInfo tracerRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &tracerAttachment, &tracerDepthAttachment);
-        vkCmdBeginRendering(cmd, &tracerRenderingInfo);
-        vkCmdSetViewport(cmd, 0, 1, &viewport);
-        vkCmdSetScissor(cmd, 0, 1, &scissor);
-        for (int i = 0; i < m_tracerManager.tracers.size(); i++) {
-            tracerPushConstant.tracerIndex = i;
-            tracerPushConstant.alpha = m_tracerManager.tracers[i].alpha;
-            vkCmdPushConstants(cmd, m_tracerPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(tracerPushConstant), &tracerPushConstant);
-            vkCmdDrawIndexedIndirect(cmd, m_staticIndirectDrawBuffer.buffer, tracerDrawOffset * sizeof(VkDrawIndexedIndirectCommand), static_cast<uint32_t>(m_scene.tracerCommands.size()), sizeof(VkDrawIndexedIndirectCommand));
-        }
-        vkCmdEndRendering(cmd);
-        VK_LABEL_END(cmd);
-    }
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
     
     {
         VK_LABEL(cmd, "Health Bars Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_worldHealthManager.worldUIPipelineUtil.m_pipeline.pipeline);
         std::array<VkDescriptorSet, 2> healthSets = { m_textureSet, m_frameData[m_frameIndex].uniformDescriptorSet };
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_worldHealthManager.worldUIPipelineUtil.m_pipeline.layout, 0, healthSets.size(), healthSets.data(), 0, nullptr);
-        VkRenderingAttachmentInfo healthBarAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_frameIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-        VkRenderingAttachmentInfo healthDepthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
+        VkRenderingAttachmentInfo healthBarAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+        VkRenderingAttachmentInfo healthDepthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex].depth.imageView, false);
         VkRenderingInfo healthBarRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &healthBarAttachment, &healthDepthAttachment);
         vkCmdBeginRendering(cmd, &healthBarRenderingInfo);
         vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -1323,15 +1337,15 @@ void HyacinthEngine::draw()
         VK_LABEL_END(cmd);
     }
 
-    vkimageutils::transitionImage(cmd, m_gBuffers[m_frameIndex].compositeImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_gBuffers[m_swImageIndex].compositeImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     {
         glm::vec2 invSS = 1.f / glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height);
         VK_LABEL(cmd, "FXAA Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_fxaaPipelineUtil.m_pipeline.pipeline);
-        std::array<VkDescriptorSet, 1> fxaaSet = { m_gBuffers[m_frameIndex].m_postProcessSet };
+        std::array<VkDescriptorSet, 1> fxaaSet = { m_gBuffers[m_swImageIndex].m_postProcessSet };
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_fxaaPipelineUtil.m_pipeline.layout, 0, fxaaSet.size(), fxaaSet.data(), 0, nullptr);
-        VkRenderingAttachmentInfo fxaaAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
+        VkRenderingAttachmentInfo fxaaAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
         VkRenderingInfo fxaaRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &fxaaAttachment, nullptr);
         vkCmdPushConstants(cmd, m_fxaaPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec2), &invSS);
         vkCmdBeginRendering(cmd, &fxaaRenderingInfo);
@@ -1347,7 +1361,7 @@ void HyacinthEngine::draw()
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_uiHelper.uiPipelineUtil.m_pipeline.pipeline);
         std::array<VkDescriptorSet, 1> uiSets = { m_textureSet };
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_uiHelper.uiPipelineUtil.m_pipeline.layout, 0, uiSets.size(), uiSets.data(), 0, nullptr);
-        VkRenderingAttachmentInfo uiAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+        VkRenderingAttachmentInfo uiAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
         VkRenderingInfo uiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &uiAttachment, nullptr);
         vkCmdBeginRendering(cmd, &uiRenderingInfo);
         m_uiHelper.draw(cmd);
@@ -1359,7 +1373,7 @@ void HyacinthEngine::draw()
     {
         VK_LABEL(cmd, "Network Entity Debug Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_netDebugRenderer.pipelineUtil.m_pipeline.pipeline);
-        VkRenderingAttachmentInfo netDebugAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+        VkRenderingAttachmentInfo netDebugAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
         VkRenderingInfo netDebugRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &netDebugAttachment, nullptr);
         vkCmdBeginRendering(cmd, &netDebugRenderingInfo);
         m_netDebugRenderer.draw(cmd, m_frameData[m_frameIndex].uniformDescriptorSet);
@@ -1369,8 +1383,8 @@ void HyacinthEngine::draw()
 #endif
 
     // if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
-    //     VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-	// 	VkRenderingAttachmentInfo depthVisInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_frameIndex].depth.imageView, false);
+    //     VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+	// 	VkRenderingAttachmentInfo depthVisInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex   ].depth.imageView, false);
     //     VkRenderingInfo visRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &visInfo, &depthVisInfo);
     //     vkCmdBeginRendering(cmd, &visRenderingInfo);
     //     if (m_owDDGIHelper.showProbes) {
@@ -1387,7 +1401,7 @@ void HyacinthEngine::draw()
     //     vkCmdEndRendering(cmd);
     // }
     
-    VkRenderingAttachmentInfo imguiAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_frameIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+    VkRenderingAttachmentInfo imguiAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
     VkRenderingInfo imguiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &imguiAttachment, nullptr);
     vkCmdBeginRendering(cmd, &imguiRenderingInfo);
     VK_LABEL(cmd, "ImGui Pass");
@@ -1396,7 +1410,7 @@ void HyacinthEngine::draw()
     VK_LABEL_END(cmd);
     vkCmdEndRendering(cmd);
 
-    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex].image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
+    vkimageutils::transitionImage(cmd, m_swapChainImages[m_swImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
         
     endDraw();
 }
@@ -1441,7 +1455,6 @@ void HyacinthEngine::endDraw()
     presentInfo.pImageIndices = &m_swImageIndex;
 
     VkResult res = vkQueuePresentKHR(m_presentQueue, &presentInfo);
-
     if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
         recreateSwapchain();
     }
@@ -1455,6 +1468,7 @@ void HyacinthEngine::recreateSwapchain() {
     for (int i = 0; i < m_swapChainImages.size(); i++) {
         vkimageutils::destroyImage(m_gBuffers[i].albedo);
         vkimageutils::destroyImage(m_gBuffers[i].normal);
+        vkimageutils::destroyImage(m_gBuffers[i].AMR);
         vkimageutils::destroyImage(m_gBuffers[i].depth);
         vkimageutils::destroyImage(m_gBuffers[i].ddgiImage);
         vkimageutils::destroyImage(m_gBuffers[i].stencilDepth);
@@ -1472,15 +1486,16 @@ void HyacinthEngine::recreateSwapchain() {
     for (int i = 0; i < m_swapChainImages.size(); i++) {
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].albedo, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].normal, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].ddgiImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].AMR, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 4, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].ddgiImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_postProcessSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].compositeImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
     vkdescriptorutils::flushDescriptorWrites();
 
-    m_uiHelper.onresize(m_scene.uiTextureOffset, glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height));
+    m_uiHelper.onresize(DUMMY_TEX_PATHS.size(), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height));
 }
 
 void HyacinthEngine::cleanup()
@@ -1491,26 +1506,24 @@ void HyacinthEngine::cleanup()
 
 	vkDeviceWaitIdle(m_device);
 
+    for (auto& ao : m_animatedObjects) {
+        ao->destroy();
+    }
+
     m_frustumCullHelper.shutdown();
 	m_shadowHelper.shutdown();
 	m_owDDGIHelper.shutdown();
     m_rtHelper.shutdown();
     m_uiHelper.shutdown();
     m_worldHealthManager.shutdown();
+    m_skyboxHelper.shutdown();
+    m_assetDrawer.shutdown();
+
+    p_netEntManager->shutdown();
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.shutdown();
 #endif
-
-	vkdeviceutils::destroyBuffer(m_meshBuffers.indexBuffer);
-	vkdeviceutils::destroyBuffer(m_meshBuffers.vertexBuffer);
-	vkdeviceutils::destroyBuffer(m_meshBuffers.aabbBuffer);
-	vkdeviceutils::destroyBuffer(m_staticIndirectDrawBuffer);
-    vkdeviceutils::destroyBuffer(m_dynamicIndirectDrawBuffer);
-	vkdeviceutils::destroyBuffer(m_staticWorldMatrixBuffer);
-    vkdeviceutils::destroyBuffer(m_drawDataBuffer);
-    vkdeviceutils::destroyBuffer(m_materialBuffer);
-    vkdeviceutils::destroyBuffer(m_grenadeJMBuffer);
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL3_Shutdown();
@@ -1525,27 +1538,7 @@ void HyacinthEngine::cleanup()
     m_skinnedPipelineUtil.destroyPipeline();
     m_tracerPipelineUtil.destroyPipeline();
     m_fxaaPipelineUtil.destroyPipeline();
-
-    for (auto& tex : m_scene.dummyTextures) {
-        vkimageutils::destroyImage(tex);
-    }
-    for (auto& obj : m_scene.staticObjects) {
-        for (auto& node : obj.allNodes) {
-            vkdeviceutils::destroyBuffer(node->accelStructureIndexBuffer);
-            vkdeviceutils::destroyBuffer(node->accelStructureVertexBuffer);
-        }
-        for (auto& tex : obj.textures) {
-            vkimageutils::destroyImage(tex);
-        }
-    }
-    for (auto& obj : m_scene.dynamicObjects) {
-        for (auto& tex : obj.textures) {
-            vkimageutils::destroyImage(tex);
-        }
-    }
-    for (auto& tex : m_scene.uiTextures) {
-        vkimageutils::destroyImage(tex);
-    }
+    m_computeSkinPipeline.destroy();
 
     for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(m_device, m_imageAcquiredSemas[i], nullptr);
@@ -1555,15 +1548,16 @@ void HyacinthEngine::cleanup()
         vkDestroyCommandPool(m_device, m_frameData[i].commandPool, nullptr);
 
 		vkdeviceutils::destroyBuffer(m_frameData[i].uniformBuffer);
-        vkdeviceutils::destroyBuffer(m_dynamicWorldMatrixBuffer[i]);
+        vkdeviceutils::destroyBuffer(m_frameData[i].m_renderListBuffer);
+        vkdeviceutils::destroyBuffer(m_frameData[i].m_indirectDrawBuffer);
         vkdeviceutils::destroyBuffer(m_shadowHelper.m_uniformBuffers[i]);
-
-        vkdeviceutils::destroyBuffer(m_frameData[i].tracerTransformBuffer);
+        vkdeviceutils::destroyBuffer(m_frameData[i].m_skinnedVertexBuffer);
 	}
 
     for (int i = 0; i < m_swapChainImages.size(); i++) {
         vkimageutils::destroyImage(m_gBuffers[i].albedo);
         vkimageutils::destroyImage(m_gBuffers[i].normal);
+        vkimageutils::destroyImage(m_gBuffers[i].AMR);
         vkimageutils::destroyImage(m_gBuffers[i].depth);
         vkimageutils::destroyImage(m_gBuffers[i].ddgiImage);
         vkimageutils::destroyImage(m_gBuffers[i].stencilDepth);

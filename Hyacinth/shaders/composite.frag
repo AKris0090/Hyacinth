@@ -6,8 +6,9 @@ const float PI = 3.141592653;
 
 layout 	(set = 0, binding = 0) uniform sampler2D albedoMap;
 layout 	(set = 0, binding = 1) uniform sampler2D normalMap;
-layout	(set = 0, binding = 2) uniform sampler2D depthMap;
-layout  (set = 0, binding = 3) uniform sampler2D ddgiImage;
+layout 	(set = 0, binding = 2) uniform sampler2D AMRMap;
+layout	(set = 0, binding = 3) uniform sampler2D depthMap;
+layout  (set = 0, binding = 4) uniform sampler2D ddgiImage;
 
 layout(set = 1, binding = 0) uniform UniformBufferObject {
 	mat4 view;
@@ -39,6 +40,10 @@ vec3 worldPosFromDepth(float depth) {
 
 void main() {
     float depth = texture(depthMap, inUV).r;
+	if (depth == 1.0) {
+		discard;
+	}
+
 	vec3 fragPos = worldPosFromDepth(depth);
 	vec4 Nshadow = texture(normalMap, inUV);
     vec3 N = Nshadow.xyz * 2.0 - 1.0; // only because swapchain image is unorm
@@ -46,19 +51,15 @@ void main() {
 
 	vec3 V    = normalize(ubo.viewPos.xyz - fragPos);
 	vec3 L    = normalize(ubo.lightPos.xyz - fragPos);
-	vec3 radiance = lightColor * vec3(17.0);
+	vec3 radiance = lightColor;//  * vec3(17.0);
 
 	float NdotL = clamp(dot(N, L), 0.0, 1.0);
     float customLambert = (NdotL * 0.35) + 0.025;
-    vec3 diffuse = (albedo.rgb / PI) * customLambert * radiance;
+    vec3 diffuse = (albedo.rgb / PI) * NdotL * radiance;
 
 	vec3 r = normalize(reflect(-L, N));
     float specular = clamp(dot(r, V), 0.0, 1.0);
     specular = pow(specular, 8.0) * albedo.w;
-
-	if (depth == 1.0) {
-		specular = 0.0;
-	}
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
 	vec3 ambient = albedo.rgb * irrad * ubo.ABOD.w;

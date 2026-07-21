@@ -101,27 +101,6 @@ namespace std {
 	};
 }
 
-struct GPUMeshBuffers {
-	VulkanBuffer vertexBuffer;
-	VulkanBuffer indexBuffer;
-	VulkanBuffer aabbBuffer;
-	uint32_t indexCount;
-};
-
 namespace vkmeshutils {
-	GPUMeshBuffers uploadMesh(std::vector<uint32_t>& indices, std::vector<Vertex>& vertices, std::vector<AABB>& boundingBoxes);
+	void uploadMesh(std::vector<uint32_t>& indices, std::vector<Vertex>& vertices, std::vector<AABB>& boundingBoxes, VulkanBuffer& vertexBuffer, VulkanBuffer& indexBuffer, VulkanBuffer& aabbBuffer);
 }
-
-struct MaterialInstance {
-	uint32_t baseColorIndex;
-	uint32_t normalIndex;
-	uint32_t metallicRoughnessIndex;
-	float alphaCutoff = 0.5f;
-};
-
-struct GPUMaterialIndices {
-	uint32_t baseColorIndex;
-	uint32_t normalIndex;
-	uint32_t metallicRoughnessIndex;
-	float alphaCutoff = 0.5f;
-};

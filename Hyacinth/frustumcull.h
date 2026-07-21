@@ -7,9 +7,7 @@
 
 struct ComputeCullPushConstant {
 	VkDeviceAddress drawBufferAddress;
-	VkDeviceAddress bbAddress;
-	VkDeviceAddress matrixAddress;
-	VkDeviceAddress drawDataAddress;
+	VkDeviceAddress renderCallAddress;
 	uint32_t numDraws;
 };
 
@@ -26,5 +24,5 @@ public:
 	void shutdown();
 	void setup();
 	void update(CameraFrustumPlanes& planes, int index);
-	void executeCull(VkCommandBuffer& cmd, VkDescriptorSet& set, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& bbAddress, VkDeviceAddress& matrixAddress, VkDeviceAddress& drawDataAddress, uint32_t numDraws);
+	void executeCull(VkCommandBuffer& cmd, VkDescriptorSet& set, VkDeviceAddress& drawBufferAddress, VkDeviceAddress& renderCallAddress, uint32_t numDraws);
 };

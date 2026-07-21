@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "transform.h"
 #include "vkdeviceutils.h"
+#include "hyacinth_network.h"
 #include "input.h"
 
 constexpr float PI = 3.14159265359f;
@@ -15,15 +16,10 @@ struct CameraFrustumPlanes {
     glm::vec4 planes[6];
 };
 
-struct CameraUniformProperties {
-	VulkanBuffer camFrustumUniformBuffer;
-	VkDescriptorSet m_frustumPlaneUniformSet;
-};
-
 class Camera {
 private:
 	float m_moveSpeed = BASE_MOVE_SPEED, m_lookSpeed = BASE_LOOK_SPEED;
-    void setViewMatrix();
+    void setViewMatrix(Transform& t);
     void setProjectionMatrix();
     
 public:
@@ -31,7 +27,8 @@ public:
     Transform m_transform;
     float prevYaw, prevPitch;
     CameraFrustumPlanes m_frustumPlanes;
-    // CameraUniformProperties m_frustumProperties[MAX_FRAMES_IN_FLIGHT];
+    
+    Transform m_flyTransform;
 
     float m_aspectRatio, m_FOV, m_zNear, m_zFar;
 
@@ -40,7 +37,8 @@ public:
 
     Camera() {};
     Camera(float aspect, float fov, float nearC, float farC);
-    void update();
+    void update(bool flycam);
 
+    void updateFlyCamera(const ClientUpdatePacket& p, float deltaTime, float lookSpeed, float camSpeed);
     static void GetFrustumPlanes(glm::vec4* planes, glm::mat4 matrix);
 };
