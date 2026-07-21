@@ -119,6 +119,7 @@ public:
 	TracerManager					m_tracerManager;
 
 	HAssetDrawer					m_assetDrawer;
+	owDDGI							m_owDDGIHelper;
 
 	std::vector<HStaticGameObject*> m_staticObjects;
 	std::vector<HAnimatedGameObject*> m_animatedObjects;
@@ -136,6 +137,7 @@ public:
 
 	void addStaticGameObject(HStaticGameObject* gameObjectRef);
 	void addAnimatedGameObject(HAnimatedGameObject* gameObjectRef);
+	void bakeDDGI();
 
 private:
 	struct perFrame {
@@ -212,7 +214,6 @@ private:
 	VkDescriptorSetLayout			m_postProcessSetLayout	{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
 	rtHelper						m_rtHelper;
-	owDDGI							m_owDDGIHelper;
 	FrustumCullHelper				m_frustumCullHelper;
 	HyacinthUIManager				m_uiHelper;
 	SkyboxHelper					m_skyboxHelper;

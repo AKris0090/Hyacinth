@@ -613,8 +613,8 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadAssets() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
-    // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
@@ -756,6 +756,11 @@ void HyacinthEngine::setupImGUI()
     bool res = ImGui_ImplVulkan_Init(&init_info);
 }
 
+void HyacinthEngine::bakeDDGI() {
+    generateRenderList();
+    m_owDDGIHelper.bakeDDGI(m_textureSet, m_frameData[0].m_renderListBuffer.gpuAddress, m_assetDrawer.g_vertexBuffer.gpuAddress, m_assetDrawer.g_indexBuffer.gpuAddress);
+}
+
 void HyacinthEngine::init()
 {
 	createInstance();
@@ -787,7 +792,7 @@ void HyacinthEngine::init()
 
     m_owDDGIHelper.setup(&m_rtHelper);
     // m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
-	// m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
+	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
 
@@ -795,15 +800,13 @@ void HyacinthEngine::init()
 
     createFXAAPipeline();
 
-    // createDDGIPipeline();
+    createDDGIPipeline();
 
-    // createDDGIVolumePipeline();
+    createDDGIVolumePipeline();
 
     setupImGUI();
 
     m_shadowHelper.setupImGui();
-
-    // m_owDDGIHelper.bakeDDGI(m_textureSet);
 
     m_initialized = true;
 
@@ -884,21 +887,23 @@ void HyacinthEngine::generateRenderList() {
         }
         animatedVertexOffset += ao->mesh->numVertices;
     }
-    for (const auto& [id, ao] : p_netEntManager->gameObjects) {
-        if (!ao->active) continue;
-        for (const auto& n : ao->mesh->meshedNodes) {
-            for (const auto& p : n->primtives) {
-                m_renderList.push_back(HRenderCall{
-                    .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
-                    .materialIndex = p.materialIndex,
-                    .indexCount = p.indexCount,
-                    .firstIndex = p.firstIndex,
-                    .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
-                    .meshID = p.meshID
-                    });
+    if (p_netEntManager) {
+        for (const auto& [id, ao] : p_netEntManager->gameObjects) {
+            if (!ao->active) continue;
+            for (const auto& n : ao->mesh->meshedNodes) {
+                for (const auto& p : n->primtives) {
+                    m_renderList.push_back(HRenderCall{
+                        .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
+                        .materialIndex = p.materialIndex,
+                        .indexCount = p.indexCount,
+                        .firstIndex = p.firstIndex,
+                        .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
+                        .meshID = p.meshID
+                        });
+                }
             }
+            animatedVertexOffset += ao->mesh->numVertices;
         }
-        animatedVertexOffset += ao->mesh->numVertices;
     }
 
     numDynamicDrawCommands = m_renderList.size() - numStaticDrawCommands;
@@ -956,13 +961,13 @@ void HyacinthEngine::update() {
     // update tracers
     m_tracerManager.updateTracers(Time::getDeltaTime());
     
-    // std::vector<glm::mat4> matrices;
-    // for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
-    //     Transform t = m_owDDGIHelper.m_probeVolumes[i].transform;
-    //     t.scale -= m_owDDGIHelper.m_probeVolumes[i].data.spacing;
-    //     matrices.push_back(t.getMatrix());
-	// }
-    // m_owDDGIHelper.m_volumeVis.update(matrices, m_frameIndex);
+    std::vector<glm::mat4> matrices;
+    for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
+        Transform t = m_owDDGIHelper.m_probeVolumes[i].transform;
+        t.scale *= 2.f;
+        matrices.push_back(t.getMatrix());
+	}
+    m_owDDGIHelper.m_volumeVis.update(matrices, m_frameIndex);
 
     camMutex.lock();
     UBO newuniform{};
@@ -1238,39 +1243,46 @@ void HyacinthEngine::draw() {
 
     {
         VK_LABEL(cmd, "DDGI Pass");
+
+        ComputePushConstant ddgiPushConstant{};
+        ddgiPushConstant.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
+
         for (int i = m_owDDGIHelper.m_probeVolumes.size() - 1; i >= 0; i--) {
-    //         ddgiPushConstant.volumeIndex = i;
-    //         vsPushConstant.volumeIndex = i;
-    // 
-    //         VK_LABEL(cmd, "Stencil Volume");
-    //         // bind stencil pipeline
-    //         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.pipeline);
-    //         VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].stencilDepth.imageView, (i == m_owDDGIHelper.m_probeVolumes.size() - 1));
-    //         VkRenderingInfo volumeStencilRenderingInfo = vkdeviceutils::createStencilRenderingInfo(m_swImageFormat.extent, &stencilAttachmentInfo);
-    //         vkCmdBeginRendering(cmd, &volumeStencilRenderingInfo);
-    //         vkCmdSetViewport(cmd, 0, 1, &viewport);
-    //         vkCmdSetScissor(cmd, 0, 1, &scissor);
-    //         std::array<VkDescriptorSet, 2> stencilSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_swImageIndex].m_compositeSet };
-    //         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.layout, 0, stencilSets.size(), stencilSets.data(), 0, nullptr);
-    //         vkCmdPushConstants(cmd, m_volumeStencilPipeline.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &vsPushConstant);
-    //         // draw volume to stencil buffer
-    //         // vkCmdDrawIndexed(cmd, UNIT_CUBE_INDEX_COUNT, 1, QUAD_INDEX_COUNT, QUAD_VERTEX_COUNT, 0);
-    //         vkCmdEndRendering(cmd);
-    //         VK_LABEL_END(cmd);
-    // 
-    //         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.pipeline);
+            ddgiPushConstant.volumeIndex = i;
+
+            volumeStencilPushConstant vsPushConstant{};
+            vsPushConstant.volumeTransformAddress = m_owDDGIHelper.m_volumeVis.volumeTransformBuffers[m_frameIndex].gpuAddress;
+            vsPushConstant.volumeIndex = i;
+     
+            VK_LABEL(cmd, "Stencil Volume");
+            // bind stencil pipeline
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.pipeline);
+            VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].stencilDepth.imageView, (i == m_owDDGIHelper.m_probeVolumes.size() - 1));
+            VkRenderingInfo volumeStencilRenderingInfo = vkdeviceutils::createStencilRenderingInfo(m_swImageFormat.extent, &stencilAttachmentInfo);
+            vkCmdBeginRendering(cmd, &volumeStencilRenderingInfo);
+            vkCmdSetViewport(cmd, 0, 1, &viewport);
+            vkCmdSetScissor(cmd, 0, 1, &scissor);
+            std::array<VkDescriptorSet, 2> stencilSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_swImageIndex].m_compositeSet };
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.layout, 0, stencilSets.size(), stencilSets.data(), 0, nullptr);
+            vkCmdPushConstants(cmd, m_volumeStencilPipeline.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &vsPushConstant);
+            // draw volume to stencil buffer
+            vkCmdDrawIndexed(cmd, UNIT_CUBE_INDEX_COUNT, 1, QUAD_INDEX_COUNT, QUAD_VERTEX_COUNT, 0);
+            vkCmdEndRendering(cmd);
+            VK_LABEL_END(cmd);
+     
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.pipeline);
             VkRenderingAttachmentInfo ddgiAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].ddgiImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, (i == m_owDDGIHelper.m_probeVolumes.size() - 1));
             VkRenderingAttachmentInfo stencilAttachment = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].stencilDepth.imageView, false);
             VkRenderingInfo ddgiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &ddgiAttachment, nullptr);
             ddgiRenderingInfo.pStencilAttachment = &stencilAttachment;
             vkCmdBeginRendering(cmd, &ddgiRenderingInfo);
-    //         vkCmdSetViewport(cmd, 0, 1, &viewport);
-    //         vkCmdSetScissor(cmd, 0, 1, &scissor);
-    // 
-    //         std::array<VkDescriptorSet, 3> ddgiSets = { m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet };
-    //         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.layout, 0, ddgiSets.size(), ddgiSets.data(), 0, nullptr);
-    //         vkCmdPushConstants(cmd, m_ddgiPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &ddgiPushConstant);
-    //         // vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
+            vkCmdSetViewport(cmd, 0, 1, &viewport);
+            vkCmdSetScissor(cmd, 0, 1, &scissor);
+    
+            std::array<VkDescriptorSet, 3> ddgiSets = { m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet };
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.layout, 0, ddgiSets.size(), ddgiSets.data(), 0, nullptr);
+            vkCmdPushConstants(cmd, m_ddgiPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &ddgiPushConstant);
+            vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
             vkCmdEndRendering(cmd);
         }
         VK_LABEL_END(cmd);

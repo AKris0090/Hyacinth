@@ -28,6 +28,9 @@ struct Material {
 struct Vertex {
 	vec4 position;
 	vec4 normal;
+	vec4 tangent;
+	vec4 weights;
+	vec4 indices;
 };
 
 struct AABB {

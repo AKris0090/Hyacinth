@@ -28,6 +28,8 @@ static void addAccelStructure(HMeshNode* node, VkDeviceAddress vertexAddress, Vk
 				.numVertices = p.vertexCount,
 				.numIndices = p.indexCount,
 			});
+
+			blAccel.numGeometries++;
 		}
 
 		rtHelper::createBottomLevelAS(blAccel, packet);

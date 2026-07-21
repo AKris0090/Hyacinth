@@ -56,6 +56,7 @@ struct AccelerationStructure
     VkDeviceAddress            address{};
     VulkanBuffer               buffer;
     glm::mat4                  instanceMatrix;
+    uint32_t                   numGeometries = 0;
 };
 
 namespace vkdeviceutils {

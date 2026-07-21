@@ -163,7 +163,7 @@ void rtHelper::createTopLevelAS() {
         asInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
         asInstance.mask = 0xFF;
         tlasInstances.push_back(asInstance);
-        meshIndex++;
+        meshIndex += accel.numGeometries;
     }
 
     std::cout << "building top-level accel structures" << std::endl;
