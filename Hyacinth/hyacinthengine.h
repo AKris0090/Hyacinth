@@ -144,9 +144,9 @@ private:
 		VkCommandPool	commandPool;
 		VkCommandBuffer commandBuffer;
 		VulkanBuffer	uniformBuffer;
-		VulkanBuffer					m_indirectDrawBuffer{};
-		VulkanBuffer					m_renderListBuffer{};
-		VulkanBuffer					m_skinnedVertexBuffer{};
+		VulkanBuffer	m_indirectDrawBuffer{};
+		VulkanBuffer	m_renderListBuffer{};
+		VulkanBuffer	m_skinnedVertexBuffer{};
 		void*			mappedUniformBuffer;
 		VkDescriptorSet uniformDescriptorSet;
 		VkDescriptorSet shadowDescriptorSet;
