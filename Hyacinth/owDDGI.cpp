@@ -1,6 +1,6 @@
 #include "owDDGI.h"
 
-void owDDGI::createRaytraceDescriptors() {
+void owDDGI::createRaytraceDescriptors(VulkanImage& skyboxImage) {
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
 	{
 		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1.f }, // accelstructure
@@ -14,6 +14,7 @@ void owDDGI::createRaytraceDescriptors() {
 		DescriptorLayoutBuilder layoutBuilder;
 		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_ALL);
 		layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_ALL);							// rayData image
+		layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_MISS_BIT_KHR);
 		m_descriptorLayout = layoutBuilder.buildLayout(nullptr, 0);
 	}
 
@@ -39,6 +40,7 @@ void owDDGI::createRaytraceDescriptors() {
 
 		vkdescriptorutils::queueWriteAccelStructure(m_probeVolumes[i].rayDataDescriptorSet, 0, 1, &m_rtHelper->m_tlAccelStrucutre.accel);
 		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].rayDataDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[i].rayDataImage, VK_IMAGE_LAYOUT_GENERAL);
+		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].rayDataDescriptorSet, 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, skyboxImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].computeBuildDescriptorSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_probeVolumes[i].rayDataImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		vkdescriptorutils::queueWriteImage(m_probeVolumes[i].computeBuildDescriptorSet, 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, m_probeVolumes[i].irradianceImage, VK_IMAGE_LAYOUT_GENERAL);
@@ -272,16 +274,16 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	m_probeVolumes.push_back(volume);
 }
 
-void owDDGI::setup(rtHelper* rtHelper) {
+void owDDGI::setup(rtHelper* rtHelper, VulkanImage& skyboxImage) {
 	m_rtHelper = rtHelper;
 
 	glm::vec3 posA = glm::vec3(-16.044f, -1.4202f, -9.08f);
 	glm::vec3 scaleA = glm::vec3(31.855, 13.78, 18.87);
-	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT, 1.f, 0.4f);
+	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT, 0.85f, 0.4f);
 
-	glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
-	glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
-	addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT, 0.4f, 0.2f);
+	// glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
+	// glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
+	// addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT, 0.4f, 0.2f);
 
 	std::vector<glm::mat4> volumeTransforms;
 	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4);
@@ -296,7 +298,7 @@ void owDDGI::setup(rtHelper* rtHelper) {
 	}
 
 	// create other RT resources
-	createRaytraceDescriptors();
+	createRaytraceDescriptors(skyboxImage);
 	createRaytracePipeline();
 	
 	VkPushConstantRange computePCRange{

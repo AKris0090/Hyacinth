@@ -36,7 +36,7 @@ void main() {
 		const float energyConservation = 0.95;
 
 		uint backfaces = 0;
-		uint max_backfaces = uint(volume.numRays * 0.1f);
+		float max_backfaces = 0.1f;
 
 		for(int rayIndex = 0; rayIndex < int(volume.numRays); rayIndex++) {
 			ivec3 samplePos = getRayDataTexelCoords(rayIndex, probeIndex, volume.width * volume.depth);
@@ -52,8 +52,9 @@ void main() {
                 ++backfaces;
 
                 // Early out: only blend ray radiance into the probe if the backface threshold hasn't been exceeded
-                if (backfaces >= max_backfaces)
+                if ((float(backfaces) / 1000.0) >= max_backfaces) {
                     return;
+				}
 
                 continue;
             }

@@ -55,21 +55,19 @@ void main()
 		uint cullMask = 0xff;
 		float tmin = 0.01;
 		float tmax = 1000.0;
-		float epsilon = 0.001;
-		vec3 origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal * epsilon;
+		vec3 origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal;
 
 		shadowed = true;
 		traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 1, origin, tmin, lightVector, tmax, 2);
 
         float NdotL = max(dot(normal, lightVector), 0.0);
-        float halfLambert = (NdotL * 0.5) + 0.5;
-		vec3 directDiffuse = halfLambert * lightColor * 1.25;
+		vec3 directDiffuse = NdotL * lightColor;
 
         if(shadowed) {
-		    directDiffuse *= vec3(0.01);// vec3(0.3);
+		    directDiffuse = vec3(0.0);
 		}
 
-		payload.radiance = payload.radiance + directDiffuse;
+		payload.radiance = payload.radiance + (directDiffuse * 0.95);
 
 		if (payload.depth < MAX_DEPTH) {
 			rayFlags = gl_RayFlagsOpaqueEXT;

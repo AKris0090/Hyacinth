@@ -117,7 +117,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         atlasUV.y = (float(base.y) + probeUV.y * float(IRRADIANCE_INNER)) / float(irradianceTextureSize.y);
         vec4 probeIrradiance = texture(irradianceTex, vec3(atlasUV, base.z));
 
-        if (probeIrradiance.w == 0.0) { // invalid
+        if (probeIrradiance.w != 1.0) { // invalid
             continue;
         }
 

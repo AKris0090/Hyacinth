@@ -92,7 +92,7 @@ private:
 
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
 
-	void createRaytraceDescriptors();
+	void createRaytraceDescriptors(VulkanImage& skyboxImage);
 	void createRaytracePipeline();
 	void createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
 
@@ -113,7 +113,7 @@ public:
 
 	bool showVolumes = false;
 
-	void setup(rtHelper* rtHelper);
+	void setup(rtHelper* rtHelper, VulkanImage& skyboxImage);
 	void bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAddress, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress);
 	void shutdown();
 };

@@ -3,7 +3,11 @@
 
 layout(location = 0) rayPayloadInEXT vec4 hitValue;
 
+layout (set = 0, binding = 2) uniform samplerCube samplerCubeMap;
+
 void main()
 {
-    hitValue = vec4(vec3(0.0), 1.0);
+    vec3 rayDir = normalize(gl_WorldRayDirectionEXT);
+    vec4 worldColor = texture(samplerCubeMap, rayDir);
+    hitValue = vec4(worldColor.xyz, 1.0);
 }

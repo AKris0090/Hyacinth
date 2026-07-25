@@ -252,7 +252,7 @@ void HyacinthEngine::createColorImages() {
         gb.albedo = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "albedo_image");
 		gb.normal = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "normal_image");
         gb.AMR = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "amr_image");
-        gb.ddgiImage = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "ddgi_image");
+        gb.ddgiImage = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "ddgi_image");
         gb.stencilDepth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "stencil_depth_image");
         gb.compositeImage = vkimageutils::createImageandView(extent, 1, m_swImageFormat.format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "composite_image");
 	    vkimageutils::createImageSampler(gb.albedo);
@@ -559,7 +559,7 @@ void HyacinthEngine::createDDGIPipeline()
     m_ddgiPipelineUtil.setDefaultAttributes();
     m_ddgiPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
     m_ddgiPipelineUtil.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    m_ddgiPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 1);
+    m_ddgiPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R16G16B16A16_SFLOAT, 1);
     m_ddgiPipelineUtil.setMultisampling(m_msaaSamples);
     m_ddgiPipelineUtil.disableBlending();
     m_ddgiPipelineUtil.setStencilAttachmentFormat(VK_FORMAT_S8_UINT);
@@ -643,14 +643,14 @@ void HyacinthEngine::createBuffers() {
         m_frameData[i].m_renderListBuffer = vkdeviceutils::createBuffer(sizeof(HRenderCall), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "render_list_buffer");
 
         // create indirect draw buffer
-        m_frameData[i].m_indirectDrawBuffer = vkdeviceutils::createBuffer(sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "indirect_draw_buffer");
+        m_frameData[i].m_indirectDrawBuffer = vkdeviceutils::createBuffer(sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "indirect_draw_buffer");
 
         // create skinnedVertexBuffer
         m_frameData[i].m_skinnedVertexBuffer = vkdeviceutils::createBuffer(sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "frame_skinned_vertex");
     }
 
     for (int j = 0; j < SHADOW_MAP_CASCADE_COUNT; j++) {
-        m_shadowHelper.m_cascades[j].cascadeDrawBuffer = vkdeviceutils::createBuffer(sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "shadow_draw_buffer");
+        m_shadowHelper.m_cascades[j].cascadeDrawBuffer = vkdeviceutils::createBuffer(sizeof(VkDrawIndexedIndirectCommand), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "shadow_draw_buffer");
     }
 }
 
@@ -790,7 +790,9 @@ void HyacinthEngine::init()
 
     createDescriptorSets();
 
-    m_owDDGIHelper.setup(&m_rtHelper);
+    m_skyboxHelper.setup(m_swImageFormat, m_descriptorSetLayout);
+
+    m_owDDGIHelper.setup(&m_rtHelper, m_skyboxHelper.m_skyboxImage);
     // m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 
@@ -810,14 +812,13 @@ void HyacinthEngine::init()
 
     m_initialized = true;
 
-    // volANormalBias = m_owDDGIHelper.m_probeVolumes[0].data.pos.w;
+    volANormalBias = m_owDDGIHelper.m_probeVolumes[0].data.pos.w;
     // volBNormalBias = m_owDDGIHelper.m_probeVolumes[1].data.pos.w;
-    // volAViewBias = m_owDDGIHelper.m_probeVolumes[0].data.spacing.w;
+    volAViewBias = m_owDDGIHelper.m_probeVolumes[0].data.spacing.w;
     // volBViewBias = m_owDDGIHelper.m_probeVolumes[1].data.spacing.w;
 
     m_uiHelper.setup(m_textureSetLayout, DUMMY_TEX_PATHS.size(), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
     m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, DUMMY_TEX_PATHS.size() + UI_TEXTURE_PATHS.size(), m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
-    m_skyboxHelper.setup(m_swImageFormat, m_descriptorSetLayout);
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.setup(m_swImageFormat, m_msaaSamples, m_descriptorSetLayout);
@@ -946,15 +947,15 @@ void HyacinthEngine::update() {
     m_shadowHelper.update(m_camera, m_assetDrawer.getStaticMeshRef("world")->boundingBox, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
 
-    // std::vector<VolumeData> volumeData;
-    // for (auto& vol : m_owDDGIHelper.m_probeVolumes) {
-    //     volumeData.push_back(vol.data);
-    // }
-    // volumeData[0].pos.w = volANormalBias;
+    std::vector<VolumeData> volumeData;
+    for (auto& vol : m_owDDGIHelper.m_probeVolumes) {
+        volumeData.push_back(vol.data);
+       }
+    volumeData[0].pos.w = volANormalBias;
     // volumeData[1].pos.w = volBNormalBias;
-    // volumeData[0].spacing.w = volAViewBias;
+    volumeData[0].spacing.w = volAViewBias;
     // volumeData[1].spacing.w = volBViewBias;
-    // memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
+    memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo, p_netEntManager->self->flashPercentage, p_netEntManager->self->flashNDCX, p_netEntManager->self->flashNDCY);
 
@@ -1179,17 +1180,47 @@ void HyacinthEngine::draw() {
         }
     }
 
-    // barrier for skin and cull write out
-    VkMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+    std::vector<VkBufferMemoryBarrier2> shadowBufferBarrier;
+    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+        // barrier for skin and cull write out
+        VkBufferMemoryBarrier2 barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+        barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+        barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+        barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+        barrier.size = VK_WHOLE_SIZE;
+        barrier.buffer = m_shadowHelper.m_cascades[i].cascadeDrawBuffer.buffer;
+        shadowBufferBarrier.push_back(barrier);
+    }
+
+    VkDependencyInfo depInfo{};
+    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    depInfo.bufferMemoryBarrierCount = SHADOW_MAP_CASCADE_COUNT;
+    depInfo.pBufferMemoryBarriers = shadowBufferBarrier.data();
+    
+    vkCmdPipelineBarrier2(cmd, &depInfo);
 
     // shadows
     {
         m_shadowHelper.drawShadowMaps(cmd, numStaticDrawCommands, numDynamicDrawCommands, m_frameIndex, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_assetDrawer.g_vertexBuffer, m_frameData[m_frameIndex].m_skinnedVertexBuffer);
     }
+
+    VkBufferMemoryBarrier2 barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+    barrier.size = VK_WHOLE_SIZE;
+    barrier.buffer = m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer;
+
+    VkDependencyInfo depInfoMain{};
+    depInfoMain.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    depInfoMain.bufferMemoryBarrierCount = 1;
+    depInfoMain.pBufferMemoryBarriers = &barrier;
+    
+    vkCmdPipelineBarrier2(cmd, &depInfoMain);
 
     // main render pass
     {

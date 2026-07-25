@@ -11,7 +11,7 @@
 #include "pistol.h"
 #include "flashbang.h"
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
