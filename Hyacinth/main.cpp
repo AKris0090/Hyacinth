@@ -169,6 +169,10 @@ void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient)
 		flashObject->active = false;
 		pistolObject->active = false;
 	}
+
+	for (const auto& ao : engine.m_animatedObjects) {
+		ao->updateAnimation(Time::getDeltaTime());
+	}
 }
 
 int main() {

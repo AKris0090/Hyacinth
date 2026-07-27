@@ -940,10 +940,6 @@ void HyacinthEngine::update() {
 		m_showImGui = !m_showImGui;
     }
 
-    for (const auto& ao : m_animatedObjects) {
-        ao->updateAnimation(Time::getDeltaTime());
-    }
-
     m_shadowHelper.update(m_camera, m_assetDrawer.getStaticMeshRef("world")->boundingBox, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
 
