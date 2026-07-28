@@ -4,17 +4,17 @@
 
 struct FlashAnimController : public AnimControllerBase {
 	float currentTime = 0.f;
-	HSkinnedMeshNode* baseNode = nullptr;
-	HAnimation* currentAnim = nullptr;
+	LightNode* baseNode = nullptr;
+	LightAnimation* currentAnim = nullptr;
 
 	FlashAnimController() {};
-	FlashAnimController(HSkinnedMesh* meshRef);
+	FlashAnimController(LightMesh* meshRef);
 };
 
 class HFlashBang : public HAnimatedGameObject {
 public:
 	FlashAnimController controller;
 
-	HFlashBang(HSkinnedMesh* meshRef);
+	HFlashBang(LightMesh* meshRef);
 	void updateAnimation(float deltaTime) override;
 };

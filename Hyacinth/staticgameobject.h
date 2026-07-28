@@ -1,12 +1,12 @@
 #pragma once
 
-#include "hcinth_mesh.h"
+#include "light_loader.h"
 
 class HStaticGameObject {
 public:
 	Transform transform;
-	HMesh* mesh;
+	LightMesh* mesh;
 
 	HStaticGameObject() {};
-	HStaticGameObject(HMesh* meshRef);
+	HStaticGameObject(LightMesh* meshRef);
 };

@@ -1,5 +1,5 @@
 #include "staticgameobject.h"
 
-HStaticGameObject::HStaticGameObject(HMesh* meshRef) {
+HStaticGameObject::HStaticGameObject(LightMesh* meshRef) {
 	mesh = meshRef;
 }

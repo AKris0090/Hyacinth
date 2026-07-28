@@ -14,9 +14,9 @@
 #include "glm/gtx/matrix_decompose.hpp"
 #include <unordered_set>
 
-constexpr int DUMMY_NORMAL_TEX_INDEX = 0;
-constexpr int DUMMY_METALROUGH_TEX_INDEX = 1;
-constexpr int DUMMY_COLOR_TEX_INDEX = 2;
+constexpr inline int DUMMY_NORMAL_TEX_INDEX = 0;
+constexpr inline int DUMMY_METALROUGH_TEX_INDEX = 1;
+constexpr inline int DUMMY_COLOR_TEX_INDEX = 2;
 
 static std::string getFileExtension(const std::string& FileName) {
     if (FileName.find_last_of(".") != std::string::npos)
@@ -29,17 +29,6 @@ enum L_TEXTURE_TYPE {
     L_UNORM
 };
 
-struct LightAABB {
-    glm::vec4 min = glm::vec4(0.f), max = glm::vec4(0.f);
-    void grow(glm::vec4 p) { min = (glm::min)(min, glm::vec4(glm::vec3(p), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p), 1.f)); }
-    void grow(LightVertex p) { min = (glm::min)(min, glm::vec4(glm::vec3(p.pos), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p.pos), 1.f)); }
-    void grow(LightAABB other) { min = (glm::min)(min, other.min), max = (glm::max)(max, other.max); }
-    void scale(glm::mat4 scaleMatrix) {
-        min = scaleMatrix * glm::vec4(glm::vec3(min), 1.0);
-        max = scaleMatrix * glm::vec4(glm::vec3(max), 1.0);
-    }
-};
-
 struct LightVertex {
     glm::vec3 pos;
     glm::vec2 uv;
@@ -49,6 +38,17 @@ struct LightVertex {
     // animated members
     glm::vec4 jointIndices;
     glm::vec4 jointWeights;
+};
+
+struct LightAABB {
+    glm::vec4 min = glm::vec4(0.f), max = glm::vec4(0.f);
+    void grow(glm::vec4 p) { min = (glm::min)(min, glm::vec4(glm::vec3(p), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p), 1.f)); }
+    void grow(LightVertex p) { min = (glm::min)(min, glm::vec4(glm::vec3(p.pos), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p.pos), 1.f)); }
+    void grow(LightAABB other) { min = (glm::min)(min, other.min), max = (glm::max)(max, other.max); }
+    void scale(glm::mat4 scaleMatrix) {
+        min = scaleMatrix * glm::vec4(glm::vec3(min), 1.0);
+        max = scaleMatrix * glm::vec4(glm::vec3(max), 1.0);
+    }
 };
 
 struct LightPrimitive {
@@ -121,7 +121,11 @@ struct LightMesh {
     std::string meshName;
     uint32_t numNodes = 0;
     uint32_t numMeshedNodes = 0;
+
+    uint32_t firstIndex = 0;
+    uint32_t vertexOffset = 0;
     uint32_t numVertices = 0;
+    uint32_t indexCount = 0;
 
     std::vector<LightVertex> vertices;
     std::vector<uint32_t> indices;

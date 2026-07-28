@@ -8,7 +8,7 @@ void owDDGI::createRaytraceDescriptors(VulkanImage& skyboxImage) {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2.f },
 	};
 
-	m_descriptorAllocator.initPool(3 * m_probeVolumes.size(), sizes);
+	m_descriptorAllocator.initPool(static_cast<uint32_t>(3 * m_probeVolumes.size()), sizes);
 
 	{
 		DescriptorLayoutBuilder layoutBuilder;
@@ -206,11 +206,11 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	volume.data.spacing = glm::vec4(probeSpacing, viewBias);
 	volume.data.inverseSpacing = glm::vec4((1.0f / probeSpacing), 10000);
 
-	for (int i = 0; i < densityHeight; i++) {
+	for (uint32_t i = 0; i < densityHeight; i++) {
 		std::vector<std::vector<glm::vec3>> probePlane;
-		for (int j = 0; j < densityDepth; j++) {
+		for (uint32_t j = 0; j < densityDepth; j++) {
 			std::vector<glm::vec3> probeRow;
-			for (int k = 0; k < densityWidth; k++) {
+			for (uint32_t k = 0; k < densityWidth; k++) {
 				probeRow.push_back(glm::vec3(xSpace * k, ySpace * i, zSpace * j));
 			}
 			probePlane.push_back(probeRow);
@@ -219,9 +219,9 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	}
 
 	std::vector<glm::vec4> probePositions;
-	for (int i = 0; i < densityHeight; i++) {
-		for (int j = 0; j < densityDepth; j++) {
-			for (int k = 0; k < densityWidth; k++) {
+	for (uint32_t i = 0; i < densityHeight; i++) {
+		for (uint32_t j = 0; j < densityDepth; j++) {
+			for (uint32_t k = 0; k < densityWidth; k++) {
 				// i controls y
 				// j controls z
 				probePositions.push_back(glm::vec4(volume.probes[i][j][k] + volume.transform.position, 1.0f));

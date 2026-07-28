@@ -1,7 +1,7 @@
 #include "pistol.h"
 
 // *********************** CONTROLLER *********************** //
-PistolAnimationController::PistolAnimationController(HSkinnedMesh* meshRef) {
+PistolAnimationController::PistolAnimationController(LightMesh* meshRef) {
     baseNode = meshRef->getNodeByName("base");
 
     animations[A_PISTOL_IDLE] = &meshRef->animations[0];
@@ -43,7 +43,7 @@ void PistolAnimationStateMachine::updateAnimationState(PistolAnimationController
 
 // *********************** OBJECT *********************** // 
 
-HPistol::HPistol(HSkinnedMesh* meshIn) : HAnimatedGameObject(meshIn) {
+HPistol::HPistol(LightMesh* meshIn) : HAnimatedGameObject(meshIn) {
 	controller = PistolAnimationController(meshIn);
 }
 

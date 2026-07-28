@@ -46,7 +46,7 @@ void WorldHealthManager::setup(VkDescriptorSetLayout& uiTextureSetLayout, VkDesc
 	std::array<VkDescriptorSetLayout, 2> sets = { uiTextureSetLayout, uniformSetLayout };
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-	pipelineLayoutCInfo.setLayoutCount = sets.size();
+	pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
 	pipelineLayoutCInfo.pSetLayouts = sets.data();
 	pipelineLayoutCInfo.pushConstantRangeCount = 1;
 	pipelineLayoutCInfo.pPushConstantRanges = &pcRange;
@@ -59,7 +59,7 @@ void WorldHealthManager::setup(VkDescriptorSetLayout& uiTextureSetLayout, VkDesc
 }
 
 void WorldHealthManager::update(std::vector<Entity>& entities, uint32_t selfID, Transform& camTransform) {
-	numEntityHealthBars = entities.size();
+	numEntityHealthBars = static_cast<uint32_t>(entities.size());
 	worldHealthBars.clear();
 
 	for (const auto& e : entities) {

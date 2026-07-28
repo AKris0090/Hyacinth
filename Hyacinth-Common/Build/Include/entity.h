@@ -3,9 +3,9 @@
 #include <stdint.h>
 #include "transform.h"
 
-constexpr float CAM_LOOK_SPEED = 35.f;
-constexpr float MOVE_SPEED = 0.05f;
-constexpr int MAX_AMMO = 10;
+constexpr inline float CAM_LOOK_SPEED = 35.f;
+constexpr inline float MOVE_SPEED = 0.05f;
+constexpr inline int MAX_AMMO = 10;
 
 enum WEAPON_STATE {
 	PISTOL_EQUIP,
@@ -136,8 +136,8 @@ struct GrenadeController {
 	}
 };
 
-constexpr float CAM_RECOIL_TIME = 0.4f;
-constexpr float CAM_RECOIL_AMOUNT = 6.5f;
+constexpr inline float CAM_RECOIL_TIME = 0.4f;
+constexpr inline float CAM_RECOIL_AMOUNT = 6.5f;
 
 struct CamRecoil {
 	float recoilTimer = 0.f;
@@ -175,8 +175,8 @@ enum PLAYER_STATUS : uint32_t {
 	FLASHED = 2,
 };
 
-constexpr float FLASH_TIMER = 2.5f;
-constexpr float FLASH_FADEOUT = 0.5f;
+constexpr inline float FLASH_TIMER = 2.5f;
+constexpr inline float FLASH_FADEOUT = 0.5f;
 
 struct Entity {
 	uint32_t id;

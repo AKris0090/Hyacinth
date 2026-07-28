@@ -1,7 +1,7 @@
 #include "tp_character.h"
 
 // *********************** CONTROLLER *********************** //
-ThirdPersonAnimationController::ThirdPersonAnimationController(HSkinnedMesh* mesh) {
+ThirdPersonAnimationController::ThirdPersonAnimationController(LightMesh* mesh) {
 	upperArmL = mesh->getNodeByName("upper_arm.L");    // left arm (pitch) controller
 	upperArmR = mesh->getNodeByName("upper_arm.R");    // right arm (pitch) controller
 	spine005 = mesh->getNodeByName("spine.005");     // head neck (pitch) controller
@@ -22,8 +22,8 @@ ThirdPersonAnimationController::ThirdPersonAnimationController(HSkinnedMesh* mes
 	isLowerFlag[spine->nodeIndex] = true;
 
 	for (const auto& jointNode : mesh->skin.joints) {
-		if (HSkinnedMesh::isParentOf(jointNode, spine003)) isUpperFlag[jointNode->nodeIndex] = true;
-		if (HSkinnedMesh::isParentOf(jointNode, spine007)) isLowerFlag[jointNode->nodeIndex] = true;
+		if (mesh->isParentOf(jointNode, spine003)) isUpperFlag[jointNode->nodeIndex] = true;
+		if (mesh->isParentOf(jointNode, spine007)) isLowerFlag[jointNode->nodeIndex] = true;
 	}
 };
 
@@ -120,7 +120,7 @@ void ThirdPersonAnimationStateMachine::updatePreviousWholeBodyAnimation(ThirdPer
 	}
 }
 
-void ThirdPersonAnimationStateMachine::transitionToNewAnimation(ThirdPersonAnimationController& c, HAnimation* current, HAnimation* next) {
+void ThirdPersonAnimationStateMachine::transitionToNewAnimation(ThirdPersonAnimationController& c, LightAnimation* current, LightAnimation* next) {
 	c.previousAnimation = current;
 	c.previousTime = c.currentLowerTime;
 	c.transitioning = true;
@@ -215,7 +215,7 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 
 // *********************** OBJECT *********************** //
 
-HTPCharacter::HTPCharacter(HSkinnedMesh* meshIn) : HAnimatedGameObject(meshIn) {
+HTPCharacter::HTPCharacter(LightMesh* meshIn) : HAnimatedGameObject(meshIn) {
 	controller = ThirdPersonAnimationController(meshIn);
 
 	for (const auto& n : mesh->parentNodes) {

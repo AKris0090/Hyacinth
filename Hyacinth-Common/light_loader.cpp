@@ -292,12 +292,10 @@ void loadNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightM
 
             for (size_t vert = 0; vert < currentNumVertices; vert++) {
                 LightVertex v{};
-                glm::vec3 normal = glm::normalize(glm::vec3(normalsBuff ? glm::make_vec3(&normalsBuff[vert * 3]) : glm::vec3(0.0f)));
 
-                glm::vec2 uv = uvBuff ? glm::make_vec2(&uvBuff[vert * 2]) : glm::vec3(0.0f);
-
-                v.pos = glm::vec4(glm::make_vec3(&positionBuff[vert * 3]), uv.x);
-                v.normal = glm::vec4(normal, uv.y);
+                v.pos = glm::make_vec3(&positionBuff[vert * 3]);
+                v.normal = glm::normalize(glm::vec3(normalsBuff ? glm::make_vec3(&normalsBuff[vert * 3]) : glm::vec3(0.0f)));
+                v.uv = uvBuff ? glm::make_vec2(&uvBuff[vert * 2]) : glm::vec3(0.0f);
                 v.tangent = tangentsBuff ? glm::make_vec4(&tangentsBuff[vert * 4]) : glm::vec4(0.0f);
 
                 if (hasSkin) {
@@ -355,9 +353,9 @@ void loadNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightM
                 throw std::runtime_error("index component type not supported");
             }
 
-            p.firstIndex = static_cast<uint32_t>(mesh->indices.size());
+            p.firstIndex = static_cast<uint32_t>(mesh->indices.size()) + mesh->firstIndex;
             p.indexCount = static_cast<uint32_t>(primIndices.size());
-            p.firstVertex = static_cast<uint32_t>(mesh->vertices.size());
+            p.firstVertex = static_cast<uint32_t>(mesh->vertices.size()) + mesh->vertexOffset;
             p.vertexCount = static_cast<uint32_t>(primVertices.size());
             mesh->numVertices += p.vertexCount;
 
@@ -366,10 +364,12 @@ void loadNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightM
 
             for (auto& v : primVertices) {
                 mesh->vertices.push_back(v);
+                mesh->numVertices++;
             }
 
             for (auto& i : primIndices) {
                 mesh->indices.push_back(i);
+                mesh->indexCount++;
             }
 
             node->primitives.push_back(p);
@@ -394,6 +394,9 @@ namespace LightLoader {
         LPRINT("Loading from : " + filename);
 
         LightMesh* mesh = new LightMesh();
+        mesh->firstIndex = options.indexOffset;
+        mesh->vertexOffset = options.vertexOffset;
+
         tinygltf::Model* model;
         model = new tinygltf::Model();
         tinygltf::TinyGLTF gltfContext;
@@ -439,6 +442,7 @@ namespace LightLoader {
                 tinygltf::Material gltfMat = model->materials[i];
                 if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
                     material.baseColorIndex = textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + options.textureOffset;
+                    imageIsSRGB.insert(material.baseColorIndex - options.textureOffset);
                 }
                 else { material.baseColorIndex = DUMMY_COLOR_TEX_INDEX; }
                 if (gltfMat.additionalValues.find("normalTexture") != gltfMat.additionalValues.end()) {

@@ -50,7 +50,7 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 	}
 }
 
-void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh* characterMesh, HSkinnedMesh* flashMesh, uint32_t currentClientID) {
+void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, LightMesh* characterMesh, LightMesh* flashMesh, uint32_t currentClientID) {
 	characterMeshRef = characterMesh;
 	flashMeshRef = flashMesh;
 	if (p.entities.size() > 0) {
@@ -73,7 +73,7 @@ void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh
 	}
 }
 
-void NetworkEntityManager::clearPendingPackets(Entity* self, HMesh* meshRef) {
+void NetworkEntityManager::clearPendingPackets(Entity* self, LightMesh* meshRef) {
 	while (!rB.pendingPackets.empty()) {
 		uint32_t checkTick = rB.ringBuffer.front().tickNum;
 

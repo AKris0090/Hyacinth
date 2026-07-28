@@ -32,7 +32,7 @@ public:
 	NetworkEntityManager netEntManager;
 	LagSimulator lagSim;
 
-	int setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout, HSkinnedMesh* characterMeshRef, HSkinnedMesh* flashMeshRef);
+	int setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout, LightMesh* characterMeshRef, LightMesh* flashMeshRef);
 	void updateServerTick(ClientUpdatePacket& p, bool mouseLocked);
 	void shutdownNet();
 };

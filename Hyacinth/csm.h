@@ -48,7 +48,7 @@ public:
 	glm::vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 	glm::mat4 shaderShadowMatrix;
 
-	float bias = 0.005;
+	float bias = 0.005f;
 	float offsetScale = 0.f;
 
 	float cascadeSplitLambda = 0.85f;

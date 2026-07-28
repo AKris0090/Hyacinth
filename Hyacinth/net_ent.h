@@ -2,7 +2,6 @@
 
 #include "hyacinth_network.h"
 #include "vkpipelineutils.h"
-#include "gltfutils.h"
 #include <unordered_map>
 #include "fpcam.h"
 #include <mutex>
@@ -72,12 +71,12 @@ public:
 	InterpolationPacketBuffer packetBuffer;
 	RewindBuffer rB;
 	int tickOffset;
-	HSkinnedMesh* characterMeshRef;
-	HSkinnedMesh* flashMeshRef;
+	LightMesh* characterMeshRef;
+	LightMesh* flashMeshRef;
 	glm::vec3 shotAckPosition;
 	
-	void setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh* characterMesh, HSkinnedMesh* flashMesh, uint32_t currentClientID);
+	void setupFromServerPacket(ServerSnapshot& p, LightMesh* characterMesh, LightMesh* flashMesh, uint32_t currentClientID);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
 	void shutdown();
-	void clearPendingPackets(Entity* self, HMesh* meshRef);
+	void clearPendingPackets(Entity* self, LightMesh* meshRef);
 };

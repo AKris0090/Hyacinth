@@ -12,9 +12,10 @@
 #include "vkpipelineutils.h"
 #include "vkdescriptorutils.h"
 #include "vkmeshutils.h"
-#include "gltfutils.h"
 #include "raytracing.h"
 #include "owDDGI.h"
+
+#include "hcinth_assetdrawer.h"
 
 #include "frustumcull.h"
 
@@ -104,6 +105,19 @@ struct GBuffer {
 
 	VkDescriptorSet					m_compositeSet{ VK_NULL_HANDLE };
 	VkDescriptorSet					m_postProcessSet{ VK_NULL_HANDLE };
+};
+
+struct HRenderCall {
+	glm::mat4 transformMatrix;
+	alignas(16) glm::vec3 aaBBMin;
+	alignas(16) glm::vec3 aabbMax;
+
+	uint32_t	materialIndex;
+	uint32_t    indexCount;
+	uint32_t    firstIndex;
+	uint32_t    vertexOffset;
+
+	uint32_t meshID;
 };
 
 class HyacinthEngine {

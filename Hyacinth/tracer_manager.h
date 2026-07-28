@@ -4,7 +4,7 @@
 #include "glm/glm.hpp"
 #include "staticgameobject.h"
 
-constexpr int MAX_TRACERS = 15.f;
+constexpr int MAX_TRACERS = 15;
 constexpr float TRACER_TIME = 0.35f;
 
 struct Tracer {
@@ -18,7 +18,7 @@ class TracerManager {
 public:
 	std::deque<Tracer> tracers;
 
-	void addTracer(glm::mat4 worldMatrix, HMesh* meshRef) {
+	void addTracer(glm::mat4 worldMatrix, LightMesh* meshRef) {
 		Tracer t;
 		t.alpha = 1.f;
 		t.currentTime = 0.f;

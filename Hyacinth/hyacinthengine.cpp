@@ -371,7 +371,7 @@ void HyacinthEngine::createGraphicsPipeline()
 	VkPipelineLayoutCreateInfo pipelineLayoutCInfo { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pipelineLayoutCInfo.pushConstantRangeCount = 1;
     pipelineLayoutCInfo.pPushConstantRanges = &range;
-	pipelineLayoutCInfo.setLayoutCount = sets.size();
+	pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
 	pipelineLayoutCInfo.pSetLayouts = sets.data();
 
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
@@ -427,7 +427,7 @@ void HyacinthEngine::createCompositePipeline()
     std::array<VkDescriptorSetLayout, 2> sets = { m_compositeSetLayout, m_descriptorSetLayout };
 
     VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    pipelineLayoutCInfo.setLayoutCount = sets.size();
+    pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
     pipelineLayoutCInfo.pSetLayouts = sets.data();
 
     VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_compositePipelineUtil.m_pipeline.layout));
@@ -478,7 +478,7 @@ void HyacinthEngine::createFXAAPipeline()
     std::array<VkDescriptorSetLayout, 1> sets = { m_postProcessSetLayout };
 
     VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    pipelineLayoutCInfo.setLayoutCount = sets.size();
+    pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
     pipelineLayoutCInfo.pSetLayouts = sets.data();
     pipelineLayoutCInfo.pushConstantRangeCount = 1;
     pipelineLayoutCInfo.pPushConstantRanges = &pcRange;
@@ -540,7 +540,7 @@ void HyacinthEngine::createDDGIVolumePipeline()
     std::array<VkDescriptorSetLayout, 2> sets = { m_descriptorSetLayout, m_compositeSetLayout };
 
     VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    pipelineLayoutCInfo.setLayoutCount = sets.size();
+    pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
     pipelineLayoutCInfo.pSetLayouts = sets.data();
     pipelineLayoutCInfo.pushConstantRangeCount = 1;
     pipelineLayoutCInfo.pPushConstantRanges = &volumeInfoRange;
@@ -602,7 +602,7 @@ void HyacinthEngine::createDDGIPipeline()
     volumeInfoRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    pipelineLayoutCInfo.setLayoutCount = sets.size();
+    pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
     pipelineLayoutCInfo.pSetLayouts = sets.data();
     pipelineLayoutCInfo.pushConstantRangeCount = 1;
     pipelineLayoutCInfo.pPushConstantRanges = &volumeInfoRange;
@@ -624,12 +624,12 @@ void HyacinthEngine::loadAssets() {
     m_assetDrawer.addDummyTextures();
     m_assetDrawer.addUITextures();
 
-    gltfutils::loadStaticMesh(m_assetDrawer, path.string(), "world");
-    gltfutils::loadStaticMesh(m_assetDrawer, tracerPath.string(), "tracer");
-    gltfutils::loadAnimatedMesh(m_assetDrawer, flashPath.string(), "flashbang");
-    gltfutils::loadAnimatedMesh(m_assetDrawer, thirdPersonCharacterPath.string(), "tp_character");
-    gltfutils::loadAnimatedMesh(m_assetDrawer, firstPersonCharacterPath.string(), "fp_arms");
-    gltfutils::loadAnimatedMesh(m_assetDrawer, pistolPath.string(), "pistol");
+    m_assetDrawer.loadMesh(path.string(), "world", false);
+    m_assetDrawer.loadMesh(tracerPath.string(), "tracer", false);
+    m_assetDrawer.loadMesh(flashPath.string(), "flashbang", true);
+    m_assetDrawer.loadMesh(thirdPersonCharacterPath.string(), "tp_character", true);
+    m_assetDrawer.loadMesh(firstPersonCharacterPath.string(), "fp_arms", true);
+    m_assetDrawer.loadMesh(pistolPath.string(), "pistol", true);
 }
 
 void HyacinthEngine::createBuffers() {
@@ -678,7 +678,7 @@ void HyacinthEngine::createDescriptorSets()
 
     {
         DescriptorLayoutBuilder layoutBuilder;
-        layoutBuilder.addBinding(0, m_assetDrawer.textures.size(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+        layoutBuilder.addBinding(0, static_cast<uint32_t>(m_assetDrawer.textures.size()), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
         m_textureSetLayout = layoutBuilder.buildLayout(nullptr, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
     }
 
@@ -817,8 +817,8 @@ void HyacinthEngine::init()
     volAViewBias = m_owDDGIHelper.m_probeVolumes[0].data.spacing.w;
     // volBViewBias = m_owDDGIHelper.m_probeVolumes[1].data.spacing.w;
 
-    m_uiHelper.setup(m_textureSetLayout, DUMMY_TEX_PATHS.size(), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
-    m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, DUMMY_TEX_PATHS.size() + UI_TEXTURE_PATHS.size(), m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
+    m_uiHelper.setup(m_textureSetLayout, static_cast<uint32_t>(DUMMY_TEX_PATHS.size()), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
+    m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, static_cast<uint32_t>(DUMMY_TEX_PATHS.size() + UI_TEXTURE_PATHS.size()), m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.setup(m_swImageFormat, m_msaaSamples, m_descriptorSetLayout);
@@ -837,16 +837,16 @@ void HyacinthEngine::generateRenderList() {
     m_renderList.clear();
     for (const auto& o : m_staticObjects) {
         for (const auto& n : o->mesh->meshedNodes) {
-            for (const auto& p : n->primtives) {
+            for (const auto& p : n->primitives) {
                 m_renderList.push_back(HRenderCall{
                     .transformMatrix = o->transform.getMatrix() * n->getMatrix(),
-                    .aaBBMin = p.boundingBox.min,
-                    .aabbMax = p.boundingBox.max,
+                    .aaBBMin = p.bounds.min,
+                    .aabbMax = p.bounds.max,
                     .materialIndex = p.materialIndex,
                     .indexCount = p.indexCount,
                     .firstIndex = p.firstIndex,
                     .vertexOffset = p.firstVertex,
-                    .meshID = p.meshID
+                    .meshID = 0
                 });
             }
         }
@@ -854,35 +854,35 @@ void HyacinthEngine::generateRenderList() {
 
     for (const auto& tracer : m_tracerManager.tracers) {
         for (const auto& n : tracer.gameObject->mesh->meshedNodes) {
-            for (const auto& p : n->primtives) {
+            for (const auto& p : n->primitives) {
                 m_renderList.push_back(HRenderCall{
                     .transformMatrix = tracer.matrix * n->getMatrix(),
-                    .aaBBMin = p.boundingBox.min,
-                    .aabbMax = p.boundingBox.max,
+                    .aaBBMin = p.bounds.min,
+                    .aabbMax = p.bounds.max,
                     .materialIndex = p.materialIndex,
                     .indexCount = p.indexCount,
                     .firstIndex = p.firstIndex,
                     .vertexOffset = p.firstVertex,
-                    .meshID = p.meshID
+                    .meshID = 0
                 });
             }
         }
     }
 
-    numStaticDrawCommands = m_renderList.size();
+    numStaticDrawCommands = static_cast<uint32_t>(m_renderList.size());
 
     uint32_t animatedVertexOffset = 0;
     for (const auto& ao : m_animatedObjects) {
         if (!ao->active) continue;
         for (const auto& n : ao->mesh->meshedNodes) {
-            for (const auto& p : n->primtives) {
+            for (const auto& p : n->primitives) {
                 m_renderList.push_back(HRenderCall{
                     .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
                     .materialIndex = p.materialIndex,
                     .indexCount = p.indexCount,
                     .firstIndex = p.firstIndex,
                     .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
-                    .meshID = p.meshID
+                    .meshID = 0
                     });
             }
         }
@@ -892,14 +892,14 @@ void HyacinthEngine::generateRenderList() {
         for (const auto& [id, ao] : p_netEntManager->gameObjects) {
             if (!ao->active) continue;
             for (const auto& n : ao->mesh->meshedNodes) {
-                for (const auto& p : n->primtives) {
+                for (const auto& p : n->primitives) {
                     m_renderList.push_back(HRenderCall{
                         .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
                         .materialIndex = p.materialIndex,
                         .indexCount = p.indexCount,
                         .firstIndex = p.firstIndex,
                         .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
-                        .meshID = p.meshID
+                        .meshID = 0
                         });
                 }
             }
@@ -907,7 +907,7 @@ void HyacinthEngine::generateRenderList() {
         }
     }
 
-    numDynamicDrawCommands = m_renderList.size() - numStaticDrawCommands;
+    numDynamicDrawCommands = static_cast<uint32_t>(m_renderList.size()) - numStaticDrawCommands;
 
     if (m_frameData[m_frameIndex].m_skinnedVertexBuffer.info.size < (animatedVertexOffset * sizeof(Vertex))) {
         vkdeviceutils::resizeBuffer(m_frameData[m_frameIndex].m_skinnedVertexBuffer, (animatedVertexOffset * sizeof(Vertex)));
@@ -1241,7 +1241,7 @@ void HyacinthEngine::draw() {
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             m_pipelineUtil.m_pipeline.layout,
             0,
-            sets.size(),
+            static_cast<uint32_t>(sets.size()),
             sets.data(),
             0,
             nullptr
@@ -1278,7 +1278,7 @@ void HyacinthEngine::draw() {
         ComputePushConstant ddgiPushConstant{};
         ddgiPushConstant.volumeDataAddress = m_owDDGIHelper.volumeDataBuffer.gpuAddress;
 
-        for (int i = m_owDDGIHelper.m_probeVolumes.size() - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(m_owDDGIHelper.m_probeVolumes.size() - 1); i >= 0; i--) {
             ddgiPushConstant.volumeIndex = i;
 
             volumeStencilPushConstant vsPushConstant{};
@@ -1294,7 +1294,7 @@ void HyacinthEngine::draw() {
             vkCmdSetViewport(cmd, 0, 1, &viewport);
             vkCmdSetScissor(cmd, 0, 1, &scissor);
             std::array<VkDescriptorSet, 2> stencilSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_swImageIndex].m_compositeSet };
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.layout, 0, stencilSets.size(), stencilSets.data(), 0, nullptr);
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.layout, 0, static_cast<uint32_t>(stencilSets.size()), stencilSets.data(), 0, nullptr);
             vkCmdPushConstants(cmd, m_volumeStencilPipeline.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &vsPushConstant);
             // draw volume to stencil buffer
             vkCmdDrawIndexed(cmd, UNIT_CUBE_INDEX_COUNT, 1, QUAD_INDEX_COUNT, QUAD_VERTEX_COUNT, 0);
@@ -1311,7 +1311,7 @@ void HyacinthEngine::draw() {
             vkCmdSetScissor(cmd, 0, 1, &scissor);
     
             std::array<VkDescriptorSet, 3> ddgiSets = { m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet };
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.layout, 0, ddgiSets.size(), ddgiSets.data(), 0, nullptr);
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(ddgiSets.size()), ddgiSets.data(), 0, nullptr);
             vkCmdPushConstants(cmd, m_ddgiPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(ComputePushConstant), &ddgiPushConstant);
             vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
             vkCmdEndRendering(cmd);
@@ -1326,7 +1326,7 @@ void HyacinthEngine::draw() {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxHelper.m_skyboxPipelineUtil.m_pipeline.pipeline);
     
         std::array<VkDescriptorSet, 2> sets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_skyboxHelper.m_skyboxSet };
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxHelper.m_skyboxPipelineUtil.m_pipeline.layout, 0, sets.size(), sets.data(), 0, nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_skyboxHelper.m_skyboxPipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(sets.size()), sets.data(), 0, nullptr);
         VkRenderingAttachmentInfo skyboxAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
         VkRenderingInfo skyboxRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &skyboxAttachment, nullptr);
         vkCmdBeginRendering(cmd, &skyboxRenderingInfo);
@@ -1339,7 +1339,7 @@ void HyacinthEngine::draw() {
         VK_LABEL(cmd, "Composite Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.pipeline);
         std::array<VkDescriptorSet, 2> compositeSets = { m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet };
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.layout, 0, compositeSets.size(), compositeSets.data(), 0, nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(compositeSets.size()), compositeSets.data(), 0, nullptr);
         VkRenderingAttachmentInfo compositeAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
         VkRenderingInfo compositeRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &compositeAttachment, nullptr);
         vkCmdBeginRendering(cmd, &compositeRenderingInfo);
@@ -1356,7 +1356,7 @@ void HyacinthEngine::draw() {
         VK_LABEL(cmd, "Health Bars Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_worldHealthManager.worldUIPipelineUtil.m_pipeline.pipeline);
         std::array<VkDescriptorSet, 2> healthSets = { m_textureSet, m_frameData[m_frameIndex].uniformDescriptorSet };
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_worldHealthManager.worldUIPipelineUtil.m_pipeline.layout, 0, healthSets.size(), healthSets.data(), 0, nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_worldHealthManager.worldUIPipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(healthSets.size()), healthSets.data(), 0, nullptr);
         VkRenderingAttachmentInfo healthBarAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
         VkRenderingAttachmentInfo healthDepthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex].depth.imageView, false);
         VkRenderingInfo healthBarRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &healthBarAttachment, &healthDepthAttachment);
@@ -1375,7 +1375,7 @@ void HyacinthEngine::draw() {
         VK_LABEL(cmd, "FXAA Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_fxaaPipelineUtil.m_pipeline.pipeline);
         std::array<VkDescriptorSet, 1> fxaaSet = { m_gBuffers[m_swImageIndex].m_postProcessSet };
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_fxaaPipelineUtil.m_pipeline.layout, 0, fxaaSet.size(), fxaaSet.data(), 0, nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_fxaaPipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(fxaaSet.size()), fxaaSet.data(), 0, nullptr);
         VkRenderingAttachmentInfo fxaaAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, true);
         VkRenderingInfo fxaaRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &fxaaAttachment, nullptr);
         vkCmdPushConstants(cmd, m_fxaaPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec2), &invSS);
@@ -1391,7 +1391,7 @@ void HyacinthEngine::draw() {
         VK_LABEL(cmd, "UI Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_uiHelper.uiPipelineUtil.m_pipeline.pipeline);
         std::array<VkDescriptorSet, 1> uiSets = { m_textureSet };
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_uiHelper.uiPipelineUtil.m_pipeline.layout, 0, uiSets.size(), uiSets.data(), 0, nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_uiHelper.uiPipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(uiSets.size()), uiSets.data(), 0, nullptr);
         VkRenderingAttachmentInfo uiAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
         VkRenderingInfo uiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &uiAttachment, nullptr);
         vkCmdBeginRendering(cmd, &uiRenderingInfo);
@@ -1526,7 +1526,7 @@ void HyacinthEngine::recreateSwapchain() {
 
     vkdescriptorutils::flushDescriptorWrites();
 
-    m_uiHelper.onresize(DUMMY_TEX_PATHS.size(), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height));
+    m_uiHelper.onresize(static_cast<uint32_t>(DUMMY_TEX_PATHS.size()), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height));
 }
 
 void HyacinthEngine::cleanup()

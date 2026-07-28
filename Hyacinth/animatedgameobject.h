@@ -1,6 +1,8 @@
 #pragma once
 
-#include "hcinth_animatedmesh.h"
+#include "light_loader.h"
+#include "animation.h"
+#include "vkdeviceutils.h"
 
 enum ANIMATION_TYPE {
 	A_TP_IDLE,
@@ -21,10 +23,10 @@ enum ANIMATION_TYPE {
 
 class AnimControllerBase {
 public:
-	std::unordered_map<ANIMATION_TYPE, HAnimation*> animations;
+	std::unordered_map<ANIMATION_TYPE, LightAnimation*> animations;
 	void updateTime();
 
-	static void updateSamplers(HAnimation* animation, HAnimChannel* channel, Transform* t, float currentTime);
+	static void updateSamplers(LightAnimation* animation, LightAnimChannel* channel, Transform* t, float currentTime);
 };
 
 // not listed, but each needs an update function for parameters used in animation update
@@ -35,9 +37,9 @@ private:
 public:
 	bool active = true;
 	HAnimatedGameObject* parentObject = nullptr;
-	HSkinnedMeshNode* parentMeshNode = nullptr;
+	LightNode* parentMeshNode = nullptr;
 	Transform transform;
-	HSkinnedMesh* mesh = nullptr;
+	LightMesh* mesh = nullptr;
 	std::unordered_map<uint32_t, Transform> nodeTransforms;
 	VulkanBuffer jointMatrixBuffer{};
 
@@ -46,11 +48,11 @@ public:
 	void destroy();
 
 	// helpers for setting up node transform storage
-	static void hookUpTransformParents(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms);
-	static void addNodeTransform(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms);
+	static void hookUpTransformParents(LightNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms);
+	static void addNodeTransform(LightNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms);
 
 	HAnimatedGameObject() {};
-	HAnimatedGameObject(HSkinnedMesh* meshRef);
-	glm::mat4 getStackedNodeMatrix(HSkinnedMeshNode* node);
-	void setParentObject(HAnimatedGameObject* aobject, HSkinnedMeshNode* childNode, HSkinnedMeshNode* parentNode);
+	HAnimatedGameObject(LightMesh* meshRef);
+	glm::mat4 getStackedNodeMatrix(LightNode* node);
+	void setParentObject(HAnimatedGameObject* aobject, LightNode* childNode, LightNode* parentNode);
 };

@@ -116,6 +116,21 @@ void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool ski
 	}
 
 	// create textures and materials
+	for (const auto& t : m->textures) {
+		VkExtent3D imageExtents{};
+		imageExtents.width = t.width;
+		imageExtents.height = t.height;
+		imageExtents.depth = 1;
+		VkFormat format = (t.texType == L_TEXTURE_TYPE::L_UNORM) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
+
+		VulkanImage texImage = vkimageutils::createTextureImage((void*)t.textureData.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+		vkimageutils::createImageSampler(texImage);
+		textures.push_back(texImage);
+	}
+
+	for (auto m : m->materials) {
+		materials.push_back(m);
+	}
 }
 
 HAssetDrawer::HAssetDrawer() {

@@ -1,7 +1,7 @@
 #include "animatedgameobject.h"
 
-void AnimControllerBase::updateSamplers(HAnimation* animation, HAnimChannel* channel, Transform* t, float currentTime) {
-	HAnimSampler& sampler = animation->samplers[channel->samplerIndex];
+void AnimControllerBase::updateSamplers(LightAnimation* animation, LightAnimChannel* channel, Transform* t, float currentTime) {
+	LightAnimSampler& sampler = animation->samplers[channel->samplerIndex];
 	for (size_t i = 0; i < sampler.inputs.size() - 1; i++)
 	{
 		if ((currentTime >= sampler.inputs[i]) && (currentTime <= sampler.inputs[i + 1]))
@@ -35,7 +35,7 @@ void AnimControllerBase::updateSamplers(HAnimation* animation, HAnimChannel* cha
 	}
 }
 
-glm::mat4 HAnimatedGameObject::getStackedNodeMatrix(HSkinnedMeshNode* node) {
+glm::mat4 HAnimatedGameObject::getStackedNodeMatrix(LightNode* node) {
 	glm::mat4 nodeMatrix = nodeTransforms[node->nodeIndex].getMatrix();
 
 	if (parentObject && parentMeshNode) {
@@ -61,7 +61,7 @@ void HAnimatedGameObject::updateAnimation(float deltaTime) {
 	updateJoints();
 }
 
-void HAnimatedGameObject::hookUpTransformParents(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
+void HAnimatedGameObject::hookUpTransformParents(LightNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
 	if (n->parent) {
 		Transform* parentTransform = &nodeTransforms[n->parent->nodeIndex];
 		nodeTransforms[n->nodeIndex].parent = parentTransform;
@@ -72,7 +72,7 @@ void HAnimatedGameObject::hookUpTransformParents(HSkinnedMeshNode* n, std::unord
 	}
 }
 
-void HAnimatedGameObject::addNodeTransform(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
+void HAnimatedGameObject::addNodeTransform(LightNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
 	nodeTransforms[n->nodeIndex] = n->transform; // need base pose
 
 	for (const auto& nc : n->children) {
@@ -80,7 +80,7 @@ void HAnimatedGameObject::addNodeTransform(HSkinnedMeshNode* n, std::unordered_m
 	}
 }
 
-HAnimatedGameObject::HAnimatedGameObject(HSkinnedMesh* meshRef) {
+HAnimatedGameObject::HAnimatedGameObject(LightMesh* meshRef) {
 	mesh = meshRef;
 
 	for (const auto& n : mesh->parentNodes) {
@@ -98,7 +98,7 @@ void HAnimatedGameObject::destroy() {
 	vkdeviceutils::destroyBuffer(jointMatrixBuffer);
 }
 
-void HAnimatedGameObject::setParentObject(HAnimatedGameObject* aobject, HSkinnedMeshNode* childNode, HSkinnedMeshNode* parentNode) {
+void HAnimatedGameObject::setParentObject(HAnimatedGameObject* aobject, LightNode* childNode, LightNode* parentNode) {
 	parentObject = aobject;
 	parentMeshNode = parentNode;
 }

@@ -1,7 +1,7 @@
 #include "flashbang.h"
 
 // *********************** CONTROLLER *********************** //
-FlashAnimController::FlashAnimController(HSkinnedMesh* meshRef) {
+FlashAnimController::FlashAnimController(LightMesh* meshRef) {
 	baseNode = meshRef->getNodeByName("base");
 }
 
@@ -11,6 +11,6 @@ void HFlashBang::updateAnimation(float deltaTime) {
 	HAnimatedGameObject::updateAnimation(deltaTime);
 }
 
-HFlashBang::HFlashBang(HSkinnedMesh* meshIn) : HAnimatedGameObject(meshIn) {
+HFlashBang::HFlashBang(LightMesh* meshIn) : HAnimatedGameObject(meshIn) {
 	controller = FlashAnimController(meshIn);
 }

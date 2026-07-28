@@ -41,7 +41,7 @@ UIGPUUnit HyacinthUIManager::calculateUIPosition(UIElement& e, glm::vec2 screenS
 	return u;
 }
 
-void HyacinthUIManager::createUIElements(float textureOffset, glm::vec2 screenSize) {
+void HyacinthUIManager::createUIElements(uint32_t textureOffset, glm::vec2 screenSize) {
 	elements.clear();
 
 	// crosshair
@@ -129,7 +129,7 @@ void HyacinthUIManager::setup(VkDescriptorSetLayout& uiTextureSetLayout, uint32_
 	std::array<VkDescriptorSetLayout, 1> sets = { uiTextureSetLayout };
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-	pipelineLayoutCInfo.setLayoutCount = sets.size();
+	pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
 	pipelineLayoutCInfo.pSetLayouts = sets.data();
 	pipelineLayoutCInfo.pushConstantRangeCount = 1;
 	pipelineLayoutCInfo.pPushConstantRanges = &pcRange;
@@ -145,7 +145,7 @@ void HyacinthUIManager::setup(VkDescriptorSetLayout& uiTextureSetLayout, uint32_
 	uiUnitStorageBuffer = vkdeviceutils::createBuffer(elements.size() * sizeof(UIGPUUnit), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "ui_storage_ssbo");
 }
 
-void HyacinthUIManager::onresize(float textureOffset, glm::vec2 newScreenSize) {
+void HyacinthUIManager::onresize(uint32_t textureOffset, glm::vec2 newScreenSize) {
 	ss = newScreenSize;
 	createUIElements(textureOffset, newScreenSize);
 }

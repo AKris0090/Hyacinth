@@ -2,8 +2,6 @@
 
 #include "vkimageutils.h"
 #include "vkdescriptorutils.h"
-#include "hcinth_animatedmesh.h"
-#include "hcinth_mesh.h"
 
 #include "light_loader.h"
 
@@ -41,15 +39,6 @@ static std::string getFilePathExtension(const std::string& FileName) {
 // if object has a static mesh, then check if the mesh ID is already in static mesh renderItems. If present, add to instance count and throw in the transform matrix into buffer                                        
 
 // one object per renderable instance in the scene
-
-struct StaticMeshWrapper {
-	LightMesh* meshRef;
-
-	uint32_t indexOffset;
-	uint32_t vertexOffset;
-	uint32_t numIndices;
-	uint32_t numVertices;
-};
 
 class HAssetDrawer {
 public:

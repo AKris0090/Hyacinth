@@ -41,13 +41,13 @@ private:
 
 	float flashNDCX, flashNDCY;
 
-	void createUIElements(float textureOffset, glm::vec2 screenSize);
+	void createUIElements(uint32_t textureOffset, glm::vec2 screenSize);
 	UIGPUUnit calculateUIPosition(UIElement& e, glm::vec2 screenSize);
 public:
 	VulkanPipelineBuilder uiPipelineUtil;
 
 	void setup(VkDescriptorSetLayout& uiTextureSetLayout, uint32_t textureOffset, glm::vec2 screenSize, SWChainImageFormat& swFormat, VkSampleCountFlagBits& msaaSamples);
-	void onresize(float textureOffset, glm::vec2 newScreenSize);
+	void onresize(uint32_t textureOffset, glm::vec2 newScreenSize);
 	void update(int ammoDisplay, float flashPercentage, float ndcX, float ndcY);
 	void draw(VkCommandBuffer& cmd);
 	void shutdown();
