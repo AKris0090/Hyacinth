@@ -301,7 +301,6 @@ void updateTick(SOCKET* udpSendSocket) {
             if (canShoot) {
                 if (currentWeapon == EQUIPPED_WEAPON::PISTOL) {
                     // usually, it would be Current Server Time - Packet Latency - Client View Interpolation. In this case, RTT / 2 = 0 because everything is being run locally.
-                    // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
                     uint32_t tickRewind = static_cast<uint32_t>(currentTick - SERVER_INPUT_BUFFER - (client->ping / SERVER_TIMESTEP_MS.count())); // client ping divided by 
                     rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind);
                     if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer

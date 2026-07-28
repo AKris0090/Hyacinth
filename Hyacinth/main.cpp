@@ -11,7 +11,7 @@
 #include "pistol.h"
 #include "flashbang.h"
 
-// #define CONNECT_SERVER true
+#define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -171,7 +171,8 @@ void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient)
 	}
 
 	for (const auto& ao : engine.m_animatedObjects) {
-		ao->updateAnimation(Time::getDeltaTime());
+		ao.gameObject->updateAnimation(Time::getDeltaTime());
+		memcpy(ao.jointMatrixBuffer.pMappedData, ao.gameObject->jointMatrixData, ao.gameObject->mesh->jointMatrixSize);
 	}
 }
 
@@ -335,6 +336,7 @@ int main() {
 	tickThread.join();
 
 	netClient.shutdownNet();
+	hyacinthEngine.shutdown();
 
 	return 0;
 } 

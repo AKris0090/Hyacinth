@@ -150,8 +150,6 @@
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_tables.cpp" />
     <ClCompile Include="..\..\DEV\imgui-1.92.5\imgui_widgets.cpp" />
     <ClCompile Include="amnbient.cpp" />
-    <ClCompile Include="animatedgameobject.cpp" />
-    <ClCompile Include="animatedgameobject.h" />
     <ClCompile Include="csm.cpp" />
     <ClCompile Include="decals.cpp" />
     <ClCompile Include="flashbang.cpp" />
@@ -173,7 +171,6 @@
     <ClCompile Include="raytracing.cpp" />
     <ClCompile Include="sdlwindow.cpp" />
     <ClCompile Include="skybox.cpp" />
-    <ClCompile Include="staticgameobject.cpp" />
     <ClCompile Include="time.cpp" />
     <ClCompile Include="tp_character.cpp" />
     <ClCompile Include="vkdebugutils.cpp" />
@@ -221,7 +218,6 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="sdlwindow.h" />
     <ClInclude Include="skybox.h" />
-    <ClInclude Include="staticgameobject.h" />
     <ClInclude Include="tangentHelper.h" />
     <ClInclude Include="time.h" />
     <ClInclude Include="tp_character.h" />

@@ -136,18 +136,17 @@ public:
 	owDDGI							m_owDDGIHelper;
 
 	std::vector<HStaticGameObject*> m_staticObjects;
-	std::vector<HAnimatedGameObject*> m_animatedObjects;
+	std::vector<AnimatedObjectWrap> m_animatedObjects;
 
 #ifdef DEBUG_NETWORK
 	NetDebugRenderer m_netDebugRenderer;
 #endif
 
 	HyacinthEngine() {};
-	~HyacinthEngine() { cleanup(); };
 
 	void init();
 	void draw();
-	void cleanup();
+	void shutdown();
 
 	void addStaticGameObject(HStaticGameObject* gameObjectRef);
 	void addAnimatedGameObject(HAnimatedGameObject* gameObjectRef);

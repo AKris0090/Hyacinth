@@ -19,6 +19,18 @@ enum WEAPON_STATE {
 	NULL_STATE,
 };
 
+enum CURRENT_PLAYER_MOTION_STATE {
+	MOVING,
+	STILL
+};
+
+static float yawFromQuaternion(glm::quat q) {
+	return glm::degrees(atan2(
+		2.0f * (q.w * q.y + q.x * q.z),
+		1.0f - 2.0f * (q.y * q.y + q.x * q.x)
+	));
+};
+
 struct PistolController {
 	float timeBetweenShots = 0.15f;
 	float currentShotTimer = 0.f;

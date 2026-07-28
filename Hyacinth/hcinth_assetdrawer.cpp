@@ -108,12 +108,16 @@ void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool ski
 			.tangent = v.tangent,
 			.jointIndices = v.jointIndices,
 			.jointWeights = v.jointWeights
-			});
+		});
 	}
+	m->vertices.clear();
+	m->vertices.shrink_to_fit();
 
 	for (const auto& i : m->indices) {
 		indices.push_back(i);
 	}
+	m->indices.clear();
+	m->indices.shrink_to_fit();
 
 	// create textures and materials
 	for (const auto& t : m->textures) {

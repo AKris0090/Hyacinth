@@ -20,6 +20,11 @@ struct StateStorage {
 	int8_t fb, lr;
 };
 
+struct AnimatedObjectWrap {
+	HAnimatedGameObject* gameObject;
+	VulkanBuffer jointMatrixBuffer;
+};
+
 class RewindBuffer {
 public:
 	using PhysicsPosFn = std::function<void(glm::vec3 p)>;
@@ -64,7 +69,7 @@ public:
 	InterpolationPacketBuffer selfSimBuffer;
 	std::mutex selfMutex;
 	std::unordered_map<uint32_t, Entity*> entities;
-	std::unordered_map<uint32_t, HAnimatedGameObject*> gameObjects;
+	std::unordered_map<uint32_t, AnimatedObjectWrap> gameObjects;
 
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;

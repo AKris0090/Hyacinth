@@ -830,7 +830,10 @@ void HyacinthEngine::addStaticGameObject(HStaticGameObject* gameObjectRef) {
 }
 
 void HyacinthEngine::addAnimatedGameObject(HAnimatedGameObject* gameObjectRef) {
-    m_animatedObjects.push_back(gameObjectRef);
+    AnimatedObjectWrap wrap;
+    wrap.gameObject = gameObjectRef;
+    wrap.jointMatrixBuffer = vkdeviceutils::createBuffer(gameObjectRef->mesh->jointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_joint_matrix_buffer_otra");
+    m_animatedObjects.push_back(wrap);
 }
 
 void HyacinthEngine::generateRenderList() {
@@ -873,37 +876,37 @@ void HyacinthEngine::generateRenderList() {
 
     uint32_t animatedVertexOffset = 0;
     for (const auto& ao : m_animatedObjects) {
-        if (!ao->active) continue;
-        for (const auto& n : ao->mesh->meshedNodes) {
+        if (!ao.gameObject->active) continue;
+        for (const auto& n : ao.gameObject->mesh->meshedNodes) {
             for (const auto& p : n->primitives) {
                 m_renderList.push_back(HRenderCall{
-                    .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
+                    .transformMatrix = ao.gameObject->transform.getMatrix() * n->getMatrix(),
                     .materialIndex = p.materialIndex,
                     .indexCount = p.indexCount,
                     .firstIndex = p.firstIndex,
-                    .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
+                    .vertexOffset = animatedVertexOffset + p.firstVertex - ao.gameObject->mesh->vertexOffset,
                     .meshID = 0
                     });
             }
         }
-        animatedVertexOffset += ao->mesh->numVertices;
+        animatedVertexOffset += ao.gameObject->mesh->numVertices;
     }
     if (p_netEntManager) {
         for (const auto& [id, ao] : p_netEntManager->gameObjects) {
-            if (!ao->active) continue;
-            for (const auto& n : ao->mesh->meshedNodes) {
+            if (!ao.gameObject->active) continue;
+            for (const auto& n : ao.gameObject->mesh->meshedNodes) {
                 for (const auto& p : n->primitives) {
                     m_renderList.push_back(HRenderCall{
-                        .transformMatrix = ao->transform.getMatrix() * n->getMatrix(),
+                        .transformMatrix = ao.gameObject->transform.getMatrix() * n->getMatrix(),
                         .materialIndex = p.materialIndex,
                         .indexCount = p.indexCount,
                         .firstIndex = p.firstIndex,
-                        .vertexOffset = animatedVertexOffset + p.firstVertex - ao->mesh->vertexOffset,
+                        .vertexOffset = animatedVertexOffset + p.firstVertex - ao.gameObject->mesh->vertexOffset,
                         .meshID = 0
                         });
                 }
             }
-            animatedVertexOffset += ao->mesh->numVertices;
+            animatedVertexOffset += ao.gameObject->mesh->numVertices;
         }
     }
 
@@ -1143,28 +1146,28 @@ void HyacinthEngine::draw() {
         cskin.vertexBufferOutAddress = m_frameData[m_frameIndex].m_skinnedVertexBuffer.gpuAddress;
         uint32_t dstVOffset = 0;
         for (const auto& ao : m_animatedObjects) {
-            if (!ao->active) continue;
-            cskin.srcVertexOffset = ao->mesh->vertexOffset;
+            if (!ao.gameObject->active) continue;
+            cskin.srcVertexOffset = ao.gameObject->mesh->vertexOffset;
             cskin.dstVertexOffset = dstVOffset;
-            cskin.numVertices = ao->mesh->numVertices;
-            cskin.jointBufferAddress = ao->jointMatrixBuffer.gpuAddress;
+            cskin.numVertices = ao.gameObject->mesh->numVertices;
+            cskin.jointBufferAddress = ao.jointMatrixBuffer.gpuAddress;
 
             vkCmdPushConstants(cmd, m_computeSkinPipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computeSkinPushConstant), &cskin);
             vkCmdDispatch(cmd, cskin.numVertices, 1, 1);
 
-            dstVOffset += ao->mesh->numVertices;
+            dstVOffset += ao.gameObject->mesh->numVertices;
         }
         for (const auto& [id, ao] : p_netEntManager->gameObjects) {
-            if (!ao->active) continue;
-            cskin.srcVertexOffset = ao->mesh->vertexOffset;
+            if (!ao.gameObject->active) continue;
+            cskin.srcVertexOffset = ao.gameObject->mesh->vertexOffset;
             cskin.dstVertexOffset = dstVOffset;
-            cskin.numVertices = ao->mesh->numVertices;
-            cskin.jointBufferAddress = ao->jointMatrixBuffer.gpuAddress;
+            cskin.numVertices = ao.gameObject->mesh->numVertices;
+            cskin.jointBufferAddress = ao.jointMatrixBuffer.gpuAddress;
 
             vkCmdPushConstants(cmd, m_computeSkinPipeline.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(computeSkinPushConstant), &cskin);
             vkCmdDispatch(cmd, cskin.numVertices, 1, 1);
 
-            dstVOffset += ao->mesh->numVertices;
+            dstVOffset += ao.gameObject->mesh->numVertices;
         }
     }
 
@@ -1529,7 +1532,7 @@ void HyacinthEngine::recreateSwapchain() {
     m_uiHelper.onresize(static_cast<uint32_t>(DUMMY_TEX_PATHS.size()), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height));
 }
 
-void HyacinthEngine::cleanup()
+void HyacinthEngine::shutdown()
 {
     if (!m_initialized) {
         return;
@@ -1538,7 +1541,8 @@ void HyacinthEngine::cleanup()
 	vkDeviceWaitIdle(m_device);
 
     for (auto& ao : m_animatedObjects) {
-        ao->destroy();
+        ao.gameObject->destroy();
+        vkdeviceutils::destroyBuffer(ao.jointMatrixBuffer);
     }
 
     m_frustumCullHelper.shutdown();
@@ -1549,8 +1553,6 @@ void HyacinthEngine::cleanup()
     m_worldHealthManager.shutdown();
     m_skyboxHelper.shutdown();
     m_assetDrawer.shutdown();
-
-    p_netEntManager->shutdown();
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.shutdown();

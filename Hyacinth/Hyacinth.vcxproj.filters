@@ -282,17 +282,8 @@
     <ClCompile Include="hcinth_assetdrawer.cpp">
       <Filter>Source Files\renderer\core\asset manager</Filter>
     </ClCompile>
-    <ClCompile Include="animatedgameobject.h">
-      <Filter>Source Files\game\objects</Filter>
-    </ClCompile>
     <ClCompile Include="fp_arms.cpp">
       <Filter>Source Files\game\objects\first_person</Filter>
-    </ClCompile>
-    <ClCompile Include="animatedgameobject.cpp">
-      <Filter>Source Files\game\objects</Filter>
-    </ClCompile>
-    <ClCompile Include="staticgameobject.cpp">
-      <Filter>Source Files\game\objects</Filter>
     </ClCompile>
     <ClCompile Include="tp_character.cpp">
       <Filter>Source Files\game\objects\third_player</Filter>
@@ -439,9 +430,6 @@
     </ClInclude>
     <ClInclude Include="tp_character.h">
       <Filter>Source Files\game\objects\third_player</Filter>
-    </ClInclude>
-    <ClInclude Include="staticgameobject.h">
-      <Filter>Source Files\game\objects</Filter>
     </ClInclude>
     <ClInclude Include="flashbang.h">
       <Filter>Source Files\game\objects\throwable</Filter>

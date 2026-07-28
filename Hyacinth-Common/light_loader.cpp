@@ -1,6 +1,10 @@
 #include "pch.h"
-#include "framework.h"
 #include "light_loader.h"
+
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "tiny_gltf.h"
 
 #define LPRINT(x) std::cout << "[LIGHTLOADER] " << x << std::endl;
 

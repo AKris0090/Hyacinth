@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "animatedgameobject.h"
 
 void AnimControllerBase::updateSamplers(LightAnimation* animation, LightAnimChannel* channel, Transform* t, float currentTime) {
@@ -54,7 +55,7 @@ void HAnimatedGameObject::updateJoints() {
 		finalJointMatrices[i] = inverseTransform * (jointMatrix * mesh->skin.inverseBindMatrices[i]);
 	}
 
-	memcpy(jointMatrixBuffer.pMappedData, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
+	memcpy(jointMatrixData, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
 }
 
 void HAnimatedGameObject::updateAnimation(float deltaTime) {
@@ -91,11 +92,11 @@ HAnimatedGameObject::HAnimatedGameObject(LightMesh* meshRef) {
 		hookUpTransformParents(n, nodeTransforms);
 	}
 
-	jointMatrixBuffer = vkdeviceutils::createBuffer(mesh->jointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_joint_matrix_buffer");
+	jointMatrixData = new glm::mat4[meshRef->jointMatrixSize / sizeof(glm::mat4)];
 }
 
 void HAnimatedGameObject::destroy() {
-	vkdeviceutils::destroyBuffer(jointMatrixBuffer);
+	delete jointMatrixData;
 }
 
 void HAnimatedGameObject::setParentObject(HAnimatedGameObject* aobject, LightNode* childNode, LightNode* parentNode) {

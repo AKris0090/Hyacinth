@@ -168,4 +168,6 @@ void HyacinthNetworkClient::updateServerTick(ClientUpdatePacket& p, bool mouseLo
     sendto(twoWayUDPSocket, msg, static_cast<int>(strlen(msg)), 0, (sockaddr*)&serverAddress, serverAddressLen);
 }
 
-void HyacinthNetworkClient::shutdownNet() {}
+void HyacinthNetworkClient::shutdownNet() {
+    netEntManager.shutdown();
+}

@@ -81,7 +81,7 @@ void ThirdPersonAnimationStateMachine::flushQueuedNodeTransforms(ThirdPersonAnim
 }
 
 void ThirdPersonAnimationStateMachine::updateFromPlayerState(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
-	glm::quat trueAngleQuat = glm::slerp(c.prevBasisRotation, c.basisRotation, c.alpha); // TODO: still a bug when running right when turning, check that
+	glm::quat trueAngleQuat = glm::slerp(c.prevBasisRotation, c.basisRotation, c.alpha);
 	float bodyAngle = yawFromQuaternion(trueAngleQuat);
 	transformMap[c.spine->nodeIndex].queuedYawShifts.push_back(bodyAngle);
 	
@@ -135,7 +135,7 @@ void ThirdPersonAnimationStateMachine::lerpPreviousCurrentAnimations(ThirdPerson
 	for (auto& [id, nodeT] : c.previousAnimationTransforms)
 	{
 		Transform lerpedT = nodeT.lerpToNoSet(transformMap[id], alpha);
-		transformMap[id].copy(lerpedT); // TODO: try assignemnt and run tests to make sure nothing else breaks
+		transformMap[id].copy(lerpedT);
 	}
 }
 

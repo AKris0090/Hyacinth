@@ -1,18 +1,6 @@
 #pragma once
 
-#include <vector>
-#include <memory>
-#include "glm/glm.hpp"
-#include "glm/gtc/type_ptr.hpp"
-#include <string>
-#include <iostream>
-#include <algorithm>
-#include <execution>
-#include <mutex>
 #include "transform.h"
-#include "tiny_gltf.h"
-#include "glm/gtx/matrix_decompose.hpp"
-#include <unordered_set>
 
 constexpr inline int DUMMY_NORMAL_TEX_INDEX = 0;
 constexpr inline int DUMMY_METALROUGH_TEX_INDEX = 1;

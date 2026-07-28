@@ -22,6 +22,24 @@
     <Filter Include="Header Files\loader">
       <UniqueIdentifier>{848b0cfb-d4cd-46b8-8a84-9cf45ab50dbf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\game">
+      <UniqueIdentifier>{6f497e3a-a28e-4510-ac60-0a8dd3b89c30}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\network">
+      <UniqueIdentifier>{2fc9fa34-27bc-4dda-82c5-97d9846b011f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\loader">
+      <UniqueIdentifier>{ccbe9f2b-d65d-484f-8b76-9c3837d40866}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\game">
+      <UniqueIdentifier>{7a08b3bb-d6bb-4d9f-90b7-bb6972b6b6b5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\game\base">
+      <UniqueIdentifier>{c854d07e-9c87-49e0-9ea3-b18fd147a0f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\game\base">
+      <UniqueIdentifier>{f2684ad7-5559-4816-8c05-a2f85f105e24}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -42,16 +60,28 @@
     <ClInclude Include="Build\Include\light_loader.h">
       <Filter>Header Files\loader</Filter>
     </ClInclude>
+    <ClInclude Include="Build\Include\animatedgameobject.h">
+      <Filter>Header Files\game\base</Filter>
+    </ClInclude>
+    <ClInclude Include="Build\Include\staticgameobject.h">
+      <Filter>Header Files\game\base</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="hyacinth_network.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\network</Filter>
     </ClCompile>
     <ClCompile Include="light_loader.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\loader</Filter>
+    </ClCompile>
+    <ClCompile Include="animatedgameobject.cpp">
+      <Filter>Source Files\game\base</Filter>
+    </ClCompile>
+    <ClCompile Include="staticgameobject.cpp">
+      <Filter>Source Files\game\base</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

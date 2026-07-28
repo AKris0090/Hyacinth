@@ -1,8 +1,14 @@
 #pragma once
 
 #include "light_loader.h"
-#include "animation.h"
-#include "vkdeviceutils.h"
+#include "entity.h" // for anim state stuff
+
+enum TURN_ANIM_STATE {
+	NEEDS_TURN_LEFT,
+	NEEDS_TURN_RIGHT,
+	TURNING,
+	IDLE
+};
 
 enum ANIMATION_TYPE {
 	A_TP_IDLE,
@@ -41,7 +47,7 @@ public:
 	Transform transform;
 	LightMesh* mesh = nullptr;
 	std::unordered_map<uint32_t, Transform> nodeTransforms;
-	VulkanBuffer jointMatrixBuffer{};
+	glm::mat4* jointMatrixData = nullptr;
 
 	virtual void updateAnimation(float deltaTime);
 
