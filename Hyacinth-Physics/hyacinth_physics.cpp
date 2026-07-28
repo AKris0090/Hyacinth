@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "framework.h"
 
-#define GLM_ENABLE_EXPERIMENTAL
-
 #include "hyacinth_physics.h"
 
 #define PVD_HOST "127.0.0.1"
@@ -62,7 +60,7 @@ void PhysicsManager::initPhysics(bool debug) {
 	controllerDesc.position = physx::PxExtendedVec3(0.0, 0.2, 0.0);
 	controllerDesc.material = pMaterial;
 	controllerDesc.stepOffset = 0.f;
-	controllerDesc.contactOffset = 0.1;
+	controllerDesc.contactOffset = 0.1f;
 	controllerDesc.scaleCoeff = 1.f;
 
 	capGeom = physx::PxCapsuleGeometry(0.5f, 1.f);
@@ -116,28 +114,28 @@ void PhysicsManager::addDynamicNetworkSphere(uint32_t id, glm::vec3 spawnPos, gl
 	worldObjects[id] = dyn;
 }
 
-void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightNode* node) {
-	glm::mat4 trueModel = getWorldMatrix(node);
+void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightMesh* mesh, LightNode* node) {
+	glm::mat4 trueModel = node->getMatrix();
 	for (auto& prim : node->primitives) {
 		std::vector<physx::PxVec3> pxVertices;
 		std::vector<uint32_t> pxIndices;
 
-		for (int i = 0; i < prim->vertices.size(); i++) {
-			glm::vec3 vert = prim->vertices[i];
+		for (uint32_t i = prim.firstVertex; i < prim.vertexCount; i++) {
+			glm::vec3 vert = mesh->vertices[i].pos;
 			glm::vec4 p = trueModel * glm::vec4(vert.x, vert.y, vert.z, 1.0f);
 			pxVertices.push_back(physx::PxVec3(p.x, p.y, p.z));
 		}
 
-		for (int i = 0; i < prim->indices.size(); i++) {
-			pxIndices.push_back(prim->indices[i]);
+		for (uint32_t i = prim.firstIndex; i < prim.indexCount; i++) {
+			pxIndices.push_back(mesh->indices[i]);
 		}
 
 		physx::PxTriangleMeshDesc meshDescription;
-		meshDescription.points.count = pxVertices.size();
+		meshDescription.points.count = static_cast<uint32_t>(pxVertices.size());
 		meshDescription.points.data = pxVertices.data();
 		meshDescription.points.stride = sizeof(physx::PxVec3);
 
-		meshDescription.triangles.count = pxIndices.size() / 3;
+		meshDescription.triangles.count = static_cast<uint32_t>(pxIndices.size() / 3);
 		meshDescription.triangles.data = pxIndices.data();
 		meshDescription.triangles.stride = 3 * sizeof(physx::PxU32);
 
@@ -171,21 +169,21 @@ void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightNode* 
 	}
 
 	for (auto& child : node->children) {
-		loadShape(shapes, child);
+		loadShape(shapes, mesh, child);
 	}
 }
 
-std::vector<physx::PxShape*> PhysicsManager::createPhysicsFromMesh(LightObject* object) {
+std::vector<physx::PxShape*> PhysicsManager::createPhysicsFromMesh(LightMesh* object) {
 	std::vector<physx::PxShape*> shapes;
 
 	for (auto& node : object->parentNodes) {
-		loadShape(shapes, node);
+		loadShape(shapes, object, node);
 	}
 
 	return shapes;
 }
 
-void PhysicsManager::addStaticPhysicsObject(LightObject* object) {
+void PhysicsManager::addStaticPhysicsObject(LightMesh* object) {
 	std::vector<physx::PxShape*> shapes = createPhysicsFromMesh(object);
 
 	physx::PxRigidStatic* body = pPhysics->createRigidStatic(physx::PxTransform(physx::PxVec3(0, 0, 0)));

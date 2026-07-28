@@ -170,7 +170,7 @@ void printPhysicsTick() {
             << "\n";
     }
 
-    prevLinesToClear = entityManager.clients.size();
+    prevLinesToClear = (int) entityManager.clients.size();
 
     std::cout.flush();
 }
@@ -201,7 +201,7 @@ void updateTick(SOCKET* udpSendSocket) {
                 if (existingID > -1) {
                     response.port = existingID;
                     std::string respStr = response.toString();
-                    sendto(*udpSendSocket, respStr.c_str(), respStr.length(), 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
+                    sendto(*udpSendSocket, respStr.c_str(), (int) respStr.length(), 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
                     break;
                 }
                 currentClientID++;
@@ -222,7 +222,7 @@ void updateTick(SOCKET* udpSendSocket) {
 
                 response.port = e.clientID;
                 std::string respStr = response.toString();
-                sendto(*udpSendSocket, respStr.c_str(), respStr.length(), 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
+                sendto(*udpSendSocket, respStr.c_str(), (int) respStr.length(), 0, (sockaddr*)&entityManager.clients[e.clientID]->clientAddr, entityManager.clients[e.clientID]->clientAddrLen);
 
                 break;
             }
@@ -302,7 +302,7 @@ void updateTick(SOCKET* udpSendSocket) {
                 if (currentWeapon == EQUIPPED_WEAPON::PISTOL) {
                     // usually, it would be Current Server Time - Packet Latency - Client View Interpolation. In this case, RTT / 2 = 0 because everything is being run locally.
                     // TODO: find a way to estimate the client's ping. By figuring that out, further subtract that from tickRewind. 
-                    uint32_t tickRewind = currentTick - SERVER_INPUT_BUFFER - (client->ping / SERVER_TIMESTEP_MS.count()); // client ping divided by 
+                    uint32_t tickRewind = static_cast<uint32_t>(currentTick - SERVER_INPUT_BUFFER - (client->ping / SERVER_TIMESTEP_MS.count())); // client ping divided by 
                     rewindSnapshot r = rewindBuffer.getSnapshotFromTick(tickRewind);
                     if (r.tickNum == INT_MAX) { // couldnt find snapshot in the buffer
                         std::cout << "couldn't find the right snapshot, too far in the past" << std::endl;
@@ -366,7 +366,7 @@ void updateTick(SOCKET* udpSendSocket) {
             if (client->tickBasis > currentTick) continue;
             client->sendTimestamps.push({ currentTick, getNowMs() });
             std::string packetString = p->toString();
-            sendto(*udpSendSocket, packetString.c_str(), packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
+            sendto(*udpSendSocket, packetString.c_str(), (int) packetString.length(), 0, (sockaddr*)&client->clientAddr, client->clientAddrLen);
         }
         currentSnapshot.store(p, std::memory_order_release);
 
@@ -383,12 +383,12 @@ int main()
 
     // setup physics with base scene as a static mesh
     {
-        LightLoader loader;
         auto path = getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
         // auto path = getExeDir() / "objects" / "test_scene.glb";
 
         physicsManager.initPhysics(true);
-        physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
+        LightLoaderOptions op{};
+        physicsManager.addStaticPhysicsObject(LightLoader::loadFromFile(path.string(), op));
     }
 
     WSADATA wsaData;

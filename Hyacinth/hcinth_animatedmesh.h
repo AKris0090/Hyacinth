@@ -8,8 +8,6 @@
 
 class HSkinnedMeshNode {
 public:
-	bool							hasSkinnedMesh = false;
-
 	uint32_t						nodeIndex;
 	std::string						nodeName;
 	Transform						transform;
@@ -25,27 +23,27 @@ public:
 };
 
 struct HAnimSampler {
-	std::string            interpolation;
-	std::vector<float>     inputs;
+	std::string interpolation;
+	std::vector<float> inputs;
 	std::vector<glm::vec4> outputsVec4;
 };
 
 struct HAnimChannel {
 	std::string	path;
-	HSkinnedMeshNode*	node;
-	uint32_t    samplerIndex;
+	HSkinnedMeshNode* node;
+	uint32_t samplerIndex;
 };
 
 struct HAnimation {
-	std::vector<HAnimSampler>		samplers;
-	std::vector<HAnimChannel>		channels;
-	float							start = (std::numeric_limits<float>::max)();
-	float							end = (std::numeric_limits<float>::min)();
+	std::vector<HAnimSampler> samplers;
+	std::vector<HAnimChannel> channels;
+	float start = (std::numeric_limits<float>::max)();
+	float end = (std::numeric_limits<float>::min)();
 };
 
 struct HSkin {
-	std::vector<glm::mat4>				inverseBindMatrices;
-	std::vector<HSkinnedMeshNode*>		joints;
+	std::vector<glm::mat4> inverseBindMatrices;
+	std::vector<HSkinnedMeshNode*> joints;
 };
 
 class HSkinnedMesh {

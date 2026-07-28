@@ -785,7 +785,7 @@ void HyacinthEngine::init()
 
     createBuffers();
 
-    m_assetDrawer.getStaticMeshRef("world")->generateBLAccelStructures(m_assetDrawer.g_vertexBuffer.gpuAddress, m_assetDrawer.g_indexBuffer.gpuAddress);
+    m_rtHelper.generateBLASForMesh(m_assetDrawer.getStaticMeshRef("world"), m_assetDrawer.g_vertexBuffer.gpuAddress, m_assetDrawer.g_indexBuffer.gpuAddress);
     m_rtHelper.createTopLevelAS();
 
     createDescriptorSets();
@@ -940,7 +940,11 @@ void HyacinthEngine::update() {
 		m_showImGui = !m_showImGui;
     }
 
-    m_shadowHelper.update(m_camera, m_assetDrawer.getStaticMeshRef("world")->boundingBox, m_frameIndex);
+    LightMesh* worldMeshRef = m_assetDrawer.getStaticMeshRef("world");
+    AABB worldBounds{};
+    worldBounds.min = worldMeshRef->bounds.min;
+    worldBounds.max = worldMeshRef->bounds.max;
+    m_shadowHelper.update(m_camera, worldBounds, m_frameIndex);
     m_frustumCullHelper.update(m_camera.m_frustumPlanes, m_frameIndex);
 
     std::vector<VolumeData> volumeData;

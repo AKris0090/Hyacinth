@@ -82,7 +82,7 @@ private:
 	physx::PxControllerManager* pCManager = NULL;
 	physx::PxCapsuleControllerDesc controllerDesc;
 
-	void loadShape(std::vector<physx::PxShape*>& shapes, LightNode* node);
+	void loadShape(std::vector<physx::PxShape*>& shapes, LightMesh* mesh, LightNode* node);
 
 public:
 	physx::PxScene* pScene = NULL;
@@ -92,13 +92,13 @@ public:
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
 	std::unordered_map<uint32_t, physx::PxRigidDynamic*> worldObjects;
-	std::vector<physx::PxShape*> createPhysicsFromMesh(LightObject* object);
+	std::vector<physx::PxShape*> createPhysicsFromMesh(LightMesh* object);
 	ThreadSafeQueue<Event> physicsEventQueue;
 
 	void initPhysics(bool debug);
 	void addCharacterController(uint32_t cId);
 	void removeCharacterController(uint32_t cId);
-	void addStaticPhysicsObject(LightObject* object);
+	void addStaticPhysicsObject(LightMesh* object);
 	void updatePhysicsServer(EntityManager* entityManager);
 	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime, CamRecoil* r = nullptr);
 	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);

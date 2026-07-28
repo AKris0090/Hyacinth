@@ -57,6 +57,46 @@ void rt::initAccelerationStructureFunctions(VkDevice& device) {
     if (!rt::DestroyAS) throw std::runtime_error("Failed to load vkDestroyAccelerationStructureKHR");
 }
 
+static void addAccelStructure(LightNode* node, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress) {
+    if (node->primitives.size() > 0) {
+        std::vector<glm::vec3> nodeVertices;
+        std::vector<uint32_t> nodeIndices;
+
+        AccelerationStructure blAccel;
+
+        rt::nodeAccelBuildPacket packet;
+        packet.vertexAddress = vertexAddress;
+        packet.indexAddress = indexAddress;
+        for (const auto& p : node->primitives) {
+            packet.prims.push_back(rt::nodeAccelBuildPacket::primAccel{
+                .vertexOffset = p.firstVertex,
+                .firstIndex = p.firstIndex,
+                .numVertices = p.vertexCount,
+                .numIndices = p.indexCount,
+                });
+
+            blAccel.numGeometries++;
+        }
+
+        rtHelper::createBottomLevelAS(blAccel, packet);
+        blAccel.instanceMatrix = node->getMatrix();
+        rt::bottomLevelStructures.push_back(blAccel);
+    }
+    else {
+        std::cout << "[RAYTRACING] Skipping BLAS generation for node: " << node->nodeName << " at index: " << node->nodeIndex << std::endl;
+    }
+
+    for (auto& n : node->children) {
+        addAccelStructure(n, vertexAddress, indexAddress);
+    }
+}
+
+void rtHelper::generateBLASForMesh(LightMesh* meshRef, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress) {
+    for (auto& n : meshRef->parentNodes) {
+        addAccelStructure(n, vertexAddress, indexAddress);
+    }
+}
+
 // static function to translate a gltfNode to a geometry structure
 void rtHelper::nodeToAccelStructureGeometry(rt::nodeAccelBuildPacket packet, std::vector<VkAccelerationStructureGeometryKHR>& geometry, std::vector<VkAccelerationStructureBuildRangeInfoKHR>& rangeInfo)
 {

@@ -183,10 +183,10 @@ int main() {
 	hyacinthEngine.init();
 
 	physicsManager.initPhysics(false); // initialize PVD?
-	LightLoader loader;
 	auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
 	// auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
-	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
+	LightLoaderOptions op{};
+	physicsManager.addStaticPhysicsObject(LightLoader::loadFromFile(path.string(), op));
 	physicsManager.addCharacterController(0);
 
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;

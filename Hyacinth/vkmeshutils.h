@@ -7,6 +7,7 @@
 #include <vector>
 #include <array>
 #include <glm/gtx/hash.hpp>
+#include "light_loader.h"
 
 struct Vertex {
 	glm::vec4 pos;		// uvX is in w component
