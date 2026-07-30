@@ -188,7 +188,7 @@ int main() {
 	// auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	LightLoaderOptions op{};
 	physicsManager.addStaticPhysicsObject(LightLoader::loadFromFile(path.string(), op));
-	physicsManager.addCharacterController(0);
+	physicsManager.addCharacterController(0, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"));
 
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	netClient.netEntManager.inputAccumulator.id = 0;

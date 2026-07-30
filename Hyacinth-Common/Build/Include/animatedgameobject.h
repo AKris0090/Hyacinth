@@ -49,7 +49,7 @@ public:
 	std::unordered_map<uint32_t, Transform> nodeTransforms;
 	glm::mat4* jointMatrixData = nullptr;
 
-	virtual void updateAnimation(float deltaTime);
+	virtual void updateAnimation(float deltaTime, bool updateMatrices = true);
 
 	void destroy();
 

@@ -152,9 +152,7 @@
     <ClCompile Include="amnbient.cpp" />
     <ClCompile Include="csm.cpp" />
     <ClCompile Include="decals.cpp" />
-    <ClCompile Include="flashbang.cpp" />
     <ClCompile Include="fpcam.cpp" />
-    <ClCompile Include="fp_arms.cpp" />
     <ClCompile Include="frustumcull.cpp" />
     <ClCompile Include="hcinth_assetdrawer.cpp" />
     <ClCompile Include="hyacinth_client.cpp" />
@@ -166,13 +164,11 @@
     <ClCompile Include="netDebugRenderer.cpp" />
     <ClCompile Include="net_ent.cpp" />
     <ClCompile Include="owDDGI.cpp" />
-    <ClCompile Include="pistol.cpp" />
     <ClCompile Include="probevis.cpp" />
     <ClCompile Include="raytracing.cpp" />
     <ClCompile Include="sdlwindow.cpp" />
     <ClCompile Include="skybox.cpp" />
     <ClCompile Include="time.cpp" />
-    <ClCompile Include="tp_character.cpp" />
     <ClCompile Include="vkdebugutils.cpp" />
     <ClCompile Include="vkdebugutils.h" />
     <ClCompile Include="vkdescriptorutils.cpp" />
@@ -196,8 +192,6 @@
     <ClInclude Include="..\..\DEV\imgui-1.92.5\imstb_truetype.h" />
     <ClInclude Include="ambient.h" />
     <ClInclude Include="animation.h" />
-    <ClInclude Include="flashbang.h" />
-    <ClInclude Include="fp_arms.h" />
     <ClInclude Include="csm.h" />
     <ClInclude Include="decals.h" />
     <ClInclude Include="fpcam.h" />
@@ -212,7 +206,6 @@
     <ClInclude Include="netDebugRenderer.h" />
     <ClInclude Include="net_ent.h" />
     <ClInclude Include="owDDGI.h" />
-    <ClInclude Include="pistol.h" />
     <ClInclude Include="probevis.h" />
     <ClInclude Include="raytracing.h" />
     <ClInclude Include="resource.h" />
@@ -220,7 +213,6 @@
     <ClInclude Include="skybox.h" />
     <ClInclude Include="tangentHelper.h" />
     <ClInclude Include="time.h" />
-    <ClInclude Include="tp_character.h" />
     <ClInclude Include="tracer_manager.h" />
     <ClInclude Include="unit_cube.h" />
     <ClInclude Include="vkdescriptorutils.h" />

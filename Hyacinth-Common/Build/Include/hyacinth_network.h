@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include "transform.h"
 #include "entity.h"
+#include "tp_character.h"
 #include <chrono>
 #include <sstream>
 #include <thread>
@@ -215,6 +216,7 @@ struct EntityManager {
 	std::shared_mutex clientsMutex;
 	std::unordered_map<uint32_t, ServersideClient*> clients;
 	std::unordered_map<uint32_t, Ordnance*> worldObjects;
+	std::unordered_map<uint32_t, HTPCharacter*> characterGameObjects;
 };
 
 enum SERVER_EVENT {

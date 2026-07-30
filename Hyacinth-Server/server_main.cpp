@@ -43,6 +43,8 @@ std::atomic<uint32_t> currentWorldID{ 1000 };
 std::atomic<uint32_t> currentTick{ 0 };
 std::atomic<std::shared_ptr<ServerSnapshot>> currentSnapshot;
 
+LightMesh* characterMesh;
+
 using namespace std::chrono;
 
 bool isSameAddress(const sockaddr_in& a, const sockaddr_in& b) {
@@ -215,7 +217,9 @@ void updateTick(SOCKET* udpSendSocket) {
                 newClient->heartBeat = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 
                 entityManager.clients[e.clientID] = newClient;
-                physicsManager.addCharacterController(newClient->id);
+                physicsManager.addCharacterController(newClient->id, characterMesh);
+
+                entityManager.characterGameObjects[e.clientID] = new HTPCharacter(characterMesh);
 
                 entityManager.clients[e.clientID]->clientAddr = e.clientAddr;
                 entityManager.clients[e.clientID]->clientAddrLen = e.clientAddrSize;
@@ -277,6 +281,7 @@ void updateTick(SOCKET* udpSendSocket) {
                 }
             }
         }
+
         physicsManager.updatePhysicsServer(&entityManager);
 
         auto p = std::make_shared<ServerSnapshot>();
@@ -384,10 +389,15 @@ int main()
     {
         auto path = getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
         // auto path = getExeDir() / "objects" / "test_scene.glb";
+        auto thirdPersonCharacterPath = getExeDir() / "objects" / "char_skinned2.glb";
 
         physicsManager.initPhysics(true);
         LightLoaderOptions op{};
         physicsManager.addStaticPhysicsObject(LightLoader::loadFromFile(path.string(), op));
+
+        // load character mesh and maintain animation bones for hitboxes
+        op.loadAnimations = true;
+        characterMesh = LightLoader::loadFromFile(thirdPersonCharacterPath.string(), op);
     }
 
     WSADATA wsaData;

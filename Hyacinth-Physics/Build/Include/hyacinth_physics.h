@@ -28,11 +28,14 @@
 #include <unordered_map>
 #include "light_loader.h"
 #include "hyacinth_network.h"
-
-using namespace physx;
+#include "ragdoll.h"
 
 constexpr float JUMP_VELOCITY = 10.5f;
 constexpr float FLASH_VELOCTIY = 20.f;
+
+constexpr physx::PxU32 WORLD				= 1 << 0;
+constexpr physx::PxU32 PLAYER_CAPSULE		= 1 << 1;
+constexpr physx::PxU32 RAGDOLL				= 1 << 2;
 
 struct controllerUserData {
 	uint32_t id;
@@ -67,8 +70,8 @@ private:
 
 	std::mutex charLock;
 
-	PxDefaultErrorCallback defaultErrorCallback;
-	PxDefaultAllocator defaultAllocatorCallback;
+	physx::PxDefaultErrorCallback defaultErrorCallback;
+	physx::PxDefaultAllocator defaultAllocatorCallback;
 	physx::PxPvd* pVirtDebug = NULL;
 
 	physx::PxFoundation* pFoundation = NULL;
@@ -82,12 +85,15 @@ private:
 	physx::PxControllerManager* pCManager = NULL;
 	physx::PxCapsuleControllerDesc controllerDesc;
 
+	std::unordered_map<uint32_t, Ragdoll> ragdolls;
+
 	void loadShape(std::vector<physx::PxShape*>& shapes, LightMesh* mesh, LightNode* node);
 
 public:
 	physx::PxScene* pScene = NULL;
 	physx::PxCapsuleGeometry capGeom;
 	physx::PxSphereGeometry sphereGeom;
+	physx::PxSphereGeometry jointGeom;
 	std::vector<physx::PxTriangleMeshGeometry> worldGeom;
 	std::unordered_map<uint32_t, physx::PxController*> clientControllers;
 	std::unordered_map<uint32_t, PhysicsEnt> clientPhysicsObjects;
@@ -96,7 +102,8 @@ public:
 	ThreadSafeQueue<Event> physicsEventQueue;
 
 	void initPhysics(bool debug);
-	void addCharacterController(uint32_t cId);
+	void addRagdoll(uint32_t id, LightMesh* meshRef);
+	void addCharacterController(uint32_t cId, LightMesh* meshRef);
 	void removeCharacterController(uint32_t cId);
 	void addStaticPhysicsObject(LightMesh* object);
 	void updatePhysicsServer(EntityManager* entityManager);

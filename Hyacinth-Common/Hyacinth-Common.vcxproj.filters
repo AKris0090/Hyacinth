@@ -66,6 +66,18 @@
     <ClInclude Include="Build\Include\staticgameobject.h">
       <Filter>Header Files\game\base</Filter>
     </ClInclude>
+    <ClInclude Include="Build\Include\flashbang.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="Build\Include\fp_arms.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="Build\Include\pistol.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
+    <ClInclude Include="Build\Include\tp_character.h">
+      <Filter>Header Files\game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -82,6 +94,18 @@
     </ClCompile>
     <ClCompile Include="staticgameobject.cpp">
       <Filter>Source Files\game\base</Filter>
+    </ClCompile>
+    <ClCompile Include="flashbang.cpp">
+      <Filter>Source Files\game</Filter>
+    </ClCompile>
+    <ClCompile Include="fp_arms.cpp">
+      <Filter>Source Files\game</Filter>
+    </ClCompile>
+    <ClCompile Include="pistol.cpp">
+      <Filter>Source Files\game</Filter>
+    </ClCompile>
+    <ClCompile Include="tp_character.cpp">
+      <Filter>Source Files\game</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

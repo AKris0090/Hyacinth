@@ -58,8 +58,8 @@ void HAnimatedGameObject::updateJoints() {
 	memcpy(jointMatrixData, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
 }
 
-void HAnimatedGameObject::updateAnimation(float deltaTime) {
-	updateJoints();
+void HAnimatedGameObject::updateAnimation(float deltaTime, bool updateMatrices) {
+	if (updateMatrices) updateJoints();
 }
 
 void HAnimatedGameObject::hookUpTransformParents(LightNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {

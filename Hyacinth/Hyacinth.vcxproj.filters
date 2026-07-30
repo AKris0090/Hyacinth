@@ -148,21 +148,6 @@
     <Filter Include="Source Files\game\input">
       <UniqueIdentifier>{f25ec508-37e2-41f9-ad07-a3a2f13df47d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\game\objects">
-      <UniqueIdentifier>{aa3b738b-8e9f-40d7-b76a-d75816c51b5e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\game\objects\third_player">
-      <UniqueIdentifier>{3fec5b7c-ed10-447b-aef0-8eb5cbf04933}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\game\objects\first_person">
-      <UniqueIdentifier>{22d78818-3203-4924-b17b-5f852bae97c2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\game\objects\guns">
-      <UniqueIdentifier>{536425c2-1098-43dc-bb6e-333f2dc7ab57}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\game\objects\throwable">
-      <UniqueIdentifier>{d468a352-76cb-4b7c-908c-c257db298a65}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\renderer\core\asset manager">
       <UniqueIdentifier>{01861ab1-4a1e-4d2a-b117-e8e8ddb30020}</UniqueIdentifier>
     </Filter>
@@ -281,18 +266,6 @@
     </ClCompile>
     <ClCompile Include="hcinth_assetdrawer.cpp">
       <Filter>Source Files\renderer\core\asset manager</Filter>
-    </ClCompile>
-    <ClCompile Include="fp_arms.cpp">
-      <Filter>Source Files\game\objects\first_person</Filter>
-    </ClCompile>
-    <ClCompile Include="tp_character.cpp">
-      <Filter>Source Files\game\objects\third_player</Filter>
-    </ClCompile>
-    <ClCompile Include="pistol.cpp">
-      <Filter>Source Files\game\objects\guns</Filter>
-    </ClCompile>
-    <ClCompile Include="flashbang.cpp">
-      <Filter>Source Files\game\objects\throwable</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -421,18 +394,6 @@
     </ClInclude>
     <ClInclude Include="tracer_manager.h">
       <Filter>Source Files\game</Filter>
-    </ClInclude>
-    <ClInclude Include="pistol.h">
-      <Filter>Source Files\game\objects\guns</Filter>
-    </ClInclude>
-    <ClInclude Include="fp_arms.h">
-      <Filter>Source Files\game\objects\first_person</Filter>
-    </ClInclude>
-    <ClInclude Include="tp_character.h">
-      <Filter>Source Files\game\objects\third_player</Filter>
-    </ClInclude>
-    <ClInclude Include="flashbang.h">
-      <Filter>Source Files\game\objects\throwable</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

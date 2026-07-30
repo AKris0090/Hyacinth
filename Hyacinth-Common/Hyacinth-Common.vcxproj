@@ -156,9 +156,13 @@
   <ItemGroup>
     <ClInclude Include="Build\Include\animatedgameobject.h" />
     <ClInclude Include="Build\Include\entity.h" />
+    <ClInclude Include="Build\Include\flashbang.h" />
+    <ClInclude Include="Build\Include\fp_arms.h" />
     <ClInclude Include="Build\Include\hyacinth_network.h" />
     <ClInclude Include="Build\Include\light_loader.h" />
+    <ClInclude Include="Build\Include\pistol.h" />
     <ClInclude Include="Build\Include\staticgameobject.h" />
+    <ClInclude Include="Build\Include\tp_character.h" />
     <ClInclude Include="Build\Include\transform.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ExcludedFromBuild>
@@ -170,6 +174,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="animatedgameobject.cpp" />
+    <ClCompile Include="flashbang.cpp" />
+    <ClCompile Include="fp_arms.cpp" />
     <ClCompile Include="hyacinth_network.cpp" />
     <ClCompile Include="light_loader.cpp" />
     <ClCompile Include="pch.cpp">
@@ -178,7 +184,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="pistol.cpp" />
     <ClCompile Include="staticgameobject.cpp" />
+    <ClCompile Include="tp_character.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
