@@ -3,14 +3,11 @@
 #include "raytracing.h"
 #include "vkdescriptorutils.h"
 #include "vkpipelineutils.h"
+#include "unit_cube.h"
+#include "fullscreen_quad.h"
 
 class probeVisObjects {
-
 	VulkanPipelineBuilder pipelineUtil;
-	uint32_t indexCount;
-
-	VulkanBuffer vertexBuffer;
-	VulkanBuffer indexBuffer;
 
 	struct probeVisPushContant {
 		VkDeviceAddress probePositionAddress;

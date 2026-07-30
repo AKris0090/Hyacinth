@@ -1,4 +1,4 @@
-#include "owDDGI.h"
+   #include "owDDGI.h"
 
 void owDDGI::createRaytraceDescriptors(VulkanImage& skyboxImage) {
 	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
@@ -285,13 +285,7 @@ void owDDGI::setup(rtHelper* rtHelper, VulkanImage& skyboxImage) {
 	// glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
 	// addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT, 0.4f, 0.2f);
 
-	std::vector<glm::mat4> volumeTransforms;
 	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4);
-	for (int i = 0; i < m_probeVolumes.size(); i++) {
-		Transform t = m_probeVolumes[i].transform;
-		t.scale *= 0.3f;// m_probeVolumes[i].data.spacing;
-		volumeTransforms.push_back(t.getMatrix());
-	}
 	m_volumeVis.volumeTransformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		m_volumeVis.volumeTransformBuffers[i] = vkdeviceutils::createBuffer(volumeBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "volume_transform_ssbo");

@@ -11,7 +11,7 @@
 #include "pistol.h"
 #include "flashbang.h"
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -228,12 +228,13 @@ int main() {
 #ifndef CONNECT_SERVER
 	netClient.netEntManager.self = new Entity();
 	thisEnt = netClient.netEntManager.self;
+	thisEnt->type = E_PLAYER;
 
 	ServerSnapshot s{};
 	s.entities.push_back(*thisEnt);
 	netClient.netEntManager.selfSimBuffer.newPacket(s);
 	netClient.netEntManager.selfSimBuffer.newPacket(s);
-	netClient.netEntManager.setupFromServerPacket(s, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"), hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("flashbang"), 0);
+	netClient.netEntManager.setupFromServerPacket(s, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"), hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("flashbang"), 0, false); // dont spawn more entities
 #endif
 	Time::setInitialTime();
 

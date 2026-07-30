@@ -61,10 +61,10 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 	}
 }
 
-void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, LightMesh* characterMesh, LightMesh* flashMesh, uint32_t currentClientID) {
+void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, LightMesh* characterMesh, LightMesh* flashMesh, uint32_t currentClientID, bool createEntities) {
 	characterMeshRef = characterMesh;
 	flashMeshRef = flashMesh;
-	updateEntitiesFromPacket(p, currentClientID, 0);
+	if (createEntities) updateEntitiesFromPacket(p, currentClientID, 0);
 }
 
 void NetworkEntityManager::clearPendingPackets(Entity* self, LightMesh* meshRef) {

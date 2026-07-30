@@ -80,7 +80,7 @@ public:
 	LightMesh* flashMeshRef;
 	glm::vec3 shotAckPosition;
 	
-	void setupFromServerPacket(ServerSnapshot& p, LightMesh* characterMesh, LightMesh* flashMesh, uint32_t currentClientID);
+	void setupFromServerPacket(ServerSnapshot& p, LightMesh* characterMesh, LightMesh* flashMesh, uint32_t currentClientID, bool createEntities = true);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
 	void shutdown();
 	void clearPendingPackets(Entity* self, LightMesh* meshRef);

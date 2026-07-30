@@ -793,7 +793,7 @@ void HyacinthEngine::init()
     m_skyboxHelper.setup(m_swImageFormat, m_descriptorSetLayout);
 
     m_owDDGIHelper.setup(&m_rtHelper, m_skyboxHelper.m_skyboxImage);
-    // m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
+    m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 
     createGraphicsPipeline();
@@ -968,7 +968,8 @@ void HyacinthEngine::update() {
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
         Transform t = m_owDDGIHelper.m_probeVolumes[i].transform;
-        t.scale *= 2.f;
+        t.scale -= (glm::vec3)m_owDDGIHelper.m_probeVolumes[i].data.spacing;
+        t.position += t.scale / 2.f;
         matrices.push_back(t.getMatrix());
 	}
     m_owDDGIHelper.m_volumeVis.update(matrices, m_frameIndex);
@@ -1416,24 +1417,24 @@ void HyacinthEngine::draw() {
     }
 #endif
 
-    // if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
-    //     VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-	// 	VkRenderingAttachmentInfo depthVisInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex   ].depth.imageView, false);
-    //     VkRenderingInfo visRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &visInfo, &depthVisInfo);
-    //     vkCmdBeginRendering(cmd, &visRenderingInfo);
-    //     if (m_owDDGIHelper.showProbes) {
-    //         for (int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
-    //             if (i == 0) if (!m_owDDGIHelper.showProbesA) continue;
-    //             if (i == 1) if (!m_owDDGIHelper.showProbesB) continue;
-    //             m_owDDGIHelper.m_probeVis.drawProbes(cmd, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet, m_owDDGIHelper.m_probeVolumes[i].probePositionBuffer.gpuAddress, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].totalNumProbes, m_owDDGIHelper.m_probeVolumes[i].data.densityWidth, m_owDDGIHelper.m_probeVolumes[i].data.densityDepth);
-    //         }
-    //     }
-    // 
-    //     if (m_owDDGIHelper.showVolumes) {
-    //         m_owDDGIHelper.m_volumeVis.drawVolumes(cmd, m_frameData[m_frameIndex].uniformDescriptorSet, m_frameIndex, m_owDDGIHelper.m_probeVolumes.size());
-    //     }
-    //     vkCmdEndRendering(cmd);
-    // }
+    if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
+        VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+	 	VkRenderingAttachmentInfo depthVisInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex   ].depth.imageView, false);
+        VkRenderingInfo visRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &visInfo, &depthVisInfo);
+        vkCmdBeginRendering(cmd, &visRenderingInfo);
+        if (m_owDDGIHelper.showProbes) {
+            for (int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
+                if (i == 0) if (!m_owDDGIHelper.showProbesA) continue;
+                if (i == 1) if (!m_owDDGIHelper.showProbesB) continue;
+                m_owDDGIHelper.m_probeVis.drawProbes(cmd, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet, m_owDDGIHelper.m_probeVolumes[i].probePositionBuffer.gpuAddress, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].totalNumProbes, m_owDDGIHelper.m_probeVolumes[i].data.densityWidth, m_owDDGIHelper.m_probeVolumes[i].data.densityDepth);
+            }
+        }
+    
+        if (m_owDDGIHelper.showVolumes) {
+            m_owDDGIHelper.m_volumeVis.drawVolumes(cmd, m_frameData[m_frameIndex].uniformDescriptorSet, m_frameIndex, static_cast<uint32_t>(m_owDDGIHelper.m_probeVolumes.size()));
+        }
+        vkCmdEndRendering(cmd);
+    }
     
     VkRenderingAttachmentInfo imguiAttachment = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
     VkRenderingInfo imguiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &imguiAttachment, nullptr);
