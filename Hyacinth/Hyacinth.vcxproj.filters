@@ -258,7 +258,7 @@
     <ClCompile Include="skybox.cpp">
       <Filter>Source Files\renderer\core\skybox</Filter>
     </ClCompile>
-    <ClCompile Include="amnbient.cpp">
+    <ClCompile Include="ambient.cpp">
       <Filter>Source Files\renderer\core\ao</Filter>
     </ClCompile>
     <ClCompile Include="decals.cpp">
@@ -496,6 +496,12 @@
       <Filter>Source Files\shaders\skybox</Filter>
     </None>
     <None Include="shaders\skinning.comp">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\depthAlphaDiscard.frag">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\ambientOcclusion.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>

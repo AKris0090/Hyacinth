@@ -500,4 +500,42 @@ namespace vkimageutils {
 		if (image.imageView != VK_NULL_HANDLE) vkDestroyImageView(vkdeviceutils::device, image.imageView, nullptr);
 		vmaDestroyImage(vkdeviceutils::allocator, image.image, image.imageAllocation);
 	}
+
+	// data is sets of RGBA floats
+	VulkanImage createImageFromFloatData(uint32_t width, uint32_t height, VkFormat format, void* data) {
+		VkExtent3D extent{
+			.width = width,
+			.height = height,
+			.depth = 1
+		};
+
+		size_t dataSize = (size_t) width * (size_t) height * 4 * sizeof(float);
+		VulkanBuffer uploadBuffer = vkdeviceutils::createBuffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+		memcpy(uploadBuffer.info.pMappedData, data, dataSize);
+		VulkanImage newImage = vkimageutils::createImageandView(extent, 1, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, false, "noise_texture_image");
+
+		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
+			vkimageutils::transitionTexImage(cmd, newImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+			VkBufferImageCopy copyRegion = {};
+			copyRegion.bufferOffset = 0; 
+			copyRegion.bufferRowLength = 0;
+			copyRegion.bufferImageHeight = 0;
+
+			copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			copyRegion.imageSubresource.mipLevel = 0;
+			copyRegion.imageSubresource.baseArrayLayer = 0;
+			copyRegion.imageSubresource.layerCount = 1;
+			copyRegion.imageExtent = extent;
+
+			vkCmdCopyBufferToImage(cmd, uploadBuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+
+			vkimageutils::transitionTexImage(cmd, newImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		});
+
+		vkdeviceutils::destroyBuffer(uploadBuffer);
+		vmaSetAllocationName(vkdeviceutils::allocator, newImage.imageAllocation, "noise_texture_image");
+
+		return newImage;
+	}
 }

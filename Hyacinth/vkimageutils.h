@@ -39,6 +39,7 @@ namespace vkimageutils {
 	VkRenderingAttachmentInfo	createDepthAttachmentInfo(VkImageView& msaaDepthView, bool clear = true);
 	VkRenderingAttachmentInfo	createStencilAttachmentInfo(VkImageView& stencilImageView, bool clear = true);
 	VkRenderingAttachmentInfo	createShadowAttachmentInfo(VkImageView& view);
+	VulkanImage					createImageFromFloatData(uint32_t width, uint32_t height, VkFormat format, void* data);
 
 	// in rendering progress, avoids stalling whole pipeline
 	void						transitionImageShaderRead(VkCommandBuffer& cmd, VulkanImage& image, VkImageAspectFlags aspectMask);

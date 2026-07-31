@@ -281,9 +281,9 @@ void owDDGI::setup(rtHelper* rtHelper, VulkanImage& skyboxImage) {
 	glm::vec3 scaleA = glm::vec3(31.855, 13.78, 18.87);
 	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT, 0.85f, 0.4f);
 
-	// glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
-	// glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
-	// addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT, 0.4f, 0.2f);
+	glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
+	glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
+	addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT, 0.4f, 0.2f);
 
 	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4);
 	m_volumeVis.volumeTransformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -419,6 +419,6 @@ void owDDGI::shutdown() {
 	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_computeDescriptorLayout, nullptr);
 	vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_irradianceVisSetLayout, nullptr);
 
-	// m_probeVis.destroy();
+	m_probeVis.destroy();
 	m_volumeVis.destroy();
 }

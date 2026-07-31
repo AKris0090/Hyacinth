@@ -50,7 +50,7 @@ void SkyboxHelper::setup(SWChainImageFormat swapchainImageFormat, VkDescriptorSe
     m_skyboxPipelineUtil.setPositionAttribute();
     m_skyboxPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
     m_skyboxPipelineUtil.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    m_skyboxPipelineUtil.setColorAttachmentFormat(swapchainImageFormat.format, 1);
+    m_skyboxPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R16G16B16A16_SFLOAT, 1);
     m_skyboxPipelineUtil.setMultisampling(VK_SAMPLE_COUNT_1_BIT);
     m_skyboxPipelineUtil.disableBlending();
 

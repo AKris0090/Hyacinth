@@ -45,6 +45,7 @@ void main() {
 	}
 
 	vec3 fragPos = worldPosFromDepth(depth);
+	vec4 amr = texture(AMRMap, inUV);
 	vec4 Nshadow = texture(normalMap, inUV);
     vec3 N = Nshadow.xyz * 2.0 - 1.0; // only because swapchain image is unorm
 	vec4 albedo = texture(albedoMap, inUV);
@@ -62,12 +63,13 @@ void main() {
     specular = pow(specular, 8.0) * albedo.w;
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = albedo.rgb * irrad * ubo.ABOD.w;
+	vec3 ambient = albedo.rgb * irrad * amr.r;
 
 	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
+
     outColor = vec4(color, 1.0);
 
     if (ubo.ABOD.x == 1.0) {
-        outColor = vec4(irrad, 1.0);
+        outColor = vec4(irrad * amr.r, 1.0);
     }
 }  

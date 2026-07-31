@@ -29,6 +29,7 @@
 #include "imguihelper.h"
 
 #include "skybox.h"
+#include "ambient.h"
 
 #include "net_ent.h"
 #include "netDebugRenderer.h"
@@ -199,6 +200,7 @@ private:
 	std::vector<GBuffer>			m_gBuffers				{};
 	std::vector<VulkanImage>		m_swapChainImages		{}; // a.k.a color resolve
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
+	VulkanPipelineBuilder 			m_depthPipelineUtil		{};
 	VulkanPipelineBuilder 			m_tracerPipelineUtil	{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
@@ -230,6 +232,7 @@ private:
 	FrustumCullHelper				m_frustumCullHelper;
 	HyacinthUIManager				m_uiHelper;
 	SkyboxHelper					m_skyboxHelper;
+	AmbientHelper					m_ambientHelper;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();
@@ -237,6 +240,7 @@ private:
 	void recreateSwapchain();
 	void createCommandBuffers();
 	void createSyncObjects();
+	void createDepthPipeline();
 	void createGraphicsPipeline();
 	void createCompositePipeline();
 	void createDDGIPipeline();

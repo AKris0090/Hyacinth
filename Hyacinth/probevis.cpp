@@ -60,7 +60,7 @@ void probeVisObjects::drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& irradian
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.pipeline);
 
 	std::array<VkDescriptorSet, 2> sets = { descSet, irradianceVisSet };
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.layout, 0, sets.size(), sets.data(), 0, nullptr);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(sets.size()), sets.data(), 0, nullptr);
 
 	probeVisObjects::probeVisPushContant pc{};
 	pc.probePositionAddress = probePositionAddress;

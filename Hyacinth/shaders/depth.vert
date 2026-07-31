@@ -6,6 +6,11 @@
 #include "shadowCommon.glsl"
 
 layout	(location = 0) in vec4 inPosition;
+layout	(location = 1) in vec4 inNormal;
+layout	(location = 2) in vec4 inTangent;
+
+layout	(location = 0) flat out uint matIndex;
+layout	(location = 1) out vec2 outUV;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
 	mat4 view;
@@ -22,15 +27,16 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 
 layout( push_constant ) uniform constants
 {
-	TransformBuffer transformBuffer;
+	RenderCallBuffer renderCallBuffer;
 	MaterialBuffer materialBuffer;
-	DrawDataBuffer drawDataBuffer;
-	// ProbePositionBuffer probePosBuffer;
-} PushConstants;
+} pc;
 
 void main()
 {
-	DrawData draw = PushConstants.drawDataBuffer.draws[gl_InstanceIndex];
-	mat4 model = PushConstants.transformBuffer.model[draw.transformIndex];
-	gl_Position = ubo.proj * ubo.view * model * vec4(inPosition.xyz, 1.0f);
+	RenderCall draw = pc.renderCallBuffer.calls[gl_InstanceIndex];
+	gl_Position = ubo.proj * ubo.view * draw.instanceMatrix * vec4(inPosition.xyz, 1.0);
+
+	matIndex = draw.materialIndex;
+	outUV.x		= inPosition.w;
+	outUV.y		= inNormal.w;
 }
