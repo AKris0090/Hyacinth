@@ -173,14 +173,14 @@ void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightMesh* 
 		std::vector<physx::PxVec3> pxVertices;
 		std::vector<uint32_t> pxIndices;
 
-		for (uint32_t i = prim.firstVertex; i < prim.vertexCount; i++) {
-			glm::vec3 vert = mesh->vertices[i].pos;
+		for (uint32_t i = 0; i < prim.vertexCount; i++) {
+			glm::vec3 vert = mesh->vertices[i + prim.firstVertex].pos;
 			glm::vec4 p = trueModel * glm::vec4(vert.x, vert.y, vert.z, 1.0f);
 			pxVertices.push_back(physx::PxVec3(p.x, p.y, p.z));
 		}
 
-		for (uint32_t i = prim.firstIndex; i < prim.indexCount; i++) {
-			pxIndices.push_back(mesh->indices[i]);
+		for (uint32_t i = 0; i < prim.indexCount; i++) {
+			pxIndices.push_back(mesh->indices[i + prim.firstIndex]);
 		}
 
 		physx::PxTriangleMeshDesc meshDescription;

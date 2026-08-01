@@ -93,6 +93,7 @@ void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool ski
 	op.loadMaterials = true;
 
 	LightMesh* m = LightLoader::loadFromFile(fileName, op);
+	m->meshName = meshName;
 	skinned ? skinnedMeshes[meshName] = m : staticMeshes[meshName] = m;
 
 	// offload vertices/indices

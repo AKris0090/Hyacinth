@@ -55,8 +55,7 @@ void FrustumCullHelper::shutdown() {
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkdeviceutils::destroyBuffer(m_uniformPlaneBuffers[i]);
     }
-    vkDestroyPipelineLayout(vkdeviceutils::device, m_computeCullPipeline.layout, nullptr);
-    vkDestroyPipeline(vkdeviceutils::device, m_computeCullPipeline.pipeline, nullptr);
+    m_computeCullPipeline.destroy();
 
     m_computeDescAlloc.destroyPool();
     vkDestroyDescriptorSetLayout(vkdeviceutils::device, m_computeLayout, nullptr);

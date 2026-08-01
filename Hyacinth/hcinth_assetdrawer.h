@@ -49,6 +49,7 @@ public:
 	VulkanBuffer			g_indexBuffer;
 
 	uint32_t meshCount = 0;
+	uint32_t skinnedVertexCount = 0;
 	std::unordered_map<std::string, LightMesh*> staticMeshes;
 	std::unordered_map<std::string, LightMesh*> skinnedMeshes;
 

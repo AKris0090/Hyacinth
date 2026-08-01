@@ -377,8 +377,6 @@ void HyacinthEngine::createDepthPipeline()
     VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_depthPipelineUtil.m_pipeline.layout));
 
     m_depthPipelineUtil.buildPipeline();
-
-    createCompSkinPipeline();
 }
 
 void HyacinthEngine::createGraphicsPipeline()
@@ -435,8 +433,6 @@ void HyacinthEngine::createGraphicsPipeline()
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
 
 	m_pipelineUtil.buildPipeline();
-
-    createCompSkinPipeline();
 }
 
 void HyacinthEngine::createCompSkinPipeline() {
@@ -671,8 +667,8 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadAssets() {
-    // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
-    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
@@ -857,6 +853,8 @@ void HyacinthEngine::init()
     createDepthPipeline();
 
     createGraphicsPipeline();
+
+    createCompSkinPipeline();
 
     createCompositePipeline();
 

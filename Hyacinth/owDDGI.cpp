@@ -277,13 +277,20 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 void owDDGI::setup(rtHelper* rtHelper, VulkanImage& skyboxImage) {
 	m_rtHelper = rtHelper;
 
+#ifdef PROBE_VOLUME_MAP_SPONZA
 	glm::vec3 posA = glm::vec3(-16.044f, -1.4202f, -9.08f);
 	glm::vec3 scaleA = glm::vec3(31.855, 13.78, 18.87);
 	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT, 0.85f, 0.4f);
-
+	
 	glm::vec3 posB = glm::vec3(-11.144f, 3.280f, 1.650f);
 	glm::vec3 scaleB = glm::vec3(23.f, 4.5f, 3.5f);
 	addVolume(posB, scaleB, PROBE_B_DENSITY_WIDTH, PROBE_B_DENSITY_DEPTH, PROBE_B_DENSITY_HEIGHT, 0.4f, 0.2f);
+#endif
+#ifndef PROBE_VOLUME_MAP_SPONZA
+	glm::vec3 posA = glm::vec3(-25.804f, -2.56f, -14.8);
+	glm::vec3 scaleA = glm::vec3(50.015, 13.6, 30.25);
+	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT, 0.85f, 0.4f);
+#endif
 
 	VkDeviceSize volumeBufferSize = m_probeVolumes.size() * sizeof(glm::mat4);
 	m_volumeVis.volumeTransformBuffers.resize(MAX_FRAMES_IN_FLIGHT);

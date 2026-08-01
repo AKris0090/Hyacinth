@@ -361,7 +361,6 @@ void loadNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightM
             p.indexCount = static_cast<uint32_t>(primIndices.size());
             p.firstVertex = static_cast<uint32_t>(mesh->vertices.size()) + mesh->vertexOffset;
             p.vertexCount = static_cast<uint32_t>(primVertices.size());
-            mesh->numVertices += p.vertexCount;
 
             p.bounds = getBoundingBox(primVertices);
             mesh->bounds.grow(p.bounds);
@@ -382,12 +381,20 @@ void loadNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightM
 
     if (parent) {
         parent->children.push_back(node);
-        if (nodeIn.mesh > -1) mesh->meshedNodes.push_back(parent->children[parent->children.size() - 1]);
+        if (nodeIn.mesh > -1) {
+            mesh->meshedNodes.push_back(parent->children[parent->children.size() - 1]);
+            mesh->numMeshedNodes++;
+        }
     }
     else {
         mesh->parentNodes.push_back(node);
-        if (nodeIn.mesh > -1) mesh->meshedNodes.push_back(mesh->parentNodes[mesh->parentNodes.size() - 1]);
+        if (nodeIn.mesh > -1) {
+            mesh->meshedNodes.push_back(mesh->parentNodes[mesh->parentNodes.size() - 1]);
+            mesh->numMeshedNodes++;
+        }
     }
+
+    mesh->numNodes++;
 
     loaded++;
     printProgress();
