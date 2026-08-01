@@ -387,8 +387,8 @@ int main()
 
     // setup physics with base scene as a static mesh
     {
-        auto path = getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
-        // auto path = getExeDir() / "objects" / "test_scene.glb";
+        // auto path = getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
+        auto path = getExeDir() / "objects" / "test_scene.glb";
         auto thirdPersonCharacterPath = getExeDir() / "objects" / "char_skinned2.glb";
 
         physicsManager.initPhysics(true);

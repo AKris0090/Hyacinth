@@ -115,8 +115,8 @@ void simulationTick() {
 		hyacinthEngine.p_netEntManager->selfMutex.unlock();
 
 		// only uncomment if need to view debug in PVD, otherwise interferes with shots
-		physicsManager.pScene->simulate(SERVER_TIMESTEP);
-		physicsManager.pScene->fetchResults(true);
+		// physicsManager.pScene->simulate(SERVER_TIMESTEP);
+		// physicsManager.pScene->fetchResults(true);
 
 		std::this_thread::sleep_until(nextTick);
 
@@ -183,7 +183,7 @@ int main() {
 	hyacinthEngine.m_window = sdlwindow.m_window;
 	hyacinthEngine.init();
 
-	physicsManager.initPhysics(true); // initialize PVD?
+	physicsManager.initPhysics(false); // initialize PVD?
 	// auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
 	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	LightLoaderOptions op{};
