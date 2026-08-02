@@ -1,7 +1,9 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
 
-layout(location = 0) rayPayloadInEXT vec4 hitValue;
+#include "probeCommon.glsl"
+
+layout(location = 0) rayPayloadInEXT RayPayload payload;
 
 layout (set = 0, binding = 2) uniform samplerCube samplerCubeMap;
 
@@ -9,5 +11,7 @@ void main()
 {
     vec3 rayDir = normalize(gl_WorldRayDirectionEXT);
     vec4 worldColor = texture(samplerCubeMap, rayDir);
-    hitValue = vec4(worldColor.xyz, 1.0);
+    payload.radiance += payload.throughput * worldColor.xyz;
+    payload.distance = 1000.0;
+    payload.terminated = true;
 }

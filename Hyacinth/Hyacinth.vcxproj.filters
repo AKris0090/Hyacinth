@@ -417,7 +417,7 @@
     <None Include="shaders\miss.rmiss">
       <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
-    <None Include="shaders\probeMiss.rmiss">
+    <None Include="shaders\directShadowCheck.rmiss">
       <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
     <None Include="shaders\probeCommon.glsl">

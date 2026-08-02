@@ -25,55 +25,61 @@ layout( push_constant ) uniform constants
 const vec3 lightColor = vec3(1.0); // vec3(0.99, 0.98, 0.83);
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
 
+struct HitSurface {
+    Material mat;
+	vec4 pos; // pos.xyz, uv.x
+	vec4 normal; // normal.xyz, uv.y
+};
+
 void main()
 {
-	if (payload.depth == 0) {
+	if (payload.bounce == 0) { // on first bounce, set distance
 		payload.distance = gl_RayTminEXT + gl_HitTEXT;
 		if (gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT) {
-			payload.distance *= -1.0;
+			payload.distance *= -1.0; // if backfacing, kill all recursion
+			payload.terminated = true;
 			return;
 		}
 	}
 
-	if (gl_HitKindEXT != gl_HitKindBackFacingTriangleEXT) {
-		RenderCall r = pc.renderBufferAddress.calls[gl_InstanceCustomIndexEXT + gl_GeometryIndexEXT];
-		uint idx0 = r.firstIndex + 3 * gl_PrimitiveID;
-		ivec3 index = ivec3(pc.indexBufferAddress.indices[idx0], pc.indexBufferAddress.indices[idx0 + 1], pc.indexBufferAddress.indices[idx0 + 2]);
-		float b = barycentricWeights.x;
-        float c = barycentricWeights.y;
-        float a = 1 - b - c;
+	RenderCall r = pc.renderBufferAddress.calls[gl_InstanceCustomIndexEXT + gl_GeometryIndexEXT];
+	uint idx0 = r.firstIndex + 3 * gl_PrimitiveID;
+	ivec3 index = ivec3(pc.indexBufferAddress.indices[idx0], pc.indexBufferAddress.indices[idx0 + 1], pc.indexBufferAddress.indices[idx0 + 2]);
+	float b = barycentricWeights.x;
+    float c = barycentricWeights.y;
+    float a = 1 - b - c;
 
-		Vertex v0 = pc.vertexBufferAddress.vertices[index.x + r.vertexOffset];
-		Vertex v1 = pc.vertexBufferAddress.vertices[index.y + r.vertexOffset];
-		Vertex v2 = pc.vertexBufferAddress.vertices[index.z + r.vertexOffset];
+	Vertex v0 = pc.vertexBufferAddress.vertices[index.x + r.vertexOffset];
+	Vertex v1 = pc.vertexBufferAddress.vertices[index.y + r.vertexOffset];
+	Vertex v2 = pc.vertexBufferAddress.vertices[index.z + r.vertexOffset];
 
-		vec3 normal = normalize(a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz);
+	vec3 normal = normalize(a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz);
 
-		vec3 lightVector = normalize(lightPos); // directional light
+	vec3 lightVector = normalize(lightPos); // directional light
 
-		uint rayFlags = gl_RayFlagsOpaqueEXT | gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT;
-		uint cullMask = 0xff;
-		float tmin = 0.01;
-		float tmax = 1000.0;
-		vec3 origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal;
+	float NdotL = max(dot(normal, lightVector), 0.0);
+	vec3 directDiffuse = NdotL * lightColor;
 
-		shadowed = true;
-		traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 1, origin, tmin, lightVector, tmax, 2);
+	uint rayFlags = gl_RayFlagsOpaqueEXT | gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+	uint cullMask = 0xff;
+	float tmin = 0.01;
+	float tmax = 1000.0;
 
-        float NdotL = max(dot(normal, lightVector), 0.0);
-		vec3 directDiffuse = NdotL * lightColor;
+	vec3 origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
 
-        if(shadowed) {
-		    directDiffuse = vec3(0.0);
-		}
+	shadowed = true;
+	traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 1, origin, tmin, lightVector, tmax, 2);
 
-		payload.radiance = payload.radiance + (directDiffuse * 0.95);
-
-		if (payload.depth < MAX_DEPTH) {
-			rayFlags = gl_RayFlagsOpaqueEXT;
-		    payload.depth++;
-		    vec3 newDir = reflect(gl_WorldRayDirectionEXT, normal);
-		    traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, origin, tmin, newDir, tmax, 0);
-		}
+    if(shadowed) {
+	    directDiffuse = vec3(0.0);
 	}
+
+	payload.radiance += payload.throughput * directDiffuse;
+	payload.bounce++;
+	payload.throughput *= 0.95; // in theory, should be albedo
+
+	payload.newOrigin = origin;
+
+	vec3 newDir = reflect(gl_WorldRayDirectionEXT, normal);
+	payload.newDirection = newDir;
 }

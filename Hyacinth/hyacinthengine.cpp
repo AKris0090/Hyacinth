@@ -667,8 +667,8 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadAssets() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
-    // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
@@ -795,10 +795,20 @@ void HyacinthEngine::setupImGUI()
             std::cerr << "ImGui Vulkan error: " << res << std::endl;
         }
 	};
+
+    VkPipelineRenderingCreateInfo imguiCreateInfo;
+    imguiCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    imguiCreateInfo.pNext = nullptr;
+    imguiCreateInfo.colorAttachmentCount = 1;
+    imguiCreateInfo.pColorAttachmentFormats = &m_swImageFormat.format;
+    imguiCreateInfo.depthAttachmentFormat = VK_FORMAT_UNDEFINED;
+    imguiCreateInfo.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+    imguiCreateInfo.viewMask = 0x0;
+
     init_info.Instance = m_instance;
     init_info.PhysicalDevice = m_physicalDevice;
     init_info.Device = m_device;
-    init_info.PipelineInfoMain.PipelineRenderingCreateInfo = m_compositePipelineUtil.m_renderInfo;
+    init_info.PipelineInfoMain.PipelineRenderingCreateInfo = imguiCreateInfo;
     init_info.PipelineInfoMain.MSAASamples = m_msaaSamples;
     init_info.QueueFamily = m_qfIndices.graphicsFamily.value();
     init_info.Queue = m_graphicsQueue;
@@ -1199,6 +1209,7 @@ void HyacinthEngine::draw() {
 
     // compute skin pass
     {
+        VK_LABEL(cmd, "Compute Skin Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_computeSkinPipeline.pipeline);
         computeSkinPushConstant cskin;
         cskin.vertexBufferInAddress = m_assetDrawer.g_vertexBuffer.gpuAddress;
@@ -1228,6 +1239,7 @@ void HyacinthEngine::draw() {
 
             dstVOffset += ao.gameObject->mesh->numVertices;
         }
+        VK_LABEL_END(cmd);
     }
 
     {

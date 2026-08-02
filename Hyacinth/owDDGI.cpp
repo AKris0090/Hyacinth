@@ -329,6 +329,7 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAdd
 		subResourceRange.layerCount = volume.data.densityHeight;
 
 		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
+			VK_LABEL(cmd, "DDGI Bake");
 			vkimageutils::transitionTexImage(cmd, volume.rayDataImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 			vkCmdClearColorImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue.color, 1, &subResourceRange);
 			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.pipeline);
@@ -396,7 +397,8 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAdd
 			
 			vkimageutils::transitionTexImage(cmd, volume.visibilityImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 			vkimageutils::transitionTexImage(cmd, volume.irradianceImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-			});
+			VK_LABEL_END(cmd);
+		});
 
 		vkimageutils::destroyImage(volume.rayDataImage);
 		i++;
