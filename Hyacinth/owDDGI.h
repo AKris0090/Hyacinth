@@ -9,7 +9,7 @@
 #include "glm/gtx/string_cast.hpp"
 #include <array>
 
-#define PROBE_VOLUME_MAP_SPONZA true
+// #define PROBE_VOLUME_MAP_SPONZA true
 
 constexpr int PROBE_A_DENSITY_WIDTH		= 20;  // x 20
 constexpr int PROBE_A_DENSITY_HEIGHT	= 10;  // y 14

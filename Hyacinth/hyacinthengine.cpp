@@ -247,6 +247,7 @@ void HyacinthEngine::createColorImages() {
     };
     int numImages = static_cast<int>(m_swapChainImages.size());
     m_gBuffers.resize(numImages);
+
     for (auto& gb : m_gBuffers) {
         gb.depth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "depth_image");
         gb.albedo = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "albedo_image");
@@ -258,7 +259,7 @@ void HyacinthEngine::createColorImages() {
 	    vkimageutils::createImageSampler(gb.albedo);
 	    vkimageutils::createImageSampler(gb.normal);
         vkimageutils::createImageSampler(gb.AMR);
-        vkimageutils::createImageSampler(gb.depth);
+        vkimageutils::createImageSampler(gb.depth, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE);
         vkimageutils::createImageSampler(gb.ddgiImage);
         vkimageutils::createImageSampler(gb.compositeImage);
     }
@@ -667,8 +668,8 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadAssets() {
-    // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
-    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
