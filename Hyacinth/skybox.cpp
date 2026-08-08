@@ -32,7 +32,7 @@ void SkyboxHelper::setup(SWChainImageFormat swapchainImageFormat, VkDescriptorSe
     {
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f },
     };
-    m_descriptorAllocator.initPool(1.f, sizes);
+    m_descriptorAllocator.initPool(1, sizes);
     {
         DescriptorLayoutBuilder layoutBuilder;
         layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -50,7 +50,7 @@ void SkyboxHelper::setup(SWChainImageFormat swapchainImageFormat, VkDescriptorSe
     m_skyboxPipelineUtil.setPositionAttribute();
     m_skyboxPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
     m_skyboxPipelineUtil.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    m_skyboxPipelineUtil.setColorAttachmentFormat(swapchainImageFormat.format, 1);
+    m_skyboxPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R16G16B16A16_SFLOAT, 1);
     m_skyboxPipelineUtil.setMultisampling(VK_SAMPLE_COUNT_1_BIT);
     m_skyboxPipelineUtil.disableBlending();
 
@@ -84,7 +84,7 @@ void SkyboxHelper::setup(SWChainImageFormat swapchainImageFormat, VkDescriptorSe
     std::array<VkDescriptorSetLayout, 2> sets = { uniformLayout, m_skyboxSetLayout };
 
     VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    pipelineLayoutCInfo.setLayoutCount = sets.size();
+    pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
     pipelineLayoutCInfo.pSetLayouts = sets.data();
     pipelineLayoutCInfo.pushConstantRangeCount = 1;
     pipelineLayoutCInfo.pPushConstantRanges = &pcRange;

@@ -3,15 +3,15 @@
 #include "animatedgameobject.h"
 
 struct PistolAnimationController : public AnimControllerBase {
-	HSkinnedMeshNode* baseNode = nullptr;
+	LightNode* baseNode = nullptr;
 	float currentTime = 0.f;
 	bool done = false;
 	bool shoot = false;
 	bool reload = false;
-	HAnimation* currentAnim = nullptr;
+	LightAnimation* currentAnim = nullptr;
 
 	PistolAnimationController() {};
-	PistolAnimationController(HSkinnedMesh* meshRef);
+	PistolAnimationController(LightMesh* meshRef);
 	void updateAnimParams(bool queueShoot, bool queueReload);
 };
 
@@ -24,6 +24,6 @@ class HPistol : public HAnimatedGameObject {
 public:
 	PistolAnimationController controller;
 
-	HPistol(HSkinnedMesh* meshRef);
-	void updateAnimation(float deltaTime) override;
+	HPistol(LightMesh* meshRef);
+	void updateAnimation(float deltaTime, bool updateMatrices) override;
 };

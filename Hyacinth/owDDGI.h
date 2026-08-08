@@ -9,9 +9,19 @@
 #include "glm/gtx/string_cast.hpp"
 #include <array>
 
+// #define PROBE_VOLUME_MAP_SPONZA true
+
+#ifdef PROBE_VOLUME_MAP_SPONZA
 constexpr int PROBE_A_DENSITY_WIDTH		= 20;  // x 20
 constexpr int PROBE_A_DENSITY_HEIGHT	= 10;  // y 14
 constexpr int PROBE_A_DENSITY_DEPTH		= 20;  // z 20
+#endif
+
+#ifndef PROBE_VOLUME_MAP_SPONZA
+constexpr int PROBE_A_DENSITY_WIDTH = 25;  // x 20
+constexpr int PROBE_A_DENSITY_HEIGHT = 10;  // y 14
+constexpr int PROBE_A_DENSITY_DEPTH = 22;  // z 20
+#endif
 
 constexpr int PROBE_B_DENSITY_WIDTH = 15;  // x 30
 constexpr int PROBE_B_DENSITY_HEIGHT = 7;  // y 14
@@ -59,6 +69,7 @@ struct ddgiPushConstant {
 	VkDeviceAddress indexAddress;
 	VkDeviceAddress renderCallAddress;
 	VkDeviceAddress volumeDataAddress;
+	VkDeviceAddress materialBufferAddress;
 	uint32_t volumeIndex;
 };
 
@@ -92,8 +103,8 @@ private:
 
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
 
-	void createRaytraceDescriptors();
-	void createRaytracePipeline();
+	void createRaytraceDescriptors(VulkanImage& skyboxImage);
+	void createRaytracePipeline(VkDescriptorSetLayout& textureSetLayout);
 	void createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
 
 	void addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, uint32_t densityDepth, uint32_t densityHeight, float viewBias, float normalBias);
@@ -113,7 +124,7 @@ public:
 
 	bool showVolumes = false;
 
-	void setup(rtHelper* rtHelper);
-	void bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAddress, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress);
+	void setup(rtHelper* rtHelper, VulkanImage& skyboxImage, VkDescriptorSetLayout& textureSetLayout);
+	void bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAddress, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress, VkDeviceAddress materialAddress);
 	void shutdown();
 };

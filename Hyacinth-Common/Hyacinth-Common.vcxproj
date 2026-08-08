@@ -116,9 +116,10 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.4.341.0\Include;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\VulkanSDK\1.4.341.0\Include;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -139,7 +140,9 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.4.341.0\Include;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ajnkr\Documents\DEV\tinygltf-2.9.7;C:\VulkanSDK\1.4.341.0\Include;C:\Users\ajnkr\Documents\Hyacinth\Hyacinth-Common\Build\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -151,8 +154,15 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Build\Include\animatedgameobject.h" />
     <ClInclude Include="Build\Include\entity.h" />
+    <ClInclude Include="Build\Include\flashbang.h" />
+    <ClInclude Include="Build\Include\fp_arms.h" />
     <ClInclude Include="Build\Include\hyacinth_network.h" />
+    <ClInclude Include="Build\Include\light_loader.h" />
+    <ClInclude Include="Build\Include\pistol.h" />
+    <ClInclude Include="Build\Include\staticgameobject.h" />
+    <ClInclude Include="Build\Include\tp_character.h" />
     <ClInclude Include="Build\Include\transform.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ExcludedFromBuild>
@@ -163,13 +173,20 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="animatedgameobject.cpp" />
+    <ClCompile Include="flashbang.cpp" />
+    <ClCompile Include="fp_arms.cpp" />
     <ClCompile Include="hyacinth_network.cpp" />
+    <ClCompile Include="light_loader.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="pistol.cpp" />
+    <ClCompile Include="staticgameobject.cpp" />
+    <ClCompile Include="tp_character.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

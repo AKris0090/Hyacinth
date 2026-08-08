@@ -44,10 +44,10 @@ void main() {
 	vec3 worldPos = worldPosFromDepth(screenUV, ssDepth);
 	mat4 invTransform = inverse(pc.volumeTransforms.transforms[pc.volumeIndex]);
 	vec3 volumePos = (invTransform * vec4(worldPos, 1.0)).xyz;
-	if (volumePos.x > 1.0 || volumePos.y > 1.0 || volumePos.z > 1.0) {
+	if (volumePos.x > 0.5 || volumePos.y > 0.5 || volumePos.z > 0.5) {
 		discard;
 	}
-	if (volumePos.x < 0.0 || volumePos.y < 0.0 || volumePos.z < 0.0) {
+	if (volumePos.x < -0.5 || volumePos.y < -0.5 || volumePos.z < -0.5){
 		discard;
 	}
 }

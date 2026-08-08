@@ -7,10 +7,10 @@ constexpr float VERTICAL_GUN_SWAY = 0.25f;
 
 class FirstPersonAnimationController : public AnimControllerBase {
 public:
-	HSkinnedMeshNode* gunBone = nullptr;
-	HSkinnedMeshNode* leftWrist = nullptr;
-	HSkinnedMeshNode* rightWrist = nullptr;
-	HAnimation* currentAnim = nullptr;
+	LightNode* gunBone = nullptr;
+	LightNode* leftWrist = nullptr;
+	LightNode* rightWrist = nullptr;
+	LightAnimation* currentAnim = nullptr;
 
 	WEAPON_STATE currentState = NULL_STATE;
 	WEAPON_STATE previousState = NULL_STATE;
@@ -25,7 +25,7 @@ public:
 	float currentTime = 0.f;
 
 	FirstPersonAnimationController() {};
-	FirstPersonAnimationController(HSkinnedMesh* meshRef);
+	FirstPersonAnimationController(LightMesh* meshRef);
 	void updateAnimParams(WEAPON_STATE newState, float deltaPitch, float deltaYaw);
 };
 
@@ -41,6 +41,6 @@ class HFPArms : public HAnimatedGameObject {
 public:
 	FirstPersonAnimationController controller;
 
-	HFPArms(HSkinnedMesh* meshRef);
-	void updateAnimation(float deltaTime) override;
+	HFPArms(LightMesh* meshRef);
+	void updateAnimation(float deltaTime, bool updateMatrices) override;
 };

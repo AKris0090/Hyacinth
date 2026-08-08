@@ -12,9 +12,10 @@
 #include "vkpipelineutils.h"
 #include "vkdescriptorutils.h"
 #include "vkmeshutils.h"
-#include "gltfutils.h"
 #include "raytracing.h"
 #include "owDDGI.h"
+
+#include "hcinth_assetdrawer.h"
 
 #include "frustumcull.h"
 
@@ -28,6 +29,7 @@
 #include "imguihelper.h"
 
 #include "skybox.h"
+#include "ambient.h"
 
 #include "net_ent.h"
 #include "netDebugRenderer.h"
@@ -106,6 +108,19 @@ struct GBuffer {
 	VkDescriptorSet					m_postProcessSet{ VK_NULL_HANDLE };
 };
 
+struct HRenderCall {
+	glm::mat4 transformMatrix;
+	alignas(16) glm::vec3 aaBBMin;
+	alignas(16) glm::vec3 aabbMax;
+
+	uint32_t	materialIndex;
+	uint32_t    indexCount;
+	uint32_t    firstIndex;
+	uint32_t    vertexOffset;
+
+	uint32_t meshID;
+};
+
 class HyacinthEngine {
 public:
 	bool mouseLocked = true;
@@ -122,18 +137,17 @@ public:
 	owDDGI							m_owDDGIHelper;
 
 	std::vector<HStaticGameObject*> m_staticObjects;
-	std::vector<HAnimatedGameObject*> m_animatedObjects;
+	std::vector<AnimatedObjectWrap> m_animatedObjects;
 
 #ifdef DEBUG_NETWORK
 	NetDebugRenderer m_netDebugRenderer;
 #endif
 
 	HyacinthEngine() {};
-	~HyacinthEngine() { cleanup(); };
 
 	void init();
 	void draw();
-	void cleanup();
+	void shutdown();
 
 	void addStaticGameObject(HStaticGameObject* gameObjectRef);
 	void addAnimatedGameObject(HAnimatedGameObject* gameObjectRef);
@@ -144,9 +158,9 @@ private:
 		VkCommandPool	commandPool;
 		VkCommandBuffer commandBuffer;
 		VulkanBuffer	uniformBuffer;
-		VulkanBuffer					m_indirectDrawBuffer{};
-		VulkanBuffer					m_renderListBuffer{};
-		VulkanBuffer					m_skinnedVertexBuffer{};
+		VulkanBuffer	m_indirectDrawBuffer{};
+		VulkanBuffer	m_renderListBuffer{};
+		VulkanBuffer	m_skinnedVertexBuffer{};
 		void*			mappedUniformBuffer;
 		VkDescriptorSet uniformDescriptorSet;
 		VkDescriptorSet shadowDescriptorSet;
@@ -186,6 +200,7 @@ private:
 	std::vector<GBuffer>			m_gBuffers				{};
 	std::vector<VulkanImage>		m_swapChainImages		{}; // a.k.a color resolve
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
+	VulkanPipelineBuilder 			m_depthPipelineUtil		{};
 	VulkanPipelineBuilder 			m_tracerPipelineUtil	{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
@@ -217,6 +232,7 @@ private:
 	FrustumCullHelper				m_frustumCullHelper;
 	HyacinthUIManager				m_uiHelper;
 	SkyboxHelper					m_skyboxHelper;
+	AmbientHelper					m_ambientHelper;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();
@@ -224,6 +240,7 @@ private:
 	void recreateSwapchain();
 	void createCommandBuffers();
 	void createSyncObjects();
+	void createDepthPipeline();
 	void createGraphicsPipeline();
 	void createCompositePipeline();
 	void createDDGIPipeline();

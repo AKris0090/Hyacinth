@@ -2,7 +2,6 @@
 
 #include "hyacinth_network.h"
 #include "vkpipelineutils.h"
-#include "gltfutils.h"
 #include <unordered_map>
 #include "fpcam.h"
 #include <mutex>
@@ -19,6 +18,11 @@ struct StateStorage {
 	uint32_t tickNum;
 	Transform state;
 	int8_t fb, lr;
+};
+
+struct AnimatedObjectWrap {
+	HAnimatedGameObject* gameObject;
+	VulkanBuffer jointMatrixBuffer;
 };
 
 class RewindBuffer {
@@ -65,19 +69,19 @@ public:
 	InterpolationPacketBuffer selfSimBuffer;
 	std::mutex selfMutex;
 	std::unordered_map<uint32_t, Entity*> entities;
-	std::unordered_map<uint32_t, HAnimatedGameObject*> gameObjects;
+	std::unordered_map<uint32_t, AnimatedObjectWrap> gameObjects;
 
 	SWChainImageFormat imageFormat;
 	VkDescriptorSetLayout* uniformSetLayout;
 	InterpolationPacketBuffer packetBuffer;
 	RewindBuffer rB;
 	int tickOffset;
-	HSkinnedMesh* characterMeshRef;
-	HSkinnedMesh* flashMeshRef;
+	LightMesh* characterMeshRef;
+	LightMesh* flashMeshRef;
 	glm::vec3 shotAckPosition;
 	
-	void setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh* characterMesh, HSkinnedMesh* flashMesh, uint32_t currentClientID);
+	void setupFromServerPacket(ServerSnapshot& p, LightMesh* characterMesh, LightMesh* flashMesh, uint32_t currentClientID, bool createEntities = true);
 	void updateEntitiesFromPacket(ServerSnapshot& p, uint32_t currentClientID, float deltaTime);
 	void shutdown();
-	void clearPendingPackets(Entity* self, HMesh* meshRef);
+	void clearPendingPackets(Entity* self, LightMesh* meshRef);
 };

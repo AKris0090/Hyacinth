@@ -148,29 +148,8 @@
     <Filter Include="Source Files\game\input">
       <UniqueIdentifier>{f25ec508-37e2-41f9-ad07-a3a2f13df47d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\renderer\core\mesh">
+    <Filter Include="Source Files\renderer\core\asset manager">
       <UniqueIdentifier>{01861ab1-4a1e-4d2a-b117-e8e8ddb30020}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\renderer\core\mesh\static">
-      <UniqueIdentifier>{90d7c6c6-cd20-4929-b3ca-2bb19a52abe8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\renderer\core\mesh\skinned">
-      <UniqueIdentifier>{7faf6b8b-4136-401a-aa71-36c4703e957b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\game\objects">
-      <UniqueIdentifier>{aa3b738b-8e9f-40d7-b76a-d75816c51b5e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\game\objects\third_player">
-      <UniqueIdentifier>{3fec5b7c-ed10-447b-aef0-8eb5cbf04933}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\game\objects\first_person">
-      <UniqueIdentifier>{22d78818-3203-4924-b17b-5f852bae97c2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\game\objects\guns">
-      <UniqueIdentifier>{536425c2-1098-43dc-bb6e-333f2dc7ab57}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\game\objects\throwable">
-      <UniqueIdentifier>{d468a352-76cb-4b7c-908c-c257db298a65}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -188,9 +167,6 @@
     </ClCompile>
     <ClCompile Include="vkmeshutils.cpp">
       <Filter>Source Files\renderer\utils\vkutils\mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="gltfutils.cpp">
-      <Filter>Source Files\renderer\utils\gltfutils</Filter>
     </ClCompile>
     <ClCompile Include="vkdescriptorutils.cpp">
       <Filter>Source Files\renderer\utils\vkutils\descriptor</Filter>
@@ -270,9 +246,6 @@
     <ClCompile Include="net_ent.cpp">
       <Filter>Source Files\network\network_entities</Filter>
     </ClCompile>
-    <ClCompile Include="animation.cpp">
-      <Filter>Source Files\renderer\core\animation</Filter>
-    </ClCompile>
     <ClCompile Include="hyacinth_ui.cpp">
       <Filter>Source Files\renderer\core\ui</Filter>
     </ClCompile>
@@ -285,41 +258,14 @@
     <ClCompile Include="skybox.cpp">
       <Filter>Source Files\renderer\core\skybox</Filter>
     </ClCompile>
-    <ClCompile Include="amnbient.cpp">
+    <ClCompile Include="ambient.cpp">
       <Filter>Source Files\renderer\core\ao</Filter>
     </ClCompile>
     <ClCompile Include="decals.cpp">
       <Filter>Source Files\renderer\core\decal</Filter>
     </ClCompile>
     <ClCompile Include="hcinth_assetdrawer.cpp">
-      <Filter>Source Files\renderer\core\mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="animatedgameobject.h">
-      <Filter>Source Files\game\objects</Filter>
-    </ClCompile>
-    <ClCompile Include="hcinth_animatedmesh.cpp">
-      <Filter>Source Files\renderer\core\mesh\skinned</Filter>
-    </ClCompile>
-    <ClCompile Include="fp_arms.cpp">
-      <Filter>Source Files\game\objects\first_person</Filter>
-    </ClCompile>
-    <ClCompile Include="animatedgameobject.cpp">
-      <Filter>Source Files\game\objects</Filter>
-    </ClCompile>
-    <ClCompile Include="staticgameobject.cpp">
-      <Filter>Source Files\game\objects</Filter>
-    </ClCompile>
-    <ClCompile Include="hcinth_mesh.cpp">
-      <Filter>Source Files\renderer\core\mesh\static</Filter>
-    </ClCompile>
-    <ClCompile Include="tp_character.cpp">
-      <Filter>Source Files\game\objects\third_player</Filter>
-    </ClCompile>
-    <ClCompile Include="pistol.cpp">
-      <Filter>Source Files\game\objects\guns</Filter>
-    </ClCompile>
-    <ClCompile Include="flashbang.cpp">
-      <Filter>Source Files\game\objects\throwable</Filter>
+      <Filter>Source Files\renderer\core\asset manager</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -334,9 +280,6 @@
     </ClInclude>
     <ClInclude Include="vkmeshutils.h">
       <Filter>Source Files\renderer\utils\vkutils\mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="gltfutils.h">
-      <Filter>Source Files\renderer\utils\gltfutils</Filter>
     </ClInclude>
     <ClInclude Include="fpcam.h">
       <Filter>Source Files\renderer\core\camera</Filter>
@@ -447,34 +390,10 @@
       <Filter>Source Files\renderer\core\decal</Filter>
     </ClInclude>
     <ClInclude Include="hcinth_assetdrawer.h">
-      <Filter>Source Files\renderer\core\mesh</Filter>
+      <Filter>Source Files\renderer\core\asset manager</Filter>
     </ClInclude>
     <ClInclude Include="tracer_manager.h">
       <Filter>Source Files\game</Filter>
-    </ClInclude>
-    <ClInclude Include="hcinth_animatedmesh.h">
-      <Filter>Source Files\renderer\core\mesh\skinned</Filter>
-    </ClInclude>
-    <ClInclude Include="hcinth_mesh.h">
-      <Filter>Source Files\renderer\core\mesh\static</Filter>
-    </ClInclude>
-    <ClInclude Include="pistol.h">
-      <Filter>Source Files\game\objects\guns</Filter>
-    </ClInclude>
-    <ClInclude Include="fp_arms.h">
-      <Filter>Source Files\game\objects\first_person</Filter>
-    </ClInclude>
-    <ClInclude Include="tp_character.h">
-      <Filter>Source Files\game\objects\third_player</Filter>
-    </ClInclude>
-    <ClInclude Include="mesh_common.h">
-      <Filter>Source Files\renderer\core\mesh</Filter>
-    </ClInclude>
-    <ClInclude Include="staticgameobject.h">
-      <Filter>Source Files\game\objects</Filter>
-    </ClInclude>
-    <ClInclude Include="flashbang.h">
-      <Filter>Source Files\game\objects\throwable</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -498,7 +417,7 @@
     <None Include="shaders\miss.rmiss">
       <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
-    <None Include="shaders\probeMiss.rmiss">
+    <None Include="shaders\directShadowCheck.rmiss">
       <Filter>Source Files\shaders\rt shaders</Filter>
     </None>
     <None Include="shaders\probeCommon.glsl">
@@ -577,6 +496,12 @@
       <Filter>Source Files\shaders\skybox</Filter>
     </None>
     <None Include="shaders\skinning.comp">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\depthAlphaDiscard.frag">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\ambientOcclusion.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>

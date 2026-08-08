@@ -5,22 +5,22 @@
 
 class ThirdPersonAnimationController : public AnimControllerBase {
 public:
-	HSkinnedMeshNode* upperArmL = nullptr;    // left arm (pitch) controller
-	HSkinnedMeshNode* upperArmR = nullptr;    // right arm (pitch) controller
-	HSkinnedMeshNode* spine005 = nullptr;     // head neck (pitch) controller
-	HSkinnedMeshNode* spine007 = nullptr;     // lower body yaw controller
-	HSkinnedMeshNode* spine003 = nullptr;     // upper body yaw controller
-	HSkinnedMeshNode* spine = nullptr;		// full body yaw controller
+	LightNode* upperArmL = nullptr;    // left arm (pitch) controller
+	LightNode* upperArmR = nullptr;    // right arm (pitch) controller
+	LightNode* spine005 = nullptr;     // head neck (pitch) controller
+	LightNode* spine007 = nullptr;     // lower body yaw controller
+	LightNode* spine003 = nullptr;     // upper body yaw controller
+	LightNode* spine = nullptr;		// full body yaw controller
 
 	float currentLowerTime = 0.f;
 	float currentUpperTime = 0.f;
 	float previousTime = 0.f;
 
-	HAnimation* previousAnimation = nullptr;
+	LightAnimation* previousAnimation = nullptr;
 	std::unordered_map<uint32_t, Transform> previousAnimationTransforms;
 
-	HAnimation* currentLowerBodyAnim = nullptr;
-	HAnimation* currentUpperBodyAnim = nullptr;
+	LightAnimation* currentLowerBodyAnim = nullptr;
+	LightAnimation* currentUpperBodyAnim = nullptr;
 
 	glm::quat prevBasisRotation{ 1.f, 0.f, 0.f, 0.f };
 	glm::quat basisRotation{ 1.f, 0.f, 0.f, 0.f };
@@ -40,7 +40,7 @@ public:
 	bool isMoving = false;
 
 	ThirdPersonAnimationController() {};
-	ThirdPersonAnimationController(HSkinnedMesh* mesh);
+	ThirdPersonAnimationController(LightMesh* mesh);
 
 	void updateAnimParams(Entity* entity);
 };
@@ -53,7 +53,7 @@ private:
 	static void updatePreviousWholeBodyAnimation(ThirdPersonAnimationController& c);
 	static void lerpPreviousCurrentAnimations(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap);
 	static void updateFromPlayerState(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap);
-	static void transitionToNewAnimation(ThirdPersonAnimationController& c, HAnimation* current, HAnimation* next);
+	static void transitionToNewAnimation(ThirdPersonAnimationController& c, LightAnimation* current, LightAnimation* next);
 
 public:
 	static void updateAnimationState(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap, float deltaTime);
@@ -64,6 +64,6 @@ public:
 	ThirdPersonAnimationController controller;
 	ThirdPersonAnimationStateMachine stateMachine;
 
-	HTPCharacter(HSkinnedMesh* meshRef);
-	void updateAnimation(float deltaTime) override;
+	HTPCharacter(LightMesh* meshRef);
+	void updateAnimation(float deltaTime, bool updateMatrices) override;
 };

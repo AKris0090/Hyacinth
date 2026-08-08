@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include "transform.h"
 #include "entity.h"
+#include "tp_character.h"
 #include <chrono>
 #include <sstream>
 #include <thread>
@@ -132,7 +133,7 @@ struct ServersideClient {
 	bool getPacketFor(uint32_t tickNum);
 };
 
-constexpr float FLASH_AIR_TIME = 1.6;
+constexpr float FLASH_AIR_TIME = 1.6f;
 
 enum FLASH_STATE {
 	WINDUP,
@@ -215,6 +216,7 @@ struct EntityManager {
 	std::shared_mutex clientsMutex;
 	std::unordered_map<uint32_t, ServersideClient*> clients;
 	std::unordered_map<uint32_t, Ordnance*> worldObjects;
+	std::unordered_map<uint32_t, HTPCharacter*> characterGameObjects;
 };
 
 enum SERVER_EVENT {

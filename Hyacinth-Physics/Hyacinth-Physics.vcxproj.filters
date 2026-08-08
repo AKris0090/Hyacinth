@@ -24,7 +24,7 @@
     <ClInclude Include="Build\Include\hyacinth_physics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Build\Include\light_loader.h">
+    <ClInclude Include="Build\Include\ragdoll.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -35,7 +35,7 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="light_loader.cpp">
+    <ClCompile Include="ragdoll.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

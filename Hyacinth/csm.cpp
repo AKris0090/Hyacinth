@@ -555,7 +555,7 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer) {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipelineUtil.m_pipeline.pipeline);
 
-	vkimageutils::transitionImage(cmd, m_shadowImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+	vkimageutils::transitionImageColorAttachment(cmd, m_shadowImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VkRenderingInfo renderingInfo{};
 	renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -615,7 +615,7 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws,
 		VK_LABEL_END(cmd);
 	}
 
-	vkimageutils::transitionImage(cmd, m_shadowImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+	vkimageutils::transitionImageDepthRead(cmd, m_shadowImage);
 }
 
 void shadowHelper::shutdown() {

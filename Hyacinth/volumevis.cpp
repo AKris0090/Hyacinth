@@ -77,6 +77,5 @@ void volumeVisHelper::drawVolumes(VkCommandBuffer& cmd, VkDescriptorSet& descSet
 }
 
 void volumeVisHelper::destroy() {
-	vkDestroyPipeline(vkdeviceutils::device, pipelineUtil.m_pipeline.pipeline, nullptr);
-	vkDestroyPipelineLayout(vkdeviceutils::device, pipelineUtil.m_pipeline.layout, nullptr);
+	pipelineUtil.destroyPipeline();
 }

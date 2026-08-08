@@ -1,7 +1,8 @@
+#include "pch.h"
 #include "fp_arms.h"
 
 // *********************** CONTROLLER *********************** //
-FirstPersonAnimationController::FirstPersonAnimationController(HSkinnedMesh* meshRef) {
+FirstPersonAnimationController::FirstPersonAnimationController(LightMesh* meshRef) {
 	gunBone = meshRef->getNodeByName("gun");
     leftWrist = meshRef->getNodeByName("hand.L");
     rightWrist = meshRef->getNodeByName("hand.R");
@@ -109,12 +110,12 @@ void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimation
 
 // *********************** OBJECT *********************** // 
 
-HFPArms::HFPArms(HSkinnedMesh* meshIn) : HAnimatedGameObject(meshIn) {
+HFPArms::HFPArms(LightMesh* meshIn) : HAnimatedGameObject(meshIn) {
 	controller = FirstPersonAnimationController(meshIn);
 }
 
-void HFPArms::updateAnimation(float deltaTime) {
+void HFPArms::updateAnimation(float deltaTime, bool updateMatrices) {
 	FirstPersonAnimationStateMachine::updateAnimationState(controller, deltaTime);
 	FirstPersonAnimationStateMachine::updateAnimatedNodeTransforms(controller, nodeTransforms, deltaTime);
-	HAnimatedGameObject::updateAnimation(deltaTime); // updates joint matrix buffer
+	HAnimatedGameObject::updateAnimation(deltaTime, updateMatrices); // updates joint matrix buffer
 }

@@ -14,10 +14,18 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 			entities[e.id]->type = e.type;
 			entities[e.id]->id = e.id;
 			if (entities[e.id]->type == E_PLAYER) {
-				gameObjects[e.id] = new HTPCharacter(characterMeshRef);
+				HAnimatedGameObject* ao = new HTPCharacter(characterMeshRef);
+				AnimatedObjectWrap wrap;
+				wrap.gameObject = ao;
+				wrap.jointMatrixBuffer = vkdeviceutils::createBuffer(ao->mesh->jointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_joint_matrix_buffer_char");
+				gameObjects[e.id] = wrap;
 			}
 			else {
-				gameObjects[e.id] = new HFlashBang(flashMeshRef);
+				HAnimatedGameObject* ao = new HFlashBang(flashMeshRef);
+				AnimatedObjectWrap wrap;
+				wrap.gameObject = ao;
+				wrap.jointMatrixBuffer = vkdeviceutils::createBuffer(ao->mesh->jointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_joint_matrix_buffer_flash");
+				gameObjects[e.id] = wrap;
 			}
 		}
 		entities[e.id]->transform.position = e.transform.position;
@@ -37,43 +45,29 @@ void NetworkEntityManager::updateEntitiesFromPacket(ServerSnapshot& p, uint32_t 
 		}
 		ent->updated = false; // reset flag
 		if (ent->type == E_PLAYER) {
-			dynamic_cast<HTPCharacter*>(gameObjects[id])->controller.updateAnimParams(ent);
+			dynamic_cast<HTPCharacter*>(gameObjects[id].gameObject)->controller.updateAnimParams(ent);
 		}
-		gameObjects[id]->updateAnimation(deltaTime);
-		gameObjects[id]->transform = entities[id]->transform;
+		gameObjects[id].gameObject->updateAnimation(deltaTime);
+		memcpy(gameObjects[id].jointMatrixBuffer.pMappedData, gameObjects[id].gameObject->jointMatrixData, gameObjects[id].gameObject->mesh->jointMatrixSize);
+		gameObjects[id].gameObject->transform = entities[id]->transform;
 	}
 	while (deletionQueue.size() > 0) {
 		uint32_t id = deletionQueue.front();
 		entities.erase(id);
+		gameObjects[id].gameObject->destroy();
+		vkdeviceutils::destroyBuffer(gameObjects[id].jointMatrixBuffer);
 		gameObjects.erase(id);
 		deletionQueue.pop();
 	}
 }
 
-void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, HSkinnedMesh* characterMesh, HSkinnedMesh* flashMesh, uint32_t currentClientID) {
+void NetworkEntityManager::setupFromServerPacket(ServerSnapshot& p, LightMesh* characterMesh, LightMesh* flashMesh, uint32_t currentClientID, bool createEntities) {
 	characterMeshRef = characterMesh;
 	flashMeshRef = flashMesh;
-	if (p.entities.size() > 0) {
-		for (const auto& e : p.entities) {
-			if (e.id == currentClientID) continue;
-			Entity* newEnt = new Entity;
-			newEnt->id = e.id;
-			newEnt->type = e.type;
-			newEnt->transform.position = e.transform.position;
-			entities[e.id] = newEnt;
-			if (newEnt->type == E_PLAYER) {
-				newEnt->transform.pitch = e.transform.pitch;
-				newEnt->transform.yaw = e.transform.yaw;
-				gameObjects[e.id] = new HTPCharacter(characterMeshRef);
-			}
-			else if (newEnt->type == E_GRENADE) {
-				gameObjects[e.id] = new HFlashBang(flashMeshRef);
-			}
-		}
-	}
+	if (createEntities) updateEntitiesFromPacket(p, currentClientID, 0);
 }
 
-void NetworkEntityManager::clearPendingPackets(Entity* self, HMesh* meshRef) {
+void NetworkEntityManager::clearPendingPackets(Entity* self, LightMesh* meshRef) {
 	while (!rB.pendingPackets.empty()) {
 		uint32_t checkTick = rB.ringBuffer.front().tickNum;
 
@@ -134,14 +128,11 @@ void NetworkEntityManager::clearPendingPackets(Entity* self, HMesh* meshRef) {
 	}
 }
 
-void NetworkEntityManager::shutdown() { // TODO: figure this out, no idea why it reads as >0 size
+void NetworkEntityManager::shutdown() {
 	if (gameObjects.size() == 0) return;
-	std::vector<uint32_t> ids;
 	for (auto& [id, ao] : gameObjects) {
-		ids.push_back(id);
-	}
-	for (const auto& id : ids) {
-		if (gameObjects.find(id) != gameObjects.end()) gameObjects[id]->destroy();
+		gameObjects[id].gameObject->destroy();
+		vkdeviceutils::destroyBuffer(gameObjects[id].jointMatrixBuffer);
 	}
 }
 

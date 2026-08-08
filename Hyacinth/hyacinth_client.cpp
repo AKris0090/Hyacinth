@@ -62,7 +62,7 @@ void HyacinthNetworkClient::listenForServer(SOCKET twoWayUDPSocket) {
     closesocket(twoWayUDPSocket);
 }
 
-int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout, HSkinnedMesh* characterMeshRef, HSkinnedMesh* flashMeshRef) {
+int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swImageFormat, VkDescriptorSetLayout& uniformLayout, LightMesh* characterMeshRef, LightMesh* flashMeshRef) {
     netEntManager.self = new Entity();
 
     WSADATA wsaData;
@@ -129,7 +129,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
         return 1;
     }
 
-    serverAddressLen = result->ai_addrlen;
+    serverAddressLen = static_cast<int>(result->ai_addrlen);
     memcpy(&serverAddress, result->ai_addr, result->ai_addrlen);
     freeaddrinfo(result);
 
@@ -144,7 +144,7 @@ int HyacinthNetworkClient::setup(std::string serveraddr, SWChainImageFormat swIm
 
     std::cout << "[NETWORK] Requesting current server snapshot..." << std::endl;
     std::string snapRequest = std::string("getsnapshot") + std::to_string(clientID);
-    std::string snapshot = loopTillResponse(&twoWayUDPSocket, snapRequest.c_str(), snapRequest.length(), (sockaddr*)&serverAddress, serverAddressLen);
+    std::string snapshot = loopTillResponse(&twoWayUDPSocket, snapRequest.c_str(), static_cast<int>(snapRequest.length()), (sockaddr*)&serverAddress, serverAddressLen);
     std::cout << "[NETWORK] Response from server!" << std::endl;
 
     ServerSnapshot sp;
@@ -165,7 +165,9 @@ void HyacinthNetworkClient::updateServerTick(ClientUpdatePacket& p, bool mouseLo
     p.ack = serverAck;
     std::string s = p.toString();
     const char* msg = s.c_str();
-    sendto(twoWayUDPSocket, msg, strlen(msg), 0, (sockaddr*)&serverAddress, serverAddressLen);
+    sendto(twoWayUDPSocket, msg, static_cast<int>(strlen(msg)), 0, (sockaddr*)&serverAddress, serverAddressLen);
 }
 
-void HyacinthNetworkClient::shutdownNet() {}
+void HyacinthNetworkClient::shutdownNet() {
+    netEntManager.shutdown();
+}

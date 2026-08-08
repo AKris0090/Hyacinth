@@ -11,7 +11,7 @@
 #include "pistol.h"
 #include "flashbang.h"
 
-#define CONNECT_SERVER true
+// #define CONNECT_SERVER true
 
 #pragma comment(lib, "Hyacinth-Physics.lib")
 
@@ -115,8 +115,8 @@ void simulationTick() {
 		hyacinthEngine.p_netEntManager->selfMutex.unlock();
 
 		// only uncomment if need to view debug in PVD, otherwise interferes with shots
-		// physicsManager->pScene->simulate(SERVER_TIMESTEP);
-		// physicsManager->pScene->fetchResults(true);
+		// physicsManager.pScene->simulate(SERVER_TIMESTEP);
+		// physicsManager.pScene->fetchResults(true);
 
 		std::this_thread::sleep_until(nextTick);
 
@@ -136,7 +136,7 @@ void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 
 	armsObject = new HFPArms(engine.m_assetDrawer.getAnimatedMeshRef("fp_arms"));
 	engine.addAnimatedGameObject(armsObject);
-
+	
 	pistolObject = new HPistol(engine.m_assetDrawer.getAnimatedMeshRef("pistol"));
 	engine.addAnimatedGameObject(pistolObject);
 	pistolObject->setParentObject(armsObject, pistolObject->controller.baseNode, armsObject->controller.gunBone);
@@ -150,7 +150,7 @@ void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient)
 	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, engine.m_camera.m_transform.pitch - engine.m_camera.prevPitch, engine.m_camera.m_transform.yaw - engine.m_camera.prevYaw);
 	armsObject->transform.position = engine.m_camera.m_transform.position;
 	armsObject->transform.rotation = engine.m_camera.m_transform.rotation;
-
+	
 	flashObject->transform.position = engine.m_camera.m_transform.position;
 	flashObject->transform.rotation = engine.m_camera.m_transform.rotation;
 	pistolObject->transform.position = engine.m_camera.m_transform.position;
@@ -169,6 +169,11 @@ void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient)
 		flashObject->active = false;
 		pistolObject->active = false;
 	}
+
+	for (const auto& ao : engine.m_animatedObjects) {
+		ao.gameObject->updateAnimation(Time::getDeltaTime());
+		memcpy(ao.jointMatrixBuffer.pMappedData, ao.gameObject->jointMatrixData, ao.gameObject->mesh->jointMatrixSize);
+	}
 }
 
 int main() {
@@ -179,11 +184,11 @@ int main() {
 	hyacinthEngine.init();
 
 	physicsManager.initPhysics(false); // initialize PVD?
-	LightLoader loader;
-	auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
-	// auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
-	physicsManager.addStaticPhysicsObject(loader.loadFromFile(path.string(), true));
-	physicsManager.addCharacterController(0);
+	//   auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
+	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+	LightLoaderOptions op{};
+	physicsManager.addStaticPhysicsObject(LightLoader::loadFromFile(path.string(), op));
+	physicsManager.addCharacterController(0, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"));
 
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	netClient.netEntManager.inputAccumulator.id = 0;
@@ -223,12 +228,13 @@ int main() {
 #ifndef CONNECT_SERVER
 	netClient.netEntManager.self = new Entity();
 	thisEnt = netClient.netEntManager.self;
+	thisEnt->type = E_PLAYER;
 
 	ServerSnapshot s{};
 	s.entities.push_back(*thisEnt);
 	netClient.netEntManager.selfSimBuffer.newPacket(s);
 	netClient.netEntManager.selfSimBuffer.newPacket(s);
-	netClient.netEntManager.setupFromServerPacket(s, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"), hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("flashbang"), 0);
+	netClient.netEntManager.setupFromServerPacket(s, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"), hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("flashbang"), 0, false); // dont spawn more entities
 #endif
 	Time::setInitialTime();
 
@@ -331,6 +337,7 @@ int main() {
 	tickThread.join();
 
 	netClient.shutdownNet();
+	hyacinthEngine.shutdown();
 
 	return 0;
 } 

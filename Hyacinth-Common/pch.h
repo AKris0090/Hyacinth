@@ -9,5 +9,16 @@
 
 // add headers that you want to pre-compile here
 #include "framework.h"
+#include "glm/gtx/matrix_decompose.hpp"
+#include "glm/glm.hpp"
+#include "glm/gtc/type_ptr.hpp"
+#include <vector>
+#include <memory>
+#include <string>
+#include <iostream>
+#include <algorithm>
+#include <execution>
+#include <mutex>
+#include <unordered_set>
 
 #endif //PCH_H

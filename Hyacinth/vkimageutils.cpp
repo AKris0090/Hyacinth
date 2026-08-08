@@ -114,7 +114,157 @@ namespace vkimageutils {
 		return newImage;
 	}
 
-	void vkimageutils::transitionImage(VkCommandBuffer& cmd, VulkanImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask)
+	void vkimageutils::transitionImageColorAttachment(VkCommandBuffer& cmd, VulkanImage& image, VkImageLayout dstLayout, VkImageAspectFlags aspectMask, bool swapchainImage) {
+		auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+		imageBarrier.srcAccessMask = VK_ACCESS_2_NONE;
+		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+		imageBarrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		imageBarrier.newLayout = dstLayout;
+		imageBarrier.image = image.image;
+		imageBarrier.subresourceRange = {
+			.aspectMask = aspectMask,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		};
+
+		if (swapchainImage) {
+			imageBarrier.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		}
+
+		if ((dstLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) || (dstLayout == VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL)) {
+			imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+			imageBarrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		}
+
+		auto dependecyInfo = VkDependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
+
+		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+	}
+
+	void vkimageutils::transitionImageDepthRead(VkCommandBuffer& cmd, VulkanImage& image) {
+		auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+		imageBarrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+		imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		imageBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+		imageBarrier.image = image.image;
+		imageBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		};
+
+		auto dependecyInfo = VkDependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
+
+		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+	}
+
+	void vkimageutils::transitionImageShaderRead(VkCommandBuffer& cmd, VulkanImage& image, VkImageAspectFlags aspectMask) {
+		auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+		imageBarrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+		imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		imageBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageBarrier.image = image.image;
+		imageBarrier.subresourceRange = {
+			.aspectMask = aspectMask,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		};
+
+		if (aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT) {
+			imageBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+			imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+			imageBarrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		}
+
+		auto dependecyInfo = VkDependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
+
+		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+	}
+
+	void vkimageutils::transitionImagePresent(VkCommandBuffer& cmd, VulkanImage& image) {
+		auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+		imageBarrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+		imageBarrier.dstAccessMask = VK_ACCESS_2_NONE;
+		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		imageBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		imageBarrier.image = image.image;
+		imageBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		};
+
+		auto dependecyInfo = VkDependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
+
+		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+	}
+
+	void vkimageutils::transitionDepthBackToWrite(VkCommandBuffer& cmd, VulkanImage& image) {
+		auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+		imageBarrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+		imageBarrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+		imageBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		imageBarrier.image = image.image;
+		imageBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		};
+
+		auto dependecyInfo = VkDependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
+
+		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+	}
+
+	void vkimageutils::transitionTexImage(VkCommandBuffer& cmd, VulkanImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask)
 	{
 		VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
 		imageBarrier.pNext = nullptr;
@@ -155,7 +305,7 @@ namespace vkimageutils {
 		VulkanImage newImage = vkimageutils::createImageandView(size, 1, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, mipped, "texture_image");
 
 		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
-			vkimageutils::transitionImage(cmd, newImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+			vkimageutils::transitionTexImage(cmd, newImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 			VkBufferImageCopy copyRegion = {};
 			copyRegion.bufferOffset = 0;
@@ -190,7 +340,7 @@ namespace vkimageutils {
 		skyboxImage.arrayLayers = 6;
 
 		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
-			vkimageutils::transitionImage(cmd, skyboxImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+			vkimageutils::transitionTexImage(cmd, skyboxImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 			VkBufferImageCopy copyRegion = {};
 			copyRegion.bufferOffset = 0;
@@ -349,5 +499,43 @@ namespace vkimageutils {
 		if (image.imageSampler != VK_NULL_HANDLE) vkDestroySampler(vkdeviceutils::device, image.imageSampler, nullptr);
 		if (image.imageView != VK_NULL_HANDLE) vkDestroyImageView(vkdeviceutils::device, image.imageView, nullptr);
 		vmaDestroyImage(vkdeviceutils::allocator, image.image, image.imageAllocation);
+	}
+
+	// data is sets of RGBA floats
+	VulkanImage createImageFromFloatData(uint32_t width, uint32_t height, VkFormat format, void* data) {
+		VkExtent3D extent{
+			.width = width,
+			.height = height,
+			.depth = 1
+		};
+
+		size_t dataSize = (size_t) width * (size_t) height * 4 * sizeof(float);
+		VulkanBuffer uploadBuffer = vkdeviceutils::createBuffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT);
+		memcpy(uploadBuffer.info.pMappedData, data, dataSize);
+		VulkanImage newImage = vkimageutils::createImageandView(extent, 1, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, false, "noise_texture_image");
+
+		vkdeviceutils::executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
+			vkimageutils::transitionTexImage(cmd, newImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+			VkBufferImageCopy copyRegion = {};
+			copyRegion.bufferOffset = 0; 
+			copyRegion.bufferRowLength = 0;
+			copyRegion.bufferImageHeight = 0;
+
+			copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			copyRegion.imageSubresource.mipLevel = 0;
+			copyRegion.imageSubresource.baseArrayLayer = 0;
+			copyRegion.imageSubresource.layerCount = 1;
+			copyRegion.imageExtent = extent;
+
+			vkCmdCopyBufferToImage(cmd, uploadBuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+
+			vkimageutils::transitionTexImage(cmd, newImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		});
+
+		vkdeviceutils::destroyBuffer(uploadBuffer);
+		vmaSetAllocationName(vkdeviceutils::allocator, newImage.imageAllocation, "noise_texture_image");
+
+		return newImage;
 	}
 }

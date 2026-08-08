@@ -45,13 +45,14 @@ void main() {
 	}
 
 	vec3 fragPos = worldPosFromDepth(depth);
+	vec4 amr = texture(AMRMap, inUV);
 	vec4 Nshadow = texture(normalMap, inUV);
     vec3 N = Nshadow.xyz * 2.0 - 1.0; // only because swapchain image is unorm
 	vec4 albedo = texture(albedoMap, inUV);
 
 	vec3 V    = normalize(ubo.viewPos.xyz - fragPos);
 	vec3 L    = normalize(ubo.lightPos.xyz - fragPos);
-	vec3 radiance = lightColor;//  * vec3(17.0);
+	vec3 radiance = lightColor * vec3(8.0);
 
 	float NdotL = clamp(dot(N, L), 0.0, 1.0);
     float customLambert = (NdotL * 0.35) + 0.025;
@@ -62,12 +63,13 @@ void main() {
     specular = pow(specular, 8.0) * albedo.w;
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = albedo.rgb * irrad * ubo.ABOD.w;
+	vec3 ambient = (albedo.rgb) * irrad * amr.r;
 
-	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
+	vec3 color = ambient + ((diffuse + vec3(specular)) * Nshadow.w);
+
     outColor = vec4(color, 1.0);
 
     if (ubo.ABOD.x == 1.0) {
-        outColor = vec4(irrad, 1.0);
+        outColor = vec4(irrad * amr.r, 1.0);
     }
 }  

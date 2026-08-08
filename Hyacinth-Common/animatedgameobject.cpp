@@ -1,7 +1,8 @@
+#include "pch.h"
 #include "animatedgameobject.h"
 
-void AnimControllerBase::updateSamplers(HAnimation* animation, HAnimChannel* channel, Transform* t, float currentTime) {
-	HAnimSampler& sampler = animation->samplers[channel->samplerIndex];
+void AnimControllerBase::updateSamplers(LightAnimation* animation, LightAnimChannel* channel, Transform* t, float currentTime) {
+	LightAnimSampler& sampler = animation->samplers[channel->samplerIndex];
 	for (size_t i = 0; i < sampler.inputs.size() - 1; i++)
 	{
 		if ((currentTime >= sampler.inputs[i]) && (currentTime <= sampler.inputs[i + 1]))
@@ -35,7 +36,7 @@ void AnimControllerBase::updateSamplers(HAnimation* animation, HAnimChannel* cha
 	}
 }
 
-glm::mat4 HAnimatedGameObject::getStackedNodeMatrix(HSkinnedMeshNode* node) {
+glm::mat4 HAnimatedGameObject::getStackedNodeMatrix(LightNode* node) {
 	glm::mat4 nodeMatrix = nodeTransforms[node->nodeIndex].getMatrix();
 
 	if (parentObject && parentMeshNode) {
@@ -54,14 +55,14 @@ void HAnimatedGameObject::updateJoints() {
 		finalJointMatrices[i] = inverseTransform * (jointMatrix * mesh->skin.inverseBindMatrices[i]);
 	}
 
-	memcpy(jointMatrixBuffer.pMappedData, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
+	memcpy(jointMatrixData, finalJointMatrices.data(), finalJointMatrices.size() * sizeof(glm::mat4));
 }
 
-void HAnimatedGameObject::updateAnimation(float deltaTime) {
-	updateJoints();
+void HAnimatedGameObject::updateAnimation(float deltaTime, bool updateMatrices) {
+	if (updateMatrices) updateJoints();
 }
 
-void HAnimatedGameObject::hookUpTransformParents(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
+void HAnimatedGameObject::hookUpTransformParents(LightNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
 	if (n->parent) {
 		Transform* parentTransform = &nodeTransforms[n->parent->nodeIndex];
 		nodeTransforms[n->nodeIndex].parent = parentTransform;
@@ -72,7 +73,7 @@ void HAnimatedGameObject::hookUpTransformParents(HSkinnedMeshNode* n, std::unord
 	}
 }
 
-void HAnimatedGameObject::addNodeTransform(HSkinnedMeshNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
+void HAnimatedGameObject::addNodeTransform(LightNode* n, std::unordered_map<uint32_t, Transform>& nodeTransforms) {
 	nodeTransforms[n->nodeIndex] = n->transform; // need base pose
 
 	for (const auto& nc : n->children) {
@@ -80,7 +81,7 @@ void HAnimatedGameObject::addNodeTransform(HSkinnedMeshNode* n, std::unordered_m
 	}
 }
 
-HAnimatedGameObject::HAnimatedGameObject(HSkinnedMesh* meshRef) {
+HAnimatedGameObject::HAnimatedGameObject(LightMesh* meshRef) {
 	mesh = meshRef;
 
 	for (const auto& n : mesh->parentNodes) {
@@ -91,14 +92,14 @@ HAnimatedGameObject::HAnimatedGameObject(HSkinnedMesh* meshRef) {
 		hookUpTransformParents(n, nodeTransforms);
 	}
 
-	jointMatrixBuffer = vkdeviceutils::createBuffer(mesh->jointMatrixSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "obj_joint_matrix_buffer");
+	jointMatrixData = new glm::mat4[meshRef->jointMatrixSize / sizeof(glm::mat4)];
 }
 
 void HAnimatedGameObject::destroy() {
-	vkdeviceutils::destroyBuffer(jointMatrixBuffer);
+	delete jointMatrixData;
 }
 
-void HAnimatedGameObject::setParentObject(HAnimatedGameObject* aobject, HSkinnedMeshNode* childNode, HSkinnedMeshNode* parentNode) {
+void HAnimatedGameObject::setParentObject(HAnimatedGameObject* aobject, LightNode* childNode, LightNode* parentNode) {
 	parentObject = aobject;
 	parentMeshNode = parentNode;
 }

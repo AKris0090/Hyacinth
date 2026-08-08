@@ -3,7 +3,6 @@
 namespace rt {
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR		s_rtProperties = {};
     VkPhysicalDeviceAccelerationStructurePropertiesKHR	s_asProperties = {};
-    std::vector<AccelerationStructure> bottomLevelStructures;
 
     PFN_vkCreateAccelerationStructureKHR            CreateAS = nullptr;
     PFN_vkCmdBuildAccelerationStructuresKHR         BuildAS = nullptr;
@@ -57,6 +56,46 @@ void rt::initAccelerationStructureFunctions(VkDevice& device) {
     if (!rt::DestroyAS) throw std::runtime_error("Failed to load vkDestroyAccelerationStructureKHR");
 }
 
+static void addAccelStructure(std::vector<AccelerationStructure>& structures, LightNode* node, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress) {
+    if (node->primitives.size() > 0) {
+        std::vector<glm::vec3> nodeVertices;
+        std::vector<uint32_t> nodeIndices;
+
+        AccelerationStructure blAccel;
+
+        rt::nodeAccelBuildPacket packet;
+        packet.vertexAddress = vertexAddress;
+        packet.indexAddress = indexAddress;
+        for (const auto& p : node->primitives) {
+            packet.prims.push_back(rt::nodeAccelBuildPacket::primAccel{
+                .vertexOffset = p.firstVertex,
+                .firstIndex = p.firstIndex,
+                .numVertices = p.vertexCount,
+                .numIndices = p.indexCount,
+                });
+
+            blAccel.numGeometries++;
+        }
+
+        rtHelper::createBottomLevelAS(blAccel, packet);
+        blAccel.instanceMatrix = node->getMatrix();
+        structures.push_back(blAccel);
+    }
+    else {
+        std::cout << "[RAYTRACING] Skipping BLAS generation for node: " << node->nodeName << " at index: " << node->nodeIndex << std::endl;
+    }
+
+    for (auto& n : node->children) {
+        addAccelStructure(structures, n, vertexAddress, indexAddress);
+    }
+}
+
+void rtHelper::generateBLASForMesh(LightMesh* meshRef, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress) {
+    for (auto& n : meshRef->parentNodes) {
+        addAccelStructure(bottomLevelStructures, n, vertexAddress, indexAddress);
+    }
+}
+
 // static function to translate a gltfNode to a geometry structure
 void rtHelper::nodeToAccelStructureGeometry(rt::nodeAccelBuildPacket packet, std::vector<VkAccelerationStructureGeometryKHR>& geometry, std::vector<VkAccelerationStructureBuildRangeInfoKHR>& rangeInfo)
 {
@@ -96,7 +135,7 @@ void rtHelper::createAccelerationStructure(VkAccelerationStructureTypeKHR asType
         .type = asType,
         .flags = flags,
         .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
-        .geometryCount = static_cast<uint32_t>(asGeometry.size()), //  TODO: can have more than one geometry, use primitives for geometries
+        .geometryCount = static_cast<uint32_t>(asGeometry.size()),
         .pGeometries = asGeometry.data(),
     };
     std::vector<uint32_t> maxPrimCount;
@@ -154,7 +193,7 @@ void rtHelper::createTopLevelAS() {
     std::vector<VkAccelerationStructureInstanceKHR> tlasInstances;
 
     uint32_t meshIndex = 0;
-    for(const auto& accel : rt::bottomLevelStructures) {
+    for(const auto& accel : bottomLevelStructures) {
         VkAccelerationStructureInstanceKHR asInstance{};
         asInstance.transform = toTransformMatrixKHR(accel.instanceMatrix);
         asInstance.instanceCustomIndex = meshIndex;                       // gl_InstanceCustomIndexEXT
@@ -180,7 +219,7 @@ void rtHelper::createTopLevelAS() {
         asGeometry = { .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
                             .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
                             .geometry = {.instances = geometryInstances} };
-        asBuildRangeInfo = { .primitiveCount = static_cast<uint32_t>(rt::bottomLevelStructures.size()) };
+        asBuildRangeInfo = { .primitiveCount = static_cast<uint32_t>(bottomLevelStructures.size()) };
 
         std::vector<VkAccelerationStructureGeometryKHR> asg{};
         asg.push_back(asGeometry);
@@ -197,10 +236,10 @@ void rtHelper::setup() {
 }
 
 void rtHelper::shutdown() {
-    for (auto& blas : rt::bottomLevelStructures) {
-        rt::DestroyAS(vkdeviceutils::device, blas.accel, nullptr);
+    for (auto& blas : bottomLevelStructures) {
         vkdeviceutils::destroyBuffer(blas.buffer);
+        rt::DestroyAS(vkdeviceutils::device, blas.accel, nullptr);
     }
+    vkdeviceutils::destroyBuffer(m_tlAccelStrucutre.buffer);
     rt::DestroyAS(vkdeviceutils::device, m_tlAccelStrucutre.accel, nullptr);
-	vkdeviceutils::destroyBuffer(m_tlAccelStrucutre.buffer);
 }

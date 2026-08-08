@@ -1,5 +1,4 @@
 #include "pch.h"
-#include "framework.h"
 #include "hyacinth_network.h"
 
 std::string ClientRequestConnectionPacket::toString() {

@@ -1,7 +1,8 @@
+#include "pch.h"
 #include "tp_character.h"
 
 // *********************** CONTROLLER *********************** //
-ThirdPersonAnimationController::ThirdPersonAnimationController(HSkinnedMesh* mesh) {
+ThirdPersonAnimationController::ThirdPersonAnimationController(LightMesh* mesh) {
 	upperArmL = mesh->getNodeByName("upper_arm.L");    // left arm (pitch) controller
 	upperArmR = mesh->getNodeByName("upper_arm.R");    // right arm (pitch) controller
 	spine005 = mesh->getNodeByName("spine.005");     // head neck (pitch) controller
@@ -22,8 +23,8 @@ ThirdPersonAnimationController::ThirdPersonAnimationController(HSkinnedMesh* mes
 	isLowerFlag[spine->nodeIndex] = true;
 
 	for (const auto& jointNode : mesh->skin.joints) {
-		if (HSkinnedMesh::isParentOf(jointNode, spine003)) isUpperFlag[jointNode->nodeIndex] = true;
-		if (HSkinnedMesh::isParentOf(jointNode, spine007)) isLowerFlag[jointNode->nodeIndex] = true;
+		if (mesh->isParentOf(jointNode, spine003)) isUpperFlag[jointNode->nodeIndex] = true;
+		if (mesh->isParentOf(jointNode, spine007)) isLowerFlag[jointNode->nodeIndex] = true;
 	}
 };
 
@@ -81,7 +82,7 @@ void ThirdPersonAnimationStateMachine::flushQueuedNodeTransforms(ThirdPersonAnim
 }
 
 void ThirdPersonAnimationStateMachine::updateFromPlayerState(ThirdPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
-	glm::quat trueAngleQuat = glm::slerp(c.prevBasisRotation, c.basisRotation, c.alpha); // TODO: still a bug when running right when turning, check that
+	glm::quat trueAngleQuat = glm::slerp(c.prevBasisRotation, c.basisRotation, c.alpha);
 	float bodyAngle = yawFromQuaternion(trueAngleQuat);
 	transformMap[c.spine->nodeIndex].queuedYawShifts.push_back(bodyAngle);
 	
@@ -120,7 +121,7 @@ void ThirdPersonAnimationStateMachine::updatePreviousWholeBodyAnimation(ThirdPer
 	}
 }
 
-void ThirdPersonAnimationStateMachine::transitionToNewAnimation(ThirdPersonAnimationController& c, HAnimation* current, HAnimation* next) {
+void ThirdPersonAnimationStateMachine::transitionToNewAnimation(ThirdPersonAnimationController& c, LightAnimation* current, LightAnimation* next) {
 	c.previousAnimation = current;
 	c.previousTime = c.currentLowerTime;
 	c.transitioning = true;
@@ -135,7 +136,7 @@ void ThirdPersonAnimationStateMachine::lerpPreviousCurrentAnimations(ThirdPerson
 	for (auto& [id, nodeT] : c.previousAnimationTransforms)
 	{
 		Transform lerpedT = nodeT.lerpToNoSet(transformMap[id], alpha);
-		transformMap[id].copy(lerpedT); // TODO: try assignemnt and run tests to make sure nothing else breaks
+		transformMap[id].copy(lerpedT);
 	}
 }
 
@@ -215,7 +216,7 @@ void ThirdPersonAnimationStateMachine::updateAnimationState(ThirdPersonAnimation
 
 // *********************** OBJECT *********************** //
 
-HTPCharacter::HTPCharacter(HSkinnedMesh* meshIn) : HAnimatedGameObject(meshIn) {
+HTPCharacter::HTPCharacter(LightMesh* meshIn) : HAnimatedGameObject(meshIn) {
 	controller = ThirdPersonAnimationController(meshIn);
 
 	for (const auto& n : mesh->parentNodes) {
@@ -223,7 +224,7 @@ HTPCharacter::HTPCharacter(HSkinnedMesh* meshIn) : HAnimatedGameObject(meshIn) {
 	}
 }
 
-void HTPCharacter::updateAnimation(float deltaTime) {
+void HTPCharacter::updateAnimation(float deltaTime, bool updateMatrices) {
 	ThirdPersonAnimationStateMachine::updateAnimationState(controller, nodeTransforms, deltaTime); // includes updating node transforms
-	HAnimatedGameObject::updateAnimation(deltaTime); // updates joint matrix buffer
+	if (updateMatrices) HAnimatedGameObject::updateAnimation(deltaTime); // updates joint matrix buffer
 }

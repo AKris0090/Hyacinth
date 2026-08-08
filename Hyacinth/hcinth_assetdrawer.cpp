@@ -1,22 +1,22 @@
 #include "hcinth_assetdrawer.h"
 
-HMesh* HAssetDrawer::getStaticMeshRef(std::string meshName) {
-	auto found = meshes.find(meshName);
-	if (found == meshes.end()) {
+LightMesh* HAssetDrawer::getStaticMeshRef(std::string meshName) {
+	auto found = staticMeshes.find(meshName);
+	if (found == staticMeshes.end()) {
 		throw std::runtime_error("yo TWIN that mesh does NOT EXIST");
 	}
 	else {
-		return &found->second;
+		return found->second;
 	}
 }
 
-HSkinnedMesh* HAssetDrawer::getAnimatedMeshRef(std::string meshName) {
+LightMesh* HAssetDrawer::getAnimatedMeshRef(std::string meshName) {
 	auto found = skinnedMeshes.find(meshName);
 	if (found == skinnedMeshes.end()) {
 		throw std::runtime_error("yo TWIN that skinned mesh does NOT EXIST");
 	}
 	else {
-		return &found->second;
+		return found->second;
 	}
 }
 
@@ -32,7 +32,7 @@ void HAssetDrawer::uploadBuffersToGPU() {
 	vkdeviceutils::uploadToBuffer(g_indexBuffer, indexBufferSize, indices.data());
 
 	// material info buffer
-	size_t materialDataBufferSize = sizeof(MaterialInstance) * materials.size();
+	size_t materialDataBufferSize = sizeof(LightMaterialInstance) * materials.size();
 	materialInfoBuffer = vkdeviceutils::createBuffer(materialDataBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY, 0, "material_info_ssbo");
 	vkdeviceutils::uploadToBuffer(materialInfoBuffer, materialDataBufferSize, materials.data());
 }
@@ -83,9 +83,77 @@ void HAssetDrawer::addUITextures() {
 	}
 }
 
+void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool skinned, bool loadMaterials) {
+	LightLoaderOptions op{};
+	op.vertexOffset = static_cast<uint32_t>(vertices.size());
+	op.indexOffset = static_cast<uint32_t>(indices.size());
+	op.textureOffset = static_cast<uint32_t>(textures.size());
+	op.materialOffset = static_cast<uint32_t>(materials.size());
+	op.loadAnimations = skinned;
+	op.loadMaterials = true;
+
+	LightMesh* m = LightLoader::loadFromFile(fileName, op);
+	m->meshName = meshName;
+	skinned ? skinnedMeshes[meshName] = m : staticMeshes[meshName] = m;
+
+	// offload vertices/indices
+	AABB bounds{
+		.min = m->bounds.min,
+		.max = m->bounds.max
+	};
+
+	for (const auto& v : m->vertices) {
+		vertices.push_back(Vertex{
+			.pos = glm::vec4(v.pos, v.uv.x),
+			.normal = glm::vec4(v.normal, v.uv.y),
+			.tangent = v.tangent,
+			.jointIndices = v.jointIndices,
+			.jointWeights = v.jointWeights
+		});
+	}
+	m->vertices.clear();
+	m->vertices.shrink_to_fit();
+
+	for (const auto& i : m->indices) {
+		indices.push_back(i);
+	}
+	m->indices.clear();
+	m->indices.shrink_to_fit();
+
+	if (loadMaterials) {
+		// create textures and materials
+		for (const auto& t : m->textures) {
+			VkExtent3D imageExtents{};
+			imageExtents.width = t.width;
+			imageExtents.height = t.height;
+			imageExtents.depth = 1;
+			VkFormat format = (t.texType == L_TEXTURE_TYPE::L_UNORM) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
+
+			VulkanImage texImage = vkimageutils::createTextureImage((void*)t.textureData.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+			vkimageutils::createImageSampler(texImage);
+			textures.push_back(texImage);
+		}
+
+		for (auto m : m->materials) {
+			materials.push_back(m);
+		}
+	}
+}
+
 HAssetDrawer::HAssetDrawer() {
 	FullscreenQuad::addFullscreenQuad(vertices, indices);
 	UnitCube::addUnitCube(vertices, indices);
+
+	for (const auto& [o, n] : EXTRA_OBJECTS) {
+		loadMesh(o, n, false, false);
+	}
+
+	materials.push_back(LightMaterialInstance{
+		.baseColorIndex = DUMMY_COLOR_TEX_INDEX,
+		.normalIndex = DUMMY_NORMAL_TEX_INDEX,
+		.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX,
+		.alphaCutoff = 0.5f
+	});
 }
 
 void HAssetDrawer::shutdown() {

@@ -125,8 +125,10 @@ vec3 getSurfaceBias(vec3 normal, vec3 camDir) {
 
 struct RayPayload {
     vec3 radiance;
+    vec3 throughput;
+    vec3 newOrigin;
+    vec3 newDirection;
+    bool terminated;
+    uint bounce;
     float distance;
-    int depth;
 };
-
-const uint MAX_DEPTH = 4;

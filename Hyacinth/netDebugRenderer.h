@@ -1,7 +1,6 @@
 #pragma once
 
 #include "vkpipelineutils.h"
-#include "gltfutils.h"
 
 struct pCNetDebug {
 	glm::vec4 pos;

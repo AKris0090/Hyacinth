@@ -249,7 +249,7 @@ namespace vkdeviceutils {
 		std::vector<VkBufferCopy> copyRegions(count);
 
         VkDeviceSize stagingSize = 0;
-        for (int i = 0; i < count; i++) {
+        for (uint32_t i = 0; i < count; i++) {
             VkBufferCopy copyRegion{};
             copyRegion.srcOffset = stagingSize;
             copyRegion.dstOffset = 0;
@@ -260,12 +260,12 @@ namespace vkdeviceutils {
         }
 
 		VulkanBuffer stagingBuffer = createBuffer(stagingSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, VMA_ALLOCATION_CREATE_MAPPED_BIT, "staging_buffer");
-        for (int i = 0; i < count; i++) {
+        for (uint32_t i = 0; i < count; i++) {
 			memcpy((char*)stagingBuffer.info.pMappedData + copyRegions[i].srcOffset, ppData[i], pSizes[i]);
         }
 
         executeSingleTimeCommands([&](VkCommandBuffer& cmd) {
-            for (int i = 0; i < count; i++) {
+            for (uint32_t i = 0; i < count; i++) {
                 vkCmdCopyBuffer(cmd, stagingBuffer.buffer, pBuffers[i].buffer, 1, &copyRegions[i]);
             }
 		});

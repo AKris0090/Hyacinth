@@ -21,7 +21,7 @@ const std::vector<const char*> deviceExts = {
     VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME
 };
 
-constexpr int MAX_FRAMES_IN_FLIGHT = 3;
+constexpr static int MAX_FRAMES_IN_FLIGHT = 3;
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;

@@ -1,7 +1,4 @@
 #include "pch.h"
-#include "framework.h"
-
-#define GLM_ENABLE_EXPERIMENTAL
 
 #include "hyacinth_physics.h"
 
@@ -30,12 +27,12 @@ void PhysicsManager::initPhysics(bool debug) {
 
 	if (debug) {
 		pVirtDebug = PxCreatePvd(*pFoundation);
-		PxPvdTransport* transport = PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
-		bool connected = pVirtDebug->connect(*transport, PxPvdInstrumentationFlag::eALL);
+		physx::PxPvdTransport* transport = physx::PxDefaultPvdSocketTransportCreate(PVD_HOST, 5425, 10);
+		bool connected = pVirtDebug->connect(*transport, physx::PxPvdInstrumentationFlag::eALL);
 		std::cout << "[PHYSICS] Debug Connection Status: " << connected << std::endl;
 	}
 
-	pPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *pFoundation, PxTolerancesScale(), recordMemoryAllocations, pVirtDebug);
+	pPhysics = PxCreatePhysics(PX_PHYSICS_VERSION, *pFoundation, physx::PxTolerancesScale(), recordMemoryAllocations, pVirtDebug);
 	if (!pPhysics) {
 		PHYSX_ERROR("PxCreatePhysics failed!");
 	}
@@ -62,11 +59,13 @@ void PhysicsManager::initPhysics(bool debug) {
 	controllerDesc.position = physx::PxExtendedVec3(0.0, 0.2, 0.0);
 	controllerDesc.material = pMaterial;
 	controllerDesc.stepOffset = 0.f;
-	controllerDesc.contactOffset = 0.1;
+	controllerDesc.contactOffset = 0.1f;
 	controllerDesc.scaleCoeff = 1.f;
 
 	capGeom = physx::PxCapsuleGeometry(0.5f, 1.f);
 	sphereGeom = physx::PxSphereGeometry(0.15f);
+
+	jointGeom = physx::PxSphereGeometry(0.05f);
 
 	std::cout << "[PHYSICS] Physics created!" << std::endl << std::endl;
 }
@@ -89,7 +88,57 @@ void PhysicsManager::setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint
 	charLock.unlock();
 }
 
-void PhysicsManager::addCharacterController(uint32_t cId) {
+physx::PxTransform matToPxTransform(const glm::mat4& m)
+{
+	glm::vec3 pos = glm::vec3(m[3]);
+	glm::quat q = glm::quat_cast(m); // assumes orthonormal rotation part
+
+	physx::PxVec3 pxPos(pos.x, pos.y, pos.z);
+	physx::PxQuat pxQuat(q.x, q.y, q.z, q.w); // note: PxQuat is (x,y,z,w), matches glm order
+
+	return physx::PxTransform(pxPos, pxQuat);
+}
+
+void PhysicsManager::addRagdoll(uint32_t id, LightMesh* meshRef) {
+	// add all major joints
+	std::vector<std::string> jointNames = {
+		"spine.006",
+		"upper_arm.L",
+		"upper_arm.R",
+		"forearm.L",
+		"forearm.R",
+		"hand.L",
+		"hand.R",
+		"thigh.L",
+		"thigh.R",
+		"shin.L",
+		"shin.R",
+		"toe.L",
+		"toe.R"
+	};
+
+	Ragdoll rag;
+	for (const auto& jN : jointNames) {
+		RagdollJoint joint;
+
+		// get joint
+		LightNode* n = meshRef->getNodeByName(jN);
+		joint.nodeIndex = n->nodeIndex;
+
+		physx::PxShape* sphereShape = pPhysics->createShape(jointGeom, *pFrictionMaterial);
+		physx::PxRigidDynamic* dyn = pPhysics->createRigidDynamic(matToPxTransform(n->getMatrix()));
+		dyn->attachShape(*sphereShape);
+		sphereShape->release();
+		pScene->addActor(*dyn);
+		dyn->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, true);
+
+		joint.rdJoint = dyn;
+		rag.joints.push_back(joint);
+	}
+	ragdolls[id] = rag;
+}
+
+void PhysicsManager::addCharacterController(uint32_t cId, LightMesh* meshRef) {
 	if (auto search = clientControllers.find(cId); search != clientControllers.end()) {
 		std::cout << "[PHYSICS] That client already has a character controller?" << std::endl;
 	}
@@ -97,6 +146,8 @@ void PhysicsManager::addCharacterController(uint32_t cId) {
 	playerController->getActor()->userData = new controllerUserData{ cId };
 	clientControllers[cId] = playerController;
 	clientPhysicsObjects[cId] = PhysicsEnt{};
+	
+	// addRagdoll(cId, meshRef);
 }
 
 void PhysicsManager::removeCharacterController(uint32_t cId) {
@@ -116,28 +167,28 @@ void PhysicsManager::addDynamicNetworkSphere(uint32_t id, glm::vec3 spawnPos, gl
 	worldObjects[id] = dyn;
 }
 
-void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightNode* node) {
-	glm::mat4 trueModel = getWorldMatrix(node);
+void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightMesh* mesh, LightNode* node) {
+	glm::mat4 trueModel = node->getMatrix();
 	for (auto& prim : node->primitives) {
 		std::vector<physx::PxVec3> pxVertices;
 		std::vector<uint32_t> pxIndices;
 
-		for (int i = 0; i < prim->vertices.size(); i++) {
-			glm::vec3 vert = prim->vertices[i];
+		for (uint32_t i = 0; i < prim.vertexCount; i++) {
+			glm::vec3 vert = mesh->vertices[i + prim.firstVertex].pos;
 			glm::vec4 p = trueModel * glm::vec4(vert.x, vert.y, vert.z, 1.0f);
-			pxVertices.push_back(physx::PxVec3(p.x, p.y, p.z));
+			pxVertices.push_back(physx::PxVec3(p.x, p.y, p.z));   
 		}
 
-		for (int i = 0; i < prim->indices.size(); i++) {
-			pxIndices.push_back(prim->indices[i]);
+		for (uint32_t i = 0; i < prim.indexCount; i++) {
+			pxIndices.push_back(mesh->indices[i + prim.firstIndex]);
 		}
 
 		physx::PxTriangleMeshDesc meshDescription;
-		meshDescription.points.count = pxVertices.size();
+		meshDescription.points.count = static_cast<uint32_t>(pxVertices.size());
 		meshDescription.points.data = pxVertices.data();
 		meshDescription.points.stride = sizeof(physx::PxVec3);
 
-		meshDescription.triangles.count = pxIndices.size() / 3;
+		meshDescription.triangles.count = static_cast<uint32_t>(pxIndices.size() / 3);
 		meshDescription.triangles.data = pxIndices.data();
 		meshDescription.triangles.stride = 3 * sizeof(physx::PxU32);
 
@@ -171,21 +222,21 @@ void PhysicsManager::loadShape(std::vector<physx::PxShape*>& shapes, LightNode* 
 	}
 
 	for (auto& child : node->children) {
-		loadShape(shapes, child);
+		loadShape(shapes, mesh, child);
 	}
 }
 
-std::vector<physx::PxShape*> PhysicsManager::createPhysicsFromMesh(LightObject* object) {
+std::vector<physx::PxShape*> PhysicsManager::createPhysicsFromMesh(LightMesh* object) {
 	std::vector<physx::PxShape*> shapes;
 
 	for (auto& node : object->parentNodes) {
-		loadShape(shapes, node);
+		loadShape(shapes, object, node);
 	}
 
 	return shapes;
 }
 
-void PhysicsManager::addStaticPhysicsObject(LightObject* object) {
+void PhysicsManager::addStaticPhysicsObject(LightMesh* object) {
 	std::vector<physx::PxShape*> shapes = createPhysicsFromMesh(object);
 
 	physx::PxRigidStatic* body = pPhysics->createRigidStatic(physx::PxTransform(physx::PxVec3(0, 0, 0)));
@@ -274,6 +325,18 @@ void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
 	}
 	pScene->simulate(SERVER_TIMESTEP);
 	pScene->fetchResults(true);
+
+	// update character animations
+	// for (const auto& [id, object] : entityManager->characterGameObjects) {
+	// 	object->controller.updateAnimParams(&entityManager->clients[id]->entity);
+	// 	object->updateAnimation(SERVER_TIMESTEP, false);
+	// 
+	// 	for (auto& j : ragdolls[id].joints) {
+	// 		glm::mat4 worldMat = entityManager->clients[id]->entity.transform.getMatrix() * object->nodeTransforms[j.nodeIndex].getMatrix();
+	// 		physx::PxTransform transform = matToPxTransform(worldMat);
+	// 		j.rdJoint->setKinematicTarget(matToPxTransform(worldMat));
+	// 	}
+	// }
 
 	// flush physics events
 	Event e;
@@ -411,33 +474,33 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 	return h;
 }
 
-void DrawRaycastPVD(PxPvdSceneClient* pvdClient, const PxVec3& origin, const PxVec3& direction, float distance, bool hit = false, const PxVec3& hitPos = PxVec3(0.f)) {
+void DrawRaycastPVD(physx::PxPvdSceneClient* pvdClient, const physx::PxVec3& origin, const physx::PxVec3& direction, float distance, bool hit = false, const physx::PxVec3& hitPos = physx::PxVec3(0.f)) {
 	if (!pvdClient)
 		return;
 
-	PxVec3 normalizedDir = direction.getNormalized();
-	PxVec3 endpoint = origin + normalizedDir * distance;
+	physx::PxVec3 normalizedDir = direction.getNormalized();
+	physx::PxVec3 endpoint = origin + normalizedDir * distance;
 
 	if (hit) {
-		PxDebugLine rayToHit[] = {
-			PxDebugLine(origin, hitPos, PxDebugColor::eARGB_YELLOW)
+		physx::PxDebugLine rayToHit[] = {
+			physx::PxDebugLine(origin, hitPos, physx::PxDebugColor::eARGB_YELLOW)
 		};
 		pvdClient->drawLines(rayToHit, 1);
 
-		PxDebugPoint hitMarker[] = {
-			PxDebugPoint(hitPos, PxDebugColor::eARGB_RED)
+		physx::PxDebugPoint hitMarker[] = {
+			physx::PxDebugPoint(hitPos, physx::PxDebugColor::eARGB_RED)
 		};
 		pvdClient->drawPoints(hitMarker, 1);
 	}
 	else {
-		PxDebugLine fullRay[] = {
-			PxDebugLine(origin, endpoint, PxDebugColor::eARGB_GREEN)
+		physx::PxDebugLine fullRay[] = {
+			physx::PxDebugLine(origin, endpoint, physx::PxDebugColor::eARGB_GREEN)
 		};
 		pvdClient->drawLines(fullRay, 1);
 	}
 
-	PxDebugPoint originMarker[] = {
-		PxDebugPoint(origin, PxDebugColor::eARGB_WHITE)
+	physx::PxDebugPoint originMarker[] = {
+		physx::PxDebugPoint(origin, physx::PxDebugColor::eARGB_WHITE)
 	};
 	pvdClient->drawPoints(originMarker, 1);
 }

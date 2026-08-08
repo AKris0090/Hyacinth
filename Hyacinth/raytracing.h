@@ -33,7 +33,6 @@ namespace rt {
 
 	extern VkPhysicalDeviceRayTracingPipelinePropertiesKHR		s_rtProperties;
 	extern VkPhysicalDeviceAccelerationStructurePropertiesKHR	s_asProperties;
-	extern std::vector<AccelerationStructure> bottomLevelStructures;
 
 	void setRTProperties(VkPhysicalDeviceRayTracingPipelinePropertiesKHR newProps);
 	void setASProperties(VkPhysicalDeviceAccelerationStructurePropertiesKHR newProps);
@@ -43,6 +42,7 @@ namespace rt {
 class rtHelper {
 public:
 	AccelerationStructure m_tlAccelStrucutre;
+	std::vector<AccelerationStructure> bottomLevelStructures;
 
 	void setup();
 	void createTopLevelAS();
@@ -51,4 +51,6 @@ public:
 	static void createAccelerationStructure(VkAccelerationStructureTypeKHR asType, AccelerationStructure& accelStruct, std::vector<VkAccelerationStructureGeometryKHR>& asGeometry, std::vector<VkAccelerationStructureBuildRangeInfoKHR>& asBuildRangeInfo, VkBuildAccelerationStructureFlagsKHR flags);
 	static void nodeToAccelStructureGeometry(rt::nodeAccelBuildPacket packet, std::vector<VkAccelerationStructureGeometryKHR>& geometry, std::vector<VkAccelerationStructureBuildRangeInfoKHR>& rangeInfo);
 	static void createBottomLevelAS(AccelerationStructure& accelStructure, rt::nodeAccelBuildPacket packet);
+
+	void generateBLASForMesh(LightMesh* meshRef, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress);
 };
