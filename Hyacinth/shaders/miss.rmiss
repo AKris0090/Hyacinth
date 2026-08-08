@@ -12,6 +12,6 @@ void main()
     vec3 rayDir = normalize(gl_WorldRayDirectionEXT);
     vec4 worldColor = texture(samplerCubeMap, rayDir);
     payload.radiance += payload.throughput * worldColor.xyz;
-    payload.distance = 1000.0;
+    payload.distance = 99999.0;
     payload.terminated = true;
 }

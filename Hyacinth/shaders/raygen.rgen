@@ -17,6 +17,7 @@ layout( push_constant ) uniform constants
 	IndexBuffer indexBufferAddress;
 	RenderCallBuffer renderBufferAddress;
 	VolumeDataBuffer volumeDataAddress;
+	MaterialBuffer materialBufferAddress;
 	int volumeIndex;
 } pc;
 

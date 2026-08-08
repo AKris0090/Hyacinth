@@ -823,7 +823,7 @@ void HyacinthEngine::setupImGUI()
 
 void HyacinthEngine::bakeDDGI() {
     generateRenderList();
-    m_owDDGIHelper.bakeDDGI(m_textureSet, m_frameData[0].m_renderListBuffer.gpuAddress, m_assetDrawer.g_vertexBuffer.gpuAddress, m_assetDrawer.g_indexBuffer.gpuAddress);
+    m_owDDGIHelper.bakeDDGI(m_textureSet, m_frameData[0].m_renderListBuffer.gpuAddress, m_assetDrawer.g_vertexBuffer.gpuAddress, m_assetDrawer.g_indexBuffer.gpuAddress, m_assetDrawer.materialInfoBuffer.gpuAddress);
 }
 
 void HyacinthEngine::init()
@@ -857,7 +857,7 @@ void HyacinthEngine::init()
 
     m_skyboxHelper.setup(m_swImageFormat, m_descriptorSetLayout);
 
-    m_owDDGIHelper.setup(&m_rtHelper, m_skyboxHelper.m_skyboxImage);
+    m_owDDGIHelper.setup(&m_rtHelper, m_skyboxHelper.m_skyboxImage, m_textureSetLayout);
     m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 

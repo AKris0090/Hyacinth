@@ -61,6 +61,7 @@ struct ddgiPushConstant {
 	VkDeviceAddress indexAddress;
 	VkDeviceAddress renderCallAddress;
 	VkDeviceAddress volumeDataAddress;
+	VkDeviceAddress materialBufferAddress;
 	uint32_t volumeIndex;
 };
 
@@ -95,7 +96,7 @@ private:
 	VkDescriptorSetLayout			m_computeDescriptorLayout{};
 
 	void createRaytraceDescriptors(VulkanImage& skyboxImage);
-	void createRaytracePipeline();
+	void createRaytracePipeline(VkDescriptorSetLayout& textureSetLayout);
 	void createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo);
 
 	void addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, uint32_t densityDepth, uint32_t densityHeight, float viewBias, float normalBias);
@@ -115,7 +116,7 @@ public:
 
 	bool showVolumes = false;
 
-	void setup(rtHelper* rtHelper, VulkanImage& skyboxImage);
-	void bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAddress, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress);
+	void setup(rtHelper* rtHelper, VulkanImage& skyboxImage, VkDescriptorSetLayout& textureSetLayout);
+	void bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAddress, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress, VkDeviceAddress materialAddress);
 	void shutdown();
 };

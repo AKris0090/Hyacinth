@@ -108,7 +108,7 @@ void owDDGI::createShaderBindingTable(VkRayTracingPipelineCreateInfoKHR& rtPipel
 	m_callableRegion.size = 0;
 }
 
-void owDDGI::createRaytracePipeline()
+void owDDGI::createRaytracePipeline(VkDescriptorSetLayout& textureSetLayout)
 {
 	enum StageIndices
 	{
@@ -158,12 +158,12 @@ void owDDGI::createRaytracePipeline()
 		.size = sizeof(ddgiPushConstant)
 	};
 
-	std::array<VkDescriptorSetLayout, 1> setLayouts = { m_descriptorLayout };
+	std::array<VkDescriptorSetLayout, 2> setLayouts = { m_descriptorLayout, textureSetLayout };
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 	pipeline_layout_create_info.pushConstantRangeCount = 1;
 	pipeline_layout_create_info.pPushConstantRanges = &ddgiPCRange;
-	pipeline_layout_create_info.setLayoutCount = 1;
+	pipeline_layout_create_info.setLayoutCount = static_cast<uint32_t>(setLayouts.size());
 	pipeline_layout_create_info.pSetLayouts = setLayouts.data();
 	vkCreatePipelineLayout(vkdeviceutils::device, &pipeline_layout_create_info, nullptr, &m_rtPipeline.layout);
 
@@ -274,7 +274,7 @@ void owDDGI::addVolume(glm::vec3 pos, glm::vec3 scale, uint32_t densityWidth, ui
 	m_probeVolumes.push_back(volume);
 }
 
-void owDDGI::setup(rtHelper* rtHelper, VulkanImage& skyboxImage) {
+void owDDGI::setup(rtHelper* rtHelper, VulkanImage& skyboxImage, VkDescriptorSetLayout& textureSetLayout) {
 	m_rtHelper = rtHelper;
 
 #ifdef PROBE_VOLUME_MAP_SPONZA
@@ -300,7 +300,7 @@ void owDDGI::setup(rtHelper* rtHelper, VulkanImage& skyboxImage) {
 
 	// create other RT resources
 	createRaytraceDescriptors(skyboxImage);
-	createRaytracePipeline();
+	createRaytracePipeline(textureSetLayout);
 	
 	VkPushConstantRange computePCRange{
 		.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
@@ -312,7 +312,7 @@ void owDDGI::setup(rtHelper* rtHelper, VulkanImage& skyboxImage) {
 	m_visibilityComputePipeline = vkpipelineutils::createComputePipeline(&m_computeDescriptorLayout, 1, &computePCRange, 1, "shaders/visibilityComp.spv");
 }
 
-void owDDGI::bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAddress, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress) {
+void owDDGI::bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAddress, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress, VkDeviceAddress materialAddress) {
 	uint32_t i = 0;
 	for (auto& volume : m_probeVolumes) {
 		VkClearValue clearValue{};
@@ -334,9 +334,9 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAdd
 			vkCmdClearColorImage(cmd, volume.rayDataImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue.color, 1, &subResourceRange);
 			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.pipeline);
 			
-			std::array<VkDescriptorSet, 1> sets = { volume.rayDataDescriptorSet };
+			std::array<VkDescriptorSet, 2> sets = { volume.rayDataDescriptorSet, textureSet };
 			
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.layout, 0, 1, sets.data(), 0, nullptr);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline.layout, 0, static_cast<uint32_t>(sets.size()), sets.data(), 0, nullptr);
 			
 			ddgiPushConstant ddgiPC{
 				.probePositionBufferAddress = volume.probePositionBuffer.gpuAddress,
@@ -344,6 +344,7 @@ void owDDGI::bakeDDGI(VkDescriptorSet& textureSet, VkDeviceAddress renderCallAdd
 				.indexAddress = indexAddress,
 				.renderCallAddress = renderCallAddress,
 				.volumeDataAddress = volumeDataBuffer.gpuAddress,
+				.materialBufferAddress = materialAddress,
 				.volumeIndex = i
 			};
 			vkCmdPushConstants(cmd, m_rtPipeline.layout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0, sizeof(ddgiPushConstant), &ddgiPC);

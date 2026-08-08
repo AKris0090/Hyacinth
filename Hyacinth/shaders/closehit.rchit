@@ -7,6 +7,7 @@
 #include "bufferInfo.glsl"
 
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
+layout(set = 1, binding = 0) uniform sampler2D globalTextures2D[];
 
 layout(location = 0) rayPayloadInEXT RayPayload payload;
 layout(location = 2) rayPayloadEXT bool shadowed;
@@ -19,17 +20,12 @@ layout( push_constant ) uniform constants
 	IndexBuffer indexBufferAddress;
 	RenderCallBuffer renderBufferAddress;
 	VolumeDataBuffer volumeDataAddress;
+	MaterialBuffer materialBufferAddress;
 	int volumeIndex;
 } pc;
 
-const vec3 lightColor = vec3(1.0); // vec3(0.99, 0.98, 0.83);
+const vec3 lightColor = vec3(0.99, 0.98, 0.83);
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
-
-struct HitSurface {
-    Material mat;
-	vec4 pos; // pos.xyz, uv.x
-	vec4 normal; // normal.xyz, uv.y
-};
 
 void main()
 {
@@ -55,6 +51,14 @@ void main()
 
 	vec3 normal = normalize(a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz);
 
+	vec2 uv0 = vec2(v0.position.w, v0.normal.w);
+	vec2 uv1 = vec2(v1.position.w, v1.normal.w);
+	vec2 uv2 = vec2(v2.position.w, v2.normal.w);
+	vec2 uv = a * uv0 + b * uv1 + c * uv2;
+
+	Material mat = pc.materialBufferAddress.mats[r.materialIndex];
+	vec3 albedo = texture(globalTextures2D[mat.baseColorIndex], uv).xyz;
+
 	vec3 lightVector = normalize(lightPos); // directional light
 
 	float NdotL = max(dot(normal, lightVector), 0.0);
@@ -76,9 +80,9 @@ void main()
 
 	payload.radiance += payload.throughput * directDiffuse;
 	payload.bounce++;
-	payload.throughput *= 0.95; // in theory, should be albedo
+	payload.throughput *= albedo;
 
-	payload.newOrigin = origin;
+	payload.newOrigin = origin + (normal * 0.0001);
 
 	vec3 newDir = reflect(gl_WorldRayDirectionEXT, normal);
 	payload.newDirection = newDir;
