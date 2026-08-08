@@ -63,9 +63,9 @@ void main() {
     specular = pow(specular, 8.0) * albedo.w;
 
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = albedo.rgb * irrad * amr.r;
+	vec3 ambient = (albedo.rgb) * irrad * amr.r;
 
-	vec3 color = ambient + (diffuse + vec3(specular)) * Nshadow.w;
+	vec3 color = ambient + ((diffuse + vec3(specular)) * Nshadow.w);
 
     outColor = vec4(color, 1.0);
 

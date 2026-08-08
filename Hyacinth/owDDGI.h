@@ -11,9 +11,17 @@
 
 // #define PROBE_VOLUME_MAP_SPONZA true
 
+#ifdef PROBE_VOLUME_MAP_SPONZA
 constexpr int PROBE_A_DENSITY_WIDTH		= 20;  // x 20
 constexpr int PROBE_A_DENSITY_HEIGHT	= 10;  // y 14
 constexpr int PROBE_A_DENSITY_DEPTH		= 20;  // z 20
+#endif
+
+#ifndef PROBE_VOLUME_MAP_SPONZA
+constexpr int PROBE_A_DENSITY_WIDTH = 25;  // x 20
+constexpr int PROBE_A_DENSITY_HEIGHT = 10;  // y 14
+constexpr int PROBE_A_DENSITY_DEPTH = 22;  // z 20
+#endif
 
 constexpr int PROBE_B_DENSITY_WIDTH = 15;  // x 30
 constexpr int PROBE_B_DENSITY_HEIGHT = 7;  // y 14

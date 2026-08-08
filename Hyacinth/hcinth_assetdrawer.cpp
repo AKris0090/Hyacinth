@@ -83,7 +83,7 @@ void HAssetDrawer::addUITextures() {
 	}
 }
 
-void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool skinned) {
+void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool skinned, bool loadMaterials) {
 	LightLoaderOptions op{};
 	op.vertexOffset = static_cast<uint32_t>(vertices.size());
 	op.indexOffset = static_cast<uint32_t>(indices.size());
@@ -120,27 +120,33 @@ void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool ski
 	m->indices.clear();
 	m->indices.shrink_to_fit();
 
-	// create textures and materials
-	for (const auto& t : m->textures) {
-		VkExtent3D imageExtents{};
-		imageExtents.width = t.width;
-		imageExtents.height = t.height;
-		imageExtents.depth = 1;
-		VkFormat format = (t.texType == L_TEXTURE_TYPE::L_UNORM) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
+	if (loadMaterials) {
+		// create textures and materials
+		for (const auto& t : m->textures) {
+			VkExtent3D imageExtents{};
+			imageExtents.width = t.width;
+			imageExtents.height = t.height;
+			imageExtents.depth = 1;
+			VkFormat format = (t.texType == L_TEXTURE_TYPE::L_UNORM) ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
 
-		VulkanImage texImage = vkimageutils::createTextureImage((void*)t.textureData.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
-		vkimageutils::createImageSampler(texImage);
-		textures.push_back(texImage);
-	}
+			VulkanImage texImage = vkimageutils::createTextureImage((void*)t.textureData.data(), imageExtents, format, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+			vkimageutils::createImageSampler(texImage);
+			textures.push_back(texImage);
+		}
 
-	for (auto m : m->materials) {
-		materials.push_back(m);
+		for (auto m : m->materials) {
+			materials.push_back(m);
+		}
 	}
 }
 
 HAssetDrawer::HAssetDrawer() {
 	FullscreenQuad::addFullscreenQuad(vertices, indices);
 	UnitCube::addUnitCube(vertices, indices);
+
+	for (const auto& [o, n] : EXTRA_OBJECTS) {
+		loadMesh(o, n, false, false);
+	}
 
 	materials.push_back(LightMaterialInstance{
 		.baseColorIndex = DUMMY_COLOR_TEX_INDEX,

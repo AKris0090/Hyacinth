@@ -679,12 +679,12 @@ void HyacinthEngine::loadAssets() {
     m_assetDrawer.addDummyTextures();
     m_assetDrawer.addUITextures();
 
-    m_assetDrawer.loadMesh(path.string(), "world", false);
-    m_assetDrawer.loadMesh(tracerPath.string(), "tracer", false);
-    m_assetDrawer.loadMesh(flashPath.string(), "flashbang", true);
-    m_assetDrawer.loadMesh(thirdPersonCharacterPath.string(), "tp_character", true);
-    m_assetDrawer.loadMesh(firstPersonCharacterPath.string(), "fp_arms", true);
-    m_assetDrawer.loadMesh(pistolPath.string(), "pistol", true);
+    m_assetDrawer.loadMesh(path.string(), "world", false, true);
+    m_assetDrawer.loadMesh(tracerPath.string(), "tracer", false, true);
+    m_assetDrawer.loadMesh(flashPath.string(), "flashbang", true, true);
+    m_assetDrawer.loadMesh(thirdPersonCharacterPath.string(), "tp_character", true, true);
+    m_assetDrawer.loadMesh(firstPersonCharacterPath.string(), "fp_arms", true, true);
+    m_assetDrawer.loadMesh(pistolPath.string(), "pistol", true, true);
 }
 
 void HyacinthEngine::createBuffers() {
@@ -1524,7 +1524,7 @@ void HyacinthEngine::draw() {
             for (int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
                 if (i == 0) if (!m_owDDGIHelper.showProbesA) continue;
                 if (i == 1) if (!m_owDDGIHelper.showProbesB) continue;
-                m_owDDGIHelper.m_probeVis.drawProbes(cmd, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet, m_owDDGIHelper.m_probeVolumes[i].probePositionBuffer.gpuAddress, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].totalNumProbes, m_owDDGIHelper.m_probeVolumes[i].data.densityWidth, m_owDDGIHelper.m_probeVolumes[i].data.densityDepth);
+                m_owDDGIHelper.m_probeVis.drawProbes(cmd, m_owDDGIHelper.m_probeVolumes[i].irradianceVisSet, m_owDDGIHelper.m_probeVolumes[i].probePositionBuffer.gpuAddress, m_frameData[m_frameIndex].uniformDescriptorSet, m_owDDGIHelper.m_probeVolumes[i].totalNumProbes, m_owDDGIHelper.m_probeVolumes[i].data.densityWidth, m_owDDGIHelper.m_probeVolumes[i].data.densityHeight, m_owDDGIHelper.m_probeVolumes[i].data.densityDepth);
             }
         }
     

@@ -42,9 +42,9 @@ void main() {
 			vec3 rayDir = DDGISphericalFibonacci(rayIndex, int(volume.numRays));
 
 			float weight = max(0.0, dot(texelDirection, rayDir));
-			weight = pow(weight, 2.5f); // probe distance sharpness exponent?
+			weight = pow(weight, 75.0f); // probe distance sharpness exponent?
 
-			float probeMaxRayDistance = length(volume.spacing) * 1.5;
+			float probeMaxRayDistance = length(volume.spacing);
 			float distance = min(abs(texelFetch(rayData, samplePos, 0).w), probeMaxRayDistance);
 
             result += vec4(distance * weight, (distance * distance) * weight, 0.f, weight);

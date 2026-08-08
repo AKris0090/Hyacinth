@@ -30,14 +30,14 @@ layout(buffer_reference, std430) readonly buffer ProbePositionBuffer{
 layout( push_constant ) uniform constants
 {
 	ProbePositionBuffer probePosBuffer;
-	ivec2 volumeDims;
-} PushConstants;
+	ivec3 volumeDims;
+} pc;
 
 void main() 
 {
-	vec3 probePos = PushConstants.probePosBuffer.positions[gl_InstanceIndex].xyz;
+	vec3 probePos = pc.probePosBuffer.positions[gl_InstanceIndex].xyz;
 
-	vec3 scaledPos = inPosition.xyz * 0.05;
+	vec3 scaledPos = inPosition.xyz * 0.2;
 	vec3 worldPos  = scaledPos + probePos;
 
 	probeDir = vec4(normalize(worldPos - probePos), 0.0f);

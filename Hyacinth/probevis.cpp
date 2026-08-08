@@ -56,7 +56,7 @@ void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& 
 	pipelineUtil.buildPipeline();
 }
 
-void probeVisObjects::drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& irradianceVisSet, VkDeviceAddress& probePositionAddress, VkDescriptorSet& descSet, int currentVolumeProbeCount, int width, int depth) {
+void probeVisObjects::drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& irradianceVisSet, VkDeviceAddress& probePositionAddress, VkDescriptorSet& descSet, int currentVolumeProbeCount, int width, int height, int depth) {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineUtil.m_pipeline.pipeline);
 
 	std::array<VkDescriptorSet, 2> sets = { descSet, irradianceVisSet };
@@ -65,6 +65,7 @@ void probeVisObjects::drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& irradian
 	probeVisObjects::probeVisPushContant pc{};
 	pc.probePositionAddress = probePositionAddress;
 	pc.volumeWidth = width;
+	pc.volumeHeight = height;
 	pc.volumeDepth = depth;  
 
 	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(probeVisObjects::probeVisPushContant), &pc);

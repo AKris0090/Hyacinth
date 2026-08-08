@@ -184,7 +184,7 @@ int main() {
 	hyacinthEngine.init();
 
 	physicsManager.initPhysics(false); // initialize PVD?
-	// auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
+	//   auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
 	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	LightLoaderOptions op{};
 	physicsManager.addStaticPhysicsObject(LightLoader::loadFromFile(path.string(), op));

@@ -75,14 +75,19 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         vec3  adjacentProbeWorldPos = getProbeWorldPos(adjacentProbeCoords, volume.spacing, volume.pos);
 
         vec3 worldToAdjProbe = normalize(adjacentProbeWorldPos - worldPosition);
-        vec3 biasedToAdjProbe = normalize(adjacentProbeWorldPos - biasedWorldPos);
-        float biasedPosToAdjProbeDist = length(adjacentProbeWorldPos - biasedWorldPos);
+        vec3 probeToBiasedDirection = biasedWorldPos - adjacentProbeWorldPos;
+        float distToBiasedPoint = length(probeToBiasedDirection);
+        probeToBiasedDirection *= 1.0 / distToBiasedPoint;
 
         vec3 trilinear = max(vec3(0.001f), mix(1.f - alpha, alpha, offset));
         float trilinearWeight = (trilinear.x * trilinear.y * trilinear.z);
         float weight = 1.0;
 
-        vec2 probeUV = oct_encode(biasedToAdjProbe) * 0.5 + 0.5;
+        // smooth backface
+        const float dotDirNorm = (dot(worldToAdjProbe, normal) + 1.0) * 0.5f;
+        weight *= (dotDirNorm * dotDirNorm) + 0.2;
+
+        vec2 probeUV = oct_encode(probeToBiasedDirection) * 0.5 + 0.5;
         int altProbeIndex = ProbeCoordsToIndex(adjacentProbeCoords, probeCounts);
 
         ivec3 visBase = getAtlasPosition(altProbeIndex, VISIBILITY_INNER + 2, volume.width, volume.depth);
@@ -94,17 +99,18 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         float meanDist = visibility.x;
 
         float chebyshevWeight = 1.f;
-        if (biasedPosToAdjProbeDist > meanDist)
+        if (distToBiasedPoint > meanDist)
         {
             float variance = abs((visibility.x * visibility.x) - visibility.y);
 
-            float v = biasedPosToAdjProbeDist - meanDist;
+            float v = distToBiasedPoint - meanDist;
             chebyshevWeight = variance / (variance + (v * v));
 
             chebyshevWeight = max((chebyshevWeight * chebyshevWeight * chebyshevWeight), 0.f);
         }
 
-        weight *= max(0.05f, chebyshevWeight);
+        chebyshevWeight = max(0.05f, chebyshevWeight);
+        weight *= chebyshevWeight;
 
         weight = max(0.000001f, weight);
 

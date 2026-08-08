@@ -27,6 +27,10 @@ const std::vector<std::pair<std::string, VkFormat>> WORLD_UI_TEXTURE_PATHS = {
 	{ "./ui/healthbar.png", VK_FORMAT_R8G8B8A8_SRGB }
 };
 
+const std::vector<std::pair<std::string, std::string>> EXTRA_OBJECTS = {
+	{ "./objects/sphere.glb", "unit_sphere" }
+};
+
 static std::string getFilePathExtension(const std::string& FileName) {
 	if (FileName.find_last_of(".") != std::string::npos)
 		return FileName.substr(FileName.find_last_of(".") + 1);
@@ -58,7 +62,7 @@ public:
 
 	std::vector<VulkanImage> textures;
 
-	void loadMesh(std::string fileName, std::string meshName, bool skinned);
+	void loadMesh(std::string fileName, std::string meshName, bool skinned, bool loadMaterials);
 
 	LightMesh* getStaticMeshRef(std::string meshName);
 	LightMesh* getAnimatedMeshRef(std::string meshName);

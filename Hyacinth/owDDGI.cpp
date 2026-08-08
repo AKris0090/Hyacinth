@@ -288,7 +288,7 @@ void owDDGI::setup(rtHelper* rtHelper, VulkanImage& skyboxImage, VkDescriptorSet
 #endif
 #ifndef PROBE_VOLUME_MAP_SPONZA
 	glm::vec3 posA = glm::vec3(-25.804f, -2.56f, -14.8);
-	glm::vec3 scaleA = glm::vec3(50.015, 13.6, 30.25);
+	glm::vec3 scaleA = glm::vec3(50.5, 13.6, 30.25);
 	addVolume(posA, scaleA, PROBE_A_DENSITY_WIDTH, PROBE_A_DENSITY_DEPTH, PROBE_A_DENSITY_HEIGHT, 0.85f, 0.4f);
 #endif
 
