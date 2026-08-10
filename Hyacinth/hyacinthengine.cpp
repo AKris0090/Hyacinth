@@ -836,7 +836,7 @@ void HyacinthEngine::init()
 
 	createSyncObjects(); // also creates device context
 
-    m_camera = Camera(m_swImageFormat.aspectRatio, 90.f, 0.01f, 50.f);
+    m_camera = Camera(m_swImageFormat.aspectRatio, BASE_FOV, 0.01f, 50.f);
 
     createColorImages();
 

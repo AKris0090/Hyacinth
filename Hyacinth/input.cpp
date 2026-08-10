@@ -8,6 +8,7 @@ namespace InputManager {
 	float xTickRel, yTickRel;
 	bool mouseLeft;
 	bool tabKey, space, b, r, one, two;
+	bool shiftKey, ctrlKey;
 	bool f1 = false;
 
 	void handleSDLInput(SDL_Event& e) {
@@ -33,6 +34,10 @@ namespace InputManager {
 			if (e.key.scancode == SDL_SCANCODE_1) { one = true; }
 
 			if (e.key.scancode == SDL_SCANCODE_2) { two = true; }
+
+			if (e.key.scancode == SDL_SCANCODE_LSHIFT) { shiftKey = true; }
+
+			if (e.key.scancode == SDL_SCANCODE_LCTRL) { ctrlKey = true; }
 		}
 
 		if (e.type == SDL_EVENT_KEY_UP) {
@@ -61,6 +66,10 @@ namespace InputManager {
 			if (e.key.scancode == SDL_SCANCODE_2) { two = false; }
 
 			if (e.key.scancode == SDL_SCANCODE_F1) { f1 = !f1; }
+
+			if (e.key.scancode == SDL_SCANCODE_LSHIFT) { shiftKey = false; }
+
+			if (e.key.scancode == SDL_SCANCODE_LCTRL) { ctrlKey = false; }
 		}
 
 		if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat)
@@ -131,6 +140,14 @@ namespace InputManager {
 	void resetMouseMotion() {
 		xrel = 0.0;
 		yrel = 0.0;
+	}
+
+	bool shiftKeyDown() {
+		return shiftKey;
+	}
+
+	bool ctrlKeyDown() {
+		return ctrlKey;
 	}
 
 	std::pair<float, float> getMouseMotion() {

@@ -4,7 +4,6 @@
 #include "transform.h"
 
 constexpr inline float CAM_LOOK_SPEED = 35.f;
-constexpr inline float MOVE_SPEED = 0.05f;
 constexpr inline int MAX_AMMO = 10;
 
 enum WEAPON_STATE {
@@ -190,15 +189,184 @@ enum PLAYER_STATUS : uint32_t {
 constexpr inline float FLASH_TIMER = 2.5f;
 constexpr inline float FLASH_FADEOUT = 0.5f;
 
+constexpr float JUMP_VELOCITY = 10.5f;
+constexpr inline float WALK_SPEED = 0.05f;
+constexpr inline float SPRINT_SPEED = 0.07f;
+constexpr inline float CROUCH_SPEED = 0.02f;
+
+constexpr float ACCELERATION = 0.002f;
+constexpr float DECELERATION = 0.0035f;
+
+constexpr float SLIDE_ACCELERATION = 0.0023f;
+constexpr float SLIDE_DECELERATION = 0.003f;
+
+enum PLAYER_MOVEMENT_STATE : uint32_t {
+	CROUCHED = 0,
+	WALKING = 1,
+	SPRINTING = 2,
+	SLIDING = 3,
+};
+
+struct PhysicsEnt {
+	glm::vec3 velocity = glm::vec3(0.f);
+	glm::mat3 globalSlideDir;
+	bool isGrounded = true;
+	bool slideSet = false;
+	
+	PLAYER_MOVEMENT_STATE moveState;
+
+	void updateJump(bool jump, float dT) {
+		if (isGrounded) {
+			if (jump) {
+				velocity.y = JUMP_VELOCITY;
+			}
+			else {
+				velocity.y = 0.f;
+			}
+		}
+		else {
+			velocity.y -= 9.81f * 3.65f * dT;
+		}
+	}
+
+	void updateMovement(int8_t FB, int8_t LR, bool sprint, bool crouch) {
+		float maxForwardVel = WALK_SPEED;
+		float maxRightVel = WALK_SPEED;
+
+		float currentAccel = ACCELERATION;
+		float currentDecel = DECELERATION;
+
+		switch (moveState) {
+		case CROUCHED:
+			if (!crouch) {
+				moveState = WALKING;
+				return;
+			}
+
+			maxForwardVel = CROUCH_SPEED;
+			maxRightVel = CROUCH_SPEED;
+			break;
+
+		case WALKING:
+			if ((FB > 0) && sprint) {
+				moveState = SPRINTING;
+				return;
+			}
+			if (crouch) {
+				moveState = CROUCHED;
+				return;
+			}
+			break;
+
+		case SPRINTING:
+			if (crouch) {
+				moveState = SLIDING;
+				velocity.x += currentAccel * 25.f;
+				return;
+			}
+			if (!sprint || FB <= 0) {
+				moveState = WALKING;
+				return;
+			}
+			maxForwardVel = SPRINT_SPEED;
+			break;
+
+		case SLIDING:
+			if (!crouch) {
+				moveState = WALKING;
+				slideSet = false;
+				return;
+			}
+			if (velocity.x <= CROUCH_SPEED) {
+				if (crouch) {
+					moveState = CROUCHED;
+				}
+				else {
+					moveState = WALKING;
+				}
+				slideSet = false;
+				return;
+			}
+			currentDecel = SLIDE_DECELERATION;
+			break;
+
+		default:
+			break;
+		}
+
+		if (moveState != SLIDING) {
+			currentAccel = currentDecel + ACCELERATION;
+		}
+		else {
+			currentAccel = SLIDE_ACCELERATION;
+		}
+		  
+		// forward/back movement
+		if (abs(FB) > 0) { // if movement key down, accelerate in direction
+			if (!moveState == SLIDING) {
+				if ((velocity.x < 0.f && FB > 0) || (velocity.x > 0.f && FB < 0)) velocity.x = 0.f; // reset velocity if moving in opposite direction. strafe movement
+			}
+			velocity.x += ((float) FB) * currentAccel;
+		}
+
+		// global deceleration
+		if (velocity.x < 0.f) {
+			if (velocity.x + currentDecel > 0.f) {
+				velocity.x = 0.f;
+			}
+			else {
+				velocity.x += currentDecel;
+			}
+		}
+		else if (velocity.x > 0.f) {
+			if (velocity.x - currentDecel < 0.f) {
+				velocity.x = 0.f;
+			}
+			else {
+				velocity.x -= currentDecel;
+			}
+		}
+
+		// left right movement
+		if (abs(LR) > 0) { // if movement key down, accelerate in direction
+			if ((velocity.z < 0.f && LR > 0) || (velocity.z > 0.f && LR < 0)) velocity.z = 0.f; // reset velocity if moving in opposite direction. strafe movement
+			velocity.z += ((float) LR) * currentAccel;
+		}
+
+		// global deceleration
+		if (velocity.z < 0.f) {
+			if (velocity.z + currentDecel > 0.f) {
+				velocity.z = 0.f;
+			}
+			else {
+				velocity.z += currentDecel;
+			}
+		}
+		else if (velocity.z > 0.f) {
+			if (velocity.z - currentDecel < 0.f) {
+				velocity.z = 0.f;
+			}
+			else {
+				velocity.z -= currentDecel;
+			}
+		}
+
+		if (velocity.z != 0.f) velocity.z = (velocity.z / abs(velocity.z)) * (glm::min) (abs(velocity.z), maxRightVel);
+		if (moveState != SLIDING) if (velocity.x != 0.f) velocity.x = (velocity.x / abs(velocity.x)) * (glm::min) (abs(velocity.x), maxForwardVel);
+	}
+};
+
 struct Entity {
 	uint32_t id;
 	ENTITY_TYPE type;
-	float moveSpeed = MOVE_SPEED;
+	float moveSpeed = WALK_SPEED;
 	float camSpeed = CAM_LOOK_SPEED;
 	Transform transform;
 	bool isMoving = false;
 	bool shotAck = false;
 	bool shot = false;
+	bool isSprinting = false;
+	bool isCrouching = false;
 	float health = 1.f;
 	float flashPercentage = 0.f;
 	float flashTimer = FLASH_TIMER + FLASH_FADEOUT;
@@ -272,15 +440,6 @@ struct Entity {
 	Entity() {
 		currentWeapon = PISTOL;
 		pistolController.equipPistol(currentState);
-	}
-};
-
-struct PhysicsEnt {
-	float yVel = 0.f;
-	bool isGrounded = true;
-
-	float yPosAddVelocity(float yPos, float dT) {
-		return (yPos + (yVel * dT));
 	}
 };
 

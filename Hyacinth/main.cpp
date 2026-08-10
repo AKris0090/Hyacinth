@@ -36,6 +36,8 @@ void simulationTick() {
 		p.movementFB = netClient.netEntManager.inputAccumulator.movementFB;
 		p.movementLR = netClient.netEntManager.inputAccumulator.movementLR;
 		p.jump = netClient.netEntManager.inputAccumulator.jump;
+		p.sprint = netClient.netEntManager.inputAccumulator.sprint;
+		p.crouch = netClient.netEntManager.inputAccumulator.crouch;
 		p.lmb = netClient.netEntManager.inputAccumulator.shooting;
 		p.r = netClient.netEntManager.inputAccumulator.reloading;
 		p.num1 = netClient.netEntManager.inputAccumulator.num1;
@@ -45,6 +47,8 @@ void simulationTick() {
 			p.movementLR = b.update(SERVER_TIMESTEP);
 			p.movementFB = 0;
 			p.jump = false;
+			p.sprint = false;
+			p.crouch = false;
 		}
 
 		// update physics
@@ -53,8 +57,9 @@ void simulationTick() {
 		hyacinthEngine.m_camera.prevPitch = hyacinthEngine.m_camera.m_transform.pitch;
 		hyacinthEngine.m_camera.prevYaw = hyacinthEngine.m_camera.m_transform.yaw;
 
-		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self->moveSpeed, netClient.netEntManager.self->transform, netClient.netEntManager.inputAccumulator);
-
+		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self, netClient.netEntManager.self->transform, netClient.netEntManager.inputAccumulator);
+		hyacinthEngine.m_camera.fovMod.updateSprintFOV(netClient.netEntManager.self->isSprinting);
+		hyacinthEngine.m_camera.crouchMod.updateCrouchHeight(netClient.netEntManager.self->isCrouching);
 		hyacinthEngine.p_netEntManager->inputAccumulatorMutex.unlock();
 
 		p.pitch = netClient.netEntManager.self->transform.pitch;
@@ -269,6 +274,8 @@ int main() {
 		p.movementLR = m[1];
 		p.movementUD = m[2];
 		p.jump = InputManager::getSpaceButton();
+		p.sprint = InputManager::shiftKeyDown();
+		p.crouch = InputManager::ctrlKeyDown();
 		p.pitch = mo.first;
 		p.yaw = mo.second;
 		p.lmb = InputManager::mouseDown();
@@ -296,16 +303,15 @@ int main() {
 				hyacinthEngine.p_netEntManager->selfMutex.unlock();
 
 				ServerSnapshot selfInterp = netClient.netEntManager.selfSimBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
-				hyacinthEngine.m_camera.m_transform.position = selfInterp.entities[0].transform.position;
-				hyacinthEngine.m_camera.m_transform.position.y += 1.85f;
+				hyacinthEngine.m_camera.m_transform.position = selfInterp.entities[0].transform.position + glm::vec3(0.f, hyacinthEngine.m_camera.crouchMod.crouchLerpMod, 0.f);
 
-				hyacinthEngine.m_camera.update(false); // not flycam
+				hyacinthEngine.m_camera.update(false, Time::getDeltaTime()); // not flycam
 				hyacinthEngine.camMutex.unlock();
 			}
 			else {
 				hyacinthEngine.camMutex.lock();
 				hyacinthEngine.m_camera.updateFlyCamera(p, Time::getDeltaTime(), netClient.netEntManager.self->camSpeed, netClient.netEntManager.self->moveSpeed);
-				hyacinthEngine.m_camera.update(true); // flycam
+				hyacinthEngine.m_camera.update(true, Time::getDeltaTime()); // flycam
 				hyacinthEngine.camMutex.unlock();
 			}
 		}

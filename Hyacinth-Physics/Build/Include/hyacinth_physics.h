@@ -30,7 +30,6 @@
 #include "hyacinth_network.h"
 #include "ragdoll.h"
 
-constexpr float JUMP_VELOCITY = 10.5f;
 constexpr float FLASH_VELOCTIY = 20.f;
 
 constexpr physx::PxU32 WORLD				= 1 << 0;
@@ -108,7 +107,7 @@ public:
 	void addStaticPhysicsObject(LightMesh* object);
 	void updatePhysicsServer(EntityManager* entityManager);
 	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime, CamRecoil* r = nullptr);
-	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
+	void updatePlayerMovement(uint32_t eId, Entity* ent, Transform& t, SimulateStruct& s);
 	void addNetworkEntityCapsuleCollider(uint32_t cId);
 	void setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId);
 

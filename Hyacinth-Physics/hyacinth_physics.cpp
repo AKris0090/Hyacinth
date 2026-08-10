@@ -273,45 +273,39 @@ void PhysicsManager::updateCamera(uint32_t eId, float camSpeed, SimulateStruct& 
 	t.setRotationPitchYaw();
 }
 
-void PhysicsManager::updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s) {
+void PhysicsManager::updatePlayerMovement(uint32_t eId, Entity* ent, Transform& t, SimulateStruct& s) {
 	if (clientControllers.find(eId) == clientControllers.end()) {
 		return;
 	}
 
-	glm::vec3 localDisplacement{ 0.0f, 0.0f, 0.0f };
 	glm::vec3 flatForward = glm::normalize(glm::vec3(t.forward.x, 0.0f, t.forward.z));
 	glm::vec3 flatRight = glm::normalize(glm::vec3(t.right.x, 0.0f, t.right.z));
-
-	if (s.movementFB > 0)       localDisplacement += flatForward;
-	if (s.movementFB < 0)       localDisplacement -= flatForward;
-	if (s.movementLR > 0)       localDisplacement += flatRight;
-	if (s.movementLR < 0)       localDisplacement -= flatRight;
-
-	glm::vec3 pos{ 0.f, 0.f, 0.f };
-	if (glm::length(localDisplacement) > 0) {
-		localDisplacement = glm::normalize(localDisplacement);
-		localDisplacement *= moveSpeed;
-	}
+	glm::vec3 up = glm::vec3(0.f, 1.f, 0.f);
+	glm::mat3 localRotMat(flatForward, up, flatRight);
 
 	PhysicsEnt& phys = clientPhysicsObjects[eId];
+	phys.updateJump(s.jump, SERVER_TIMESTEP);
+	phys.updateMovement(s.movementFB, s.movementLR, s.sprint, s.crouch);
+	ent->isCrouching = (phys.moveState == CROUCHED || phys.moveState == SLIDING);
+	ent->isSprinting = phys.moveState == SPRINTING;
+	float yDisplacement = (phys.velocity.y) * SERVER_TIMESTEP;
+	glm::vec3 worldVel;
+	if (phys.moveState == SLIDING) {
+		if (!phys.slideSet) {
+			phys.globalSlideDir = localRotMat;
+			phys.slideSet = true;
+		}
 
-	if (phys.isGrounded) {
-		if (s.jump) {
-			phys.yVel = JUMP_VELOCITY;
-		}
-		else {
-			phys.yVel = 0.f;
-		}
+		worldVel = phys.globalSlideDir * phys.velocity;
 	}
 	else {
-		phys.yVel -= 9.81f * 3.65f * SERVER_TIMESTEP;
+		worldVel = localRotMat * phys.velocity;
 	}
 
-	float yDisplacement = phys.yVel * SERVER_TIMESTEP;
-
 	charLock.lock();
-	const physx::PxControllerCollisionFlags flags = clientControllers[eId]->move(physx::PxVec3(localDisplacement.x, yDisplacement, localDisplacement.z), 0.001f, SERVER_TIMESTEP, nullptr);
+	const physx::PxControllerCollisionFlags flags = clientControllers[eId]->move(physx::PxVec3(worldVel.x, yDisplacement, worldVel.z), 0.001f, SERVER_TIMESTEP, nullptr);
 	charLock.unlock();
+	if (flags.isSet(physx::PxControllerCollisionFlag::eCOLLISION_UP)) phys.velocity.y = 0.f;
 	phys.isGrounded = flags.isSet(physx::PxControllerCollisionFlag::eCOLLISION_DOWN);
 	physx::PxExtendedVec3 p = clientControllers[eId]->getFootPosition();
 	t.position = glm::vec3(p.x, p.y, p.z);
@@ -321,7 +315,7 @@ void PhysicsManager::updatePhysicsServer(EntityManager* entityManager) {
 	for (const auto& [id, sSClient] : entityManager->clients) {
 		if (clientControllers[id] == NULL) continue;
 		updateCamera(id, sSClient->entity.camSpeed, sSClient->bufferedPacket, sSClient->entity.transform, true, -FLT_MAX);
-		updatePlayerMovement(id, sSClient->entity.moveSpeed, sSClient->entity.transform, sSClient->bufferedPacket);
+		updatePlayerMovement(id, &sSClient->entity, sSClient->entity.transform, sSClient->bufferedPacket);
 	}
 	pScene->simulate(SERVER_TIMESTEP);
 	pScene->fetchResults(true);
