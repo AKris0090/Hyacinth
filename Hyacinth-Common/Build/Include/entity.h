@@ -259,7 +259,7 @@ struct PhysicsEnt {
 			break;
 
 		case SPRINTING:
-			if (crouch) {
+			if (crouch && isGrounded) {
 				moveState = SLIDING;
 				velocity.x += currentAccel * 25.f;
 				return;
@@ -303,7 +303,7 @@ struct PhysicsEnt {
 		  
 		// forward/back movement
 		if (abs(FB) > 0) { // if movement key down, accelerate in direction
-			if (!moveState == SLIDING) {
+			if (moveState != SLIDING) {
 				if ((velocity.x < 0.f && FB > 0) || (velocity.x > 0.f && FB < 0)) velocity.x = 0.f; // reset velocity if moving in opposite direction. strafe movement
 			}
 			velocity.x += ((float) FB) * currentAccel;

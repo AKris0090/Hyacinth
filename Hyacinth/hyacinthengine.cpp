@@ -668,8 +668,8 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadAssets() {
-    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
-    // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
@@ -1051,7 +1051,7 @@ void HyacinthEngine::update() {
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 1.f);
     newuniform.ABOD = glm::vec4(ambientToggle, m_shadowHelper.bias, m_shadowHelper.offsetScale, m_shadowHelper.DDGIntensity);
     newuniform.globalShadowMatrix = m_shadowHelper.shaderShadowMatrix;
-    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.shaderSplits[0], 0.f, 0.f, 0.f);// , m_shadowHelper.shaderSplits[1], m_shadowHelper.shaderSplits[2], m_shadowHelper.shaderSplits[3]);
+    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.shaderSplits[0], m_shadowHelper.shaderSplits[1], m_shadowHelper.shaderSplits[2], 0.f);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeOffsets[i] = m_shadowHelper.cascadeOffsets[i];
         newuniform.cascadeScales[i] = m_shadowHelper.cascadeScales[i];

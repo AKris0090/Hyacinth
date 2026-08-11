@@ -155,6 +155,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Build\Include\animatedgameobject.h" />
+    <ClInclude Include="Build\Include\bulletejector.h" />
     <ClInclude Include="Build\Include\entity.h" />
     <ClInclude Include="Build\Include\flashbang.h" />
     <ClInclude Include="Build\Include\fp_arms.h" />
@@ -174,6 +175,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="animatedgameobject.cpp" />
+    <ClCompile Include="bulletejector.cpp" />
     <ClCompile Include="flashbang.cpp" />
     <ClCompile Include="fp_arms.cpp" />
     <ClCompile Include="hyacinth_network.cpp" />

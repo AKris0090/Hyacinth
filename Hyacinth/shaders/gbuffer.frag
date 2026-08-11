@@ -51,7 +51,6 @@ vec2 ComputeReceiverPlaneDepthBias(vec3 texCoordDX, vec3 texCoordDY)
 float sampleShadowMap(vec2 baseUV, float u, float v, vec2 shadowMapSizeInv, uint cascadeIndex, float depth, vec2 receiverPlaneDepthBias) {
 	vec2 uv = baseUV + vec2(u, v) * shadowMapSizeInv;
 	float z = depth + dot(vec2(u, v) * shadowMapSizeInv, receiverPlaneDepthBias);
-	// return texture(shadowDepthMap, vec4(uv, cascadeIndex, z));
 	return texture(shadowDepthMap, vec3(uv, z));
 }
 

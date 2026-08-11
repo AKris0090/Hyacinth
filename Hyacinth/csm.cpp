@@ -259,7 +259,7 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
 
 	samplerInfo.compareEnable = VK_TRUE;
-	samplerInfo.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	samplerInfo.compareOp = VK_COMPARE_OP_LESS;
 	VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerInfo, nullptr, &m_shadowImage.imageSampler));
 
 	// descriptor
@@ -301,7 +301,7 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	m_shadowPipelineUtil.setMultisamplingNone();
 	m_shadowPipelineUtil.disableBlending();
 
-	m_shadowPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
+	m_shadowPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS);
 	m_shadowPipelineUtil.setDepthAttachmentFormat(shadowFormat);
 
 	m_shadowPipelineUtil.m_rasterizer.depthClampEnable = VK_TRUE;
@@ -484,9 +484,6 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 		};
 
 		sphereRadius = std::min(sphereRadius, boundingBoxRadius(frustumCenter, sceneAABBCornersLightView));
-
-		sphereRadius = 30.f;
-
 		sphereRadius = std::ceil(sphereRadius * 16.f) / 16.f;
 
 		glm::vec3 maxExtents = glm::vec3(sphereRadius);

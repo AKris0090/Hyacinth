@@ -13,7 +13,7 @@ constexpr float BASE_MOVE_SPEED = 3.5f;
 constexpr float BASE_LOOK_SPEED = 70.f;
 
 constexpr float BASE_FOV = 90.f;
-constexpr float SPRINT_FOV = 98.f;
+constexpr float SPRINT_FOV = 95.f;
 constexpr float FOV_LERP_LENGTH = 0.125f;
 
 struct CameraFrustumPlanes {
@@ -49,7 +49,7 @@ public:
 };
 
 constexpr float BASE_CROUCH = 1.85f;
-constexpr float SLIDE_CROUCH = 0.925f;
+constexpr float SLIDE_CROUCH = 1.25f;
 constexpr float CROUCH_LERP_LENGTH = 0.1f;
 
 class CrouchModifier {

@@ -189,8 +189,8 @@ int main() {
 	hyacinthEngine.init();
 
 	physicsManager.initPhysics(false); // initialize PVD?
-	//   auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
-	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+	auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
+	// auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	LightLoaderOptions op{};
 	physicsManager.addStaticPhysicsObject(LightLoader::loadFromFile(path.string(), op));
 	physicsManager.addCharacterController(0, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"));
@@ -227,7 +227,7 @@ int main() {
 		s.id = 0;
 		s.movementFB = fb;
 		s.movementLR = lr;
-		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self->moveSpeed, t, s);
+		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self, t, s);
 	});
 #endif
 #ifndef CONNECT_SERVER
