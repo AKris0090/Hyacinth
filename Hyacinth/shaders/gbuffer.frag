@@ -163,7 +163,7 @@ float shadowTest(vec3 worldPos, float viewSpaceDepth, float nDotL, vec3 normal) 
 void main() {
 	Material m = pc.materialBuffer.mats[matIndex];
     vec4 sampledColor = texture(globalTextures2D[m.baseColorIndex], inUV);
-    vec4 metalRough = texture(globalTextures2D[m.metalRoughIndex], inUV);
+    vec4 ambMetalRough = texture(globalTextures2D[m.metalRoughIndex], inUV);
 
     vec3 N = texture(globalTextures2D[m.normalIndex], inUV).xyz;
     N = normalize(N * 2.0 - 1.0);
@@ -172,10 +172,10 @@ void main() {
 	float nDotL = clamp(dot(N, normalize(ubo.lightPos.xyz)), 0.0, 1.0);
 	float shadow = shadowTest(fragPos.xyz, -viewPos.z, nDotL, N);
 
-    outAlbedo = vec4(sampledColor.rgb, metalRough.x);
+    outAlbedo = vec4(sampledColor.rgb, 1.0);    
 
 	N = N * 0.5 + 0.5; // packing the normal
     outNormal = vec4(N, shadow);
 
-	outAMR = vec4(1.0, metalRough.x, metalRough.y, 1.0);
+	outAMR = vec4(ambMetalRough.xyz, 1.0);
 }

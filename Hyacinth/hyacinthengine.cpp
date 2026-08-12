@@ -668,8 +668,9 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadAssets() {
-    // auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
-    auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+    // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+    auto sphereTestPath = vkdebugutils::getExeDir() / "objects" / "DamagedHelmet.glb";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
@@ -680,6 +681,7 @@ void HyacinthEngine::loadAssets() {
     m_assetDrawer.addUITextures();
 
     m_assetDrawer.loadMesh(path.string(), "world", false, true);
+    m_assetDrawer.loadMesh(sphereTestPath.string(), "helmet", false, true);
     m_assetDrawer.loadMesh(tracerPath.string(), "tracer", false, true);
     m_assetDrawer.loadMesh(flashPath.string(), "flashbang", true, true);
     m_assetDrawer.loadMesh(thirdPersonCharacterPath.string(), "tp_character", true, true);
@@ -1051,7 +1053,7 @@ void HyacinthEngine::update() {
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 1.f);
     newuniform.ABOD = glm::vec4(ambientToggle, m_shadowHelper.bias, m_shadowHelper.offsetScale, m_shadowHelper.DDGIntensity);
     newuniform.globalShadowMatrix = m_shadowHelper.shaderShadowMatrix;
-    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.shaderSplits[0], m_shadowHelper.shaderSplits[1], m_shadowHelper.shaderSplits[2], 0.f);
+    newuniform.cascadeSplits = glm::vec4(m_shadowHelper.shaderSplits[0], m_shadowHelper.shaderSplits[1], m_shadowHelper.shaderSplits[2], m_camera.m_zFar );
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
         newuniform.cascadeOffsets[i] = m_shadowHelper.cascadeOffsets[i];
         newuniform.cascadeScales[i] = m_shadowHelper.cascadeScales[i];
@@ -1248,33 +1250,33 @@ void HyacinthEngine::draw() {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
         m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_frameData[m_frameIndex].m_indirectDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
         VK_LABEL_END(cmd);
-        for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-            VK_LABEL(cmd, "Compute Cull Shadow");
-            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
-            VK_LABEL_END(cmd);
-        }
+        // for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+        //     VK_LABEL(cmd, "Compute Cull Shadow");
+        //     m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
+        //     VK_LABEL_END(cmd);
+        // }
     }
 
-    std::vector<VkBufferMemoryBarrier2> shadowBufferBarrier;
-    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-        // barrier for skin and cull write out
-        VkBufferMemoryBarrier2 barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-        barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-        barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
-        barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-        barrier.size = VK_WHOLE_SIZE;
-        barrier.buffer = m_shadowHelper.m_cascades[i].cascadeDrawBuffer.buffer;
-        shadowBufferBarrier.push_back(barrier);
-    }
-
-    VkDependencyInfo depInfo{};
-    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    depInfo.bufferMemoryBarrierCount = SHADOW_MAP_CASCADE_COUNT;
-    depInfo.pBufferMemoryBarriers = shadowBufferBarrier.data();
-    
-    vkCmdPipelineBarrier2(cmd, &depInfo); // barrier for shadow cascades
+    // std::vector<VkBufferMemoryBarrier2> shadowBufferBarrier;
+    // for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+    //     // barrier for skin and cull write out
+    //     VkBufferMemoryBarrier2 barrier{};
+    //     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+    //     barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    //     barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+    //     barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+    //     barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+    //     barrier.size = VK_WHOLE_SIZE;
+    //     barrier.buffer = m_shadowHelper.m_cascades[i].cascadeDrawBuffer.buffer;
+    //     shadowBufferBarrier.push_back(barrier);
+    // }
+    // 
+    // VkDependencyInfo depInfo{};
+    // depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    // depInfo.bufferMemoryBarrierCount = SHADOW_MAP_CASCADE_COUNT;
+    // depInfo.pBufferMemoryBarriers = shadowBufferBarrier.data();
+    // 
+    // vkCmdPipelineBarrier2(cmd, &depInfo); // barrier for shadow cascades
 
     // shadows
     {

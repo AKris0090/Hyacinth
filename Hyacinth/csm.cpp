@@ -483,15 +483,13 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 			glm::vec3(aabbMax.x, aabbMax.y, aabbMax.z),
 		};
 
-		sphereRadius = std::min(sphereRadius, boundingBoxRadius(frustumCenter, sceneAABBCornersLightView));
+		// sphereRadius = std::min(sphereRadius, boundingBoxRadius(frustumCenter, sceneAABBCornersLightView));
 		sphereRadius = std::ceil(sphereRadius * 16.f) / 16.f;
 
 		glm::vec3 maxExtents = glm::vec3(sphereRadius);
 		glm::vec3 minExtents = -maxExtents;
 
-		glm::vec3 shadowCamPos = frustumCenter + lightDirection * -minExtents;
-
-		glm::mat4 lightViewMatrix = glm::lookAt(lightDirection * -minExtents, glm::vec3(0.f), glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter + lightDirection * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 
 		// calculate tight near and far bounds ///////////////////
 
@@ -500,11 +498,11 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 			sceneAABBCornersLightView[j] = glm::vec3(lv);
 		}
 
-		float tightNear, tightFar;
-		computeNearFar(tightNear, tightFar, minExtents, maxExtents, sceneAABBCornersLightView);
+		// float tightNear, tightFar;
+		// computeNearFar(tightNear, tightFar, minExtents, maxExtents, sceneAABBCornersLightView);
 
 		//////////////////////////////////////////////////////////
-		glm::mat4 lightOrthoMatrix = glm::orthoRH_ZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, -tightFar, -tightNear);
+		glm::mat4 lightOrthoMatrix = glm::orthoRH_ZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
 		// Store split distance and matrix in cascade
 		m_cascades[i].viewProj = lightOrthoMatrix * lightViewMatrix;
@@ -599,13 +597,13 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws,
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 		// draw world
-		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numStaticDraws, sizeof(VkDrawIndexedIndirectCommand));
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(cmd, 0, 1, &skinnedVertBuffer.buffer, offsets);
-
-		// draw animated objects
-		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDraws, numDynamicDraws, sizeof(VkDrawIndexedIndirectCommand));
-		vkCmdBindVertexBuffers(cmd, 0, 1, &vertBuffer.buffer, offsets);
+		// vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numStaticDraws, sizeof(VkDrawIndexedIndirectCommand));
+		// VkDeviceSize offsets[] = { 0 };
+		// vkCmdBindVertexBuffers(cmd, 0, 1, &skinnedVertBuffer.buffer, offsets);
+		// 
+		// // draw animated objects
+		// vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDraws, numDynamicDraws, sizeof(VkDrawIndexedIndirectCommand));
+		// vkCmdBindVertexBuffers(cmd, 0, 1, &vertBuffer.buffer, offsets);
 
 		vkCmdEndRendering(cmd);
 

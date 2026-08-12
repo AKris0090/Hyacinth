@@ -21,7 +21,7 @@ layout( push_constant ) uniform constants
 	int volumeIndex;
 } pc;
 
-const uint MAX_RAY_RECURSION = 3;
+const uint MAX_RAY_RECURSION = 5;
 
 void main() 
 {
@@ -50,6 +50,7 @@ void main()
 	payload.distance = -1.0;
 	payload.terminated = false;
 	payload.bounce = 0;
+	payload.seed = 32;
 
 	for(int i = 0; i < MAX_RAY_RECURSION; ++i) {
 		traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, payload.newOrigin, tmin, payload.newDirection, tmax, 0);

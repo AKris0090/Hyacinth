@@ -130,5 +130,46 @@ struct RayPayload {
     vec3 newDirection;
     bool terminated;
     uint bounce;
+    uint seed;
     float distance;
 };
+
+
+// https://github.com/NVIDIAGameWorks/RTXGI-DDGI/blob/f33e496ca31b3f0eec1c4e2cbaa8bb620e337fa6/samples/test-harness/shaders/include/Random.hlsl#L110 //////////////////
+
+uint WangHash(uint seed)
+{
+    seed = (seed ^ 61) ^ (seed >> 16);
+    seed *= 9;
+    seed = seed ^ (seed >> 4);
+    seed *= 0x27d4eb2d;
+    seed = seed ^ (seed >> 15);
+    return seed;
+}
+
+uint Xorshift(uint seed)
+{
+    // Xorshift algorithm from George Marsaglia's paper
+    seed ^= (seed << 13);
+    seed ^= (seed >> 17);
+    seed ^= (seed << 5);
+    return seed;
+}
+
+float GetRandomNumber(inout uint seed)
+{
+    seed = WangHash(seed);
+    return float(Xorshift(seed)) * (1.f / 4294967296.f);
+}
+
+vec3 GetRandomCosineDirectionOnHemisphere(vec3 normalDir, uint seed)
+{
+    // Choose random points on the unit sphere offset along the surface normal
+    // to produce a cosine distribution of random directions.
+    float a = GetRandomNumber(seed) * (2.f * PI);
+    float z = GetRandomNumber(seed) * 2.f - 1.f;
+    float r = sqrt(1.f - z * z);
+
+    vec3 p = vec3(r * cos(a), r * sin(a), z) + normalDir;
+    return normalize(p);
+}

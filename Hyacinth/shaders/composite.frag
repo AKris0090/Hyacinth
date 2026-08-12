@@ -28,6 +28,16 @@ layout	(location = 0) out vec4 outColor;
 
 const vec3 lightColor = vec3(0.99, 0.98, 0.83);
 
+// https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
+vec3 ACESFilm(vec3 x) {
+	float a = 2.51f;
+	float b = 0.03f;
+	float c = 2.43f;
+	float d = 0.59f;
+	float e = 0.14f;
+	return clamp((x*(a*x+b))/(x*(c*x+d)+e), vec3(0.f), vec3(1.f));
+}
+
 vec3 worldPosFromDepth(float depth) {
     vec2 ndcXY = inUV * 2.0 - 1.0;
     vec4 ndc   = vec4(ndcXY, depth, 1.0);
@@ -37,6 +47,68 @@ vec3 worldPosFromDepth(float depth) {
 
     return (inverse(ubo.view) * viewSpace).xyz;
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Normal Distribution function --------------------------------------
+float D_GGX(float dotNH, float roughness)
+{
+	float alpha = roughness * roughness;
+	float alpha2 = alpha * alpha;
+	float denom = dotNH * dotNH * (alpha2 - 1.0) + 1.0;
+	return (alpha2)/(PI * denom*denom); 
+}
+
+// Geometric Shadowing function --------------------------------------
+float G_SchlicksmithGGX(float dotNL, float dotNV, float roughness)
+{
+	float r = (roughness + 1.0);
+	float k = (r*r) / 8.0;
+	float GL = dotNL / (dotNL * (1.0 - k) + k);
+	float GV = dotNV / (dotNV * (1.0 - k) + k);
+	return GL * GV;
+}
+
+// Fresnel function ----------------------------------------------------
+vec3 F_Schlick(float cosTheta, float metallic, vec3 albedo)
+{
+	vec3 F0 = mix(vec3(0.04), albedo, metallic); // * material.specular
+	vec3 F = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0); 
+	return F;    
+}
+
+// Specular BRDF composition --------------------------------------------
+
+vec3 BRDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 albedo)
+{
+	// Precalculate vectors and dot products	
+	vec3 H = normalize (V + L);
+	float dotNV = clamp(dot(N, V), 0.0, 1.0);
+	float dotNL = clamp(dot(N, L), 0.0, 1.0);
+	float dotLH = clamp(dot(L, H), 0.0, 1.0);
+	float dotNH = clamp(dot(N, H), 0.0, 1.0);
+
+	vec3 color = vec3(0.0);
+
+	if (dotNL > 0.0)
+	{
+		float rroughness = max(0.05, roughness);
+		// D = Normal distribution (Distribution of the microfacets)
+		float D = D_GGX(dotNH, roughness); 
+		// G = Geometric shadowing term (Microfacets shadowing)
+		float G = G_SchlicksmithGGX(dotNL, dotNV, roughness);
+		// F = Fresnel factor (Reflectance depending on angle of incidence)
+		vec3 F = F_Schlick(dotNV, metallic, albedo);
+
+		vec3 spec = D * F * G / (4.0 * dotNL * dotNV);
+
+		color += spec * dotNL * lightColor;
+	}
+
+	return color;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void main() {
     float depth = texture(depthMap, inUV).r;
@@ -52,22 +124,12 @@ void main() {
 
 	vec3 V    = normalize(ubo.viewPos.xyz - fragPos);
 	vec3 L    = normalize(ubo.lightPos.xyz - fragPos);
-	vec3 radiance = lightColor * vec3(8.0);
-
-	float NdotL = clamp(dot(N, L), 0.0, 1.0);
-    float customLambert = (NdotL * 0.35) + 0.025;
-    vec3 diffuse = (albedo.rgb / PI) * NdotL * radiance;
-
-	vec3 r = normalize(reflect(-L, N));
-    float specular = clamp(dot(r, V), 0.0, 1.0);
-    specular = pow(specular, 8.0) * albedo.w;
-
     vec3 irrad = texture(ddgiImage, inUV).xyz;
 	vec3 ambient = (albedo.rgb) * irrad * amr.r;
 
-	vec3 color = ambient + ((diffuse + vec3(specular)) * Nshadow.w);
+	vec3 color = ambient + BRDF(L, V, N, amr.y, amr.z, albedo.xyz);
 
-    outColor = vec4(color, 1.0);
+    outColor = vec4(ACESFilm(color), 1.0);
 
     if (ubo.ABOD.x == 1.0) {
         outColor = vec4(irrad * amr.r, 1.0);

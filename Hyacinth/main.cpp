@@ -131,6 +131,8 @@ void simulationTick() {
 
 HStaticGameObject* worldObject;
 
+HStaticGameObject* helmetObject;
+
 HFPArms* armsObject;
 HPistol* pistolObject;
 HFlashBang* flashObject;
@@ -138,6 +140,11 @@ HFlashBang* flashObject;
 void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	worldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("world"));
 	engine.addStaticGameObject(worldObject);  
+
+	helmetObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("helmet"));
+	engine.addStaticGameObject(helmetObject);
+	helmetObject->transform.position += glm::vec3(-7.f, 2.f, 0.f);
+	helmetObject->transform.scale = glm::vec3(1.5f);
 
 	armsObject = new HFPArms(engine.m_assetDrawer.getAnimatedMeshRef("fp_arms"));
 	engine.addAnimatedGameObject(armsObject);
@@ -189,8 +196,8 @@ int main() {
 	hyacinthEngine.init();
 
 	physicsManager.initPhysics(false); // initialize PVD?
-	auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
-	// auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
+	// auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
+	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	LightLoaderOptions op{};
 	physicsManager.addStaticPhysicsObject(LightLoader::loadFromFile(path.string(), op));
 	physicsManager.addCharacterController(0, hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("tp_character"));

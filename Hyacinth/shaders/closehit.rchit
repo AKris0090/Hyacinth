@@ -27,6 +27,8 @@ layout( push_constant ) uniform constants
 const vec3 lightColor = vec3(0.99, 0.98, 0.83);
 const vec3 lightPos = vec3(-2.0, 12.0, -6.0);
 
+const float maxAlbedo = 0.9f;
+
 void main()
 {
 	if (payload.bounce == 0) { // on first bounce, set distance
@@ -78,12 +80,13 @@ void main()
 	    directDiffuse = vec3(0.0);
 	}
 
-	payload.radiance += payload.throughput * directDiffuse;
+	payload.radiance += directDiffuse * payload.throughput;
+    payload.throughput *= min(albedo, vec3(maxAlbedo, maxAlbedo, maxAlbedo));
 	payload.bounce++;
-	payload.throughput *= albedo;
+	payload.seed++;
 
 	payload.newOrigin = origin + (normal * 0.0001);
 
-	vec3 newDir = reflect(gl_WorldRayDirectionEXT, normal);
+	vec3 newDir = GetRandomCosineDirectionOnHemisphere(normal, payload.seed);
 	payload.newDirection = newDir;
 }

@@ -57,41 +57,32 @@ void rt::initAccelerationStructureFunctions(VkDevice& device) {
 }
 
 static void addAccelStructure(std::vector<AccelerationStructure>& structures, LightNode* node, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress) {
-    if (node->primitives.size() > 0) {
-        std::vector<glm::vec3> nodeVertices;
-        std::vector<uint32_t> nodeIndices;
-
-        AccelerationStructure blAccel;
-
-        rt::nodeAccelBuildPacket packet;
-        packet.vertexAddress = vertexAddress;
-        packet.indexAddress = indexAddress;
-        for (const auto& p : node->primitives) {
-            packet.prims.push_back(rt::nodeAccelBuildPacket::primAccel{
-                .vertexOffset = p.firstVertex,
-                .firstIndex = p.firstIndex,
-                .numVertices = p.vertexCount,
-                .numIndices = p.indexCount,
-                });
-
-            blAccel.numGeometries++;
-        }
-
-        rtHelper::createBottomLevelAS(blAccel, packet);
-        blAccel.instanceMatrix = node->getMatrix();
-        structures.push_back(blAccel);
+    std::vector<glm::vec3> nodeVertices;
+    std::vector<uint32_t> nodeIndices;
+    
+    AccelerationStructure blAccel;
+    
+    rt::nodeAccelBuildPacket packet;
+    packet.vertexAddress = vertexAddress;
+    packet.indexAddress = indexAddress;
+    for (const auto& p : node->primitives) {
+        packet.prims.push_back(rt::nodeAccelBuildPacket::primAccel{
+            .vertexOffset = p.firstVertex,
+            .firstIndex = p.firstIndex,
+            .numVertices = p.vertexCount,
+            .numIndices = p.indexCount,
+            });
+    
+        blAccel.numGeometries++;
     }
-    else {
-        std::cout << "[RAYTRACING] Skipping BLAS generation for node: " << node->nodeName << " at index: " << node->nodeIndex << std::endl;
-    }
-
-    for (auto& n : node->children) {
-        addAccelStructure(structures, n, vertexAddress, indexAddress);
-    }
+    
+    rtHelper::createBottomLevelAS(blAccel, packet);
+    blAccel.instanceMatrix = node->getMatrix();
+    structures.push_back(blAccel);
 }
 
 void rtHelper::generateBLASForMesh(LightMesh* meshRef, VkDeviceAddress vertexAddress, VkDeviceAddress indexAddress) {
-    for (auto& n : meshRef->parentNodes) {
+    for (auto& n : meshRef->meshedNodes) {
         addAccelStructure(bottomLevelStructures, n, vertexAddress, indexAddress);
     }
 }

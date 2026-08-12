@@ -144,9 +144,9 @@ HAssetDrawer::HAssetDrawer() {
 	FullscreenQuad::addFullscreenQuad(vertices, indices);
 	UnitCube::addUnitCube(vertices, indices);
 
-	for (const auto& [o, n] : EXTRA_OBJECTS) {
-		loadMesh(o, n, false, false);
-	}
+	// for (const auto& [o, n] : EXTRA_OBJECTS) {
+	// 	loadMesh(o, n, false, false);
+	// }
 
 	materials.push_back(LightMaterialInstance{
 		.baseColorIndex = DUMMY_COLOR_TEX_INDEX,
