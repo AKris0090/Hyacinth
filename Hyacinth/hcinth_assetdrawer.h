@@ -27,9 +27,16 @@ const std::vector<std::pair<std::string, VkFormat>> WORLD_UI_TEXTURE_PATHS = {
 	{ "./ui/healthbar.png", VK_FORMAT_R8G8B8A8_SRGB }
 };
 
+const std::vector<std::pair<std::string, VkFormat>> DECAL_TEXTURE_PATHS = {
+	{ "./decals/wall_hole.png", VK_FORMAT_R8G8B8A8_SRGB }
+};
+
 const std::vector<std::pair<std::string, std::string>> EXTRA_OBJECTS = {
 	{ "./objects/sphere.glb", "unit_sphere" }
 };
+
+constexpr int DUMMY_MATERIAL = 0;
+constexpr int BULLETHOLE_DECAL_MAT = 1;
 
 static std::string getFilePathExtension(const std::string& FileName) {
 	if (FileName.find_last_of(".") != std::string::npos)

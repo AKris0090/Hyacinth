@@ -70,10 +70,11 @@ float G_SchlicksmithGGX(float dotNL, float dotNV, float roughness)
 }
 
 // Fresnel function ----------------------------------------------------
-vec3 F_Schlick(float cosTheta, float metallic, vec3 albedo)
+vec3 F_Schlick(float cosTheta, float metallic, float roughness, vec3 albedo)
 {
 	vec3 F0 = mix(vec3(0.04), albedo, metallic); // * material.specular
-	vec3 F = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0); 
+	vec3 Fmax = max(vec3(1.0 - roughness), F0);
+	vec3 F = F0 + (Fmax - F0) * pow(1.0 - cosTheta, 5.0); 
 	return F;    
 }
 
@@ -94,15 +95,15 @@ vec3 BRDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 albedo)
 	{
 		float rroughness = max(0.05, roughness);
 		// D = Normal distribution (Distribution of the microfacets)
-		float D = D_GGX(dotNH, roughness); 
+		float D = D_GGX(dotNH, rroughness); 
 		// G = Geometric shadowing term (Microfacets shadowing)
-		float G = G_SchlicksmithGGX(dotNL, dotNV, roughness);
+		float G = G_SchlicksmithGGX(dotNL, dotNV, rroughness);
 		// F = Fresnel factor (Reflectance depending on angle of incidence)
-		vec3 F = F_Schlick(dotNV, metallic, albedo);
+		vec3 F = F_Schlick(dotNV, metallic, roughness, albedo);
 
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV);
 
-		color += spec * dotNL * lightColor;
+		color += spec * dotNL * lightColor * 8.0;
 	}
 
 	return color;
@@ -125,7 +126,7 @@ void main() {
 	vec3 V    = normalize(ubo.viewPos.xyz - fragPos);
 	vec3 L    = normalize(ubo.lightPos.xyz - fragPos);
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = (albedo.rgb) * irrad * amr.r;
+	vec3 ambient = (albedo.rgb) * irrad * 1.0; // amr.r;
 
 	vec3 color = ambient + BRDF(L, V, N, amr.y, amr.z, albedo.xyz);
 

@@ -48,10 +48,11 @@ void main()
         v.jointWeight.z * pc.jmBuffer.mats[int(v.jointIndex.z)] +
         v.jointWeight.w * pc.jmBuffer.mats[int(v.jointIndex.w)];
 
-    v.pos = vec3(skinMatrix * vec4(v.pos.xyz, 1.0));
-
     mat3 skinMatrix3 = mat3(skinMatrix);
-    v.normal = skinMatrix3 * v.normal;
+    mat3 normalMatrix = transpose(inverse(skinMatrix3));
+
+    v.pos = (skinMatrix * vec4(v.pos.xyz, 1.0)).xyz;
+    v.normal = normalMatrix * v.normal;
     v.tangent.xyz = skinMatrix3 * v.tangent.xyz;
 
     pc.vOutBuffer.verts[index + pc.dstVertexOffset] = v;

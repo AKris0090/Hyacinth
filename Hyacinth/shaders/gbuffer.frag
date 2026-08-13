@@ -177,5 +177,5 @@ void main() {
 	N = N * 0.5 + 0.5; // packing the normal
     outNormal = vec4(N, shadow);
 
-	outAMR = vec4(ambMetalRough.xyz, 1.0);
+	 outAMR = vec4(1.0, ambMetalRough.z * m.metallic, ambMetalRough.y * m.roughness, 1.0);
 }

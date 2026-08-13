@@ -81,6 +81,15 @@ void HAssetDrawer::addUITextures() {
 	for (const auto& [path, format] : WORLD_UI_TEXTURE_PATHS) {
 		createAddTextureFromFile(path, format);
 	}
+	for (const auto& [path, format] : DECAL_TEXTURE_PATHS) {
+		createAddTextureFromFile(path, format);
+	}
+	materials.push_back(LightMaterialInstance{
+		.baseColorIndex = static_cast<uint32_t>(textures.size() - 1),
+		.normalIndex = DUMMY_NORMAL_TEX_INDEX,
+		.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX,
+		.alphaCutoff = 0.5f
+	});
 }
 
 void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool skinned, bool loadMaterials) {

@@ -130,7 +130,7 @@ void simulationTick() {
 }
 
 HStaticGameObject* worldObject;
-
+HStaticGameObject* sphereTestGrid;
 HStaticGameObject* helmetObject;
 
 HFPArms* armsObject;
@@ -143,8 +143,13 @@ void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 
 	helmetObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("helmet"));
 	engine.addStaticGameObject(helmetObject);
-	helmetObject->transform.position += glm::vec3(-7.f, 2.f, 0.f);
+	helmetObject->transform.position += glm::vec3(-7.f, 1.f, 4.f);
 	helmetObject->transform.scale = glm::vec3(1.5f);
+
+	sphereTestGrid = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("sphere_test"));
+	engine.addStaticGameObject(sphereTestGrid);
+	sphereTestGrid->transform.position += glm::vec3(-4.f, 2.f, -7.f);
+	sphereTestGrid->transform.scale = glm::vec3(0.15f);
 
 	armsObject = new HFPArms(engine.m_assetDrawer.getAnimatedMeshRef("fp_arms"));
 	engine.addAnimatedGameObject(armsObject);

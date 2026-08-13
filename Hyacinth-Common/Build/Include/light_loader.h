@@ -1,6 +1,8 @@
 #pragma once
 
 #include "transform.h"
+#include "light_common.h"
+#include "tangentHelper.h"
 
 constexpr inline int DUMMY_NORMAL_TEX_INDEX = 0;
 constexpr inline int DUMMY_METALROUGH_TEX_INDEX = 1;
@@ -16,18 +18,6 @@ enum L_TEXTURE_TYPE {
     L_RGB,
     L_UNORM
 };
-
-struct LightVertex {
-    glm::vec3 pos;
-    glm::vec2 uv;
-    glm::vec3 normal;
-    glm::vec4 tangent;
-
-    // animated members
-    glm::vec4 jointIndices;
-    glm::vec4 jointWeights;
-};
-
 struct LightAABB {
     glm::vec4 min = glm::vec4(0.f), max = glm::vec4(0.f);
     void grow(glm::vec4 p) { min = (glm::min)(min, glm::vec4(glm::vec3(p), 1.f)), max = (glm::max)(max, glm::vec4(glm::vec3(p), 1.f)); }
@@ -102,7 +92,11 @@ struct LightMaterialInstance {
     uint32_t baseColorIndex;
     uint32_t normalIndex;
     uint32_t metallicRoughnessIndex;
+    uint32_t useTextures = 1;
     float alphaCutoff = 0.5f;
+    float ambient = 1.f;
+    float metallic = 1.f;
+    float roughness = 1.f;
 };
 
 struct LightMesh {

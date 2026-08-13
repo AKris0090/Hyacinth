@@ -43,6 +43,9 @@
     <Filter Include="Header Files\game\extra">
       <UniqueIdentifier>{fc623ee8-9bab-49eb-b44f-c1cdaba7bec9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\mikktspace">
+      <UniqueIdentifier>{2089e9b4-423b-45cd-a2b2-bc34a4b92b19}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -84,6 +87,15 @@
     <ClInclude Include="Build\Include\bulletejector.h">
       <Filter>Header Files\game\extra</Filter>
     </ClInclude>
+    <ClInclude Include="Build\Include\mikktspace.h">
+      <Filter>Resource Files\mikktspace</Filter>
+    </ClInclude>
+    <ClInclude Include="Build\Include\tangentHelper.h">
+      <Filter>Resource Files\mikktspace</Filter>
+    </ClInclude>
+    <ClInclude Include="Build\Include\light_common.h">
+      <Filter>Header Files\loader</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -115,6 +127,9 @@
     </ClCompile>
     <ClCompile Include="bulletejector.cpp">
       <Filter>Source Files\game</Filter>
+    </ClCompile>
+    <ClCompile Include="mikktspace\mikktspace.cpp">
+      <Filter>Resource Files\mikktspace</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

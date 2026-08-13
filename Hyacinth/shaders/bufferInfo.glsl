@@ -22,7 +22,11 @@ struct Material {
 	int baseColorIndex;
 	int normalIndex;
 	int metalRoughIndex;
+	int useTextures;
 	float alphaCutoff;
+	float ambient;
+	float metallic;
+	float roughness;
 };
 
 struct Vertex {

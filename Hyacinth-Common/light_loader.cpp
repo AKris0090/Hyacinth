@@ -196,6 +196,8 @@ void loadAnimations(tinygltf::Model* input, LightMesh* mesh)
 }
 
 void loadNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightMesh* mesh, uint32_t nodeIndex, LightNode* parent, uint32_t materialOffset) {
+    SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
+
     LightNode* node = new LightNode();
     node->parent = parent;
     node->nodeIndex = nodeIndex;
@@ -357,6 +359,14 @@ void loadNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightM
                 throw std::runtime_error("index component type not supported");
             }
 
+            if (!tangentsBuff) {
+                LightGeomCapsule cap{
+                    .v = primVertices,
+                    .i = primIndices
+                };
+                generateTangents(&cap, mikktContext);
+            }
+
             p.firstIndex = static_cast<uint32_t>(mesh->indices.size()) + mesh->firstIndex;
             p.indexCount = static_cast<uint32_t>(primIndices.size());
             p.firstVertex = static_cast<uint32_t>(mesh->vertices.size()) + mesh->vertexOffset;
@@ -465,6 +475,16 @@ namespace LightLoader {
                 }
                 else { material.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
                 material.alphaCutoff = (float) gltfMat.alphaCutoff;
+
+                if (gltfMat.values.find("metallicFactor") != gltfMat.values.end()) {
+                    material.useTextures = 0;
+                    material.metallic = (float)gltfMat.values["metallicFactor"].Factor();
+                }
+
+                if (gltfMat.values.find("roughnessFactor") != gltfMat.values.end()) {
+                    material.useTextures = 0;
+                    material.roughness = (float)gltfMat.values["roughnessFactor"].Factor();
+                }
 
                 mesh->materials.push_back(material);
                 loaded++;

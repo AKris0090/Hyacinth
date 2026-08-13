@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Resource Files\mikktspace">
-      <UniqueIdentifier>{28cdfd25-0448-43d4-b39c-261578067c74}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\imgui">
       <UniqueIdentifier>{0d2186a3-7ea5-4fd3-9983-e6f6c7a6cce1}</UniqueIdentifier>
     </Filter>
@@ -180,9 +177,6 @@
     <ClCompile Include="vkimageutils.cpp">
       <Filter>Source Files\renderer\utils\vkutils\image</Filter>
     </ClCompile>
-    <ClCompile Include="mikktspace\mikktspace.cpp">
-      <Filter>Resource Files\mikktspace</Filter>
-    </ClCompile>
     <ClCompile Include="csm.cpp">
       <Filter>Source Files\renderer\core\shadow</Filter>
     </ClCompile>
@@ -295,9 +289,6 @@
     </ClInclude>
     <ClInclude Include="vkimageutils.h">
       <Filter>Source Files\renderer\utils\vkutils\image</Filter>
-    </ClInclude>
-    <ClInclude Include="mikktspace\mikktspace.h">
-      <Filter>Resource Files\mikktspace</Filter>
     </ClInclude>
     <ClInclude Include="tangentHelper.h">
       <Filter>Source Files\renderer\utils\gltfutils</Filter>

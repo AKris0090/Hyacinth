@@ -670,7 +670,8 @@ void HyacinthEngine::createDDGIPipeline()
 void HyacinthEngine::loadAssets() {
     auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
-    auto sphereTestPath = vkdebugutils::getExeDir() / "objects" / "DamagedHelmet.glb";
+    auto sphereTestPath = vkdebugutils::getExeDir() / "objects" / "sphereTest.glb";
+    auto helmetPath = vkdebugutils::getExeDir() / "objects" / "DamagedHelmet.glb";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
@@ -681,7 +682,8 @@ void HyacinthEngine::loadAssets() {
     m_assetDrawer.addUITextures();
 
     m_assetDrawer.loadMesh(path.string(), "world", false, true);
-    m_assetDrawer.loadMesh(sphereTestPath.string(), "helmet", false, true);
+    m_assetDrawer.loadMesh(sphereTestPath.string(), "sphere_test", false, true);
+    m_assetDrawer.loadMesh(helmetPath.string(), "helmet", false, true);
     m_assetDrawer.loadMesh(tracerPath.string(), "tracer", false, true);
     m_assetDrawer.loadMesh(flashPath.string(), "flashbang", true, true);
     m_assetDrawer.loadMesh(thirdPersonCharacterPath.string(), "tp_character", true, true);
