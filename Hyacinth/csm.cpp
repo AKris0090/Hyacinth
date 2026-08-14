@@ -550,7 +550,32 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer) {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipelineUtil.m_pipeline.pipeline);
 
-	vkimageutils::transitionImageColorAttachment(cmd, m_shadowImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+	{
+		auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+		imageBarrier.srcAccessMask = VK_ACCESS_2_NONE;
+		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+		imageBarrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		imageBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		imageBarrier.image = m_shadowImage.image;
+		imageBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = SHADOW_MAP_CASCADE_COUNT
+		};
+
+		auto dependecyInfo = VkDependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
+
+		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+	}
 
 	VkRenderingInfo renderingInfo{};
 	renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -610,30 +635,32 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws,
 		VK_LABEL_END(cmd);
 	}
 
-	auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-	imageBarrier.pNext = nullptr;
-	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
-	imageBarrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-	imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-	imageBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-	imageBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
-	imageBarrier.image = m_shadowImage.image;
-	imageBarrier.subresourceRange = {
-		.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-		.baseMipLevel = 0,
-		.levelCount = 1,
-		.baseArrayLayer = 0,
-		.layerCount = SHADOW_MAP_CASCADE_COUNT
-	};
+	{
+		auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+		imageBarrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+		imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		imageBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+		imageBarrier.image = m_shadowImage.image;
+		imageBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = SHADOW_MAP_CASCADE_COUNT
+		};
 
-	auto dependecyInfo = VkDependencyInfo{
-		.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-		.imageMemoryBarrierCount = 1,
-		.pImageMemoryBarriers = &imageBarrier
-	};
+		auto dependecyInfo = VkDependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
 
-	vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+	}
 }
 
 void shadowHelper::shutdown() {
