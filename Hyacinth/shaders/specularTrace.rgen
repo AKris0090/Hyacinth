@@ -1,0 +1,85 @@
+#version 460
+#extension GL_EXT_ray_tracing : enable
+#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_buffer_reference : enable
+
+#include "probeCommon.glsl"
+#include "bufferInfo.glsl"
+#include "shadowCommon.glsl"
+
+layout(location = 0) rayPayloadEXT RayPayload payload;
+
+layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
+layout(set = 0, binding = 1) uniform writeonly image2D specularImage;
+
+layout(set = 1, binding = 0) uniform UniformBufferObject {
+	mat4 view;
+	mat4 proj;
+	vec4 viewPos;
+	vec4 lightPos;
+	vec4 ABOD; // ambient toggle, bias, offset scale, ddgi intensity
+	mat4 globalShadowMatrix;
+	vec4 cascadeSplits;
+	mat4 cascadeViewProj[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeOffsets[SHADOW_MAP_CASCADE_COUNT];
+	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
+} ubo;
+
+layout 	(set = 2, binding = 1) uniform sampler2D normalMap;
+layout	(set = 2, binding = 3) uniform sampler2D depthMap;
+
+layout( push_constant ) uniform constants
+{
+	VertexBuffer vertexBufferAddress;
+	IndexBuffer indexBufferAddress;
+	RenderCallBuffer renderBufferAddress;
+	MaterialBuffer materialBufferAddress;
+	vec3 camPos;
+} pc;
+
+vec3 worldPosFromDepth(float depth, vec2 uv) {
+    vec2 ndcXY = uv * 2.0 - 1.0;
+    vec4 ndc   = vec4(ndcXY, depth, 1.0);
+
+    vec4 viewSpace = inverse(ubo.proj) * ndc;
+    viewSpace /= viewSpace.w;
+
+    return (inverse(ubo.view) * viewSpace).xyz;
+}
+
+void main() 
+{
+	ivec2 rayDataCoords;
+	rayDataCoords.x = int(gl_LaunchIDEXT.x);
+	rayDataCoords.y = int(gl_LaunchIDEXT.y);
+
+	vec2 coords = vec2(float(rayDataCoords.x), float(rayDataCoords.y));
+	vec2 textureSize = vec2(float(gl_LaunchSizeEXT.x), float(gl_LaunchSizeEXT.y));
+	vec2 uv = coords.xy / textureSize.xy;
+
+	float depth = texture(depthMap, uv).r;
+	if (depth == 1.0) {
+		return;
+	}
+
+	vec3 fragPos = worldPosFromDepth(depth, uv);
+	vec3 viewDir = normalize(pc.camPos - fragPos);
+	vec3 normal = texture(normalMap, uv).xyz * 2.0 - 1.0;
+	vec3 rayDir = -normalize(reflect(viewDir, normal));
+
+	vec3 origin = fragPos + (normal * 0.0001);
+	vec3 dir = rayDir;
+
+	uint rayFlags = gl_RayFlagsOpaqueEXT;
+	uint cullMask = 0xff;
+	float tmin = 0.01;
+	float tmax = 1000.0;
+
+	payload.radiance = vec3(0.0);
+	payload.newOrigin = origin;
+	payload.newDirection = dir;
+
+	traceRayEXT(topLevelAS, rayFlags, cullMask, 0, 0, 0, payload.newOrigin, tmin, payload.newDirection, tmax, 0);
+
+	imageStore(specularImage, rayDataCoords, vec4(payload.radiance, 1.0));
+}

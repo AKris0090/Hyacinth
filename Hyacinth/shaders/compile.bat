@@ -29,6 +29,11 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./closehit.rchit -o rchit.spv --target-env=
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./miss.rmiss -o rmiss.spv --target-env=vulkan1.3
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./directShadowCheck.rmiss -o probeMiss.spv --target-env=vulkan1.3
 
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./specularTrace.rgen -o specularRgen.spv --target-env=vulkan1.3
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./specularChit.rchit -o specularChit.spv --target-env=vulkan1.3
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./specularMiss.rmiss -o specularMiss.spv --target-env=vulkan1.3
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./specularBounceMiss.rmiss -o specularBounceMiss.spv --target-env=vulkan1.3
+
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./composite.frag -o composite.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./uiTex.vert -o uiQuadVert.spv

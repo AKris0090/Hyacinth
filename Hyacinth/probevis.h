@@ -14,6 +14,8 @@ class probeVisObjects {
 		uint32_t volumeWidth;
 		uint32_t volumeHeight;
 		uint32_t volumeDepth;
+		uint32_t pad1 = 0; // align up to 20
+		uint32_t pad2 = 0; // align up to 24
 	};
 
 public:

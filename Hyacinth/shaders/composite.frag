@@ -23,6 +23,8 @@ layout(set = 1, binding = 0) uniform UniformBufferObject {
 	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
+layout (set = 2, binding = 0) uniform sampler2D specularImage;
+
 layout 	(location = 0) in vec2 inUV;
 layout	(location = 0) out vec4 outColor;
 
@@ -128,11 +130,12 @@ void main() {
     vec3 irrad = texture(ddgiImage, inUV).xyz;
 	vec3 ambient = (albedo.rgb) * irrad * 1.0; // amr.r;
 
-	vec3 color = ambient + BRDF(L, V, N, amr.y, amr.z, albedo.xyz);
+	vec3 color = ambient + (BRDF(L, V, N, amr.y, amr.z, albedo.xyz) * Nshadow.w);
 
     outColor = vec4(ACESFilm(color), 1.0);
 
     if (ubo.ABOD.x == 1.0) {
-        outColor = vec4(irrad * amr.r, 1.0);
+		vec3 specular = texture(specularImage, inUV).xyz;
+        outColor = vec4(specular, 1.0);
     }
 }  

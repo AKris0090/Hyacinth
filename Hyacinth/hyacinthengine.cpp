@@ -479,7 +479,7 @@ void HyacinthEngine::createCompositePipeline()
     m_compositePipelineUtil.m_viewportState.pViewports = &viewport;
     m_compositePipelineUtil.m_viewportState.pScissors = &scissor;
 
-    std::array<VkDescriptorSetLayout, 2> sets = { m_compositeSetLayout, m_descriptorSetLayout };
+    std::array<VkDescriptorSetLayout, 3> sets = { m_compositeSetLayout, m_descriptorSetLayout, m_specularTraceHelper.specularSamplerLayout };
 
     VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
     pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
@@ -725,7 +725,7 @@ void HyacinthEngine::createDescriptorSets()
 
     {
         DescriptorLayoutBuilder layoutBuilder;
-        layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+        layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR);
         m_descriptorSetLayout = layoutBuilder.buildLayout(nullptr, 0);
     }
 
@@ -744,9 +744,9 @@ void HyacinthEngine::createDescriptorSets()
     {
         DescriptorLayoutBuilder layoutBuilder;
 		layoutBuilder.addBinding(0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // albedo
-        layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // normal
+        layoutBuilder.addBinding(1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR); // normal
         layoutBuilder.addBinding(2, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // ambient, metallic, rough
-        layoutBuilder.addBinding(3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // depth
+        layoutBuilder.addBinding(3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR); // depth
         layoutBuilder.addBinding(4, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT); // ddgi
         m_compositeSetLayout = layoutBuilder.buildLayout(nullptr, 0);
     }
@@ -864,6 +864,8 @@ void HyacinthEngine::init()
     m_owDDGIHelper.setup(&m_rtHelper, m_skyboxHelper.m_skyboxImage, m_textureSetLayout);
     m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
+
+    m_specularTraceHelper.setup(&m_rtHelper, m_compositeSetLayout, m_descriptorSetLayout, m_textureSetLayout, m_skyboxHelper.m_skyboxImage, m_swImageFormat.extent);
 
     createDepthPipeline();
 
@@ -1252,33 +1254,33 @@ void HyacinthEngine::draw() {
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
         m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_frameData[m_frameIndex].m_indirectDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
         VK_LABEL_END(cmd);
-        // for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-        //     VK_LABEL(cmd, "Compute Cull Shadow");
-        //     m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
-        //     VK_LABEL_END(cmd);
-        // }
+        for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+            VK_LABEL(cmd, "Compute Cull Shadow");
+            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
+            VK_LABEL_END(cmd);
+        }
     }
 
-    // std::vector<VkBufferMemoryBarrier2> shadowBufferBarrier;
-    // for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-    //     // barrier for skin and cull write out
-    //     VkBufferMemoryBarrier2 barrier{};
-    //     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-    //     barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    //     barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-    //     barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
-    //     barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-    //     barrier.size = VK_WHOLE_SIZE;
-    //     barrier.buffer = m_shadowHelper.m_cascades[i].cascadeDrawBuffer.buffer;
-    //     shadowBufferBarrier.push_back(barrier);
-    // }
-    // 
-    // VkDependencyInfo depInfo{};
-    // depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    // depInfo.bufferMemoryBarrierCount = SHADOW_MAP_CASCADE_COUNT;
-    // depInfo.pBufferMemoryBarriers = shadowBufferBarrier.data();
-    // 
-    // vkCmdPipelineBarrier2(cmd, &depInfo); // barrier for shadow cascades
+    std::vector<VkBufferMemoryBarrier2> shadowBufferBarrier;
+    for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
+        // barrier for skin and cull write out
+        VkBufferMemoryBarrier2 barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+        barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+        barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+        barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+        barrier.size = VK_WHOLE_SIZE;
+        barrier.buffer = m_shadowHelper.m_cascades[i].cascadeDrawBuffer.buffer;
+        shadowBufferBarrier.push_back(barrier);
+    }
+    
+    VkDependencyInfo depInfo{};
+    depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    depInfo.bufferMemoryBarrierCount = SHADOW_MAP_CASCADE_COUNT;
+    depInfo.pBufferMemoryBarriers = shadowBufferBarrier.data();
+    
+    vkCmdPipelineBarrier2(cmd, &depInfo); // barrier for shadow cascades
 
     // shadows
     {
@@ -1376,6 +1378,12 @@ void HyacinthEngine::draw() {
         VK_LABEL_END(cmd);
     }
 
+    {
+        VK_LABEL(cmd, "Specular Trace Pass");
+        m_specularTraceHelper.traceScene(cmd, m_swImageIndex, m_assetDrawer.g_vertexBuffer.gpuAddress, m_assetDrawer.g_indexBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_assetDrawer.materialInfoBuffer.gpuAddress, m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_textureSet, m_camera.m_transform.position, m_swImageFormat.extent);
+        VK_LABEL_END(cmd);
+    }
+
     vkimageutils::transitionImageShaderRead(cmd, m_gBuffers[m_swImageIndex].AMR, VK_IMAGE_ASPECT_COLOR_BIT);
 
     {
@@ -1444,7 +1452,7 @@ void HyacinthEngine::draw() {
     {
         VK_LABEL(cmd, "Composite Pass");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.pipeline);
-        std::array<VkDescriptorSet, 2> compositeSets = { m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet };
+        std::array<VkDescriptorSet, 3> compositeSets = { m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_specularTraceHelper.specularSamplerSets[m_swImageIndex]};
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_compositePipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(compositeSets.size()), compositeSets.data(), 0, nullptr);
         VkRenderingAttachmentInfo compositeAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
         VkRenderingInfo compositeRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &compositeAttachment, nullptr);
@@ -1629,6 +1637,7 @@ void HyacinthEngine::recreateSwapchain() {
 
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_postProcessSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].compositeImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
+    m_specularTraceHelper.resizeScreen(m_swImageFormat.extent);
 
     vkdescriptorutils::flushDescriptorWrites();
 
@@ -1657,6 +1666,7 @@ void HyacinthEngine::shutdown()
     m_skyboxHelper.shutdown();
     m_assetDrawer.shutdown();
     m_ambientHelper.shutdown();
+    m_specularTraceHelper.shutdown();
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.shutdown();

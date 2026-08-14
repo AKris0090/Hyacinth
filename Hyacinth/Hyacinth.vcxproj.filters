@@ -148,6 +148,12 @@
     <Filter Include="Source Files\renderer\core\asset manager">
       <UniqueIdentifier>{01861ab1-4a1e-4d2a-b117-e8e8ddb30020}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\core\raytracing\specular">
+      <UniqueIdentifier>{09b2a1a0-1319-41bd-9ad8-45272424851c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\rt shaders\specular_shaders">
+      <UniqueIdentifier>{b2e7eb58-570c-425d-9432-950b8eb3a508}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -260,6 +266,9 @@
     </ClCompile>
     <ClCompile Include="hcinth_assetdrawer.cpp">
       <Filter>Source Files\renderer\core\asset manager</Filter>
+    </ClCompile>
+    <ClCompile Include="specular.cpp">
+      <Filter>Source Files\renderer\core\raytracing\specular</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -386,6 +395,9 @@
     <ClInclude Include="tracer_manager.h">
       <Filter>Source Files\game</Filter>
     </ClInclude>
+    <ClInclude Include="specular.h">
+      <Filter>Source Files\renderer\core\raytracing\specular</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\gbuffer.vert">
@@ -494,6 +506,18 @@
     </None>
     <None Include="shaders\ambientOcclusion.frag">
       <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\specularChit.rchit">
+      <Filter>Source Files\shaders\rt shaders\specular_shaders</Filter>
+    </None>
+    <None Include="shaders\specularTrace.rgen">
+      <Filter>Source Files\shaders\rt shaders\specular_shaders</Filter>
+    </None>
+    <None Include="shaders\specularBounceMiss.rmiss">
+      <Filter>Source Files\shaders\rt shaders\specular_shaders</Filter>
+    </None>
+    <None Include="shaders\specularMiss.rmiss">
+      <Filter>Source Files\shaders\rt shaders\specular_shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

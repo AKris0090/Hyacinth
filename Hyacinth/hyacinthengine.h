@@ -30,6 +30,7 @@
 
 #include "skybox.h"
 #include "ambient.h"
+#include "specular.h"
 
 #include "net_ent.h"
 #include "netDebugRenderer.h"
@@ -176,7 +177,7 @@ private:
 
 	bool m_initialized = false;
 	bool m_showImGui = false;
-	bool ambientToggle = false;
+	bool ambientToggle = true;
 	uint32_t m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t maxTracers = 10;
@@ -224,7 +225,6 @@ private:
 
 	VkDescriptorSetLayout			m_shadowSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_diffuseSetLayout		{ VK_NULL_HANDLE };
-	VkDescriptorSetLayout			m_specularSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_compositeSetLayout	{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_postProcessSetLayout	{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
@@ -233,6 +233,7 @@ private:
 	HyacinthUIManager				m_uiHelper;
 	SkyboxHelper					m_skyboxHelper;
 	AmbientHelper					m_ambientHelper;
+	SpecularTraceHelper				m_specularTraceHelper;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();

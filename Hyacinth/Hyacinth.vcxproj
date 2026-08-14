@@ -167,6 +167,7 @@
     <ClCompile Include="raytracing.cpp" />
     <ClCompile Include="sdlwindow.cpp" />
     <ClCompile Include="skybox.cpp" />
+    <ClCompile Include="specular.cpp" />
     <ClCompile Include="time.cpp" />
     <ClCompile Include="vkdebugutils.cpp" />
     <ClCompile Include="vkdebugutils.h" />
@@ -209,6 +210,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="sdlwindow.h" />
     <ClInclude Include="skybox.h" />
+    <ClInclude Include="specular.h" />
     <ClInclude Include="tangentHelper.h" />
     <ClInclude Include="time.h" />
     <ClInclude Include="tracer_manager.h" />
@@ -253,6 +255,10 @@
     <None Include="shaders\skinning.comp" />
     <None Include="shaders\skybox.frag" />
     <None Include="shaders\skybox.vert" />
+    <None Include="shaders\specularBounceMiss.rmiss" />
+    <None Include="shaders\specularChit.rchit" />
+    <None Include="shaders\specularMiss.rmiss" />
+    <None Include="shaders\specularTrace.rgen" />
     <None Include="shaders\tracer.frag" />
     <None Include="shaders\tracer.vert" />
     <None Include="shaders\uiTex.frag" />

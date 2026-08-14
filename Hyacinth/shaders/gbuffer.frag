@@ -12,7 +12,7 @@ layout	(location = 3) in vec4 fragPos;
 layout	(location = 4) in mat3 TBNMatrix;
 layout	(location = 7) in vec2 inUV;
 
-layout (set = 1, binding = 0) uniform sampler2DShadow shadowDepthMap;
+layout (set = 1, binding = 0) uniform sampler2DArrayShadow shadowDepthMap;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
 	mat4 view;
@@ -51,7 +51,7 @@ vec2 ComputeReceiverPlaneDepthBias(vec3 texCoordDX, vec3 texCoordDY)
 float sampleShadowMap(vec2 baseUV, float u, float v, vec2 shadowMapSizeInv, uint cascadeIndex, float depth, vec2 receiverPlaneDepthBias) {
 	vec2 uv = baseUV + vec2(u, v) * shadowMapSizeInv;
 	float z = depth + dot(vec2(u, v) * shadowMapSizeInv, receiverPlaneDepthBias);
-	return texture(shadowDepthMap, vec3(uv, z));
+	return texture(shadowDepthMap, vec4(uv, cascadeIndex, z));
 }
 
 float sampleCascadeMap(vec3 shadowPos, vec3 shadowPosDx, vec3 shadowPosDy, uint cascadeIndex) {

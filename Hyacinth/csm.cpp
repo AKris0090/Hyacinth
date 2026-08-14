@@ -597,20 +597,43 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws,
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 		// draw world
-		// vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numStaticDraws, sizeof(VkDrawIndexedIndirectCommand));
-		// VkDeviceSize offsets[] = { 0 };
-		// vkCmdBindVertexBuffers(cmd, 0, 1, &skinnedVertBuffer.buffer, offsets);
-		// 
-		// // draw animated objects
-		// vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDraws, numDynamicDraws, sizeof(VkDrawIndexedIndirectCommand));
-		// vkCmdBindVertexBuffers(cmd, 0, 1, &vertBuffer.buffer, offsets);
+		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numStaticDraws, sizeof(VkDrawIndexedIndirectCommand));
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(cmd, 0, 1, &skinnedVertBuffer.buffer, offsets);
+		
+		// draw animated objects
+		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDraws, numDynamicDraws, sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdBindVertexBuffers(cmd, 0, 1, &vertBuffer.buffer, offsets);
 
 		vkCmdEndRendering(cmd);
 
 		VK_LABEL_END(cmd);
 	}
 
-	vkimageutils::transitionImageDepthRead(cmd, m_shadowImage);
+	auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+	imageBarrier.pNext = nullptr;
+	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+	imageBarrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+	imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+	imageBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+	imageBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+	imageBarrier.image = m_shadowImage.image;
+	imageBarrier.subresourceRange = {
+		.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+		.baseMipLevel = 0,
+		.levelCount = 1,
+		.baseArrayLayer = 0,
+		.layerCount = SHADOW_MAP_CASCADE_COUNT
+	};
+
+	auto dependecyInfo = VkDependencyInfo{
+		.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+		.imageMemoryBarrierCount = 1,
+		.pImageMemoryBarriers = &imageBarrier
+	};
+
+	vkCmdPipelineBarrier2(cmd, &dependecyInfo);
 }
 
 void shadowHelper::shutdown() {
