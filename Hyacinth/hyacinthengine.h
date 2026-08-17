@@ -31,6 +31,7 @@
 #include "skybox.h"
 #include "ambient.h"
 #include "specular.h"
+#include "outline.h"
 
 #include "net_ent.h"
 #include "netDebugRenderer.h"
@@ -54,6 +55,7 @@ const bool enableValLayers = true;
 
 // #define DEBUG_NETWORK
 
+// stencil bits
 constexpr uint8_t CURRENT_BIT = 0x01;
 constexpr uint8_t ANY_BIT = 0x02;
 
@@ -99,7 +101,6 @@ struct GBuffer {
 	VulkanImage normal;
 	VulkanImage AMR;
 
-	VulkanImage stencilDepth;
 	VulkanImage ddgiImage;
 	VulkanImage depth;
 
@@ -107,19 +108,6 @@ struct GBuffer {
 
 	VkDescriptorSet					m_compositeSet{ VK_NULL_HANDLE };
 	VkDescriptorSet					m_postProcessSet{ VK_NULL_HANDLE };
-};
-
-struct HRenderCall {
-	glm::mat4 transformMatrix;
-	alignas(16) glm::vec3 aaBBMin;
-	alignas(16) glm::vec3 aabbMax;
-
-	uint32_t	materialIndex;
-	uint32_t    indexCount;
-	uint32_t    firstIndex;
-	uint32_t    vertexOffset;
-
-	uint32_t meshID;
 };
 
 class HyacinthEngine {
@@ -177,7 +165,7 @@ private:
 
 	bool m_initialized = false;
 	bool m_showImGui = false;
-	bool ambientToggle = true;
+	bool ambientToggle = false;
 	uint32_t m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t maxTracers = 10;
@@ -211,6 +199,7 @@ private:
 	VulkanPipeline					m_computeSkinPipeline	{};
 
 	std::vector<HRenderCall>		m_renderList;
+	std::vector<VkDrawIndexedIndirectCommand>		m_stencilDrawList;
 
 	uint32_t dynamicDrawCommandOffset = 0;
 	std::vector<VkDrawIndexedIndirectCommand> m_drawCommands; // includes static and dynamic
@@ -234,6 +223,7 @@ private:
 	SkyboxHelper					m_skyboxHelper;
 	AmbientHelper					m_ambientHelper;
 	SpecularTraceHelper				m_specularTraceHelper;
+	OutlineHelper					m_outlineHelper;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();

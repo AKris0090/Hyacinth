@@ -50,8 +50,8 @@ vec3 worldPosFromDepth(float depth, vec2 uv) {
 void main() 
 {
 	ivec2 rayDataCoords;
-	rayDataCoords.x = int(gl_LaunchIDEXT.x);
-	rayDataCoords.y = int(gl_LaunchIDEXT.y);
+	rayDataCoords.x = int(gl_LaunchIDEXT.x - 1);
+	rayDataCoords.y = int(gl_LaunchIDEXT.y - 1);
 
 	vec2 coords = vec2(float(rayDataCoords.x), float(rayDataCoords.y));
 	vec2 textureSize = vec2(float(gl_LaunchSizeEXT.x), float(gl_LaunchSizeEXT.y));

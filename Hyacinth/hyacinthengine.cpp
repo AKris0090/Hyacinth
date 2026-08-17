@@ -249,12 +249,11 @@ void HyacinthEngine::createColorImages() {
     m_gBuffers.resize(numImages);
 
     for (auto& gb : m_gBuffers) {
-        gb.depth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "depth_image");
+        gb.depth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "depth_image");
         gb.albedo = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "albedo_image");
 		gb.normal = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "normal_image");
-        gb.AMR = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "amr_image");
+        gb.AMR = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, m_msaaSamples, false, "amr_image");
         gb.ddgiImage = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "ddgi_image");
-        gb.stencilDepth = vkimageutils::createImageandView(extent, 1, VK_FORMAT_S8_UINT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, m_msaaSamples, false, "stencil_depth_image");
         gb.compositeImage = vkimageutils::createImageandView(extent, 1, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, m_msaaSamples, false, "composite_image");
 	    vkimageutils::createImageSampler(gb.albedo);
 	    vkimageutils::createImageSampler(gb.normal);
@@ -552,7 +551,7 @@ void HyacinthEngine::createDDGIVolumePipeline()
     m_volumeStencilPipeline.setDefaultAttributes();
     m_volumeStencilPipeline.setPolygonMode(VK_POLYGON_MODE_FILL);
     m_volumeStencilPipeline.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    m_volumeStencilPipeline.setStencilAttachmentFormat(VK_FORMAT_S8_UINT);
+    m_volumeStencilPipeline.setStencilAttachmentFormat(VK_FORMAT_D32_SFLOAT_S8_UINT);
     m_volumeStencilPipeline.setMultisampling(m_msaaSamples);
     m_volumeStencilPipeline.disableBlending();
 
@@ -617,7 +616,7 @@ void HyacinthEngine::createDDGIPipeline()
     m_ddgiPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R16G16B16A16_SFLOAT, 1);
     m_ddgiPipelineUtil.setMultisampling(m_msaaSamples);
     m_ddgiPipelineUtil.disableBlending();
-    m_ddgiPipelineUtil.setStencilAttachmentFormat(VK_FORMAT_S8_UINT);
+    m_ddgiPipelineUtil.setStencilAttachmentFormat(VK_FORMAT_D32_SFLOAT_S8_UINT);
     m_ddgiPipelineUtil.m_depthStencil.stencilTestEnable = true;
     m_ddgiPipelineUtil.m_depthStencil.front.compareMask = CURRENT_BIT;
     m_ddgiPipelineUtil.m_depthStencil.front.writeMask = ANY_BIT | CURRENT_BIT;
@@ -896,6 +895,14 @@ void HyacinthEngine::init()
     m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, static_cast<uint32_t>(DUMMY_TEX_PATHS.size() + UI_TEXTURE_PATHS.size()), m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
     m_ambientHelper.setup(m_descriptorSetLayout, m_compositeSetLayout, m_swImageFormat);
 
+    std::vector<VulkanImage*> depthStencilImages;
+    std::vector<VulkanImage*> amrImages;
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        depthStencilImages.push_back(&m_gBuffers[i].depth);
+        amrImages.push_back(&m_gBuffers[i].AMR);
+    }
+    m_outlineHelper.setup(m_descriptorSetLayout, m_compositeSetLayout, m_swImageFormat.extent, m_gBuffers[0].depth.imageFormat, depthStencilImages, amrImages);
+
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.setup(m_swImageFormat, m_msaaSamples, m_descriptorSetLayout);
 #endif
@@ -914,6 +921,7 @@ void HyacinthEngine::addAnimatedGameObject(HAnimatedGameObject* gameObjectRef) {
 
 void HyacinthEngine::generateRenderList() {
     m_renderList.clear();
+
     for (const auto& o : m_staticObjects) {
         for (const auto& n : o->mesh->meshedNodes) {
             for (const auto& p : n->primitives) {
@@ -968,8 +976,10 @@ void HyacinthEngine::generateRenderList() {
         animatedVertexOffset += ao.gameObject->mesh->numVertices;
     }
     if (p_netEntManager) {
+        bool isCharacter = false; // character should be drawn to the stencil buffer as well
         for (const auto& [id, ao] : p_netEntManager->gameObjects) {
             if (!ao.gameObject->active) continue;
+            isCharacter = p_netEntManager->entities[id]->type == E_PLAYER;
             for (const auto& n : ao.gameObject->mesh->meshedNodes) {
                 for (const auto& p : n->primitives) {
                     m_renderList.push_back(HRenderCall{
@@ -978,8 +988,8 @@ void HyacinthEngine::generateRenderList() {
                         .indexCount = p.indexCount,
                         .firstIndex = p.firstIndex,
                         .vertexOffset = animatedVertexOffset + p.firstVertex - ao.gameObject->mesh->vertexOffset,
-                        .meshID = 0
-                        });
+                        .meshID = isCharacter ? 1U : 0U
+                    });
                 }
             }
             animatedVertexOffset += ao.gameObject->mesh->numVertices;
@@ -995,6 +1005,8 @@ void HyacinthEngine::generateRenderList() {
 
 void HyacinthEngine::generateDrawCommands() {
     m_drawCommands.clear();
+    m_stencilDrawList.clear();
+
     uint32_t drawIndex = 0;
     for (const auto& d : m_renderList) {
         VkDrawIndexedIndirectCommand dCom;
@@ -1004,6 +1016,9 @@ void HyacinthEngine::generateDrawCommands() {
         dCom.instanceCount = 1;
         dCom.vertexOffset = d.vertexOffset;
         m_drawCommands.push_back(dCom);
+
+        if (d.meshID == 1) m_stencilDrawList.push_back(dCom);
+
         drawIndex++;
     }
 
@@ -1094,7 +1109,7 @@ int HyacinthEngine::setupDraw()
     vkimageutils::transitionImageColorAttachment(cmd, m_gBuffers[m_swImageIndex].ddgiImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     vkimageutils::transitionImageColorAttachment(cmd, m_gBuffers[m_swImageIndex].compositeImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     vkimageutils::transitionImageColorAttachment(cmd, m_gBuffers[m_swImageIndex].depth, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-    vkimageutils::transitionImageColorAttachment(cmd, m_gBuffers[m_swImageIndex].stencilDepth, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_STENCIL_BIT);
+    vkimageutils::transitionImageColorAttachment(cmd, m_gBuffers[m_swImageIndex].depth, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_STENCIL_BIT);
     
     vkimageutils::transitionImageColorAttachment(cmd, m_swapChainImages[m_swImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, true);
 
@@ -1402,7 +1417,7 @@ void HyacinthEngine::draw() {
             VK_LABEL(cmd, "Stencil Volume");
             // bind stencil pipeline
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.pipeline);
-            VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].stencilDepth.imageView, (i == m_owDDGIHelper.m_probeVolumes.size() - 1));
+            VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].depth.stencilImageView, (i == m_owDDGIHelper.m_probeVolumes.size() - 1), OUTLINE_BIT);
             VkRenderingInfo volumeStencilRenderingInfo = vkdeviceutils::createStencilRenderingInfo(m_swImageFormat.extent, &stencilAttachmentInfo);
             vkCmdBeginRendering(cmd, &volumeStencilRenderingInfo);
             vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -1417,7 +1432,7 @@ void HyacinthEngine::draw() {
      
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ddgiPipelineUtil.m_pipeline.pipeline);
             VkRenderingAttachmentInfo ddgiAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].ddgiImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, (i == m_owDDGIHelper.m_probeVolumes.size() - 1));
-            VkRenderingAttachmentInfo stencilAttachment = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].stencilDepth.imageView, false);
+            VkRenderingAttachmentInfo stencilAttachment = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].depth.stencilImageView, false);
             VkRenderingInfo ddgiRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &ddgiAttachment, nullptr);
             ddgiRenderingInfo.pStencilAttachment = &stencilAttachment;
             vkCmdBeginRendering(cmd, &ddgiRenderingInfo);
@@ -1500,6 +1515,10 @@ void HyacinthEngine::draw() {
         vkCmdEndRendering(cmd);
         VK_LABEL_END(cmd);
     }
+
+    {
+        m_outlineHelper.drawEdges(cmd, m_swImageIndex, m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_swImageIndex].m_compositeSet, m_gBuffers[m_swImageIndex].depth, m_gBuffers[m_swImageIndex].AMR, m_swImageFormat.extent, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_assetDrawer.materialInfoBuffer.gpuAddress, m_stencilDrawList, m_frameData[m_frameIndex].m_skinnedVertexBuffer);
+    }
     
     {
         VK_LABEL(cmd, "UI Pass");
@@ -1526,6 +1545,8 @@ void HyacinthEngine::draw() {
         VK_LABEL_END(cmd);
     }
 #endif
+
+
 
     if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
         VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
@@ -1616,7 +1637,6 @@ void HyacinthEngine::recreateSwapchain() {
         vkimageutils::destroyImage(m_gBuffers[i].AMR);
         vkimageutils::destroyImage(m_gBuffers[i].depth);
         vkimageutils::destroyImage(m_gBuffers[i].ddgiImage);
-        vkimageutils::destroyImage(m_gBuffers[i].stencilDepth);
         vkimageutils::destroyImage(m_gBuffers[i].compositeImage);
     }
 
@@ -1708,7 +1728,6 @@ void HyacinthEngine::shutdown()
         vkimageutils::destroyImage(m_gBuffers[i].AMR);
         vkimageutils::destroyImage(m_gBuffers[i].depth);
         vkimageutils::destroyImage(m_gBuffers[i].ddgiImage);
-        vkimageutils::destroyImage(m_gBuffers[i].stencilDepth);
         vkimageutils::destroyImage(m_gBuffers[i].compositeImage);
     }
 

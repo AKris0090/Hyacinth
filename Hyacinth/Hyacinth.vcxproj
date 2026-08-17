@@ -162,6 +162,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="netDebugRenderer.cpp" />
     <ClCompile Include="net_ent.cpp" />
+    <ClCompile Include="outline.cpp" />
     <ClCompile Include="owDDGI.cpp" />
     <ClCompile Include="probevis.cpp" />
     <ClCompile Include="raytracing.cpp" />
@@ -204,6 +205,7 @@
     <ClInclude Include="input.h" />
     <ClInclude Include="netDebugRenderer.h" />
     <ClInclude Include="net_ent.h" />
+    <ClInclude Include="outline.h" />
     <ClInclude Include="owDDGI.h" />
     <ClInclude Include="probevis.h" />
     <ClInclude Include="raytracing.h" />
@@ -238,9 +240,11 @@
     <None Include="shaders\ddgiStencil.frag" />
     <None Include="shaders\depth.vert" />
     <None Include="shaders\depthAlphaDiscard.frag" />
+    <None Include="shaders\drawOutline.frag" />
     <None Include="shaders\frustumCull.comp" />
     <None Include="shaders\fsQuad.vert" />
     <None Include="shaders\fxaa.frag" />
+    <None Include="shaders\growStencil.comp" />
     <None Include="shaders\irradianceBuild.comp" />
     <None Include="shaders\miss.rmiss" />
     <None Include="shaders\netEntDebug.frag" />

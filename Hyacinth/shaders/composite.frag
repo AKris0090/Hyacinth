@@ -82,7 +82,7 @@ vec3 F_Schlick(float cosTheta, float metallic, float roughness, vec3 albedo)
 
 // Specular BRDF composition --------------------------------------------
 
-vec3 BRDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 albedo)
+vec3 BRDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 albedo, float shadow)
 {
 	// Precalculate vectors and dot products	
 	vec3 H = normalize (V + L);
@@ -105,7 +105,10 @@ vec3 BRDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 albedo)
 
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV);
 
-		color += spec * dotNL * lightColor * 8.0;
+		color += spec * dotNL * lightColor * 8.0 * shadow;
+
+		vec3 specular = texture(specularImage, inUV).xyz;
+		color += F * specular;
 	}
 
 	return color;
@@ -130,7 +133,7 @@ void main() {
     vec3 irrad = texture(ddgiImage, inUV).xyz;
 	vec3 ambient = (albedo.rgb) * irrad * 1.0; // amr.r;
 
-	vec3 color = ambient + (BRDF(L, V, N, amr.y, amr.z, albedo.xyz) * Nshadow.w);
+	vec3 color = ambient + BRDF(L, V, N, amr.y, amr.z, albedo.xyz, Nshadow.w);
 
     outColor = vec4(ACESFilm(color), 1.0);
 

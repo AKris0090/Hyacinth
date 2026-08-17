@@ -212,8 +212,10 @@ void SpecularTraceHelper::traceScene(VkCommandBuffer& cmd, uint32_t swImageIndex
 	subResourceRange.baseArrayLayer = 0;
 	subResourceRange.layerCount = 1;
 
-	vkimageutils::transitionTexImage(cmd, specularImages[swImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	vkimageutils::transitionImageGeneral(cmd, specularImages[swImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,VK_IMAGE_ASPECT_COLOR_BIT);
 	vkCmdClearColorImage(cmd, specularImages[swImageIndex].image, VK_IMAGE_LAYOUT_GENERAL, &specularClearVal.color, 1, &subResourceRange);
+	vkdeviceutils::generalPipelineBarrier(cmd, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, rtPipeline.pipeline);
 
 	std::array<VkDescriptorSet, 4> sets = { writeSpecularSets[swImageIndex], uniformSet, gbuffSet, textureSet};
@@ -231,7 +233,7 @@ void SpecularTraceHelper::traceScene(VkCommandBuffer& cmd, uint32_t swImageIndex
 
 	// x should be num rays, y should be num probes per layer, z should be num probes vertically
 	rt::Trace(cmd, &raygenRegion, &missRegion, &hitRegion, &callableRegion, swapChainExtent.width, swapChainExtent.height, 1);
-	vkimageutils::transitionTexImage(cmd, specularImages[swImageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+	vkimageutils::transitionImageGeneral(cmd, specularImages[swImageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void SpecularTraceHelper::shutdown() {

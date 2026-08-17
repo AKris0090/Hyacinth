@@ -1,0 +1,45 @@
+#version 460
+#extension GL_EXT_buffer_reference : require
+
+#include "bufferInfo.glsl"
+
+layout(set = 0, binding = 0) uniform sampler2D stencilImage;
+layout(set = 0, binding = 1, rgba8) uniform image2D amrImage;
+layout(set = 0, binding = 2) uniform sampler2D depthImage;
+
+const uint OUTLINE_BIT = 0x01;
+const int OUTLINE_PIXEL_SIZE = 2;
+
+layout(push_constant) uniform PushConstants {
+    vec2 targetResolution;
+} pc;
+
+void main()
+{
+	ivec2 basePixelCoord = ivec2(int(gl_GlobalInvocationID.x), int(gl_GlobalInvocationID.y));
+
+	// for each pixel, go in a 2x2 round to see if there are any outline pixels present
+	bool terminate = false;
+	for (int i = 0; i < OUTLINE_PIXEL_SIZE && !terminate; i++) {
+		for (int j = 0; j < OUTLINE_PIXEL_SIZE; j++) {
+			ivec2 sampledPixelCoord = basePixelCoord + ivec2(i, j);
+
+			uint stencil = imageLoad(stencilImage, sampledPixelCoord).r;
+
+			if ((stencil & OUTLINE_BIT) != 0) {
+				// check depth against depth image
+				vec2 baseUV = vec2(basePixelCoord) / pc.targetResolution;
+				vec2 sampleUV = vec2(sampledPixelCoord) / pc.targetResolution;
+
+				float baseDepthSample = texture(depthImage, baseUV).r;
+				float expansionDepthSample = imageLoad(depthImage, sampleUV).r;
+
+				if (expansionDepthSample < baseDepthSample) {
+					imageStore(amrImage, basePixelCoord, vec4(1.0, 0.0, 0.0, 1.0));
+					terminate = true;
+					break;
+				}
+			}
+		}
+	}
+}

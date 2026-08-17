@@ -102,6 +102,23 @@ namespace std {
 	};
 }
 
+struct HRenderCall {
+	glm::mat4 transformMatrix;
+	alignas(16) glm::vec3 aaBBMin;
+	alignas(16) glm::vec3 aabbMax;
+
+	uint32_t	materialIndex;
+	uint32_t    indexCount;
+	uint32_t    firstIndex;
+	uint32_t    vertexOffset;
+
+	uint32_t meshID;
+
+	bool operator==(const HRenderCall& other) const {
+		return firstIndex == other.firstIndex && indexCount == other.indexCount && firstIndex == other.firstIndex && vertexOffset == other.vertexOffset;
+	}
+};
+
 namespace vkmeshutils {
 	void uploadMesh(std::vector<uint32_t>& indices, std::vector<Vertex>& vertices, std::vector<AABB>& boundingBoxes, VulkanBuffer& vertexBuffer, VulkanBuffer& indexBuffer, VulkanBuffer& aabbBuffer);
 }

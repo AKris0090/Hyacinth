@@ -50,4 +50,9 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./fxaa.frag -o fxaaFrag.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./skinning.comp -o compSkin.spv
 
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./outline.vert -o outlineVert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./drawOutline.frag -o drawOutline.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./outlineLayer.frag -o outlineLayer.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./growStencil.comp -o growComp.spv
+
 pause

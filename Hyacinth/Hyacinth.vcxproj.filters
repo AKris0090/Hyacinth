@@ -154,6 +154,12 @@
     <Filter Include="Source Files\shaders\rt shaders\specular_shaders">
       <UniqueIdentifier>{b2e7eb58-570c-425d-9432-950b8eb3a508}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\core\outline">
+      <UniqueIdentifier>{353d0da6-4151-4531-93a1-9c36ee201862}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\outline">
+      <UniqueIdentifier>{4b61b60b-ecd8-4b4d-a7ac-884c54118eb5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -269,6 +275,9 @@
     </ClCompile>
     <ClCompile Include="specular.cpp">
       <Filter>Source Files\renderer\core\raytracing\specular</Filter>
+    </ClCompile>
+    <ClCompile Include="outline.cpp">
+      <Filter>Source Files\renderer\core\outline</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -398,6 +407,9 @@
     <ClInclude Include="specular.h">
       <Filter>Source Files\renderer\core\raytracing\specular</Filter>
     </ClInclude>
+    <ClInclude Include="outline.h">
+      <Filter>Source Files\renderer\core\outline</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="shaders\gbuffer.vert">
@@ -518,6 +530,12 @@
     </None>
     <None Include="shaders\specularMiss.rmiss">
       <Filter>Source Files\shaders\rt shaders\specular_shaders</Filter>
+    </None>
+    <None Include="shaders\drawOutline.frag">
+      <Filter>Source Files\shaders\outline</Filter>
+    </None>
+    <None Include="shaders\growStencil.comp">
+      <Filter>Source Files\shaders\outline</Filter>
     </None>
   </ItemGroup>
 </Project>

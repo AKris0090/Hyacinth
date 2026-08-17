@@ -35,8 +35,6 @@ void main()
 	Vertex v1 = pc.vertexBufferAddress.vertices[index.y + r.vertexOffset];
 	Vertex v2 = pc.vertexBufferAddress.vertices[index.z + r.vertexOffset];
 
-	vec3 normal = normalize(a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz);
-
 	vec2 uv0 = vec2(v0.position.w, v0.normal.w);
 	vec2 uv1 = vec2(v1.position.w, v1.normal.w);
 	vec2 uv2 = vec2(v2.position.w, v2.normal.w);

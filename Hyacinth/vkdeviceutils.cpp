@@ -289,4 +289,22 @@ namespace vkdeviceutils {
 
         memcpy(buffer.pMappedData, newData, newSize);
     }
+
+    void generalPipelineBarrier(VkCommandBuffer& cmd, VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess) {
+        VkMemoryBarrier2 memBarrier{
+        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+        .srcStageMask = srcStage,
+        .srcAccessMask = srcAccess,
+        .dstStageMask = dstStage,
+        .dstAccessMask = dstAccess,
+        };
+
+        VkDependencyInfo depInfo{
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .memoryBarrierCount = 1,
+            .pMemoryBarriers = &memBarrier,
+        };
+
+        vkCmdPipelineBarrier2(cmd, &depInfo);
+    }
 }
