@@ -1518,6 +1518,24 @@ void HyacinthEngine::draw() {
 
     {
         m_outlineHelper.drawEdges(cmd, m_swImageIndex, m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_swImageIndex].m_compositeSet, m_gBuffers[m_swImageIndex].depth, m_gBuffers[m_swImageIndex].AMR, m_swImageFormat.extent, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_assetDrawer.materialInfoBuffer.gpuAddress, m_stencilDrawList, m_frameData[m_frameIndex].m_skinnedVertexBuffer);
+        // rebind default vertex buffer
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
+
+        VK_LABEL(cmd, "Apply Outline Pass");
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_outlineHelper.layerOutlinePipeline.m_pipeline.pipeline);
+        std::array<VkDescriptorSet, 1> applyOutlineSets = { m_gBuffers[m_swImageIndex].m_compositeSet };
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_outlineHelper.layerOutlinePipeline.m_pipeline.layout, 0, static_cast<uint32_t>(applyOutlineSets.size()), applyOutlineSets.data(), 0, nullptr);
+        VkRenderingAttachmentInfo layerAttachmentInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+        VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].depth.stencilImageView, false);
+        VkRenderingInfo layerRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &layerAttachmentInfo, nullptr);
+        layerRenderingInfo.pStencilAttachment = &stencilAttachmentInfo;
+        vkCmdBeginRendering(cmd, &layerRenderingInfo);
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+        vkCmdDrawIndexed(cmd, QUAD_INDEX_COUNT, 1, 0, 0, 0);
+        vkCmdEndRendering(cmd);
+        VK_LABEL_END(cmd);
     }
     
     {

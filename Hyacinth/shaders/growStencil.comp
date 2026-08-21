@@ -3,9 +3,10 @@
 
 #include "bufferInfo.glsl"
 
-layout(set = 0, binding = 0) uniform sampler2D stencilImage;
+layout(set = 0, binding = 0) uniform usampler2D stencilImage;
 layout(set = 0, binding = 1, rgba8) uniform image2D amrImage;
 layout(set = 0, binding = 2) uniform sampler2D depthImage;
+layout(set = 0, binding = 3) uniform sampler2D characterDepthImage;
 
 const uint OUTLINE_BIT = 0x01;
 const int OUTLINE_PIXEL_SIZE = 2;
@@ -18,27 +19,23 @@ void main()
 {
 	ivec2 basePixelCoord = ivec2(int(gl_GlobalInvocationID.x), int(gl_GlobalInvocationID.y));
 
-	// for each pixel, go in a 2x2 round to see if there are any outline pixels present
-	bool terminate = false;
-	for (int i = 0; i < OUTLINE_PIXEL_SIZE && !terminate; i++) {
-		for (int j = 0; j < OUTLINE_PIXEL_SIZE; j++) {
+	uint stencil = texelFetch(stencilImage, basePixelCoord, 0).r;
+	if ((stencil & OUTLINE_BIT) != OUTLINE_BIT) {
+		return;
+	}
+	
+	// for each stenciled pixel, go in a 2x2 round to see if outlines are possible
+	for (int i = -OUTLINE_PIXEL_SIZE; i < OUTLINE_PIXEL_SIZE + 1; i++) {
+		for (int j = -OUTLINE_PIXEL_SIZE; j < OUTLINE_PIXEL_SIZE + 1; j++) {
 			ivec2 sampledPixelCoord = basePixelCoord + ivec2(i, j);
-
-			uint stencil = imageLoad(stencilImage, sampledPixelCoord).r;
-
-			if ((stencil & OUTLINE_BIT) != 0) {
-				// check depth against depth image
-				vec2 baseUV = vec2(basePixelCoord) / pc.targetResolution;
-				vec2 sampleUV = vec2(sampledPixelCoord) / pc.targetResolution;
-
-				float baseDepthSample = texture(depthImage, baseUV).r;
-				float expansionDepthSample = imageLoad(depthImage, sampleUV).r;
-
-				if (expansionDepthSample < baseDepthSample) {
-					imageStore(amrImage, basePixelCoord, vec4(1.0, 0.0, 0.0, 1.0));
-					terminate = true;
-					break;
-				}
+			sampledPixelCoord = clamp(sampledPixelCoord, ivec2(0), ivec2(pc.targetResolution) - 1);
+	
+			// check depth against depth image
+			float baseDepthSample = texelFetch(characterDepthImage, basePixelCoord, 0).r;
+			float expansionDepthSample = texelFetch(depthImage, sampledPixelCoord, 0).r;
+			
+			if (expansionDepthSample > baseDepthSample) { // expansion is the search factor, so it should be further from the screen than the other
+				imageStore(amrImage, sampledPixelCoord, vec4(1.0, 0.0, 0.0, 1.0));
 			}
 		}
 	}

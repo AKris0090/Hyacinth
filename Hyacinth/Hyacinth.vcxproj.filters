@@ -537,5 +537,11 @@
     <None Include="shaders\growStencil.comp">
       <Filter>Source Files\shaders\outline</Filter>
     </None>
+    <None Include="shaders\outlineLayer.frag">
+      <Filter>Source Files\shaders\outline</Filter>
+    </None>
+    <None Include="shaders\outline.vert">
+      <Filter>Source Files\shaders\outline</Filter>
+    </None>
   </ItemGroup>
 </Project>

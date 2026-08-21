@@ -90,6 +90,7 @@ namespace vkimageutils {
 		if (mipped) {
 			imgInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2((std::max)(size.width, size.height)))) + 1;
 		}
+
 		newImage.mipLevels = imgInfo.mipLevels;
 
 		VmaAllocationCreateInfo allocInfo = {};
@@ -107,7 +108,7 @@ namespace vkimageutils {
 		}
 
 		if (format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-			newImage.stencilImageView = vkimageutils::createImageView(newImage, 0, arrayLayers, VK_IMAGE_ASPECT_STENCIL_BIT, false);
+			newImage.stencilImageView = createImageView(newImage, 0, 1, VK_IMAGE_ASPECT_STENCIL_BIT, false);
 		}
 
 		newImage.imageView = vkimageutils::createImageView(newImage, 0, arrayLayers, aspectFlag, cube);
