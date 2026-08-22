@@ -30,18 +30,17 @@ private:
 	DescriptorAllocator	m_descriptorAllocator{};
 	VkDescriptorSetLayout computeGrowSetLayout;
 	std::vector<VulkanImage> characterDepthImages;
-	std::vector<VkSampler> stencilImageSampler;
+	VkSampler stencilImageSampler;
 	std::vector<VkDescriptorSet> computeGrowSets;
 
 	VulkanPipelineBuilder stencilDrawPipeline;
 	VulkanPipeline computeGrowPipeline; // should use both depth buffer from stencil draw pass and depth buffer from depth prepass to assess if the pixel should be grown into
-
-	void recreateImageResources(VkExtent2D swapChainExtent);
 
 public:
 	VulkanPipelineBuilder layerOutlinePipeline;
 
 	void setup(VkDescriptorSetLayout& uniformSetLayout, VkDescriptorSetLayout& gBufferSetLayout, VkExtent2D swapChainExtent, VkFormat depthFormat, std::vector<VulkanImage*>& depthStencilImages, std::vector<VulkanImage*>& amrImages);
 	void drawEdges(VkCommandBuffer& cmd, uint32_t imageIndex, VkDescriptorSet& uniformSet, VkDescriptorSet& compositeSet, VulkanImage& depthStencilImage, VulkanImage& amrImage, VkExtent2D swExtent, VkDeviceAddress& renderCallAddress, VkDeviceAddress& materialAddress, std::vector<VkDrawIndexedIndirectCommand>& stencilRenderCalls, VulkanBuffer& skinnedVertexBuffer);
+	void recreateImageResources(VkExtent2D swapChainExtent, std::vector<VulkanImage*>& depthStencilImages, std::vector<VulkanImage*>& amrImages);
 	void shutdown();
 };

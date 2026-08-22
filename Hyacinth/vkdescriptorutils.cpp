@@ -118,6 +118,41 @@ void vkdescriptorutils::queueWriteImage(VkDescriptorSet& descriptorSet, uint32_t
 	queuedWrites.push_back(imageWrite);
 }
 
+void vkdescriptorutils::queueWriteImage(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout, VkSampler& sampler) {
+    VkDescriptorImageInfo* imageInfo = new VkDescriptorImageInfo{};
+    imageInfo->imageLayout = layout;
+    imageInfo->imageView = image.imageView;
+    imageInfo->sampler = sampler;
+    imageInfos.push_back(imageInfo);
+
+    VkWriteDescriptorSet imageWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    imageWrite.dstSet = descriptorSet;
+    imageWrite.dstBinding = binding;
+    imageWrite.dstArrayElement = arrayLayer;
+    imageWrite.descriptorType = type;
+    imageWrite.descriptorCount = 1;
+    imageWrite.pImageInfo = imageInfo;
+
+    queuedWrites.push_back(imageWrite);
+}
+
+void vkdescriptorutils::queueWriteImageStencil(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout, VkSampler& sampler) {
+    VkDescriptorImageInfo* imageInfo = new VkDescriptorImageInfo{};
+    imageInfo->imageLayout = layout;
+    imageInfo->imageView = image.stencilImageView;
+    imageInfo->sampler = sampler;
+
+    VkWriteDescriptorSet imageWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    imageWrite.dstSet = descriptorSet;
+    imageWrite.dstBinding = binding;
+    imageWrite.dstArrayElement = arrayLayer;
+    imageWrite.descriptorType = type;
+    imageWrite.descriptorCount = 1;
+    imageWrite.pImageInfo = imageInfo;
+
+    queuedWrites.push_back(imageWrite);
+}
+
 void vkdescriptorutils::queueWriteBuffer(VkDescriptorSet& descriptorSet, uint32_t binding, size_t size, VkDescriptorType type, VulkanBuffer& buffer) {
     VkDescriptorBufferInfo* bufferInfo = new VkDescriptorBufferInfo{};
     bufferInfo->buffer = buffer.buffer;

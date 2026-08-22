@@ -533,6 +533,7 @@ namespace vkimageutils {
 	void destroyImage(VulkanImage& image) {
 		if (image.imageSampler != VK_NULL_HANDLE) vkDestroySampler(vkdeviceutils::device, image.imageSampler, nullptr);
 		if (image.imageView != VK_NULL_HANDLE) vkDestroyImageView(vkdeviceutils::device, image.imageView, nullptr);
+		if (image.stencilImageView != VK_NULL_HANDLE) vkDestroyImageView(vkdeviceutils::device, image.stencilImageView, nullptr);
 		vmaDestroyImage(vkdeviceutils::allocator, image.image, image.imageAllocation);
 	}
 

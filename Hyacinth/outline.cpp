@@ -1,6 +1,27 @@
 #include "outline.h"
 
-void OutlineHelper::recreateImageResources(VkExtent2D swapChainExtent) {
+void OutlineHelper::recreateImageResources(VkExtent2D swapChainExtent, std::vector<VulkanImage*>& depthStencilImages, std::vector<VulkanImage*>& amrImages) {
+    characterDepthImages.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkimageutils::destroyImage(characterDepthImages[i]);
+
+        VkExtent3D ext3{
+            .width = swapChainExtent.width,
+            .height = swapChainExtent.height,
+            .depth = 1
+        };
+        characterDepthImages[i] = vkimageutils::createImageandView(ext3, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, false, "depth_image_outline");
+
+        vkdescriptorutils::queueWriteImageStencil(computeGrowSets[i], 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, *depthStencilImages[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, stencilImageSampler);
+        vkdescriptorutils::queueWriteImage(computeGrowSets[i], 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, *amrImages[i], VK_IMAGE_LAYOUT_GENERAL);
+        vkdescriptorutils::queueWriteImage(computeGrowSets[i], 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, *depthStencilImages[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, stencilImageSampler);
+        vkdescriptorutils::queueWriteImage(computeGrowSets[i], 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, characterDepthImages[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, stencilImageSampler);
+    }
+    vkdescriptorutils::flushDescriptorWrites();
+}
+
+void OutlineHelper::setup(VkDescriptorSetLayout& uniformSetLayout, VkDescriptorSetLayout& gBufferSetLayout, VkExtent2D swapChainExtent, VkFormat depthFormat, std::vector<VulkanImage*>& depthStencilImages, std::vector<VulkanImage*>& amrImages) {
     characterDepthImages.resize(MAX_FRAMES_IN_FLIGHT);
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         VkExtent3D ext3{
@@ -10,10 +31,6 @@ void OutlineHelper::recreateImageResources(VkExtent2D swapChainExtent) {
         };
         characterDepthImages[i] = vkimageutils::createImageandView(ext3, 1, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_SAMPLE_COUNT_1_BIT, false, "depth_image_outline");
     }
-}
-
-void OutlineHelper::setup(VkDescriptorSetLayout& uniformSetLayout, VkDescriptorSetLayout& gBufferSetLayout, VkExtent2D swapChainExtent, VkFormat depthFormat, std::vector<VulkanImage*>& depthStencilImages, std::vector<VulkanImage*>& amrImages) {
-    recreateImageResources(swapChainExtent);
 
     // CREATE STENCIL SAMPLER DESCRIPTOR
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
@@ -32,76 +49,33 @@ void OutlineHelper::setup(VkDescriptorSetLayout& uniformSetLayout, VkDescriptorS
         computeGrowSetLayout = layoutBuilder.buildLayout(nullptr, 0);
     }
 
+    // create sampler
+    VkSamplerCreateInfo samplerCInfo{};
+    samplerCInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerCInfo.magFilter = VK_FILTER_NEAREST;
+    samplerCInfo.minFilter = VK_FILTER_NEAREST;
+    samplerCInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerCInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerCInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerCInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerCInfo.mipLodBias = 0.0f;
+    samplerCInfo.compareOp = VK_COMPARE_OP_NEVER;
+    samplerCInfo.minLod = 0.0f;
+    samplerCInfo.maxLod = 0.f;
+    samplerCInfo.anisotropyEnable = VK_TRUE;
+    samplerCInfo.maxAnisotropy = vkimageutils::getMaxAnisotropy();
+    samplerCInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+    vkCreateSampler(vkdeviceutils::device, &samplerCInfo, nullptr, &stencilImageSampler);
+
     computeGrowSets.resize(MAX_FRAMES_IN_FLIGHT);
-    stencilImageSampler.resize(MAX_FRAMES_IN_FLIGHT);
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         computeGrowSets[i] = m_descriptorAllocator.allocate(computeGrowSetLayout);
 
-        // create sampler
-        VkSamplerCreateInfo samplerCInfo{};
-        samplerCInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerCInfo.magFilter = VK_FILTER_NEAREST;
-        samplerCInfo.minFilter = VK_FILTER_NEAREST;
-        samplerCInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        samplerCInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-        samplerCInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-        samplerCInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-        samplerCInfo.mipLodBias = 0.0f;
-        samplerCInfo.compareOp = VK_COMPARE_OP_NEVER;
-        samplerCInfo.minLod = 0.0f;
-        samplerCInfo.maxLod = 0.f;
-        samplerCInfo.anisotropyEnable = VK_TRUE;
-        samplerCInfo.maxAnisotropy = vkimageutils::getMaxAnisotropy();
-        samplerCInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-
-        vkCreateSampler(vkdeviceutils::device, &samplerCInfo, nullptr, &stencilImageSampler[i]);
-
-        VkDescriptorImageInfo* imageInfo = new VkDescriptorImageInfo{};
-        imageInfo->imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo->imageView = (*depthStencilImages[i]).stencilImageView;
-        imageInfo->sampler = stencilImageSampler[i];
-        vkdescriptorutils::imageInfos.push_back(imageInfo);
-
-        VkWriteDescriptorSet imageWrite{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-        imageWrite.dstSet = computeGrowSets[i];
-        imageWrite.dstBinding = 0;
-        imageWrite.dstArrayElement = 0;
-        imageWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        imageWrite.descriptorCount = 1;
-        imageWrite.pImageInfo = imageInfo; // add stencil image to binding 0
-        vkdescriptorutils::queuedWrites.push_back(imageWrite);
-
-        vkdescriptorutils::queueWriteImage(computeGrowSets[i], 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, *amrImages[i], VK_IMAGE_LAYOUT_GENERAL); // amr image to binding 1
-
-        VkDescriptorImageInfo* depthImageInfo = new VkDescriptorImageInfo{};
-        depthImageInfo->imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        depthImageInfo->imageView = (*depthStencilImages[i]).imageView;
-        depthImageInfo->sampler = stencilImageSampler[i];
-        vkdescriptorutils::imageInfos.push_back(depthImageInfo);
-
-        VkWriteDescriptorSet imageWriteDepth { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-        imageWriteDepth.dstSet = computeGrowSets[i];
-        imageWriteDepth.dstBinding = 2;
-        imageWriteDepth.dstArrayElement = 0;
-        imageWriteDepth.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        imageWriteDepth.descriptorCount = 1;
-        imageWriteDepth.pImageInfo = depthImageInfo;
-        vkdescriptorutils::queuedWrites.push_back(imageWriteDepth);
-
-        VkDescriptorImageInfo* charDepthImageInfo = new VkDescriptorImageInfo{};
-        charDepthImageInfo->imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        charDepthImageInfo->imageView = characterDepthImages[i].imageView;
-        charDepthImageInfo->sampler = stencilImageSampler[i];
-        vkdescriptorutils::imageInfos.push_back(charDepthImageInfo);
-
-        VkWriteDescriptorSet charDepthImageWriteDepth{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-        charDepthImageWriteDepth.dstSet = computeGrowSets[i];
-        charDepthImageWriteDepth.dstBinding = 3;
-        charDepthImageWriteDepth.dstArrayElement = 0;
-        charDepthImageWriteDepth.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        charDepthImageWriteDepth.descriptorCount = 1;
-        charDepthImageWriteDepth.pImageInfo = charDepthImageInfo;
-        vkdescriptorutils::queuedWrites.push_back(charDepthImageWriteDepth);
+        vkdescriptorutils::queueWriteImageStencil(computeGrowSets[i], 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, *depthStencilImages[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, stencilImageSampler);
+        vkdescriptorutils::queueWriteImage(computeGrowSets[i], 1, 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, *amrImages[i], VK_IMAGE_LAYOUT_GENERAL);
+        vkdescriptorutils::queueWriteImage(computeGrowSets[i], 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, *depthStencilImages[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, stencilImageSampler);
+        vkdescriptorutils::queueWriteImage(computeGrowSets[i], 3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, characterDepthImages[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, stencilImageSampler);
     }
     vkdescriptorutils::flushDescriptorWrites();
 
@@ -302,7 +276,16 @@ void OutlineHelper::drawEdges(VkCommandBuffer& cmd, uint32_t imageIndex, VkDescr
 }
 
 void OutlineHelper::shutdown() {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkimageutils::destroyImage(characterDepthImages[i]);
+    }
+
+    vkDestroySampler(vkdeviceutils::device, stencilImageSampler, nullptr);
+    vkDestroyDescriptorSetLayout(vkdeviceutils::device, computeGrowSetLayout, nullptr);
+
     stencilDrawPipeline.destroyPipeline();
     layerOutlinePipeline.destroyPipeline();
     computeGrowPipeline.destroy();
+
+    m_descriptorAllocator.destroyPool();
 }

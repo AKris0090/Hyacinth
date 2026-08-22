@@ -1666,6 +1666,14 @@ void HyacinthEngine::recreateSwapchain() {
 	createSwapchain();
     createColorImages();
 
+    std::vector<VulkanImage*> depthStencilImages;
+    std::vector<VulkanImage*> amrImages;
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        depthStencilImages.push_back(&m_gBuffers[i].depth);
+        amrImages.push_back(&m_gBuffers[i].AMR);
+    }
+    m_outlineHelper.recreateImageResources(m_swImageFormat.extent, depthStencilImages, amrImages);
+
     for (int i = 0; i < m_swapChainImages.size(); i++) {
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].albedo, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         vkdescriptorutils::queueWriteImage(m_gBuffers[i].m_compositeSet, 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_gBuffers[i].normal, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1705,6 +1713,7 @@ void HyacinthEngine::shutdown()
     m_assetDrawer.shutdown();
     m_ambientHelper.shutdown();
     m_specularTraceHelper.shutdown();
+    m_outlineHelper.shutdown();
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.shutdown();
