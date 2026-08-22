@@ -22,28 +22,24 @@ layout 	(set = 1, binding = 1) uniform sampler2D normalMap;
 layout	(set = 1, binding = 3) uniform sampler2D depthMap;
 
 layout  (set = 2, binding = 0) uniform sampler2D noiseImage;
+
+const uint kernelSize = 16;
 layout	(set = 2, binding = 1) uniform NoiseBufferObject {
-	vec3 samples[64];
+	mat4 inverseProj;
+	vec4 samples[kernelSize];
 	vec2 screenSize;
 } noiseUBO;
 
 layout	(location = 0) in vec2 inUV;
 layout	(location = 0) out vec4 outColor;
 
-layout( push_constant ) uniform constants
-{
-	vec3 samples[64];
-	vec2 screenSize;
-} pc;
-
-const uint kernelSize = 64;
 const float radius = 0.5;
 
 vec3 viewPosFromDepth(float depth) {
     vec2 ndcXY = inUV * 2.0 - 1.0;
     vec4 ndc   = vec4(ndcXY, depth, 1.0);
 
-    vec4 viewSpace = inverse(ubo.proj) * ndc;
+    vec4 viewSpace = noiseUBO.inverseProj * ndc;
     viewSpace /= viewSpace.w;
 
     return viewSpace.xyz;
@@ -62,7 +58,7 @@ void main() {
 
 	float occlusion = 0.0;
 	for (int i = 0; i < kernelSize; ++i) {
-		vec3 samplePos = TBN * noiseUBO.samples[i];
+		vec3 samplePos = TBN * noiseUBO.samples[i].xyz;
 		samplePos = fragPos + samplePos * radius;
 
 		vec4 offset = vec4(samplePos, 1.0);

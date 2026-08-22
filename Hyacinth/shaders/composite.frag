@@ -107,8 +107,8 @@ vec3 BRDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 albedo, 
 
 		color += spec * dotNL * lightColor * 8.0 * shadow;
 
-		// vec3 specular = texture(specularImage, inUV).xyz;
-		// color += F * specular;
+		vec3 specular = texture(specularImage, inUV).xyz;
+		color += F * specular;
 	}
 
 	return color;
@@ -138,7 +138,6 @@ void main() {
     outColor = vec4(ACESFilm(color), 1.0);
 
     if (ubo.ABOD.x == 1.0) {
-		vec3 specular = texture(specularImage, inUV).xyz;
-        outColor = vec4(specular, 1.0);
+        outColor = vec4(amr.rrr, 1.0);
     }
 }  

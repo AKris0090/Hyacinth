@@ -893,7 +893,7 @@ void HyacinthEngine::init()
 
     m_uiHelper.setup(m_textureSetLayout, static_cast<uint32_t>(DUMMY_TEX_PATHS.size()), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
     m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, static_cast<uint32_t>(DUMMY_TEX_PATHS.size() + UI_TEXTURE_PATHS.size()), m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
-    m_ambientHelper.setup(m_descriptorSetLayout, m_compositeSetLayout, m_swImageFormat);
+    m_ambientHelper.setup(m_descriptorSetLayout, m_compositeSetLayout, m_swImageFormat, m_camera.m_proj);
 
     std::vector<VulkanImage*> depthStencilImages;
     std::vector<VulkanImage*> amrImages;
@@ -1080,6 +1080,7 @@ void HyacinthEngine::update() {
     }
 
     memcpy(m_frameData[m_frameIndex].mappedUniformBuffer, &newuniform, sizeof(UBO));
+    m_ambientHelper.update(m_swImageIndex, m_swImageFormat, m_camera.m_proj);
     camMutex.unlock();
 
     generateRenderList();
@@ -1389,7 +1390,7 @@ void HyacinthEngine::draw() {
 
     {
         VK_LABEL(cmd, "AO Pass");
-        m_ambientHelper.drawAO(cmd, m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_swImageIndex].AMR, m_swImageFormat);
+        m_ambientHelper.drawAO(cmd, m_swImageIndex, m_gBuffers[m_swImageIndex].m_compositeSet, m_frameData[m_frameIndex].uniformDescriptorSet, m_gBuffers[m_swImageIndex].AMR, m_swImageFormat);
         VK_LABEL_END(cmd);
     }
 

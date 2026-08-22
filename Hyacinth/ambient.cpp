@@ -4,17 +4,25 @@ static inline float lerpFloat(float a, float b, float f) {
     return a + f * (b - a);
 }
 
-void AmbientHelper::setup(VkDescriptorSetLayout& uboLayout, VkDescriptorSetLayout& compLayout, SWChainImageFormat& swapchainFormat) {
+void AmbientHelper::update(uint32_t imageIndex, SWChainImageFormat& swapchainFormat, glm::mat4 camProj) {
+    AmbientPC pc;
+    pc.screenSize = glm::vec2(swapchainFormat.extent.width, swapchainFormat.extent.height);
+    pc.inverseProj = glm::inverse(camProj);
+    memcpy(pc.samples, ssaoKernel.data(), sizeof(glm::vec4) * NUM_SAMPLES);
+    memcpy(samplesUBO[imageIndex].pMappedData, &pc, sizeof(AmbientPC));
+}
+
+void AmbientHelper::setup(VkDescriptorSetLayout& uboLayout, VkDescriptorSetLayout& compLayout, SWChainImageFormat& swapchainFormat, glm::mat4 camProj) {
     // generate ambient sample distribution
     std::uniform_real_distribution<float> randomFloats(0.f, 1.f);
     std::default_random_engine generator;
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < NUM_SAMPLES; i++) {
         glm::vec3 sample(randomFloats(generator) * 2.f - 1.f, randomFloats(generator) * 2.f - 1.f, randomFloats(generator));
         sample = glm::normalize(sample);
         sample *= randomFloats(generator);
 
         // place larger weight on occlusions closer to fragment
-        float scale = (float)i / 64.f;
+        float scale = (float)i / NUM_SAMPLES;
         scale = lerpFloat(0.1f, 1.f, scale * scale);
         sample *= scale;
 
@@ -39,18 +47,18 @@ void AmbientHelper::setup(VkDescriptorSetLayout& uboLayout, VkDescriptorSetLayou
     VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerInfo, nullptr, &noiseTexture.imageSampler));
 
     // create samples buffer
-    samplesUBO = vkdeviceutils::createBuffer(sizeof(AmbientPC), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "ambient_sample_buffer");
-    AmbientPC pc;
-    pc.screenSize = glm::vec2(swapchainFormat.extent.width, swapchainFormat.extent.height);
-    memcpy(pc.samples, ssaoKernel.data(), sizeof(glm::vec4) * 64);
-    memcpy(samplesUBO.pMappedData, &pc, sizeof(AmbientPC));
+    samplesUBO.resize(MAX_FRAMES_IN_FLIGHT);
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        samplesUBO[i] = vkdeviceutils::createBuffer(sizeof(AmbientPC), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_MAPPED_BIT, "ambient_sample_buffer");
+        update(i, swapchainFormat, camProj);
+    }
 
     // create noise descriptor
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes = {
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.f },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.f }
     };
-    descriptorAllocator.initPool(1, sizes);
+    descriptorAllocator.initPool(3, sizes);
 
     {
         DescriptorLayoutBuilder layoutBuilder;
@@ -59,10 +67,14 @@ void AmbientHelper::setup(VkDescriptorSetLayout& uboLayout, VkDescriptorSetLayou
         noiseLayout = layoutBuilder.buildLayout(nullptr, 0);
     }
 
-    noiseSet = descriptorAllocator.allocate(noiseLayout);
-    vkdescriptorutils::queueWriteImage(noiseSet, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, noiseTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    vkdescriptorutils::queueWriteBuffer(noiseSet, 1, sizeof(AmbientPC), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, samplesUBO);
-    vkdescriptorutils::flushDescriptorWrites();
+    noiseSet.resize(MAX_FRAMES_IN_FLIGHT);
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        noiseSet[i] = descriptorAllocator.allocate(noiseLayout);
+
+        vkdescriptorutils::queueWriteImage(noiseSet[i], 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, noiseTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vkdescriptorutils::queueWriteBuffer(noiseSet[i], 1, sizeof(AmbientPC), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, samplesUBO[i]);
+        vkdescriptorutils::flushDescriptorWrites();
+    }
 
     m_ambientPipelineUtil.addShader("shaders/quadVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
     m_ambientPipelineUtil.addShader("shaders/ambientOcclusion.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -109,7 +121,7 @@ void AmbientHelper::setup(VkDescriptorSetLayout& uboLayout, VkDescriptorSetLayou
     m_ambientPipelineUtil.buildPipeline();
 }
 
-void AmbientHelper::drawAO(VkCommandBuffer& cmd, VkDescriptorSet& compSet, VkDescriptorSet& uboSet, VulkanImage ambientImage, SWChainImageFormat& swapchainFormat) {
+void AmbientHelper::drawAO(VkCommandBuffer& cmd, uint32_t imageIndex, VkDescriptorSet& compSet, VkDescriptorSet& uboSet, VulkanImage ambientImage, SWChainImageFormat& swapchainFormat) {
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -123,7 +135,7 @@ void AmbientHelper::drawAO(VkCommandBuffer& cmd, VkDescriptorSet& compSet, VkDes
     scissor.extent = swapchainFormat.extent;
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ambientPipelineUtil.m_pipeline.pipeline);
-    std::array<VkDescriptorSet, 3> ambientSets = { uboSet, compSet, noiseSet };
+    std::array<VkDescriptorSet, 3> ambientSets = { uboSet, compSet, noiseSet[imageIndex]};
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ambientPipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(ambientSets.size()), ambientSets.data(), 0, nullptr);
 
     VkRenderingAttachmentInfo compositeAttachment = vkimageutils::createColorAttachmentInfo(ambientImage.imageView, { {{0.0f, 0.0f, 0.0f, 1.0f}} }, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
@@ -137,7 +149,10 @@ void AmbientHelper::drawAO(VkCommandBuffer& cmd, VkDescriptorSet& compSet, VkDes
 
 void AmbientHelper::shutdown() {
     vkimageutils::destroyImage(noiseTexture);
-    vkdeviceutils::destroyBuffer(samplesUBO);
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkdeviceutils::destroyBuffer(samplesUBO[i]);
+    }
 
     descriptorAllocator.destroyPool();
     vkDestroyDescriptorSetLayout(vkdeviceutils::device, noiseLayout, nullptr);
