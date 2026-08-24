@@ -7,7 +7,6 @@
 #include <mutex>
 #include <utility>
 #include <shared_mutex>
-#include "tracer_manager.h"
 
 #include "tp_character.h"
 #include "flashbang.h"
@@ -63,7 +62,6 @@ private:
 class NetworkEntityManager {
 public:
 	Entity* self;
-	TracerManager* tracerManager;
 	SimulateStruct inputAccumulator;
 	std::mutex inputAccumulatorMutex;
 	InterpolationPacketBuffer selfSimBuffer;

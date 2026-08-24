@@ -401,9 +401,6 @@
     <ClInclude Include="hcinth_assetdrawer.h">
       <Filter>Source Files\renderer\core\asset manager</Filter>
     </ClInclude>
-    <ClInclude Include="tracer_manager.h">
-      <Filter>Source Files\game</Filter>
-    </ClInclude>
     <ClInclude Include="specular.h">
       <Filter>Source Files\renderer\core\raytracing\specular</Filter>
     </ClInclude>

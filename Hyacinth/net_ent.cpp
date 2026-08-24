@@ -106,7 +106,6 @@ void NetworkEntityManager::clearPendingPackets(Entity* self, LightMesh* meshRef)
 					t.pitch = glm::degrees(glm::asin(normDir.y));
 					t.setRotationPitchYaw();
 					t.position = origin;
-					tracerManager->addTracer(t.getMatrix(), meshRef);
 				}
 			}
 		}

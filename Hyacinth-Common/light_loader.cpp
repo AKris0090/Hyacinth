@@ -461,6 +461,9 @@ namespace LightLoader {
             for (size_t i = 0; i < model->materials.size(); i++) {
                 LightMaterialInstance material;
                 tinygltf::Material gltfMat = model->materials[i];
+                if (gltfMat.values.find("baseColorFactor") != gltfMat.values.end()) {
+                    material.baseColor = glm::make_vec4(gltfMat.values["baseColorFactor"].ColorFactor().data());
+                }
                 if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
                     material.baseColorIndex = textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + options.textureOffset;
                     imageIsSRGB.insert(material.baseColorIndex - options.textureOffset);

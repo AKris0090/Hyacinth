@@ -27,6 +27,7 @@ struct Material {
 	float ambient;
 	float metallic;
 	float roughness;
+	vec4 baseColor;
 };
 
 struct Vertex {

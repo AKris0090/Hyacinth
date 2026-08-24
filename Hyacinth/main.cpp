@@ -92,7 +92,6 @@ void simulationTick() {
 			t.pitch = glm::degrees(glm::asin(normDir.y));
 			t.setRotationPitchYaw();
 			t.position = origin;
-			hyacinthEngine.m_tracerManager.addTracer(t.getMatrix(), hyacinthEngine.m_assetDrawer.getStaticMeshRef("tracer"));
 
 			netClient.netEntManager.self->recoil.startRecoil();
 		}
@@ -133,6 +132,8 @@ HStaticGameObject* worldObject;
 HStaticGameObject* sphereTestGrid;
 HStaticGameObject* helmetObject;
 
+HStaticGameObject* carObject;
+
 HFPArms* armsObject;
 HPistol* pistolObject;
 HFlashBang* flashObject;
@@ -145,6 +146,11 @@ void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	engine.addStaticGameObject(helmetObject);
 	helmetObject->transform.position += glm::vec3(-7.f, 1.f, 4.f);
 	helmetObject->transform.scale = glm::vec3(1.5f);
+
+	carObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("car"));
+	engine.addStaticGameObject(carObject);
+	carObject->transform.position += glm::vec3(-4.f, -1.25f, 0.f);
+	carObject->transform.scale = glm::vec3(1.25f);
 
 	sphereTestGrid = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("sphere_test"));
 	engine.addStaticGameObject(sphereTestGrid);
@@ -209,9 +215,7 @@ int main() {
 
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	netClient.netEntManager.inputAccumulator.id = 0;
-	netClient.netEntManager.tracerManager = &hyacinthEngine.m_tracerManager;
 	Entity* thisEnt = nullptr;
-
 	addGameObjects(hyacinthEngine, netClient);
 	hyacinthEngine.bakeDDGI();
 

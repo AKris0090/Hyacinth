@@ -97,6 +97,7 @@ struct LightMaterialInstance {
     float ambient = 1.f;
     float metallic = 1.f;
     float roughness = 1.f;
+    glm::vec4 baseColor = glm::vec4(1.f);
 };
 
 struct LightMesh {

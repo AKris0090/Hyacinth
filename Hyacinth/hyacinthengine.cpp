@@ -676,6 +676,7 @@ void HyacinthEngine::loadAssets() {
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
     auto tracerPath = vkdebugutils::getExeDir() / "objects" / "tracer.glb";
     auto flashPath = vkdebugutils::getExeDir() / "objects" / "flash.glb";
+    auto carPath = vkdebugutils::getExeDir() / "objects" / "GTR+35.glb";
 
     m_assetDrawer.addDummyTextures();
     m_assetDrawer.addUITextures();
@@ -683,6 +684,7 @@ void HyacinthEngine::loadAssets() {
     m_assetDrawer.loadMesh(path.string(), "world", false, true);
     m_assetDrawer.loadMesh(sphereTestPath.string(), "sphere_test", false, true);
     m_assetDrawer.loadMesh(helmetPath.string(), "helmet", false, true);
+    m_assetDrawer.loadMesh(carPath.string(), "car", false, true);
     m_assetDrawer.loadMesh(tracerPath.string(), "tracer", false, true);
     m_assetDrawer.loadMesh(flashPath.string(), "flashbang", true, true);
     m_assetDrawer.loadMesh(thirdPersonCharacterPath.string(), "tp_character", true, true);
@@ -939,23 +941,6 @@ void HyacinthEngine::generateRenderList() {
         }
     }
 
-    for (const auto& tracer : m_tracerManager.tracers) {
-        for (const auto& n : tracer.gameObject->mesh->meshedNodes) {
-            for (const auto& p : n->primitives) {
-                m_renderList.push_back(HRenderCall{
-                    .transformMatrix = tracer.matrix * n->getMatrix(),
-                    .aaBBMin = p.bounds.min,
-                    .aabbMax = p.bounds.max,
-                    .materialIndex = p.materialIndex,
-                    .indexCount = p.indexCount,
-                    .firstIndex = p.firstIndex,
-                    .vertexOffset = p.firstVertex,
-                    .meshID = 0
-                });
-            }
-        }
-    }
-
     numStaticDrawCommands = static_cast<uint32_t>(m_renderList.size());
 
     uint32_t animatedVertexOffset = 0;
@@ -1051,9 +1036,6 @@ void HyacinthEngine::update() {
     memcpy(m_owDDGIHelper.volumeDataBuffer.pMappedData, volumeData.data(), sizeof(VolumeData) * volumeData.size());
 
     m_uiHelper.update(p_netEntManager->self->pistolController.currentAmmo, p_netEntManager->self->flashPercentage, p_netEntManager->self->flashNDCX, p_netEntManager->self->flashNDCY);
-
-    // update tracers
-    m_tracerManager.updateTracers(Time::getDeltaTime());
     
     std::vector<glm::mat4> matrices;
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {

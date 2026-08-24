@@ -19,7 +19,6 @@
 
 #include "frustumcull.h"
 
-#include "tracer_manager.h"
 #include "worldspace_health.h"
 
 #include "csm.h"
@@ -120,7 +119,6 @@ public:
 	WorldHealthManager				m_worldHealthManager;
 	std::mutex camMutex;
 	Camera m_camera;
-	TracerManager					m_tracerManager;
 
 	HAssetDrawer					m_assetDrawer;
 	owDDGI							m_owDDGIHelper;

@@ -172,7 +172,7 @@ void main() {
 	float nDotL = clamp(dot(N, normalize(ubo.lightPos.xyz)), 0.0, 1.0);
 	float shadow = shadowTest(fragPos.xyz, -viewPos.z, nDotL, N);
 
-    outAlbedo = vec4(sampledColor.rgb, 1.0);    
+    outAlbedo = vec4(sampledColor.rgb * m.baseColor.rgb, 1.0);    
 
 	N = N * 0.5 + 0.5; // packing the normal
     outNormal = vec4(N, shadow);
