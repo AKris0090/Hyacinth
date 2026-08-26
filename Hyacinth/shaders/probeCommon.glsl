@@ -101,7 +101,7 @@ vec3 oct_decode(vec2 o) {
 
 
 layout(buffer_reference, std430) readonly buffer ProbePositionBuffer {
-    vec3 positions[];
+    vec4 positions[];
 };
 
 int ProbeCoordsToIndex(ivec3 p, ivec3 probeCounts)

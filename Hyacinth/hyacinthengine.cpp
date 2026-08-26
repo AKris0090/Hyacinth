@@ -667,6 +667,7 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadAssets() {
+    auto originSpherePath = vkdebugutils::getExeDir() / "objects" / "sphere.glb";
     auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
     auto sphereTestPath = vkdebugutils::getExeDir() / "objects" / "sphereTest.glb";
@@ -681,6 +682,7 @@ void HyacinthEngine::loadAssets() {
     m_assetDrawer.addDummyTextures();
     m_assetDrawer.addUITextures();
 
+    m_assetDrawer.loadMesh(originSpherePath.string(), "sphere", false, false);
     m_assetDrawer.loadMesh(path.string(), "world", false, true);
     m_assetDrawer.loadMesh(sphereTestPath.string(), "sphere_test", false, true);
     m_assetDrawer.loadMesh(helmetPath.string(), "helmet", false, true);
@@ -863,7 +865,9 @@ void HyacinthEngine::init()
     m_skyboxHelper.setup(m_swImageFormat, m_descriptorSetLayout);
 
     m_owDDGIHelper.setup(&m_rtHelper, m_skyboxHelper.m_skyboxImage, m_textureSetLayout);
-    m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
+
+    LightMesh* sphereMesh = m_assetDrawer.getStaticMeshRef("sphere");
+    m_owDDGIHelper.m_probeVis.createProbeVisualizationStructures(m_descriptorSetLayout, m_owDDGIHelper.m_irradianceVisSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples, sphereMesh->firstIndex, sphereMesh->vertexOffset, sphereMesh->indexCount);
 	m_owDDGIHelper.m_volumeVis.createVolumeVisualizationStructures(m_descriptorSetLayout, m_gBuffers[0].depth.imageFormat, m_swImageFormat, m_msaaSamples);
 
     m_specularTraceHelper.setup(&m_rtHelper, m_compositeSetLayout, m_descriptorSetLayout, m_textureSetLayout, m_skyboxHelper.m_skyboxImage, m_swImageFormat.extent);
@@ -1550,8 +1554,10 @@ void HyacinthEngine::draw() {
 
 
     if (m_owDDGIHelper.showProbes || m_owDDGIHelper.showVolumes) {
+        vkimageutils::transitionImageGeneral(cmd, m_gBuffers[m_swImageIndex].depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+
         VkRenderingAttachmentInfo visInfo = vkimageutils::createColorAttachmentInfo(m_swapChainImages[m_swImageIndex].imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
-	 	VkRenderingAttachmentInfo depthVisInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex   ].depth.imageView, false);
+	 	VkRenderingAttachmentInfo depthVisInfo = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex].depth.imageView, false);
         VkRenderingInfo visRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &visInfo, &depthVisInfo);
         vkCmdBeginRendering(cmd, &visRenderingInfo);
         if (m_owDDGIHelper.showProbes) {

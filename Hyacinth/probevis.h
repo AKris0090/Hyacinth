@@ -7,6 +7,7 @@
 #include "fullscreen_quad.h"
 
 class probeVisObjects {
+private:
 	VulkanPipelineBuilder pipelineUtil;
 
 	struct probeVisPushContant {
@@ -14,14 +15,16 @@ class probeVisObjects {
 		uint32_t volumeWidth;
 		uint32_t volumeHeight;
 		uint32_t volumeDepth;
-		uint32_t pad1 = 0; // align up to 20
-		uint32_t pad2 = 0; // align up to 24
 	};
 
 public:
-	uint32_t probeCount;
+	uint32_t probeCount = 0;
 
-	void createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkDescriptorSetLayout& irradianceVisSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples);
+	uint32_t probeIndexOffset = 0;
+	uint32_t probeNumIndices = 0;
+	uint32_t probeVertexOffset = 0;
+
+	void createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkDescriptorSetLayout& irradianceVisSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples, uint32_t indexOffset, uint32_t vertexOffset, uint32_t numIndices);
 	void drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& irradianceVisSet, VkDeviceAddress& probePositionAddress, VkDescriptorSet& descSet, int currentVolumeProbeCount, int width, int height, int depth);
 	void destroy();
 };

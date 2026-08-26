@@ -2,13 +2,14 @@
 #extension GL_EXT_buffer_reference : require
 
 #include "shadowCommon.glsl"
+#include "probeCommon.glsl"
 
 layout	(location = 0) in vec4 inPosition;
 layout	(location = 1) in vec4 inNormal;
 layout	(location = 2) in vec4 inTangent;
 
-layout (location = 0) out vec4 probeDir;
-layout (location = 1) flat out int probeIndex;
+layout (location = 0) flat out uint probeIndex;
+layout (location = 1) out vec4 probeDir;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
 	mat4 view;
@@ -23,14 +24,12 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 	vec4 cascadeScales[SHADOW_MAP_CASCADE_COUNT];
 } ubo;
 
-layout(buffer_reference, std430) readonly buffer ProbePositionBuffer{ 
-	vec4 positions[];
-};
-
 layout( push_constant ) uniform constants
 {
 	ProbePositionBuffer probePosBuffer;
-	ivec3 volumeDims;
+	uint volumeDimX;
+	uint volumeDimY;
+	uint volumeDimZ;
 } pc;
 
 void main() 
@@ -41,7 +40,7 @@ void main()
 	vec3 worldPos  = scaledPos + probePos;
 
 	probeDir = vec4(normalize(worldPos - probePos), 0.0f);
-	probeIndex = int(gl_InstanceIndex);
+	probeIndex = gl_InstanceIndex;
 
 	gl_Position = ubo.proj * ubo.view * vec4(worldPos.xyz, 1.0f);
 }
