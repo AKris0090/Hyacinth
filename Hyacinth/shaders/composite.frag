@@ -125,7 +125,7 @@ void main() {
 	vec3 fragPos = worldPosFromDepth(depth);
 	vec4 amr = texture(AMRMap, inUV);
 	vec4 Nshadow = texture(normalMap, inUV);
-    vec3 N = Nshadow.xyz * 2.0 - 1.0; // only because swapchain image is unorm
+    vec3 N = normalize(Nshadow.xyz * 2.0 - 1.0); // only because swapchain image is unorm
 	vec4 albedo = texture(albedoMap, inUV);
 
 	vec3 V    = normalize(ubo.viewPos.xyz - fragPos);

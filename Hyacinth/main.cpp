@@ -149,8 +149,8 @@ void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 
 	carObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("car"));
 	engine.addStaticGameObject(carObject);
-	carObject->transform.position += glm::vec3(-4.f, -1.25f, 0.f);
-	carObject->transform.scale = glm::vec3(1.25f);
+	carObject->transform.position += glm::vec3(-4.f, -1.425f, 0.f);
+	carObject->transform.scale = glm::vec3(1.1f);
 
 	sphereTestGrid = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("sphere_test"));
 	engine.addStaticGameObject(sphereTestGrid);
