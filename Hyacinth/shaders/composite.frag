@@ -105,10 +105,10 @@ vec3 BRDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 albedo, 
 
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV);
 
-		color += spec * dotNL * lightColor * 8.0 * shadow;
+		color += spec * dotNL * lightColor * 5.0 * shadow;
 
-		vec3 specular = texture(specularImage, inUV).xyz;
-		color += F * specular;
+		// vec3 specular = texture(specularImage, inUV).xyz;
+		// color += F * specular;
 	}
 
 	return color;
@@ -131,13 +131,27 @@ void main() {
 	vec3 V    = normalize(ubo.viewPos.xyz - fragPos);
 	vec3 L    = normalize(ubo.lightPos.xyz - fragPos);
     vec3 irrad = texture(ddgiImage, inUV).xyz;
-	vec3 ambient = (albedo.rgb) * irrad * 1.0; // amr.r;
-
-	vec3 color = ambient + BRDF(L, V, N, amr.y, amr.z, albedo.xyz, Nshadow.w);
+	vec3 ambient = (albedo.rgb) * irrad * amr.r;
+	vec3 diffuse = albedo.rgb * BRDF(L, V, N, amr.y, amr.z, albedo.xyz, Nshadow.w);
+	vec3 color = ambient + diffuse;
 
     outColor = vec4(ACESFilm(color), 1.0);
 
-    if (ubo.ABOD.x == 1.0) {
-        outColor = vec4(amr.rrr, 1.0);
-    }
+    if (ubo.ABOD.x == 2.0) {
+        outColor = vec4(albedo.xyz, 1.0);
+    } else if (ubo.ABOD.x == 3.0) {
+		outColor = vec4(N, 1.0);
+	} else if (ubo.ABOD.x == 4.0) {
+		outColor = vec4(amr.yyy, 1.0);
+	} else if (ubo.ABOD.x == 5.0) {
+		outColor = vec4(amr.zzz, 1.0);
+	} else if (ubo.ABOD.x == 6.0) {
+		outColor = vec4(amr.xxx, 1.0);
+	} else if (ubo.ABOD.x == 7.0) {
+		outColor = vec4(diffuse, 1.0);
+	} else if (ubo.ABOD.x == 8.0) {
+		outColor = texture(specularImage, inUV);
+	} else if (ubo.ABOD.x == 9.0) {
+		outColor = vec4(irrad, 1.0);
+	}
 }  

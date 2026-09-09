@@ -163,7 +163,7 @@ private:
 
 	bool m_initialized = false;
 	bool m_showImGui = false;
-	bool ambientToggle = false;
+	float renderingModeToggle = 0;
 	uint32_t m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t maxTracers = 10;

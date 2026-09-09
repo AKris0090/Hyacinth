@@ -64,7 +64,7 @@ void main()
 	vec3 lightVector = normalize(lightPos); // directional light
 
 	float NdotL = max(dot(normal, lightVector), 0.0);
-	vec3 directDiffuse = NdotL * lightColor;
+	vec3 directDiffuse = NdotL * lightColor * 4.0;
 
 	uint rayFlags = gl_RayFlagsOpaqueEXT | gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 	uint cullMask = 0xff;

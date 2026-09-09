@@ -667,13 +667,16 @@ void HyacinthEngine::createDDGIPipeline()
 }
 
 void HyacinthEngine::loadAssets() {
-    auto originSpherePath = vkdebugutils::getExeDir() / "objects" / "sphere.glb";
     auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
     // auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza.gltf";
+
+    auto originSpherePath = vkdebugutils::getExeDir() / "objects" / "sphere.glb";
     auto sphereTestPath = vkdebugutils::getExeDir() / "objects" / "sphereTest.glb";
     auto helmetPath = vkdebugutils::getExeDir() / "objects" / "DamagedHelmet.glb";
+    auto staticPistolPath = vkdebugutils::getExeDir() / "objects" / "1911_Assembly.glb";
     auto thirdPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_skinned2.glb";
     auto firstPersonCharacterPath = vkdebugutils::getExeDir() / "objects" / "char_fp6.glb";
+    auto altArmsPath = vkdebugutils::getExeDir() / "objects" / "fpshands.glb";
     auto pistolPath = vkdebugutils::getExeDir() / "objects" / "gun2.glb";
     auto tracerPath = vkdebugutils::getExeDir() / "objects" / "tracer.glb";
     auto flashPath = vkdebugutils::getExeDir() / "objects" / "flash.glb";
@@ -682,15 +685,17 @@ void HyacinthEngine::loadAssets() {
     m_assetDrawer.addDummyTextures();
     m_assetDrawer.addUITextures();
 
-    m_assetDrawer.loadMesh(originSpherePath.string(), "sphere", false, false);
     m_assetDrawer.loadMesh(path.string(), "world", false, true);
+    m_assetDrawer.loadMesh(originSpherePath.string(), "sphere", false, false);
     m_assetDrawer.loadMesh(sphereTestPath.string(), "sphere_test", false, true);
     m_assetDrawer.loadMesh(helmetPath.string(), "helmet", false, true);
     m_assetDrawer.loadMesh(carPath.string(), "car", false, true);
+    m_assetDrawer.loadMesh(staticPistolPath.string(), "staticPistol", false, true);
     m_assetDrawer.loadMesh(tracerPath.string(), "tracer", false, true);
     m_assetDrawer.loadMesh(flashPath.string(), "flashbang", true, true);
     m_assetDrawer.loadMesh(thirdPersonCharacterPath.string(), "tp_character", true, true);
     m_assetDrawer.loadMesh(firstPersonCharacterPath.string(), "fp_arms", true, true);
+    m_assetDrawer.loadMesh(altArmsPath.string(), "fps_hands", true, true);
     m_assetDrawer.loadMesh(pistolPath.string(), "pistol", true, true);
 }
 
@@ -1056,7 +1061,7 @@ void HyacinthEngine::update() {
     newuniform.view = m_camera.m_view;
     newuniform.viewPos = glm::vec4(m_camera.m_transform.position, 1.f);
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 1.f);
-    newuniform.ABOD = glm::vec4(ambientToggle, m_shadowHelper.bias, m_shadowHelper.offsetScale, m_shadowHelper.DDGIntensity);
+    newuniform.ABOD = glm::vec4(renderingModeToggle, m_shadowHelper.bias, m_shadowHelper.offsetScale, m_shadowHelper.DDGIntensity);
     newuniform.globalShadowMatrix = m_shadowHelper.shaderShadowMatrix;
     newuniform.cascadeSplits = glm::vec4(m_shadowHelper.shaderSplits[0], m_shadowHelper.shaderSplits[1], m_shadowHelper.shaderSplits[2], m_camera.m_zFar );
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
@@ -1168,7 +1173,28 @@ void HyacinthEngine::drawImGui() {
     ImGui::Checkbox("show probes A", &m_owDDGIHelper.showProbesA);
     ImGui::Checkbox("show probes B", &m_owDDGIHelper.showProbesB);
 	ImGui::Checkbox("show volumes", &m_owDDGIHelper.showVolumes);
-	ImGui::Checkbox("ambient toggle", &ambientToggle);
+
+    // rendering modes
+    static int selectedIndex = 0;
+    const char* items[] = { "composite", "albedo", "normals", "metallic", "roughness", "ambient occlusion", "diffuse", "specular reflections", "ddgi"};
+    const float values[] = { 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f };
+
+    if (ImGui::BeginCombo("Rendering Mode", items[selectedIndex]))
+    {
+        for (int i = 0; i < IM_ARRAYSIZE(items); i++)
+        {
+            bool isSelected = (selectedIndex == i);
+            if (ImGui::Selectable(items[i], isSelected))
+            {
+                selectedIndex = i;
+                renderingModeToggle = values[i];
+            }
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
     ImGui::Text("Volumes");
     for(int i = 0; i < m_owDDGIHelper.m_probeVolumes.size(); i++) {
         ImGui::PushID(i);
@@ -1404,7 +1430,7 @@ void HyacinthEngine::draw() {
             VK_LABEL(cmd, "Stencil Volume");
             // bind stencil pipeline
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_volumeStencilPipeline.m_pipeline.pipeline);
-            VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].depth.stencilImageView, (i == m_owDDGIHelper.m_probeVolumes.size() - 1), OUTLINE_BIT);
+            VkRenderingAttachmentInfo stencilAttachmentInfo = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].depth.stencilImageView, (i == m_owDDGIHelper.m_probeVolumes.size() - 1), 0);
             VkRenderingInfo volumeStencilRenderingInfo = vkdeviceutils::createStencilRenderingInfo(m_swImageFormat.extent, &stencilAttachmentInfo);
             vkCmdBeginRendering(cmd, &volumeStencilRenderingInfo);
             vkCmdSetViewport(cmd, 0, 1, &viewport);

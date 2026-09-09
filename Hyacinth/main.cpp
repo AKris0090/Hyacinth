@@ -131,6 +131,7 @@ void simulationTick() {
 HStaticGameObject* worldObject;
 HStaticGameObject* sphereTestGrid;
 HStaticGameObject* helmetObject;
+HStaticGameObject* pistolWorldObject;
 
 HStaticGameObject* carObject;
 
@@ -138,24 +139,31 @@ HFPArms* armsObject;
 HPistol* pistolObject;
 HFlashBang* flashObject;
 
+HAnimatedGameObject* altArmsObject;
+
 void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	worldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("world"));
 	engine.addStaticGameObject(worldObject);  
 
-	helmetObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("helmet"));
-	engine.addStaticGameObject(helmetObject);
-	helmetObject->transform.position += glm::vec3(-7.f, 1.f, 4.f);
-	helmetObject->transform.scale = glm::vec3(1.5f);
+	// helmetObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("helmet"));
+	// engine.addStaticGameObject(helmetObject);
+	// helmetObject->transform.position += glm::vec3(-7.f, 1.f, 4.f);
+	// helmetObject->transform.scale = glm::vec3(1.5f);
+	// 
+	// carObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("car"));
+	// engine.addStaticGameObject(carObject);
+	// carObject->transform.position += glm::vec3(-4.f, -1.425f, 0.f);
+	// carObject->transform.scale = glm::vec3(1.1f);
+	// 
+	// sphereTestGrid = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("sphere_test"));
+	// engine.addStaticGameObject(sphereTestGrid);
+	// sphereTestGrid->transform.position += glm::vec3(-4.f, 2.f, -7.f);
+	// sphereTestGrid->transform.scale = glm::vec3(0.15f);
 
-	carObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("car"));
-	engine.addStaticGameObject(carObject);
-	carObject->transform.position += glm::vec3(-4.f, -1.425f, 0.f);
-	carObject->transform.scale = glm::vec3(1.1f);
-
-	sphereTestGrid = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("sphere_test"));
-	engine.addStaticGameObject(sphereTestGrid);
-	sphereTestGrid->transform.position += glm::vec3(-4.f, 2.f, -7.f);
-	sphereTestGrid->transform.scale = glm::vec3(0.15f);
+	pistolWorldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("staticPistol"));
+	engine.addStaticGameObject(pistolWorldObject);
+	pistolWorldObject->transform.position += glm::vec3(-4.f, -1.f, -7.f);
+	pistolWorldObject->transform.scale = glm::vec3(15.f);
 
 	armsObject = new HFPArms(engine.m_assetDrawer.getAnimatedMeshRef("fp_arms"));
 	engine.addAnimatedGameObject(armsObject);
@@ -167,6 +175,11 @@ void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	flashObject = new HFlashBang(engine.m_assetDrawer.getAnimatedMeshRef("flashbang"));
 	engine.addAnimatedGameObject(flashObject);
 	flashObject->setParentObject(armsObject, flashObject->controller.baseNode, armsObject->controller.gunBone);
+
+	altArmsObject = new HAnimatedGameObject(engine.m_assetDrawer.getAnimatedMeshRef("fps_hands"));
+	engine.addAnimatedGameObject(altArmsObject);
+	altArmsObject->transform.position += glm::vec3(-4.f, -1.f, 1.f);
+	altArmsObject->transform.scale = glm::vec3(7.f);
 }
 
 void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {

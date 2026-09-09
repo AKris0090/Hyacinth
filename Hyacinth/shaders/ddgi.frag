@@ -83,7 +83,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         float trilinearWeight = (trilinear.x * trilinear.y * trilinear.z);
         float weight = 1.0;
 
-        // smooth backface
+        // smooth backface - put less weight on probes facing away from the surface normal
         const float dotDirNorm = (dot(worldToAdjProbe, normal) + 1.0) * 0.5f;
         weight *= (dotDirNorm * dotDirNorm) + 0.2;
 
