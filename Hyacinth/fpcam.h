@@ -12,7 +12,8 @@ constexpr float PI = 3.14159265359f;
 constexpr float BASE_MOVE_SPEED = 3.5f;
 constexpr float BASE_LOOK_SPEED = 70.f;
 
-constexpr float BASE_FOV = 90.f;
+constexpr float WORLD_FOV = 90.f;
+constexpr float VIEWMODEL_FOV = 58.7f;
 constexpr float SPRINT_FOV = 95.f;
 constexpr float FOV_LERP_LENGTH = 0.125f;
 
@@ -29,13 +30,13 @@ private:
 
     void startFOVLerpUp() {
         lerpFOVFrom = 0.f;
-        lerpFOVTo = SPRINT_FOV - BASE_FOV;
+        lerpFOVTo = SPRINT_FOV - WORLD_FOV;
 
         FOVlerpTimer = (fovLerpModifier / ((glm::max)(lerpFOVFrom, 0.001f))) * FOV_LERP_LENGTH;
     }
 
     void startFOVLerpDown() {
-        lerpFOVFrom = SPRINT_FOV - BASE_FOV;
+        lerpFOVFrom = SPRINT_FOV - WORLD_FOV;
         lerpFOVTo = 0.f;
 
         FOVlerpTimer = (1.f - (fovLerpModifier / (lerpFOVFrom))) * FOV_LERP_LENGTH;
@@ -100,6 +101,7 @@ public:
     float m_aspectRatio, m_FOV, m_zNear, m_zFar;
 
     glm::mat4 m_proj;
+    glm::mat4 m_viewModelProj;
     glm::mat4 m_view;
 
     Camera() {};

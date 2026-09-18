@@ -17,6 +17,7 @@ layout (set = 1, binding = 0) uniform sampler2DArrayShadow shadowDepthMap;
 layout(set = 0, binding = 0) uniform UniformBufferObject {
 	mat4 view;
 	mat4 proj;
+	mat4 viewModelProj;
 	vec4 viewPos;
 	vec4 lightPos;
 	vec4 ABOD; // ambient toggle, bias, offset scale, ddgi intensity

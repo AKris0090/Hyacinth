@@ -1,4 +1,5 @@
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./gbuffer.vert -o vert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./viewModelGBuffer.vert -o viewModelVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./gbuffer.frag -o frag.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./shadow.vert -o shadow.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./depth.vert -o depth.spv

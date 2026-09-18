@@ -129,82 +129,57 @@ void simulationTick() {
 }
 
 HStaticGameObject* worldObject;
-HStaticGameObject* sphereTestGrid;
-HStaticGameObject* helmetObject;
-HStaticGameObject* pistolWorldObject;
-
-HStaticGameObject* carObject;
 
 HFPArms* armsObject;
 HPistol* pistolObject;
 HFlashBang* flashObject;
 
-HAnimatedGameObject* altArmsObject;
-
 void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	worldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("world"));
-	engine.addStaticGameObject(worldObject);  
-
-	// helmetObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("helmet"));
-	// engine.addStaticGameObject(helmetObject);
-	// helmetObject->transform.position += glm::vec3(-7.f, 1.f, 4.f);
-	// helmetObject->transform.scale = glm::vec3(1.5f);
-	// 
-	// carObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("car"));
-	// engine.addStaticGameObject(carObject);
-	// carObject->transform.position += glm::vec3(-4.f, -1.425f, 0.f);
-	// carObject->transform.scale = glm::vec3(1.1f);
-	// 
-	// sphereTestGrid = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("sphere_test"));
-	// engine.addStaticGameObject(sphereTestGrid);
-	// sphereTestGrid->transform.position += glm::vec3(-4.f, 2.f, -7.f);
-	// sphereTestGrid->transform.scale = glm::vec3(0.15f);
-
-	pistolWorldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("staticPistol"));
-	engine.addStaticGameObject(pistolWorldObject);
-	pistolWorldObject->transform.position += glm::vec3(-4.f, -1.f, -7.f);
-	pistolWorldObject->transform.scale = glm::vec3(15.f);
+	engine.addStaticGameObject(worldObject);
 
 	armsObject = new HFPArms(engine.m_assetDrawer.getAnimatedMeshRef("fp_arms"));
+	armsObject->isViewModel = true;
 	engine.addAnimatedGameObject(armsObject);
+	armsObject->transform.parent = &engine.m_camera.m_transform;
+	armsObject->transform.rotation = glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));
 	
 	pistolObject = new HPistol(engine.m_assetDrawer.getAnimatedMeshRef("pistol"));
+	pistolObject->isViewModel = true;
 	engine.addAnimatedGameObject(pistolObject);
-	pistolObject->setParentObject(armsObject, pistolObject->controller.baseNode, armsObject->controller.gunBone);
-	
-	flashObject = new HFlashBang(engine.m_assetDrawer.getAnimatedMeshRef("flashbang"));
-	engine.addAnimatedGameObject(flashObject);
-	flashObject->setParentObject(armsObject, flashObject->controller.baseNode, armsObject->controller.gunBone);
+	pistolObject->transform.parent = &engine.m_camera.m_transform;
+	pistolObject->transform.rotation = glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));;
 
-	altArmsObject = new HAnimatedGameObject(engine.m_assetDrawer.getAnimatedMeshRef("fps_hands"));
-	engine.addAnimatedGameObject(altArmsObject);
-	altArmsObject->transform.position += glm::vec3(-4.f, -1.f, 1.f);
-	altArmsObject->transform.scale = glm::vec3(7.f);
+	// flashObject = new HFlashBang(engine.m_assetDrawer.getAnimatedMeshRef("flashbang"));
+	// engine.addAnimatedGameObject(flashObject);
+	// flashObject->setParentObject(armsObject, flashObject->controller.baseNode, armsObject->controller.gunBone);
 }
+
+constexpr glm::vec3 blenderCamPos = glm::vec3(0.f, 0.37f, 0.f);
 
 void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, engine.m_camera.m_transform.pitch - engine.m_camera.prevPitch, engine.m_camera.m_transform.yaw - engine.m_camera.prevYaw);
-	armsObject->transform.position = engine.m_camera.m_transform.position;
-	armsObject->transform.rotation = engine.m_camera.m_transform.rotation;
-	
-	flashObject->transform.position = engine.m_camera.m_transform.position;
-	flashObject->transform.rotation = engine.m_camera.m_transform.rotation;
-	pistolObject->transform.position = engine.m_camera.m_transform.position;
-	pistolObject->transform.rotation = engine.m_camera.m_transform.rotation;
-	
-	if (netClient.netEntManager.self->currentWeapon == PISTOL) {
-		pistolObject->active = true;
-		pistolObject->controller.updateAnimParams(armsObject->controller.shootTrigger, armsObject->controller.reloadTrigger);
-		flashObject->active = false;
-	}
-	else if (netClient.netEntManager.self->currentWeapon == GRENADE && netClient.netEntManager.self->currentState != GRENADE_THROW) {
-		flashObject->active = true;
-		pistolObject->active = false;
-	}
-	else {
-		flashObject->active = false;
-		pistolObject->active = false;
-	}
+	// armsObject->transform.position = engine.m_camera.m_transform.position;
+	// armsObject->transform.rotation = engine.m_camera.m_transform.rotation * glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));
+	// 
+	// flashObject->transform.position = engine.m_camera.m_transform.position;
+	// flashObject->transform.rotation = engine.m_camera.m_transform.rotation;
+	// pistolObject->transform.position = engine.m_camera.m_transform.position;
+	// pistolObject->transform.rotation = engine.m_camera.m_transform.rotation * glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));;
+	// 
+	// if (netClient.netEntManager.self->currentWeapon == PISTOL) {
+	// 	pistolObject->active = true;
+	// 	pistolObject->controller.updateAnimParams(armsObject->controller.shootTrigger, armsObject->controller.reloadTrigger);
+	// 	flashObject->active = false;
+	// }
+	// else if (netClient.netEntManager.self->currentWeapon == GRENADE && netClient.netEntManager.self->currentState != GRENADE_THROW) {
+	// 	flashObject->active = true;
+	// 	pistolObject->active = false;
+	// }
+	// else {
+	// 	flashObject->active = false;
+	// 	pistolObject->active = false;
+	// }
 
 	for (const auto& ao : engine.m_animatedObjects) {
 		ao.gameObject->updateAnimation(Time::getDeltaTime());

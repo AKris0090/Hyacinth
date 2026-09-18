@@ -3,11 +3,11 @@
 
 // *********************** CONTROLLER *********************** //
 PistolAnimationController::PistolAnimationController(LightMesh* meshRef) {
-    baseNode = meshRef->getNodeByName("base");
+    // baseNode = meshRef->getNodeByName("base");
 
-    animations[A_PISTOL_IDLE] = &meshRef->animations[0];
-    animations[A_PISTOL_SHOOT] = &meshRef->animations[1];
-    animations[A_PISTOL_RELOAD] = &meshRef->animations[2];
+    animations[A_PISTOL_IDLE] = &meshRef->animations[1];
+    // animations[A_PISTOL_SHOOT] = &meshRef->animations[1];
+    // animations[A_PISTOL_RELOAD] = &meshRef->animations[2];
 
     currentAnim = animations[A_PISTOL_IDLE];
 }
@@ -19,21 +19,21 @@ void PistolAnimationController::updateAnimParams(bool queueShoot, bool queueRelo
 
 // *********************** ANIM STATE MACHINE *********************** //
 void PistolAnimationStateMachine::updateAnimationState(PistolAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap, float deltaTime) {
-	if (c.reload) {
-		c.currentAnim = c.animations[A_PISTOL_RELOAD];
-		c.currentTime = c.currentAnim->start;
-	}
-	else if (c.shoot) {
-		c.currentAnim = c.animations[A_PISTOL_SHOOT];
-		c.currentTime = c.currentAnim->start;
-	}
+	// if (c.reload) {
+	// 	c.currentAnim = c.animations[A_PISTOL_RELOAD];
+	// 	c.currentTime = c.currentAnim->start;
+	// }
+	// else if (c.shoot) {
+	// 	c.currentAnim = c.animations[A_PISTOL_SHOOT];
+	// 	c.currentTime = c.currentAnim->start;
+	// }
 	c.currentTime += deltaTime;
-
-	if (c.currentTime > c.currentAnim->end) {
-		c.currentAnim = c.animations[A_PISTOL_IDLE];
-		c.currentTime = c.currentAnim->start;
-	}
-
+	// 
+	// if (c.currentTime > c.currentAnim->end) {
+	// 	c.currentAnim = c.animations[A_PISTOL_IDLE];
+	// 	c.currentTime = c.currentAnim->start;
+	// }
+	// 
 	c.currentTime = fmod(c.currentTime, c.currentAnim->end);
 
 	for (auto& channel : c.currentAnim->channels)

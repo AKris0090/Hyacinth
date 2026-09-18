@@ -42,6 +42,7 @@ private:
 
 public:
 	bool active = true;
+	bool isViewModel = false;
 	HAnimatedGameObject* parentObject = nullptr;
 	LightNode* parentMeshNode = nullptr;
 	Transform transform;

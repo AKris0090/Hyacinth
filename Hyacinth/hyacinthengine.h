@@ -57,6 +57,7 @@ const bool enableValLayers = true;
 // stencil bits
 constexpr uint8_t CURRENT_BIT = 0x01;
 constexpr uint8_t ANY_BIT = 0x02;
+constexpr uint8_t VIEW_MODEL_BIT = 0x04;
 
 const VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
 
@@ -85,6 +86,7 @@ struct computeSkinPushConstant {
 struct UBO {
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::mat4 viewModelProj;
 	glm::vec4 viewPos;
 	glm::vec4 lightPos;
 	glm::vec4 ABOD;
@@ -164,6 +166,7 @@ private:
 	bool m_initialized = false;
 	bool m_showImGui = false;
 	float renderingModeToggle = 0;
+	uint32_t numViewModelDrawCommands = 0;
 	uint32_t m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t maxTracers = 10;
@@ -187,7 +190,7 @@ private:
 	std::vector<GBuffer>			m_gBuffers				{};
 	std::vector<VulkanImage>		m_swapChainImages		{}; // a.k.a color resolve
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
-	VulkanPipelineBuilder 			m_depthPipelineUtil		{};
+	VulkanPipelineBuilder 			m_viewModelPipelineUtil {};
 	VulkanPipelineBuilder 			m_tracerPipelineUtil	{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
@@ -229,8 +232,8 @@ private:
 	void recreateSwapchain();
 	void createCommandBuffers();
 	void createSyncObjects();
-	void createDepthPipeline();
 	void createGraphicsPipeline();
+	void createViewModelPipeline();
 	void createCompositePipeline();
 	void createDDGIPipeline();
 	void createDDGIVolumePipeline();

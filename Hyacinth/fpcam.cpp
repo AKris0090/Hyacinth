@@ -30,15 +30,18 @@ void Camera::setViewMatrix(Transform& t) { // pitchadditional is for camera reco
 
 void Camera::setProjectionMatrix() {
     glm::mat4 proj = glm::perspective(glm::radians(m_FOV), m_aspectRatio, m_zNear, m_zFar);
+    glm::mat4 viewModelProj = glm::perspective(glm::radians(VIEWMODEL_FOV), m_aspectRatio, m_zNear, m_zFar);
     proj[1][1] *= -1;
+    viewModelProj[1][1] *= -1;
     m_proj = proj;
+    m_viewModelProj = viewModelProj;
     m_dirtyProj = false;
 }
 
 void Camera::update(bool flycam, float deltaTime) { // true is flycam, false is player cam
     fovMod.updateModifier(deltaTime);
     crouchMod.updateModifier(deltaTime);
-    m_FOV = BASE_FOV + fovMod.fovLerpModifier;
+    m_FOV = WORLD_FOV + fovMod.fovLerpModifier;
     setProjectionMatrix();       
 
     setViewMatrix(flycam ? m_flyTransform : m_transform);

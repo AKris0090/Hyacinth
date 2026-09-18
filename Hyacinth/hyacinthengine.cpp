@@ -323,62 +323,6 @@ void HyacinthEngine::createSyncObjects()
 	vkdeviceutils::setSingleTimeUploadFence(m_uploadFence);
 }
 
-void HyacinthEngine::createDepthPipeline()
-{
-    m_depthPipelineUtil.addShader("shaders/depth.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    m_depthPipelineUtil.addShader("shaders/depthDiscard.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
-    m_depthPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    m_depthPipelineUtil.setDefaultAttributes();
-    m_depthPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
-    m_depthPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    m_depthPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 0);
-    m_depthPipelineUtil.setMultisampling(m_msaaSamples);
-    m_depthPipelineUtil.disableBlending();
-    m_depthPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
-    m_depthPipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
-    m_depthPipelineUtil.numColorAttachments = 0;
-
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = (float)m_swImageFormat.extent.width;
-    viewport.height = (float)m_swImageFormat.extent.height;
-    viewport.minDepth = 1.0f;
-    viewport.maxDepth = 0.0f;
-
-    VkRect2D scissor{};
-    scissor.offset = { 0, 0 };
-    scissor.extent = m_swImageFormat.extent;
-
-    VkPipelineViewportStateCreateInfo viewportState{};
-    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportState.viewportCount = 1;
-    viewportState.pViewports = &viewport;
-    viewportState.scissorCount = 1;
-    viewportState.pScissors = &scissor;
-
-    m_depthPipelineUtil.m_viewportState.pViewports = &viewport;
-    m_depthPipelineUtil.m_viewportState.pScissors = &scissor;
-
-    VkPushConstantRange range{};
-    range.offset = 0;
-    range.size = sizeof(GPUDrawPushConstants);
-    range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    std::array<VkDescriptorSetLayout, 2> sets = { m_descriptorSetLayout, m_textureSetLayout };
-
-    VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    pipelineLayoutCInfo.pushConstantRangeCount = 1;
-    pipelineLayoutCInfo.pPushConstantRanges = &range;
-    pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
-    pipelineLayoutCInfo.pSetLayouts = sets.data();
-
-    VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_depthPipelineUtil.m_pipeline.layout));
-
-    m_depthPipelineUtil.buildPipeline();
-}
-
 void HyacinthEngine::createGraphicsPipeline()
 {
     m_pipelineUtil.addShader("shaders/vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -391,9 +335,19 @@ void HyacinthEngine::createGraphicsPipeline()
 	m_pipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 3);
     m_pipelineUtil.setMultisampling(m_msaaSamples);
 	m_pipelineUtil.disableBlending();
-    m_pipelineUtil.enableDepthTest(false, VK_COMPARE_OP_EQUAL);
+    m_pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS);
     m_pipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
+    m_pipelineUtil.setStencilAttachmentFormat(VK_FORMAT_D32_SFLOAT_S8_UINT);
     m_pipelineUtil.numColorAttachments = 3;
+
+    m_pipelineUtil.m_depthStencil.stencilTestEnable = true;
+    m_pipelineUtil.m_depthStencil.front.compareMask = VIEW_MODEL_BIT;
+    m_pipelineUtil.m_depthStencil.front.writeMask = 0xFF;
+    m_pipelineUtil.m_depthStencil.front.compareOp = VK_COMPARE_OP_EQUAL;
+    m_pipelineUtil.m_depthStencil.front.reference = 0;
+    m_pipelineUtil.m_depthStencil.front.passOp = VK_STENCIL_OP_KEEP;
+    m_pipelineUtil.m_depthStencil.front.failOp = VK_STENCIL_OP_KEEP;
+    m_pipelineUtil.m_depthStencil.back = m_pipelineUtil.m_depthStencil.front;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -433,6 +387,72 @@ void HyacinthEngine::createGraphicsPipeline()
 	VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_pipelineUtil.m_pipeline.layout));
 
 	m_pipelineUtil.buildPipeline();
+}
+
+void HyacinthEngine::createViewModelPipeline()
+{
+    m_viewModelPipelineUtil.addShader("shaders/viewModelVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    m_viewModelPipelineUtil.addShader("shaders/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
+    m_viewModelPipelineUtil.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    m_viewModelPipelineUtil.setDefaultAttributes();
+    m_viewModelPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
+    m_viewModelPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    m_viewModelPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R8G8B8A8_UNORM, 3);
+    m_viewModelPipelineUtil.setMultisampling(m_msaaSamples);
+    m_viewModelPipelineUtil.disableBlending();
+    m_viewModelPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS);
+    m_viewModelPipelineUtil.setDepthAttachmentFormat(m_gBuffers[0].depth.imageFormat);
+    m_viewModelPipelineUtil.setStencilAttachmentFormat(VK_FORMAT_D32_SFLOAT_S8_UINT);
+    m_viewModelPipelineUtil.numColorAttachments = 3;
+
+    m_viewModelPipelineUtil.m_depthStencil.stencilTestEnable = true;
+    m_viewModelPipelineUtil.m_depthStencil.front.compareMask = VIEW_MODEL_BIT;
+    m_viewModelPipelineUtil.m_depthStencil.front.writeMask = 0xFF;
+    m_viewModelPipelineUtil.m_depthStencil.front.compareOp = VK_COMPARE_OP_ALWAYS;
+    m_viewModelPipelineUtil.m_depthStencil.front.reference = VIEW_MODEL_BIT;
+    m_viewModelPipelineUtil.m_depthStencil.front.passOp = VK_STENCIL_OP_REPLACE;
+    m_viewModelPipelineUtil.m_depthStencil.front.failOp = VK_STENCIL_OP_KEEP;
+    m_viewModelPipelineUtil.m_depthStencil.back = m_viewModelPipelineUtil.m_depthStencil.front;
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)m_swImageFormat.extent.width;
+    viewport.height = (float)m_swImageFormat.extent.height;
+    viewport.minDepth = 1.0f;
+    viewport.maxDepth = 0.0f;
+
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = m_swImageFormat.extent;
+
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    m_viewModelPipelineUtil.m_viewportState.pViewports = &viewport;
+    m_viewModelPipelineUtil.m_viewportState.pScissors = &scissor;
+
+    VkPushConstantRange range{};
+    range.offset = 0;
+    range.size = sizeof(GPUDrawPushConstants);
+    range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayout, 3> sets = { m_descriptorSetLayout, m_shadowSetLayout, m_textureSetLayout };
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCInfo{ .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    pipelineLayoutCInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCInfo.pPushConstantRanges = &range;
+    pipelineLayoutCInfo.setLayoutCount = static_cast<uint32_t>(sets.size());
+    pipelineLayoutCInfo.pSetLayouts = sets.data();
+
+    VK_CHECK(vkCreatePipelineLayout(m_device, &pipelineLayoutCInfo, nullptr, &m_viewModelPipelineUtil.m_pipeline.layout));
+
+    m_viewModelPipelineUtil.buildPipeline();
 }
 
 void HyacinthEngine::createCompSkinPipeline() {
@@ -682,21 +702,23 @@ void HyacinthEngine::loadAssets() {
     auto flashPath = vkdebugutils::getExeDir() / "objects" / "flash.glb";
     auto carPath = vkdebugutils::getExeDir() / "objects" / "GTR+35.glb";
 
+    auto betterArmsPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "fpsarms2.glb";
+    auto betterPistolPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "pistol2.glb";
+
     m_assetDrawer.addDummyTextures();
     m_assetDrawer.addUITextures();
 
     m_assetDrawer.loadMesh(path.string(), "world", false, true);
     m_assetDrawer.loadMesh(originSpherePath.string(), "sphere", false, false);
-    m_assetDrawer.loadMesh(sphereTestPath.string(), "sphere_test", false, true);
-    m_assetDrawer.loadMesh(helmetPath.string(), "helmet", false, true);
-    m_assetDrawer.loadMesh(carPath.string(), "car", false, true);
-    m_assetDrawer.loadMesh(staticPistolPath.string(), "staticPistol", false, true);
     m_assetDrawer.loadMesh(tracerPath.string(), "tracer", false, true);
     m_assetDrawer.loadMesh(flashPath.string(), "flashbang", true, true);
     m_assetDrawer.loadMesh(thirdPersonCharacterPath.string(), "tp_character", true, true);
-    m_assetDrawer.loadMesh(firstPersonCharacterPath.string(), "fp_arms", true, true);
-    m_assetDrawer.loadMesh(altArmsPath.string(), "fps_hands", true, true);
-    m_assetDrawer.loadMesh(pistolPath.string(), "pistol", true, true);
+
+    m_assetDrawer.loadMesh(betterArmsPath.string(), "fp_arms", true, true);
+    m_assetDrawer.loadMesh(betterPistolPath.string(), "pistol", true, true);
+
+    // m_assetDrawer.loadMesh(firstPersonCharacterPath.string(), "fp_arms", true, true);
+    // m_assetDrawer.loadMesh(pistolPath.string(), "pistol", true, true);
 }
 
 void HyacinthEngine::createBuffers() {
@@ -848,7 +870,7 @@ void HyacinthEngine::init()
 
 	createSyncObjects(); // also creates device context
 
-    m_camera = Camera(m_swImageFormat.aspectRatio, BASE_FOV, 0.01f, 50.f);
+    m_camera = Camera(m_swImageFormat.aspectRatio, WORLD_FOV, 0.01f, 50.f);
 
     createColorImages();
 
@@ -877,9 +899,9 @@ void HyacinthEngine::init()
 
     m_specularTraceHelper.setup(&m_rtHelper, m_compositeSetLayout, m_descriptorSetLayout, m_textureSetLayout, m_skyboxHelper.m_skyboxImage, m_swImageFormat.extent);
 
-    createDepthPipeline();
-
     createGraphicsPipeline();
+
+    createViewModelPipeline();
 
     createCompSkinPipeline();
 
@@ -932,6 +954,7 @@ void HyacinthEngine::addAnimatedGameObject(HAnimatedGameObject* gameObjectRef) {
 
 void HyacinthEngine::generateRenderList() {
     m_renderList.clear();
+    numViewModelDrawCommands = 0;
 
     for (const auto& o : m_staticObjects) {
         for (const auto& n : o->mesh->meshedNodes) {
@@ -965,6 +988,7 @@ void HyacinthEngine::generateRenderList() {
                     .vertexOffset = animatedVertexOffset + p.firstVertex - ao.gameObject->mesh->vertexOffset,
                     .meshID = 0
                     });
+                if (ao.gameObject->isViewModel) numViewModelDrawCommands++;
             }
         }
         animatedVertexOffset += ao.gameObject->mesh->numVertices;
@@ -1058,6 +1082,7 @@ void HyacinthEngine::update() {
     camMutex.lock();
     UBO newuniform{};
     newuniform.proj = m_camera.m_proj;
+    newuniform.viewModelProj = m_camera.m_viewModelProj;
     newuniform.view = m_camera.m_view;
     newuniform.viewPos = glm::vec4(m_camera.m_transform.position, 1.f);
     newuniform.lightPos = glm::vec4(m_shadowHelper.transform.position, 1.f);
@@ -1219,6 +1244,8 @@ void HyacinthEngine::drawImGui() {
 }
 
 void HyacinthEngine::draw() {
+    VkDeviceSize offsets[] = { 0 };
+
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -1331,65 +1358,43 @@ void HyacinthEngine::draw() {
     
     vkCmdPipelineBarrier2(cmd, &depInfoMain); // barrier for main draw pass
 
-    // depth prepass
-    {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipelineUtil.m_pipeline.pipeline);
-        VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex].depth.imageView);
-        VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 0, nullptr, &depthAttachment);
-        VK_LABEL(cmd, "Depth Pre Pass");
-        vkCmdBeginRendering(cmd, &renderingInfo);
-
-        std::array<VkDescriptorSet, 2> sets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_textureSet };
-
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_depthPipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(sets.size()), sets.data(), 0, nullptr);
-        vkCmdPushConstants(cmd, m_depthPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-
-        vkCmdSetViewport(cmd, 0, 1, &viewport);
-        vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-        // draw world
-        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, 0, numStaticDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
-
-        // draw animated objects
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(cmd, 0, 1, &m_frameData[m_frameIndex].m_skinnedVertexBuffer.buffer, offsets);
-        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDrawCommands, numDynamicDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
-
-        vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
-
-        vkCmdEndRendering(cmd);
-        VK_LABEL_END(cmd);
-    }
-
     // main render pass
     {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline);
         VkRenderingAttachmentInfo albedoAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].albedo.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         VkRenderingAttachmentInfo normalAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].normal.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         VkRenderingAttachmentInfo amrattachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].AMR.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex].depth.imageView, false);
+        VkRenderingAttachmentInfo depthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex].depth.imageView);
+        VkRenderingAttachmentInfo stencilAttachment = vkimageutils::createStencilAttachmentInfo(m_gBuffers[m_swImageIndex].depth.imageView);
         std::array<VkRenderingAttachmentInfo, 3> colorAttachments = { albedoAttachment, normalAttachment, amrattachment };
         VkRenderingInfo renderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 3, colorAttachments.data(), &depthAttachment);
+        renderingInfo.pStencilAttachment = &stencilAttachment;
         VK_LABEL(cmd, "G Buffer Pass");
         vkCmdBeginRendering(cmd, &renderingInfo);
 
         std::array<VkDescriptorSet, 3> sets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_frameData[m_frameIndex].shadowDescriptorSet, m_textureSet };
 
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(sets.size()), sets.data(), 0, nullptr);
-
-        vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-
+        // bind view model pipeline
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_viewModelPipelineUtil.m_pipeline.pipeline); // world pipeline
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_viewModelPipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(sets.size()), sets.data(), 0, nullptr);
+        vkCmdPushConstants(cmd, m_viewModelPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
         vkCmdSetViewport(cmd, 0, 1, &viewport);
         vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+        // draw view model
+        vkCmdBindVertexBuffers(cmd, 0, 1, &m_frameData[m_frameIndex].m_skinnedVertexBuffer.buffer, offsets);
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDrawCommands, numViewModelDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
+
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline); // world pipeline
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(sets.size()), sets.data(), 0, nullptr);
+        vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
         // draw world
         vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, 0, numStaticDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 
         // draw animated objects
-        VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_frameData[m_frameIndex].m_skinnedVertexBuffer.buffer, offsets);
-        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDrawCommands, numDynamicDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
-
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * (numStaticDrawCommands + numViewModelDrawCommands), (numDynamicDrawCommands - numViewModelDrawCommands), sizeof(VkDrawIndexedIndirectCommand));
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
 
         vkCmdEndRendering(cmd);
@@ -1740,8 +1745,8 @@ void HyacinthEngine::shutdown()
 
 	vkDestroyFence(m_device, m_uploadFence, nullptr);
 
-    m_pipelineUtil.destroyPipeline();            
-    m_depthPipelineUtil.destroyPipeline();
+    m_pipelineUtil.destroyPipeline();
+    m_viewModelPipelineUtil.destroyPipeline();
     m_compositePipelineUtil.destroyPipeline();
     m_ddgiPipelineUtil.destroyPipeline();
     m_volumeStencilPipeline.destroyPipeline();
