@@ -150,6 +150,9 @@ void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	pistolObject->transform.parent = &engine.m_camera.m_transform;
 	pistolObject->transform.rotation = glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));;
 
+	LightNode* camNode = hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("fp_arms")->getNodeByName("cameraref");
+	hyacinthEngine.m_camera.camAnimationNodeTransform = &armsObject->nodeTransforms[camNode->nodeIndex];
+
 	// flashObject = new HFlashBang(engine.m_assetDrawer.getAnimatedMeshRef("flashbang"));
 	// engine.addAnimatedGameObject(flashObject);
 	// flashObject->setParentObject(armsObject, flashObject->controller.baseNode, armsObject->controller.gunBone);
@@ -157,8 +160,8 @@ void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 
 constexpr glm::vec3 blenderCamPos = glm::vec3(0.f, 0.37f, 0.f);
 
-void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
-	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, engine.m_camera.m_transform.pitch - engine.m_camera.prevPitch, engine.m_camera.m_transform.yaw - engine.m_camera.prevYaw);
+void updateGameObjects() {
+	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, physicsManager.clientPhysicsObjects[0].moveState, hyacinthEngine.m_camera.m_transform.pitch - hyacinthEngine.m_camera.prevPitch, hyacinthEngine.m_camera.m_transform.yaw - hyacinthEngine.m_camera.prevYaw);
 	// armsObject->transform.position = engine.m_camera.m_transform.position;
 	// armsObject->transform.rotation = engine.m_camera.m_transform.rotation * glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));
 	// 
@@ -167,11 +170,11 @@ void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient)
 	// pistolObject->transform.position = engine.m_camera.m_transform.position;
 	// pistolObject->transform.rotation = engine.m_camera.m_transform.rotation * glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));;
 	// 
-	// if (netClient.netEntManager.self->currentWeapon == PISTOL) {
+	if (netClient.netEntManager.self->currentWeapon == PISTOL) {
 	// 	pistolObject->active = true;
-	// 	pistolObject->controller.updateAnimParams(armsObject->controller.shootTrigger, armsObject->controller.reloadTrigger);
+		pistolObject->controller.updateAnimParams(physicsManager.clientPhysicsObjects[0].moveState, armsObject->controller.shootTrigger, armsObject->controller.reloadTrigger);
 	// 	flashObject->active = false;
-	// }
+	}
 	// else if (netClient.netEntManager.self->currentWeapon == GRENADE && netClient.netEntManager.self->currentState != GRENADE_THROW) {
 	// 	flashObject->active = true;
 	// 	pistolObject->active = false;
@@ -181,7 +184,7 @@ void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient)
 	// 	pistolObject->active = false;
 	// }
 
-	for (const auto& ao : engine.m_animatedObjects) {
+	for (const auto& ao : hyacinthEngine.m_animatedObjects) {
 		ao.gameObject->updateAnimation(Time::getDeltaTime());
 		memcpy(ao.jointMatrixBuffer.pMappedData, ao.gameObject->jointMatrixData, ao.gameObject->mesh->jointMatrixSize);
 	}
@@ -335,7 +338,7 @@ int main() {
 #endif
 
 #endif
-		updateGameObjects(hyacinthEngine, netClient);
+		updateGameObjects();
 
 		hyacinthEngine.draw();
 

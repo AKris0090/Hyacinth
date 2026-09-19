@@ -70,6 +70,7 @@ public:
 	std::vector<VulkanImage> textures;
 
 	void loadMesh(std::string fileName, std::string meshName, bool skinned, bool loadMaterials);
+	void loadAnimation(std::string meshName, std::string filename, std::string animName);
 
 	LightMesh* getStaticMeshRef(std::string meshName);
 	LightMesh* getAnimatedMeshRef(std::string meshName);

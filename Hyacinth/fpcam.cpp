@@ -25,6 +25,9 @@ glm::mat4 createViewMatrix(Transform& t) {
 
 void Camera::setViewMatrix(Transform& t) { // pitchadditional is for camera recoil
     m_view = createViewMatrix(t);
+    if (camAnimationNodeTransform) {
+        m_view = camAnimationNodeTransform->getMatrix() * m_view;
+    }
     m_dirtyView = false;
 }
 

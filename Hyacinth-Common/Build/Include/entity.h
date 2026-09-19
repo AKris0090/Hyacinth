@@ -202,9 +202,10 @@ constexpr float SLIDE_DECELERATION = 0.003f;
 
 enum PLAYER_MOVEMENT_STATE : uint32_t {
 	CROUCHED = 0,
-	WALKING = 1,
-	SPRINTING = 2,
-	SLIDING = 3,
+	M_IDLE = 1,
+	WALKING = 2,
+	SPRINTING = 3,
+	SLIDING = 4,
 };
 
 struct PhysicsEnt {
@@ -237,9 +238,24 @@ struct PhysicsEnt {
 		float currentDecel = DECELERATION;
 
 		switch (moveState) {
+		case M_IDLE:
+			if (crouch) {
+				moveState = CROUCHED;
+				return;
+			}
+			if (abs(FB) > 0 || abs(LR) > 0) {
+				moveState = WALKING;
+				break;
+			}
+			break;
 		case CROUCHED:
 			if (!crouch) {
-				moveState = WALKING;
+				if (FB == 0 && LR == 0) {
+					moveState = M_IDLE;
+				}
+				else {
+					moveState = WALKING;
+				}
 				return;
 			}
 
@@ -248,6 +264,9 @@ struct PhysicsEnt {
 			break;
 
 		case WALKING:
+			if (FB == 0 && LR == 0) {
+				moveState = M_IDLE;
+			}
 			if ((FB > 0) && sprint) {
 				moveState = SPRINTING;
 				return;
@@ -265,6 +284,10 @@ struct PhysicsEnt {
 				return;
 			}
 			if (!sprint || FB <= 0) {
+				if (FB == 0 && LR == 0) {
+					moveState = M_IDLE;
+					return;
+				}
 				moveState = WALKING;
 				return;
 			}
@@ -282,7 +305,12 @@ struct PhysicsEnt {
 					moveState = CROUCHED;
 				}
 				else {
-					moveState = WALKING;
+					if (FB == 0 && LR == 0) {
+						moveState = M_IDLE;
+					}
+					else {
+						moveState = WALKING;
+					}
 				}
 				slideSet = false;
 				return;

@@ -95,6 +95,8 @@ public:
     CameraFrustumPlanes m_frustumPlanes;
     FOVModifier fovMod;
     CrouchModifier crouchMod;
+
+    Transform* camAnimationNodeTransform = nullptr;
     
     Transform m_flyTransform;
 

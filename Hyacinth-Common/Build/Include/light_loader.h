@@ -125,7 +125,8 @@ struct LightMesh {
 
     // animated mesh members
     size_t jointMatrixSize;
-    std::vector<LightAnimation> animations;
+    // namme, animation
+    std::unordered_map<std::string, LightAnimation> animations;
     LightSkin skin;
     LightNode* meshOwnerNode;
 
@@ -145,4 +146,5 @@ struct LightLoaderOptions {
 
 namespace LightLoader {
     LightMesh* loadFromFile(const std::string& filepath, LightLoaderOptions options);
+    void loadAnimation(const std::string& filename, const std::string& animName, LightMesh* meshToAddAnim);
 }

@@ -702,8 +702,11 @@ void HyacinthEngine::loadAssets() {
     auto flashPath = vkdebugutils::getExeDir() / "objects" / "flash.glb";
     auto carPath = vkdebugutils::getExeDir() / "objects" / "GTR+35.glb";
 
-    auto betterArmsPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "fpsarms2.glb";
-    auto betterPistolPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "pistol2.glb";
+    // auto betterArmsPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "fpsarms2.glb";
+    // auto betterPistolPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "pistol2.glb";
+
+    auto betterArmsPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "ARMS_MESH_AND_ANIMS" / "arms_base.glb";
+    auto betterPistolPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "PISTOL_MESH_AND_ANIMS" / "pistol_base.glb";
 
     m_assetDrawer.addDummyTextures();
     m_assetDrawer.addUITextures();
@@ -715,7 +718,16 @@ void HyacinthEngine::loadAssets() {
     m_assetDrawer.loadMesh(thirdPersonCharacterPath.string(), "tp_character", true, true);
 
     m_assetDrawer.loadMesh(betterArmsPath.string(), "fp_arms", true, true);
+    auto armsIdlePath = vkdebugutils::getExeDir() / "objects" / "new arms" / "ARMS_MESH_AND_ANIMS" / "anim_arms_idle.glb";
+    m_assetDrawer.loadAnimation("fp_arms", armsIdlePath.string(), "Idle");
+    auto armsWalkPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "ARMS_MESH_AND_ANIMS" / "anim_arms_walk.glb";
+    m_assetDrawer.loadAnimation("fp_arms", armsWalkPath.string(), "Walk Loop");
+
     m_assetDrawer.loadMesh(betterPistolPath.string(), "pistol", true, true);
+    auto pistolIdlePath = vkdebugutils::getExeDir() / "objects" / "new arms" / "PISTOL_MESH_AND_ANIMS" / "anim_pistol_idle.glb";
+    m_assetDrawer.loadAnimation("pistol", pistolIdlePath.string(), "m1911 idle");
+    auto pistolWalkPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "PISTOL_MESH_AND_ANIMS" / "anim_pistol_walk.glb";
+    m_assetDrawer.loadAnimation("pistol", pistolWalkPath.string(), "Walk Loop M1911");
 
     // m_assetDrawer.loadMesh(firstPersonCharacterPath.string(), "fp_arms", true, true);
     // m_assetDrawer.loadMesh(pistolPath.string(), "pistol", true, true);

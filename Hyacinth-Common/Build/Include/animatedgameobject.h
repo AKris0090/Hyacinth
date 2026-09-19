@@ -10,6 +10,13 @@ enum TURN_ANIM_STATE {
 	IDLE
 };
 
+// enum MOVEMENT_STATE {
+// 	M_NULL_STATE,
+// 	M_IDLE,
+// 	M_WALKING,
+// 	M_RUNNING
+// };
+
 enum ANIMATION_TYPE {
 	A_TP_IDLE,
 	A_TP_RUNNING,
@@ -19,6 +26,7 @@ enum ANIMATION_TYPE {
 
 	A_PISTOL_EQUIP,
 	A_PISTOL_IDLE,
+	A_PISTOL_WALK,
 	A_PISTOL_SHOOT,
 	A_PISTOL_RELOAD,
 
@@ -47,6 +55,7 @@ public:
 	LightNode* parentMeshNode = nullptr;
 	Transform transform;
 	LightMesh* mesh = nullptr;
+	std::unordered_map<uint32_t, Transform> prevNodeTransforms;
 	std::unordered_map<uint32_t, Transform> nodeTransforms;
 	glm::mat4* jointMatrixData = nullptr;
 

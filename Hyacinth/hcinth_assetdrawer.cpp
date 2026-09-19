@@ -92,6 +92,14 @@ void HAssetDrawer::addUITextures() {
 	});
 }
 
+void HAssetDrawer::loadAnimation(std::string meshName, std::string filename, std::string animName) {
+	if (skinnedMeshes.find(meshName) == skinnedMeshes.end()) {
+		std::cout << "Animation: " << animName << " not found in file : " << filename << std::endl;
+		throw std::runtime_error("Animation not found in file: " + filename);
+	}
+	LightLoader::loadAnimation(filename, animName, skinnedMeshes[meshName]);
+}
+
 void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool skinned, bool loadMaterials) {
 	LightLoaderOptions op{};
 	op.vertexOffset = static_cast<uint32_t>(vertices.size());
