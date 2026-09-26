@@ -31,6 +31,7 @@
 #include "ambient.h"
 #include "specular.h"
 #include "outline.h"
+#include "decals.h"
 
 #include "net_ent.h"
 #include "netDebugRenderer.h"
@@ -121,6 +122,7 @@ public:
 	WorldHealthManager				m_worldHealthManager;
 	std::mutex camMutex;
 	Camera m_camera;
+	DecalManager					m_decalManager;
 
 	HAssetDrawer					m_assetDrawer;
 	owDDGI							m_owDDGIHelper;
@@ -153,6 +155,16 @@ private:
 		void*			mappedUniformBuffer;
 		VkDescriptorSet uniformDescriptorSet;
 		VkDescriptorSet shadowDescriptorSet;
+
+		// TOOD: MAKE THE DECALS INSTANCED, RATHER THAN THIS
+		uint32_t worldDrawCommandOffset = 0;
+		uint32_t numWorldDrawCommands = 0;
+		uint32_t dynamicDrawCommandOffset = 0;
+		uint32_t numDynamicDrawCommands = 0;
+		uint32_t viewModelDrawCommandOffset = 0;
+		uint32_t numViewModelDrawCommands = 0;
+		uint32_t decalDrawCommandOffset = 0;
+		uint32_t numDecalDrawCommands = 0;
 	};
 
 	float volANormalBias;
@@ -160,13 +172,9 @@ private:
 	float volAViewBias;
 	float volBViewBias;
 
-	uint32_t numStaticDrawCommands;
-	uint32_t numDynamicDrawCommands;
-
 	bool m_initialized = false;
 	bool m_showImGui = false;
 	float renderingModeToggle = 0;
-	uint32_t numViewModelDrawCommands = 0;
 	uint32_t m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t maxTracers = 10;
@@ -202,7 +210,6 @@ private:
 	std::vector<HRenderCall>		m_renderList;
 	std::vector<VkDrawIndexedIndirectCommand>		m_stencilDrawList;
 
-	uint32_t dynamicDrawCommandOffset = 0;
 	std::vector<VkDrawIndexedIndirectCommand> m_drawCommands; // includes static and dynamic
 
 	perFrame						m_uploadFrame			{};

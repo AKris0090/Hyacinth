@@ -442,6 +442,7 @@ hitReg PhysicsManager::playerShooting(uint32_t shooterId, Transform& currentEnti
 			h.entityHitId = e.id;
 			h.footPosHit = e.pos;
 			h.hitPos = glmPhysxVec(hit.position);
+			h.hitNormal = glmPhysxVec(hit.normal);
 			cDistance = hit.distance;
 			break;
 		}
@@ -499,12 +500,14 @@ void DrawRaycastPVD(physx::PxPvdSceneClient* pvdClient, const physx::PxVec3& ori
 	pvdClient->drawPoints(originMarker, 1);
 }
 
-glm::vec3 PhysicsManager::traceBullet(Transform& entTransform) {
-	physx::PxVec3 origin = physxVec(entTransform.position + glm::vec3(0.f, 1.85f, 0.f));
+hitReg PhysicsManager::traceBullet(Transform& entTransform) {
+	physx::PxVec3 origin = physxVec(entTransform.position);
 	physx::PxVec3 dir = physxVec(glm::normalize(entTransform.forward));
 	physx::PxReal maxDist = 100.f;
 	physx::PxRaycastBuffer rayHit;
 
+	hitReg h;
+	h.hit = false;
 	glm::vec3 hitPos = glm::vec3(0.f);
 	float cDistance = FLT_MAX;
 
@@ -515,16 +518,14 @@ glm::vec3 PhysicsManager::traceBullet(Transform& entTransform) {
 		bool didHit = physx::PxGeometryQuery::raycast(origin, dir, g, pose, maxDist, physx::PxHitFlag::eDEFAULT, 1, &hit);
 
 		if (didHit && hit.distance < cDistance) {
+			h.hit = true;
 			cDistance = hit.distance;
-			hitPos = glmPhysxVec(hit.position);
+			h.hitPos = glmPhysxVec(hit.position);
+			h.hitNormal = glmPhysxVec(hit.normal);
 		}
-	}
-
-	if (cDistance == FLT_MAX) {
-		hitPos = glmPhysxVec((origin + (dir * 35.f)));
 	}
 
 	DrawRaycastPVD(pScene->getScenePvdClient(), origin, dir, 100.f, cDistance != FLT_MAX, cDistance != FLT_MAX ? physxVec(hitPos) : physx::PxVec3(0.f));
 
-	return hitPos;
+	return h;
 }

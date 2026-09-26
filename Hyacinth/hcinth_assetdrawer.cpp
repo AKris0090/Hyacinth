@@ -84,12 +84,13 @@ void HAssetDrawer::addUITextures() {
 	for (const auto& [path, format] : DECAL_TEXTURE_PATHS) {
 		createAddTextureFromFile(path, format);
 	}
+	decalMatOffset = static_cast<uint32_t>(materials.size());
 	materials.push_back(LightMaterialInstance{
 		.baseColorIndex = static_cast<uint32_t>(textures.size() - 1),
 		.normalIndex = DUMMY_NORMAL_TEX_INDEX,
 		.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX,
 		.alphaCutoff = 0.5f
-	});
+	}); // add decal texture
 }
 
 void HAssetDrawer::loadAnimation(std::string meshName, std::string filename, std::string animName) {

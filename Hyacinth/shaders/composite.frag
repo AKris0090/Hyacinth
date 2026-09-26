@@ -106,7 +106,7 @@ vec3 BRDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness, vec3 albedo, 
 
 		vec3 spec = D * F * G / (4.0 * dotNL * dotNV);
 
-		color += spec * dotNL * lightColor * 5.0 * shadow;
+		color += spec * dotNL * lightColor * 150.0 * shadow;
 
 		// vec3 specular = texture(specularImage, inUV).xyz;
 		// color += F * specular;

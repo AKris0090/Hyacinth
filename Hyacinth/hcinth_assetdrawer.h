@@ -36,7 +36,6 @@ const std::vector<std::pair<std::string, std::string>> EXTRA_OBJECTS = {
 };
 
 constexpr int DUMMY_MATERIAL = 0;
-constexpr int BULLETHOLE_DECAL_MAT = 1;
 
 static std::string getFilePathExtension(const std::string& FileName) {
 	if (FileName.find_last_of(".") != std::string::npos)
@@ -63,6 +62,8 @@ public:
 	uint32_t skinnedVertexCount = 0;
 	std::unordered_map<std::string, LightMesh*> staticMeshes;
 	std::unordered_map<std::string, LightMesh*> skinnedMeshes;
+
+	uint32_t decalMatOffset = 0;
 
 	std::vector<LightMaterialInstance> materials;
 	VulkanBuffer materialInfoBuffer;

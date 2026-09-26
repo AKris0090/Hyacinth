@@ -36,6 +36,11 @@ constexpr physx::PxU32 WORLD				= 1 << 0;
 constexpr physx::PxU32 PLAYER_CAPSULE		= 1 << 1;
 constexpr physx::PxU32 RAGDOLL				= 1 << 2;
 
+enum PHYICS_HIT_TYPE {
+	P_WORLD,
+	P_CHARACTER
+};
+
 struct controllerUserData {
 	uint32_t id;
 };
@@ -45,6 +50,8 @@ struct hitReg {
 	uint32_t entityHitId;
 	glm::vec3 footPosHit;
 	glm::vec3 hitPos;
+	glm::vec3 hitNormal;
+	PHYICS_HIT_TYPE hitType;
 };
 
 static physx::PxVec3 physxVec(glm::vec3 v) {
@@ -114,7 +121,7 @@ public:
 	void addDynamicNetworkSphere(uint32_t worldID, glm::vec3 spawnPos, glm::vec3 initialVelocity);
 	void updateAllWorldObjects(std::unordered_map<uint32_t, Ordnance*>& ord, std::unordered_map<uint32_t, ServersideClient*>& clients);
 
-	glm::vec3 traceBullet(Transform& camTransform);
+	hitReg traceBullet(Transform& camTransform);
 
 	hitReg playerShooting(uint32_t eId, Transform& t, rewindSnapshot* snapshotToTrace);
 };

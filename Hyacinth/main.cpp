@@ -74,24 +74,15 @@ void simulationTick() {
 #ifdef DEBUG_NETWORK
 			for (const auto& e : hyacinthEngine.p_netEntManager->entities) {
 				if (e.first == 1) {
-					hyacinthEngine.m_netDebugRenderer.clientEntityPosition = glm::vec4(e.second->transform.position, 1.f);
+					hyacinthEngine.m_netDebugRenderer.clientEntityPosition = glm::vec4(e.second->transform.position, 1.f);  
 				}
 			}
 #endif
 			// if shot fired, then draw trace and draw the tracer to connect the two
-			glm::vec3 hitPos = physicsManager.traceBullet(netClient.netEntManager.self->transform);
-			glm::vec3 origin = netClient.netEntManager.self->transform.position + glm::vec3(0.f, 1.85f, 0.f);
-			origin += netClient.netEntManager.self->transform.forward * 1.6f;
-			origin += netClient.netEntManager.self->transform.right * 0.9f;
-			origin -= netClient.netEntManager.self->transform.up * 0.2f;
-			glm::vec3 dir = hitPos - origin;
-			glm::vec3 normDir = glm::normalize(dir);
-			Transform t;
-			t.scale.x = glm::length(dir);
-			t.yaw = glm::degrees(glm::atan2(normDir.z, normDir.x));
-			t.pitch = glm::degrees(glm::asin(normDir.y));
-			t.setRotationPitchYaw();
-			t.position = origin;
+			hitReg hit = physicsManager.traceBullet(hyacinthEngine.m_camera.m_transform);
+			if (hit.hit) {
+				hyacinthEngine.m_decalManager.addDecal(hit.hitPos + (hit.hitNormal * 0.001f), hit.hitNormal);
+			}
 
 			netClient.netEntManager.self->recoil.startRecoil();
 		}

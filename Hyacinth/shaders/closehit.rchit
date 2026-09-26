@@ -51,7 +51,8 @@ void main()
 	Vertex v1 = pc.vertexBufferAddress.vertices[index.y + r.vertexOffset];
 	Vertex v2 = pc.vertexBufferAddress.vertices[index.z + r.vertexOffset];
 
-	vec3 normal = normalize(a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz);
+	mat3 normalMatrix = transpose(inverse(mat3(r.instanceMatrix)));
+	vec3 normal = normalize(normalMatrix * (a * v0.normal.xyz + b * v1.normal.xyz + c * v2.normal.xyz));
 
 	vec2 uv0 = vec2(v0.position.w, v0.normal.w);
 	vec2 uv1 = vec2(v1.position.w, v1.normal.w);
@@ -64,7 +65,7 @@ void main()
 	vec3 lightVector = normalize(lightPos); // directional light
 
 	float NdotL = max(dot(normal, lightVector), 0.0);
-	vec3 directDiffuse = NdotL * lightColor * 4.0;
+	vec3 directDiffuse = NdotL * lightColor * 1.0;
 
 	uint rayFlags = gl_RayFlagsOpaqueEXT | gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 	uint cullMask = 0xff;

@@ -9,6 +9,7 @@ PistolAnimationController::PistolAnimationController(LightMesh* meshRef) {
 	animations[A_PISTOL_WALK] = &meshRef->animations["Walk Loop M1911"];
     // animations[A_PISTOL_SHOOT] = &meshRef->animations[1];
     // animations[A_PISTOL_RELOAD] = &meshRef->animations[2];
+	animations[A_PISTOL_CROUCH_IDLE] = &meshRef->animations["Crouch Loop m1911"];
 
     currentAnim = animations[A_PISTOL_IDLE];
 }
@@ -38,6 +39,9 @@ void PistolAnimationStateMachine::updateAnimationState(PistolAnimationController
 			break;
 		case WALKING:
 			transitionAnimationState(c, A_PISTOL_WALK);
+			break;
+		case CROUCHED:
+			transitionAnimationState(c, A_PISTOL_CROUCH_IDLE);
 			break;
 		default:
 			break;

@@ -3,10 +3,9 @@
 
 // *********************** CONTROLLER *********************** //
 FirstPersonAnimationController::FirstPersonAnimationController(LightMesh* meshRef) {
-	// gunBone = meshRef->getNodeByName("gun");
-    // leftWrist = meshRef->getNodeByName("hand.L");
-    // rightWrist = meshRef->getNodeByName("hand.R");
-	// 
+    leftWrist = meshRef->getNodeByName("hand_ik.L");
+    rightWrist = meshRef->getNodeByName("hand_ik.R");
+
     // animations[A_GRENADE_THROW] = &meshRef->animations[1];
     // animations[A_GRENADE_IDLE] = &meshRef->animations[2];
     // animations[A_GRENADE_EQUIP] = &meshRef->animations[3];
@@ -17,15 +16,15 @@ FirstPersonAnimationController::FirstPersonAnimationController(LightMesh* meshRe
 
 	animations[A_PISTOL_IDLE] = &meshRef->animations["Idle"];
 	animations[A_PISTOL_WALK] = &meshRef->animations["Walk Loop"];
+	animations[A_PISTOL_CROUCH_IDLE] = &meshRef->animations["Crouch Loop"];
 
     currentAnim = animations[A_PISTOL_IDLE];
 }
 
 void FirstPersonAnimationController::updateAnimParams(WEAPON_STATE newState, PLAYER_MOVEMENT_STATE moveState, float newPitch, float newYaw) {
 	// currentState = newState;
-	// 
-	// deltaPitch = newPitch;
-	// deltaYaw = newYaw;
+	deltaPitch = newPitch;
+	deltaYaw = newYaw;
 
 	currentMoveState = moveState;
 }
@@ -33,10 +32,10 @@ void FirstPersonAnimationController::updateAnimParams(WEAPON_STATE newState, PLA
 // *********************** ANIM STATE MACHINE *********************** //
 
 void FirstPersonAnimationStateMachine::flushQueuedNodeTransforms(FirstPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap) {
-	// for (auto& node : { c.leftWrist, c.rightWrist }) {
-	// 	Transform& t = transformMap[node->nodeIndex];
-	// 	t.rotation = t.queuedQuatRotation * t.rotation;
-	// }
+	for (auto& node : { c.leftWrist, c.rightWrist }) {
+		Transform& t = transformMap[node->nodeIndex];
+		t.rotation = t.queuedQuatRotation * t.rotation;
+	}
 }
 
 void FirstPersonAnimationStateMachine::lerpPreviousCurrentAnimations(FirstPersonAnimationController& c, std::unordered_map<uint32_t, Transform>& transformMap, std::unordered_map<uint32_t, Transform>& prevTransformMap) {
@@ -75,26 +74,26 @@ void FirstPersonAnimationStateMachine::updateAnimatedNodeTransforms(FirstPersonA
 		}
 	}
 	
-	// // calculate local roll shift on wrists depending on delta yaw
-	// float targetYaw = -c.deltaYaw * HORIZONTAL_GUN_SWAY;
-	// glm::quat targetQ = glm::angleAxis(targetYaw, glm::vec3(0, -1, 0));
-	// c.currentSwayYaw = glm::slerp(c.currentSwayYaw, targetQ, deltaTime * 10.f);
-	// 
-	// float targetPitch = -c.deltaPitch * VERTICAL_GUN_SWAY;
-	// glm::quat targetQP = glm::angleAxis(targetPitch, glm::vec3(0, 0, 1));
-	// c.currentSwayPitch = glm::slerp(c.currentSwayPitch, targetQP, deltaTime * 10.f);
-	// 
-	// for (auto& node : { c.leftWrist, c.rightWrist }) {
-	// 	glm::mat4 parentWorldMat = transformMap[node->parent->nodeIndex].getMatrix();
-	// 	glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
-	// 	glm::quat qRotYawLocal = glm::inverse(parentWorldRot) * c.currentSwayYaw * parentWorldRot;
-	// 
-	// 	glm::quat qRotPitchLocal = glm::inverse(parentWorldRot) * c.currentSwayPitch * parentWorldRot;
-	// 
-	// 	transformMap[node->nodeIndex].queuedQuatRotation = qRotYawLocal * qRotPitchLocal;
-	// }
-	// 
-	// flushQueuedNodeTransforms(c, transformMap);
+	// calculate local roll shift on wrists depending on delta yaw
+	float targetYaw = -c.deltaYaw * HORIZONTAL_GUN_SWAY;
+	glm::quat targetQ = glm::angleAxis(targetYaw, glm::vec3(0, -1, 0));
+	c.currentSwayYaw = glm::slerp(c.currentSwayYaw, targetQ, deltaTime * 10.f);
+	
+	float targetPitch = -c.deltaPitch * VERTICAL_GUN_SWAY;
+	glm::quat targetQP = glm::angleAxis(targetPitch, glm::vec3(0, 0, 1));
+	c.currentSwayPitch = glm::slerp(c.currentSwayPitch, targetQP, deltaTime * 10.f);
+	
+	for (auto& node : { c.leftWrist, c.rightWrist }) {
+		glm::mat4 parentWorldMat = transformMap[node->parent->nodeIndex].getMatrix();
+		glm::quat parentWorldRot = glm::quat_cast(parentWorldMat);
+		glm::quat qRotYawLocal = glm::inverse(parentWorldRot) * c.currentSwayYaw * parentWorldRot;
+	
+		glm::quat qRotPitchLocal = glm::inverse(parentWorldRot) * c.currentSwayPitch * parentWorldRot;
+	
+		transformMap[node->nodeIndex].queuedQuatRotation = qRotYawLocal * qRotPitchLocal;
+	}
+	
+	flushQueuedNodeTransforms(c, transformMap);
 }
 
 void FirstPersonAnimationStateMachine::transitionAnimationState(FirstPersonAnimationController& c, ANIMATION_TYPE newAnim) {
@@ -155,6 +154,9 @@ void FirstPersonAnimationStateMachine::updateAnimationState(FirstPersonAnimation
 			break;
 		case WALKING:
 			transitionAnimationState(c, A_PISTOL_WALK);
+			break;
+		case CROUCHED:
+			transitionAnimationState(c, A_PISTOL_CROUCH_IDLE);
 			break;
 		default:
 			break;

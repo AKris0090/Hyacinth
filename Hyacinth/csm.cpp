@@ -547,7 +547,7 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 	}
 }
 
-void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer) {
+void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t dynamicDrawOffset, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer) {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipelineUtil.m_pipeline.pipeline);
 
 	{
@@ -627,7 +627,7 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws,
 		vkCmdBindVertexBuffers(cmd, 0, 1, &skinnedVertBuffer.buffer, offsets);
 		
 		// draw animated objects
-		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDraws, numDynamicDraws, sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * dynamicDrawOffset, numDynamicDraws, sizeof(VkDrawIndexedIndirectCommand));
 		vkCmdBindVertexBuffers(cmd, 0, 1, &vertBuffer.buffer, offsets);
 
 		vkCmdEndRendering(cmd);

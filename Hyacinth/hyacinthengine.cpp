@@ -722,12 +722,16 @@ void HyacinthEngine::loadAssets() {
     m_assetDrawer.loadAnimation("fp_arms", armsIdlePath.string(), "Idle");
     auto armsWalkPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "ARMS_MESH_AND_ANIMS" / "anim_arms_walk.glb";
     m_assetDrawer.loadAnimation("fp_arms", armsWalkPath.string(), "Walk Loop");
+    auto armsCrouchIdlePath = vkdebugutils::getExeDir() / "objects" / "new arms" / "ARMS_MESH_AND_ANIMS" / "anim_arms_crouch_idle.glb";
+    m_assetDrawer.loadAnimation("fp_arms", armsCrouchIdlePath.string(), "Crouch Loop");
 
     m_assetDrawer.loadMesh(betterPistolPath.string(), "pistol", true, true);
     auto pistolIdlePath = vkdebugutils::getExeDir() / "objects" / "new arms" / "PISTOL_MESH_AND_ANIMS" / "anim_pistol_idle.glb";
     m_assetDrawer.loadAnimation("pistol", pistolIdlePath.string(), "m1911 idle");
     auto pistolWalkPath = vkdebugutils::getExeDir() / "objects" / "new arms" / "PISTOL_MESH_AND_ANIMS" / "anim_pistol_walk.glb";
     m_assetDrawer.loadAnimation("pistol", pistolWalkPath.string(), "Walk Loop M1911");
+    auto pistolCrouchIdlePath = vkdebugutils::getExeDir() / "objects" / "new arms" / "PISTOL_MESH_AND_ANIMS" / "anim_pistol_crouch_idle.glb";
+    m_assetDrawer.loadAnimation("pistol", pistolCrouchIdlePath.string(), "Crouch Loop m1911");
 
     // m_assetDrawer.loadMesh(firstPersonCharacterPath.string(), "fp_arms", true, true);
     // m_assetDrawer.loadMesh(pistolPath.string(), "pistol", true, true);
@@ -939,6 +943,7 @@ void HyacinthEngine::init()
     m_uiHelper.setup(m_textureSetLayout, static_cast<uint32_t>(DUMMY_TEX_PATHS.size()), glm::vec2(m_swImageFormat.extent.width, m_swImageFormat.extent.height), m_swImageFormat, m_msaaSamples);
     m_worldHealthManager.setup(m_textureSetLayout, m_descriptorSetLayout, static_cast<uint32_t>(DUMMY_TEX_PATHS.size() + UI_TEXTURE_PATHS.size()), m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_msaaSamples);
     m_ambientHelper.setup(m_descriptorSetLayout, m_compositeSetLayout, m_swImageFormat, m_camera.m_proj);
+    m_decalManager.setup(m_swImageFormat, m_gBuffers[0].depth.imageFormat, m_descriptorSetLayout, m_textureSetLayout);
 
     std::vector<VulkanImage*> depthStencilImages;
     std::vector<VulkanImage*> amrImages;
@@ -966,7 +971,7 @@ void HyacinthEngine::addAnimatedGameObject(HAnimatedGameObject* gameObjectRef) {
 
 void HyacinthEngine::generateRenderList() {
     m_renderList.clear();
-    numViewModelDrawCommands = 0;
+    m_frameData[m_frameIndex].numViewModelDrawCommands = 0;
 
     for (const auto& o : m_staticObjects) {
         for (const auto& n : o->mesh->meshedNodes) {
@@ -985,7 +990,27 @@ void HyacinthEngine::generateRenderList() {
         }
     }
 
-    numStaticDrawCommands = static_cast<uint32_t>(m_renderList.size());
+    m_frameData[m_frameIndex].numWorldDrawCommands = static_cast<uint32_t>(m_renderList.size());
+    m_frameData[m_frameIndex].decalDrawCommandOffset = m_frameData[m_frameIndex].numWorldDrawCommands;
+
+    {
+        std::shared_lock<std::shared_mutex> lock(m_decalManager.instanceLock);
+        for (const auto& m : m_decalManager.decalInstances) {
+            m_renderList.push_back(HRenderCall{
+                .transformMatrix = m,
+                .aaBBMin = glm::vec3(0.f, 0.f, 0.f),
+                .aabbMax = glm::vec3(0.f, 0.f, 0.f),
+                .materialIndex = 1,
+                .indexCount = QUAD_INDEX_COUNT,
+                .firstIndex = 0,
+                .vertexOffset = 0,
+                .meshID = 0
+                });
+        }
+        m_frameData[m_frameIndex].numDecalDrawCommands = static_cast<uint32_t>(m_decalManager.decalInstances.size());
+    }
+
+    m_frameData[m_frameIndex].viewModelDrawCommandOffset = m_frameData[m_frameIndex].decalDrawCommandOffset + m_frameData[m_frameIndex].numDecalDrawCommands;
 
     uint32_t animatedVertexOffset = 0;
     for (const auto& ao : m_animatedObjects) {
@@ -1000,11 +1025,14 @@ void HyacinthEngine::generateRenderList() {
                     .vertexOffset = animatedVertexOffset + p.firstVertex - ao.gameObject->mesh->vertexOffset,
                     .meshID = 0
                     });
-                if (ao.gameObject->isViewModel) numViewModelDrawCommands++;
+                if (ao.gameObject->isViewModel) m_frameData[m_frameIndex].numViewModelDrawCommands++;
             }
         }
         animatedVertexOffset += ao.gameObject->mesh->numVertices;
     }
+
+    m_frameData[m_frameIndex].dynamicDrawCommandOffset = m_frameData[m_frameIndex].viewModelDrawCommandOffset + m_frameData[m_frameIndex].numViewModelDrawCommands;
+
     if (p_netEntManager) {
         bool isCharacter = false; // character should be drawn to the stencil buffer as well
         for (const auto& [id, ao] : p_netEntManager->gameObjects) {
@@ -1025,7 +1053,8 @@ void HyacinthEngine::generateRenderList() {
             animatedVertexOffset += ao.gameObject->mesh->numVertices;
         }
     }
-    numDynamicDrawCommands = static_cast<uint32_t>(m_renderList.size()) - numStaticDrawCommands;
+
+    m_frameData[m_frameIndex].numDynamicDrawCommands = static_cast<uint32_t>(m_renderList.size()) - (m_frameData[m_frameIndex].dynamicDrawCommandOffset);
 
     if (m_frameData[m_frameIndex].m_skinnedVertexBuffer.info.size < (animatedVertexOffset * sizeof(Vertex))) {
         vkdeviceutils::resizeBuffer(m_frameData[m_frameIndex].m_skinnedVertexBuffer, (animatedVertexOffset * sizeof(Vertex)));
@@ -1319,11 +1348,11 @@ void HyacinthEngine::draw() {
     {
         VK_LABEL(cmd, "Compute Cull Main");
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_frustumCullHelper.m_computeCullPipeline.pipeline);
-        m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_frameData[m_frameIndex].m_indirectDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
+        m_frustumCullHelper.executeCull(cmd, m_frustumCullHelper.m_computeSets[m_frameIndex], m_frameData[m_frameIndex].m_indirectDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_frameData[m_frameIndex].numWorldDrawCommands);
         VK_LABEL_END(cmd);
         for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
             VK_LABEL(cmd, "Compute Cull Shadow");
-            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, numStaticDrawCommands);
+            m_frustumCullHelper.executeCull(cmd, m_shadowHelper.m_cascades[i].cascadeCullDescriptorSets[m_frameIndex], m_shadowHelper.m_cascades[i].cascadeDrawBuffer.gpuAddress, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_frameData[m_frameIndex].numWorldDrawCommands);
             VK_LABEL_END(cmd);
         }
     }
@@ -1351,7 +1380,7 @@ void HyacinthEngine::draw() {
 
     // shadows
     {
-        m_shadowHelper.drawShadowMaps(cmd, numStaticDrawCommands, numDynamicDrawCommands, m_frameIndex, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_assetDrawer.g_vertexBuffer, m_frameData[m_frameIndex].m_skinnedVertexBuffer);
+        m_shadowHelper.drawShadowMaps(cmd, m_frameData[m_frameIndex].numWorldDrawCommands, m_frameData[m_frameIndex].dynamicDrawCommandOffset, m_frameData[m_frameIndex].numDynamicDrawCommands, m_frameIndex, m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress, m_assetDrawer.g_vertexBuffer, m_frameData[m_frameIndex].m_skinnedVertexBuffer);
     }
 
     VkBufferMemoryBarrier2 barrier{};
@@ -1394,7 +1423,7 @@ void HyacinthEngine::draw() {
 
         // draw view model
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_frameData[m_frameIndex].m_skinnedVertexBuffer.buffer, offsets);
-        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDrawCommands, numViewModelDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * m_frameData[m_frameIndex].viewModelDrawCommandOffset, m_frameData[m_frameIndex].numViewModelDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineUtil.m_pipeline.pipeline); // world pipeline
@@ -1402,11 +1431,11 @@ void HyacinthEngine::draw() {
         vkCmdPushConstants(cmd, m_pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
         // draw world
-        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, 0, numStaticDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, 0, m_frameData[m_frameIndex].numWorldDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
 
         // draw animated objects
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_frameData[m_frameIndex].m_skinnedVertexBuffer.buffer, offsets);
-        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * (numStaticDrawCommands + numViewModelDrawCommands), (numDynamicDrawCommands - numViewModelDrawCommands), sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * (m_frameData[m_frameIndex].dynamicDrawCommandOffset), m_frameData[m_frameIndex].numDynamicDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
         vkCmdBindVertexBuffers(cmd, 0, 1, &m_assetDrawer.g_vertexBuffer.buffer, offsets);
 
         vkCmdEndRendering(cmd);
@@ -1510,6 +1539,29 @@ void HyacinthEngine::draw() {
     }
 
     vkimageutils::transitionDepthBackToWrite(cmd, m_gBuffers[m_swImageIndex].depth);
+
+    {
+        VK_LABEL(cmd, "Decal Pass");
+
+        decalPushConstant decalPC{
+            .renderCallBuffer = m_frameData[m_frameIndex].m_renderListBuffer.gpuAddress,
+            .materialBuffer = m_assetDrawer.materialInfoBuffer.gpuAddress
+        };
+        
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_decalManager.decalPipelineUtil.m_pipeline.pipeline);
+        std::array<VkDescriptorSet, 2> decalSets = { m_frameData[m_frameIndex].uniformDescriptorSet, m_textureSet };
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_decalManager.decalPipelineUtil.m_pipeline.layout, 0, static_cast<uint32_t>(decalSets.size()), decalSets.data(), 0, nullptr);
+        VkRenderingAttachmentInfo decalAttachment = vkimageutils::createColorAttachmentInfo(m_gBuffers[m_swImageIndex].compositeImage.imageView, clearColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, false);
+        VkRenderingAttachmentInfo decalDepthAttachment = vkimageutils::createDepthAttachmentInfo(m_gBuffers[m_swImageIndex].depth.imageView, false);
+        VkRenderingInfo decalRenderingInfo = vkdeviceutils::createRenderingInfo(m_swImageFormat.extent, 1, &decalAttachment, &decalDepthAttachment);
+        vkCmdPushConstants(cmd, m_decalManager.decalPipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(decalPushConstant), &decalPC);
+        vkCmdBeginRendering(cmd, &decalRenderingInfo);
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+        vkCmdDrawIndexedIndirect(cmd, m_frameData[m_frameIndex].m_indirectDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand)* m_frameData[m_frameIndex].decalDrawCommandOffset, m_frameData[m_frameIndex].numDecalDrawCommands, sizeof(VkDrawIndexedIndirectCommand));
+        vkCmdEndRendering(cmd);
+        VK_LABEL_END(cmd);
+    }
     
     {
         VK_LABEL(cmd, "Health Bars Pass");
@@ -1746,6 +1798,7 @@ void HyacinthEngine::shutdown()
     m_ambientHelper.shutdown();
     m_specularTraceHelper.shutdown();
     m_outlineHelper.shutdown();
+    m_decalManager.shutdown();
 
 #ifdef DEBUG_NETWORK
     m_netDebugRenderer.shutdown();
