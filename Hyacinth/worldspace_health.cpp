@@ -9,7 +9,7 @@ void WorldHealthManager::setup(VkDescriptorSetLayout& uiTextureSetLayout, VkDesc
 	worldUIPipelineUtil.setDefaultAttributes();
 	worldUIPipelineUtil.setPolygonMode(VK_POLYGON_MODE_FILL);
 	worldUIPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
-	worldUIPipelineUtil.setColorAttachmentFormat(swFormat.format, 1);
+	worldUIPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R16G16B16A16_SFLOAT, 1);
 	worldUIPipelineUtil.setMultisampling(msaaSamples);
 	worldUIPipelineUtil.enableBlending();
 	worldUIPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);

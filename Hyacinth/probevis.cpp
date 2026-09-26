@@ -1,6 +1,6 @@
 #include "probevis.h"
 
-void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkDescriptorSetLayout& irradianceVisSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples) {
+void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& descSetLayout, VkDescriptorSetLayout& irradianceVisSetLayout, VkFormat depthFormat, SWChainImageFormat SWImageFormat, VkSampleCountFlagBits msaaSamples, uint32_t indexOffset, uint32_t vertexOffset, uint32_t numIndices) {
 	// create probe vis pipeline
 	pipelineUtil.addShader("shaders/probeVert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	pipelineUtil.addShader("shaders/probeFrag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -13,7 +13,7 @@ void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& 
 	pipelineUtil.setMultisampling(msaaSamples);
 	pipelineUtil.disableBlending();
 
-	pipelineUtil.enableDepthTest(false, VK_COMPARE_OP_LESS);
+	pipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS);
 	pipelineUtil.setDepthAttachmentFormat(depthFormat);
 
 	VkViewport viewport{};
@@ -54,6 +54,10 @@ void probeVisObjects::createProbeVisualizationStructures(VkDescriptorSetLayout& 
 	VK_CHECK(vkCreatePipelineLayout(vkdeviceutils::device, &pipelineLayoutCInfo, nullptr, &pipelineUtil.m_pipeline.layout));
 
 	pipelineUtil.buildPipeline();
+
+	probeIndexOffset = indexOffset;
+	probeNumIndices = numIndices;
+	probeVertexOffset = vertexOffset;
 }
 
 void probeVisObjects::drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& irradianceVisSet, VkDeviceAddress& probePositionAddress, VkDescriptorSet& descSet, int currentVolumeProbeCount, int width, int height, int depth) {
@@ -68,9 +72,9 @@ void probeVisObjects::drawProbes(VkCommandBuffer& cmd, VkDescriptorSet& irradian
 	pc.volumeHeight = height;
 	pc.volumeDepth = depth;  
 
-	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(probeVisObjects::probeVisPushContant), &pc);
+	vkCmdPushConstants(cmd, pipelineUtil.m_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(probeVisObjects::probeVisPushContant), &pc);
 
-	vkCmdDrawIndexed(cmd, UNIT_CUBE_INDEX_COUNT, currentVolumeProbeCount, QUAD_INDEX_COUNT, QUAD_VERTEX_COUNT, 0);
+	vkCmdDrawIndexed(cmd, probeNumIndices, currentVolumeProbeCount, probeIndexOffset, probeVertexOffset, 0);
 }
 
 void probeVisObjects::destroy() {

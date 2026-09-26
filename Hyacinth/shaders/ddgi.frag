@@ -10,6 +10,7 @@ layout	(set = 0, binding = 3) uniform sampler2D depthMap;
 layout(set = 1, binding = 0) uniform UniformBufferObject {
 	mat4 view;
 	mat4 proj;
+    mat4 viewModelProj;
 	vec4 viewPos;
 	vec4 lightPos;
 	vec4 ABOD; // ambient toggle, bias, offset scale, ddgi intensity
@@ -83,7 +84,7 @@ vec3 DDGIGetIrradiance(vec3 worldPosition, vec3 normal, vec3 cameraPos) {
         float trilinearWeight = (trilinear.x * trilinear.y * trilinear.z);
         float weight = 1.0;
 
-        // smooth backface
+        // smooth backface - put less weight on probes facing away from the surface normal
         const float dotDirNorm = (dot(worldToAdjProbe, normal) + 1.0) * 0.5f;
         weight *= (dotDirNorm * dotDirNorm) + 0.2;
 

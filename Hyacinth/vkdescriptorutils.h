@@ -35,6 +35,8 @@ namespace vkdescriptorutils {
 
 	void queueWriteAccelStructure(VkDescriptorSet& descriptorSet, uint32_t binding, int numStructures, VkAccelerationStructureKHR* pAccelStructures);
 	void queueWriteImage(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout);
+    void queueWriteImage(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout, VkSampler& sampler);
+    void queueWriteImageStencil(VkDescriptorSet& descriptorSet, uint32_t binding, uint32_t arrayLayer, VkDescriptorType type, VulkanImage& image, VkImageLayout layout, VkSampler& sampler);
     void queueWriteBuffer(VkDescriptorSet& descriptorSet, uint32_t binding, size_t size, VkDescriptorType type, VulkanBuffer& buffer);
 
 	void flushDescriptorWrites();

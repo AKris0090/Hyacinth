@@ -30,12 +30,16 @@
 #include "hyacinth_network.h"
 #include "ragdoll.h"
 
-constexpr float JUMP_VELOCITY = 10.5f;
 constexpr float FLASH_VELOCTIY = 20.f;
 
 constexpr physx::PxU32 WORLD				= 1 << 0;
 constexpr physx::PxU32 PLAYER_CAPSULE		= 1 << 1;
 constexpr physx::PxU32 RAGDOLL				= 1 << 2;
+
+enum PHYICS_HIT_TYPE {
+	P_WORLD,
+	P_CHARACTER
+};
 
 struct controllerUserData {
 	uint32_t id;
@@ -46,6 +50,8 @@ struct hitReg {
 	uint32_t entityHitId;
 	glm::vec3 footPosHit;
 	glm::vec3 hitPos;
+	glm::vec3 hitNormal;
+	PHYICS_HIT_TYPE hitType;
 };
 
 static physx::PxVec3 physxVec(glm::vec3 v) {
@@ -108,14 +114,14 @@ public:
 	void addStaticPhysicsObject(LightMesh* object);
 	void updatePhysicsServer(EntityManager* entityManager);
 	void updateCamera(uint32_t eId, float camSpeed, SimulateStruct& p, Transform& t, bool serverSide, float deltaTime, CamRecoil* r = nullptr);
-	void updatePlayerMovement(uint32_t eId, float moveSpeed, Transform& t, SimulateStruct& s);
+	void updatePlayerMovement(uint32_t eId, Entity* ent, Transform& t, SimulateStruct& s);
 	void addNetworkEntityCapsuleCollider(uint32_t cId);
 	void setNetworkEntityCapColliderPosition(ServerSnapshot* s, uint32_t selfId);
 
 	void addDynamicNetworkSphere(uint32_t worldID, glm::vec3 spawnPos, glm::vec3 initialVelocity);
 	void updateAllWorldObjects(std::unordered_map<uint32_t, Ordnance*>& ord, std::unordered_map<uint32_t, ServersideClient*>& clients);
 
-	glm::vec3 traceBullet(Transform& camTransform);
+	hitReg traceBullet(Transform& camTransform);
 
 	hitReg playerShooting(uint32_t eId, Transform& t, rewindSnapshot* snapshotToTrace);
 };

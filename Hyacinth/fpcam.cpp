@@ -25,17 +25,26 @@ glm::mat4 createViewMatrix(Transform& t) {
 
 void Camera::setViewMatrix(Transform& t) { // pitchadditional is for camera recoil
     m_view = createViewMatrix(t);
+    if (camAnimationNodeTransform) {
+        m_view = camAnimationNodeTransform->getMatrix() * m_view;
+    }
     m_dirtyView = false;
 }
 
 void Camera::setProjectionMatrix() {
     glm::mat4 proj = glm::perspective(glm::radians(m_FOV), m_aspectRatio, m_zNear, m_zFar);
+    glm::mat4 viewModelProj = glm::perspective(glm::radians(VIEWMODEL_FOV), m_aspectRatio, m_zNear, m_zFar);
     proj[1][1] *= -1;
+    viewModelProj[1][1] *= -1;
     m_proj = proj;
+    m_viewModelProj = viewModelProj;
     m_dirtyProj = false;
 }
 
-void Camera::update(bool flycam) { // true is flycam, false is player cam
+void Camera::update(bool flycam, float deltaTime) { // true is flycam, false is player cam
+    fovMod.updateModifier(deltaTime);
+    crouchMod.updateModifier(deltaTime);
+    m_FOV = WORLD_FOV + fovMod.fovLerpModifier;
     setProjectionMatrix();       
 
     setViewMatrix(flycam ? m_flyTransform : m_transform);
@@ -84,5 +93,49 @@ Camera::Camera(float aspect, float fov, float nearC, float farC) {
     m_dirtyProj = true;
     m_dirtyView = true;
 
-    update(false);
+    update(false, 0.f);
+}
+
+// FOV MODIFIER STUFF ////////////////////////////////////////////////
+
+void FOVModifier::updateSprintFOV(bool sprint) {
+    if (!prevSprint && sprint) {
+        startFOVLerpUp();
+        prevSprint = true;
+    }
+    else if (prevSprint && !sprint) {
+        startFOVLerpDown();
+        prevSprint = false;
+    }
+}
+
+void FOVModifier::updateModifier(float deltaTime) {
+    FOVlerpTimer += deltaTime;
+    if (FOVlerpTimer > FOV_LERP_LENGTH) {
+        FOVlerpTimer = FOV_LERP_LENGTH;
+    }
+
+    fovLerpModifier = glm::lerp(lerpFOVFrom, lerpFOVTo, (FOVlerpTimer / FOV_LERP_LENGTH));
+}
+
+// CROUCH MODIFIER STUFF ////////////////////////////////////////////////
+
+void CrouchModifier::updateCrouchHeight(bool crouch) {
+    if (!prevCrouch && crouch) {
+        startCrouchLerp();
+        prevCrouch = true;
+    }
+    else if (prevCrouch && !crouch) {
+        undoCrouchLerp();
+        prevCrouch = false;
+    }
+}
+
+void CrouchModifier::updateModifier(float deltaTime) {
+    lerpTimer += deltaTime;
+    if (lerpTimer > CROUCH_LERP_LENGTH) {
+        lerpTimer = CROUCH_LERP_LENGTH;
+    }
+
+    crouchLerpMod = glm::lerp(lerpFrom, lerpTo, (lerpTimer / CROUCH_LERP_LENGTH));
 }

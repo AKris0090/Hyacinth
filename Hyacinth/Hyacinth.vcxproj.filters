@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Resource Files\mikktspace">
-      <UniqueIdentifier>{28cdfd25-0448-43d4-b39c-261578067c74}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\imgui">
       <UniqueIdentifier>{0d2186a3-7ea5-4fd3-9983-e6f6c7a6cce1}</UniqueIdentifier>
     </Filter>
@@ -151,6 +148,18 @@
     <Filter Include="Source Files\renderer\core\asset manager">
       <UniqueIdentifier>{01861ab1-4a1e-4d2a-b117-e8e8ddb30020}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\renderer\core\raytracing\specular">
+      <UniqueIdentifier>{09b2a1a0-1319-41bd-9ad8-45272424851c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\rt shaders\specular_shaders">
+      <UniqueIdentifier>{b2e7eb58-570c-425d-9432-950b8eb3a508}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\renderer\core\outline">
+      <UniqueIdentifier>{353d0da6-4151-4531-93a1-9c36ee201862}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\shaders\outline">
+      <UniqueIdentifier>{4b61b60b-ecd8-4b4d-a7ac-884c54118eb5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -179,9 +188,6 @@
     </ClCompile>
     <ClCompile Include="vkimageutils.cpp">
       <Filter>Source Files\renderer\utils\vkutils\image</Filter>
-    </ClCompile>
-    <ClCompile Include="mikktspace\mikktspace.cpp">
-      <Filter>Resource Files\mikktspace</Filter>
     </ClCompile>
     <ClCompile Include="csm.cpp">
       <Filter>Source Files\renderer\core\shadow</Filter>
@@ -267,6 +273,12 @@
     <ClCompile Include="hcinth_assetdrawer.cpp">
       <Filter>Source Files\renderer\core\asset manager</Filter>
     </ClCompile>
+    <ClCompile Include="specular.cpp">
+      <Filter>Source Files\renderer\core\raytracing\specular</Filter>
+    </ClCompile>
+    <ClCompile Include="outline.cpp">
+      <Filter>Source Files\renderer\core\outline</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sdlwindow.h">
@@ -295,9 +307,6 @@
     </ClInclude>
     <ClInclude Include="vkimageutils.h">
       <Filter>Source Files\renderer\utils\vkutils\image</Filter>
-    </ClInclude>
-    <ClInclude Include="mikktspace\mikktspace.h">
-      <Filter>Resource Files\mikktspace</Filter>
     </ClInclude>
     <ClInclude Include="tangentHelper.h">
       <Filter>Source Files\renderer\utils\gltfutils</Filter>
@@ -392,8 +401,11 @@
     <ClInclude Include="hcinth_assetdrawer.h">
       <Filter>Source Files\renderer\core\asset manager</Filter>
     </ClInclude>
-    <ClInclude Include="tracer_manager.h">
-      <Filter>Source Files\game</Filter>
+    <ClInclude Include="specular.h">
+      <Filter>Source Files\renderer\core\raytracing\specular</Filter>
+    </ClInclude>
+    <ClInclude Include="outline.h">
+      <Filter>Source Files\renderer\core\outline</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -503,6 +515,30 @@
     </None>
     <None Include="shaders\ambientOcclusion.frag">
       <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="shaders\specularChit.rchit">
+      <Filter>Source Files\shaders\rt shaders\specular_shaders</Filter>
+    </None>
+    <None Include="shaders\specularTrace.rgen">
+      <Filter>Source Files\shaders\rt shaders\specular_shaders</Filter>
+    </None>
+    <None Include="shaders\specularBounceMiss.rmiss">
+      <Filter>Source Files\shaders\rt shaders\specular_shaders</Filter>
+    </None>
+    <None Include="shaders\specularMiss.rmiss">
+      <Filter>Source Files\shaders\rt shaders\specular_shaders</Filter>
+    </None>
+    <None Include="shaders\drawOutline.frag">
+      <Filter>Source Files\shaders\outline</Filter>
+    </None>
+    <None Include="shaders\growStencil.comp">
+      <Filter>Source Files\shaders\outline</Filter>
+    </None>
+    <None Include="shaders\outlineLayer.frag">
+      <Filter>Source Files\shaders\outline</Filter>
+    </None>
+    <None Include="shaders\outline.vert">
+      <Filter>Source Files\shaders\outline</Filter>
     </None>
   </ItemGroup>
 </Project>

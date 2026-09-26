@@ -25,6 +25,8 @@ std::string ClientUpdatePacket::toString() {
 		<< static_cast<int>(movementFB) << ","
 		<< static_cast<int>(movementLR) << ","
 		<< jump << ","
+		<< sprint << ","
+		<< crouch << ","
 		<< lmb << ","
 		<< r << ","
 		<< num1 << ","
@@ -36,7 +38,7 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	ClientUpdatePacket p{};
 
 	std::stringstream es(s);
-	std::string field;
+	std::string field; 
 	std::getline(es, field, ','); p.id = std::stoi(field);
 	std::getline(es, field, ','); p.tick = std::stoi(field);
 	std::getline(es, field, ','); p.ack = std::stoi(field);
@@ -45,6 +47,8 @@ ClientUpdatePacket ClientUpdatePacket::fromString(std::string s) {
 	std::getline(es, field, ','); p.movementFB = std::stoi(field);
 	std::getline(es, field, ','); p.movementLR = std::stoi(field);
 	std::getline(es, field, ','); p.jump = std::stoi(field);
+	std::getline(es, field, ','); p.sprint = std::stoi(field);
+	std::getline(es, field, ','); p.crouch = std::stoi(field);
 	std::getline(es, field, ','); p.lmb = std::stoi(field);
 	std::getline(es, field, ','); p.r = std::stoi(field);
 	std::getline(es, field, ','); p.num1 = std::stoi(field);
@@ -69,7 +73,8 @@ std::string ServerSnapshot::toString() {
 			<< "," << e.hitPos.y
 			<< "," << e.hitPos.z
 			<< "," << e.health
-
+			<< "," << e.isSprinting
+			<< "," << e.isCrouching
 			<< "," << e.flashPercentage
 			<< "," << e.flashNDCX
 			<< "," << e.flashNDCY;
@@ -107,7 +112,8 @@ ServerSnapshot ServerSnapshot::fromString(std::string s) {
 		std::getline(es, field, ','); e.hitPos.y = std::stof(field);
 		std::getline(es, field, ','); e.hitPos.z = std::stof(field);
 		std::getline(es, field, ','); e.health = std::stof(field);
-
+		std::getline(es, field, ','); e.isSprinting = std::stoi(field);
+		std::getline(es, field, ','); e.isCrouching = std::stoi(field);
 		std::getline(es, field, ','); e.flashPercentage = std::stof(field);
 		std::getline(es, field, ','); e.flashNDCX = std::stof(field);
 		std::getline(es, field, ','); e.flashNDCY = std::stof(field);
@@ -128,6 +134,8 @@ void SimulateStruct::addPacket(ClientUpdatePacket pack) {
 	movementFB = pack.movementFB;
 	movementLR = pack.movementLR;
 	jump = pack.jump;
+	sprint = pack.sprint;
+	crouch = pack.crouch;
 	shooting = pack.lmb;
 	reloading = pack.r;
 	num1 = pack.num1;

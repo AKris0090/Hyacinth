@@ -1,8 +1,12 @@
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./gbuffer.vert -o vert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./viewModelGBuffer.vert -o viewModelVert.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./gbuffer.frag -o frag.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./shadow.vert -o shadow.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./depth.vert -o depth.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./depthAlphaDiscard.frag -o depthDiscard.spv
+
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./decal.vert -o decalVert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./decal.frag -o decalFrag.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./ambientOcclusion.frag -o ambientOcclusion.spv
 
@@ -29,6 +33,11 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./closehit.rchit -o rchit.spv --target-env=
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./miss.rmiss -o rmiss.spv --target-env=vulkan1.3
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./directShadowCheck.rmiss -o probeMiss.spv --target-env=vulkan1.3
 
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./specularTrace.rgen -o specularRgen.spv --target-env=vulkan1.3
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./specularChit.rchit -o specularChit.spv --target-env=vulkan1.3
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./specularMiss.rmiss -o specularMiss.spv --target-env=vulkan1.3
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./specularBounceMiss.rmiss -o specularBounceMiss.spv --target-env=vulkan1.3
+
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./composite.frag -o composite.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./uiTex.vert -o uiQuadVert.spv
@@ -44,5 +53,10 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./tracer.frag -o tracerFrag.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./fxaa.frag -o fxaaFrag.spv
 
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./skinning.comp -o compSkin.spv
+
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./outline.vert -o outlineVert.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./drawOutline.frag -o drawOutline.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./outlineLayer.frag -o outlineLayer.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe ./growStencil.comp -o growComp.spv
 
 pause

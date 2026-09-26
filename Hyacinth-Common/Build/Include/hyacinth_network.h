@@ -72,6 +72,8 @@ struct ClientUpdatePacket {
 	int8_t movementLR = 0;
 	int8_t movementUD = 0;
 	bool jump = false;
+	bool sprint = false;
+	bool crouch = false;
 	bool lmb = false;
 	bool r = false;
 	bool num1 = false;
@@ -97,6 +99,8 @@ struct SimulateStruct {
 	int8_t movementFB = 0;
 	int8_t movementLR = 0;
 	bool jump = false;
+	bool sprint = false;
+	bool crouch = false;
 	bool shooting = false;
 	bool reloading = false;
 	bool num1 = false;
@@ -108,6 +112,8 @@ struct SimulateStruct {
 		movementLR = 0;
 		jump = false;
 		shooting = false;
+		sprint = false;
+		crouch = false;
 	}
 };
 

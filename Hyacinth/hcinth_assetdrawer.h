@@ -27,9 +27,15 @@ const std::vector<std::pair<std::string, VkFormat>> WORLD_UI_TEXTURE_PATHS = {
 	{ "./ui/healthbar.png", VK_FORMAT_R8G8B8A8_SRGB }
 };
 
+const std::vector<std::pair<std::string, VkFormat>> DECAL_TEXTURE_PATHS = {
+	{ "./decals/wall_hole.png", VK_FORMAT_R8G8B8A8_SRGB }
+};
+
 const std::vector<std::pair<std::string, std::string>> EXTRA_OBJECTS = {
 	{ "./objects/sphere.glb", "unit_sphere" }
 };
+
+constexpr int DUMMY_MATERIAL = 0;
 
 static std::string getFilePathExtension(const std::string& FileName) {
 	if (FileName.find_last_of(".") != std::string::npos)
@@ -57,12 +63,15 @@ public:
 	std::unordered_map<std::string, LightMesh*> staticMeshes;
 	std::unordered_map<std::string, LightMesh*> skinnedMeshes;
 
+	uint32_t decalMatOffset = 0;
+
 	std::vector<LightMaterialInstance> materials;
 	VulkanBuffer materialInfoBuffer;
 
 	std::vector<VulkanImage> textures;
 
 	void loadMesh(std::string fileName, std::string meshName, bool skinned, bool loadMaterials);
+	void loadAnimation(std::string meshName, std::string filename, std::string animName);
 
 	LightMesh* getStaticMeshRef(std::string meshName);
 	LightMesh* getAnimatedMeshRef(std::string meshName);

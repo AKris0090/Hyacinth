@@ -12,11 +12,12 @@ layout	(location = 3) in vec4 fragPos;
 layout	(location = 4) in mat3 TBNMatrix;
 layout	(location = 7) in vec2 inUV;
 
-layout (set = 1, binding = 0) uniform sampler2DShadow shadowDepthMap;
+layout (set = 1, binding = 0) uniform sampler2DArrayShadow shadowDepthMap;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
 	mat4 view;
 	mat4 proj;
+	mat4 viewModelProj;
 	vec4 viewPos;
 	vec4 lightPos;
 	vec4 ABOD; // ambient toggle, bias, offset scale, ddgi intensity
@@ -51,8 +52,7 @@ vec2 ComputeReceiverPlaneDepthBias(vec3 texCoordDX, vec3 texCoordDY)
 float sampleShadowMap(vec2 baseUV, float u, float v, vec2 shadowMapSizeInv, uint cascadeIndex, float depth, vec2 receiverPlaneDepthBias) {
 	vec2 uv = baseUV + vec2(u, v) * shadowMapSizeInv;
 	float z = depth + dot(vec2(u, v) * shadowMapSizeInv, receiverPlaneDepthBias);
-	// return texture(shadowDepthMap, vec4(uv, cascadeIndex, z));
-	return texture(shadowDepthMap, vec3(uv, z));
+	return texture(shadowDepthMap, vec4(uv, cascadeIndex, z));
 }
 
 float sampleCascadeMap(vec3 shadowPos, vec3 shadowPosDx, vec3 shadowPosDy, uint cascadeIndex) {
@@ -164,7 +164,7 @@ float shadowTest(vec3 worldPos, float viewSpaceDepth, float nDotL, vec3 normal) 
 void main() {
 	Material m = pc.materialBuffer.mats[matIndex];
     vec4 sampledColor = texture(globalTextures2D[m.baseColorIndex], inUV);
-    vec4 metalRough = texture(globalTextures2D[m.metalRoughIndex], inUV);
+    vec4 ambMetalRough = texture(globalTextures2D[m.metalRoughIndex], inUV);
 
     vec3 N = texture(globalTextures2D[m.normalIndex], inUV).xyz;
     N = normalize(N * 2.0 - 1.0);
@@ -173,10 +173,10 @@ void main() {
 	float nDotL = clamp(dot(N, normalize(ubo.lightPos.xyz)), 0.0, 1.0);
 	float shadow = shadowTest(fragPos.xyz, -viewPos.z, nDotL, N);
 
-    outAlbedo = vec4(sampledColor.rgb, metalRough.x);
+    outAlbedo = vec4(sampledColor.rgb * m.baseColor.rgb, 1.0);    
 
 	N = N * 0.5 + 0.5; // packing the normal
     outNormal = vec4(N, shadow);
 
-	outAMR = vec4(1.0, metalRough.x, metalRough.y, 1.0);
+	 outAMR = vec4(1.0, ambMetalRough.z * m.metallic, ambMetalRough.y * m.roughness, 1.0);
 }

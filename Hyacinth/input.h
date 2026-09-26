@@ -23,6 +23,8 @@ namespace InputManager {
 	bool reloadKeyDown();
 	bool num1KeyDown();
 	bool num2KeyDown();
+	bool shiftKeyDown();
+	bool ctrlKeyDown();
 
 	bool getf1();
 

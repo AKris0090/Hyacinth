@@ -259,7 +259,7 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
 
 	samplerInfo.compareEnable = VK_TRUE;
-	samplerInfo.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	samplerInfo.compareOp = VK_COMPARE_OP_LESS;
 	VK_CHECK(vkCreateSampler(vkdeviceutils::device, &samplerInfo, nullptr, &m_shadowImage.imageSampler));
 
 	// descriptor
@@ -301,7 +301,7 @@ void shadowHelper::setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayou
 	m_shadowPipelineUtil.setMultisamplingNone();
 	m_shadowPipelineUtil.disableBlending();
 
-	m_shadowPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS_OR_EQUAL);
+	m_shadowPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS);
 	m_shadowPipelineUtil.setDepthAttachmentFormat(shadowFormat);
 
 	m_shadowPipelineUtil.m_rasterizer.depthClampEnable = VK_TRUE;
@@ -483,18 +483,13 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 			glm::vec3(aabbMax.x, aabbMax.y, aabbMax.z),
 		};
 
-		sphereRadius = std::min(sphereRadius, boundingBoxRadius(frustumCenter, sceneAABBCornersLightView));
-
-		sphereRadius = 30.f;
-
+		// sphereRadius = std::min(sphereRadius, boundingBoxRadius(frustumCenter, sceneAABBCornersLightView));
 		sphereRadius = std::ceil(sphereRadius * 16.f) / 16.f;
 
 		glm::vec3 maxExtents = glm::vec3(sphereRadius);
 		glm::vec3 minExtents = -maxExtents;
 
-		glm::vec3 shadowCamPos = frustumCenter + lightDirection * -minExtents;
-
-		glm::mat4 lightViewMatrix = glm::lookAt(lightDirection * -minExtents, glm::vec3(0.f), glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter + lightDirection * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 
 		// calculate tight near and far bounds ///////////////////
 
@@ -503,11 +498,11 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 			sceneAABBCornersLightView[j] = glm::vec3(lv);
 		}
 
-		float tightNear, tightFar;
-		computeNearFar(tightNear, tightFar, minExtents, maxExtents, sceneAABBCornersLightView);
+		// float tightNear, tightFar;
+		// computeNearFar(tightNear, tightFar, minExtents, maxExtents, sceneAABBCornersLightView);
 
 		//////////////////////////////////////////////////////////
-		glm::mat4 lightOrthoMatrix = glm::orthoRH_ZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, -tightFar, -tightNear);
+		glm::mat4 lightOrthoMatrix = glm::orthoRH_ZO(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
 		// Store split distance and matrix in cascade
 		m_cascades[i].viewProj = lightOrthoMatrix * lightViewMatrix;
@@ -552,10 +547,35 @@ void shadowHelper::updateFrustumCorners(float camNear, float camFar, glm::mat4 p
 	}
 }
 
-void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer) {
+void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t dynamicDrawOffset, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer) {
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipelineUtil.m_pipeline.pipeline);
 
-	vkimageutils::transitionImageColorAttachment(cmd, m_shadowImage, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+	{
+		auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+		imageBarrier.srcAccessMask = VK_ACCESS_2_NONE;
+		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+		imageBarrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		imageBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		imageBarrier.image = m_shadowImage.image;
+		imageBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = SHADOW_MAP_CASCADE_COUNT
+		};
+
+		auto dependecyInfo = VkDependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
+
+		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+	}
 
 	VkRenderingInfo renderingInfo{};
 	renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -605,9 +625,9 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws,
 		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, 0, numStaticDraws, sizeof(VkDrawIndexedIndirectCommand));
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(cmd, 0, 1, &skinnedVertBuffer.buffer, offsets);
-
+		
 		// draw animated objects
-		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * numStaticDraws, numDynamicDraws, sizeof(VkDrawIndexedIndirectCommand));
+		vkCmdDrawIndexedIndirect(cmd, m_cascades[i].cascadeDrawBuffer.buffer, sizeof(VkDrawIndexedIndirectCommand) * dynamicDrawOffset, numDynamicDraws, sizeof(VkDrawIndexedIndirectCommand));
 		vkCmdBindVertexBuffers(cmd, 0, 1, &vertBuffer.buffer, offsets);
 
 		vkCmdEndRendering(cmd);
@@ -615,7 +635,32 @@ void shadowHelper::drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws,
 		VK_LABEL_END(cmd);
 	}
 
-	vkimageutils::transitionImageDepthRead(cmd, m_shadowImage);
+	{
+		auto imageBarrier = VkImageMemoryBarrier2{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+		imageBarrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+		imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+		imageBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		imageBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+		imageBarrier.image = m_shadowImage.image;
+		imageBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = SHADOW_MAP_CASCADE_COUNT
+		};
+
+		auto dependecyInfo = VkDependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &imageBarrier
+		};
+
+		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
+	}
 }
 
 void shadowHelper::shutdown() {

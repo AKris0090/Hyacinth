@@ -104,3 +104,10 @@ struct Transform {
 		yaw = o.yaw;
 	}
 };
+
+// minor util
+
+#include <iostream>
+static void printVec(const glm::vec3 v) {
+	std::cout << v.x << ", " << v.y << ", " << v.z << std::endl;
+}

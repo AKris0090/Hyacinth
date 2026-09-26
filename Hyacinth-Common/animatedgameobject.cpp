@@ -86,10 +86,12 @@ HAnimatedGameObject::HAnimatedGameObject(LightMesh* meshRef) {
 
 	for (const auto& n : mesh->parentNodes) {
 		addNodeTransform(n, nodeTransforms);
+		addNodeTransform(n, prevNodeTransforms);
 	}
 
 	for (const auto& n : mesh->parentNodes) {
 		hookUpTransformParents(n, nodeTransforms);
+		hookUpTransformParents(n, prevNodeTransforms);
 	}
 
 	jointMatrixData = new glm::mat4[meshRef->jointMatrixSize / sizeof(glm::mat4)];

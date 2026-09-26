@@ -81,6 +81,24 @@ void HAssetDrawer::addUITextures() {
 	for (const auto& [path, format] : WORLD_UI_TEXTURE_PATHS) {
 		createAddTextureFromFile(path, format);
 	}
+	for (const auto& [path, format] : DECAL_TEXTURE_PATHS) {
+		createAddTextureFromFile(path, format);
+	}
+	decalMatOffset = static_cast<uint32_t>(materials.size());
+	materials.push_back(LightMaterialInstance{
+		.baseColorIndex = static_cast<uint32_t>(textures.size() - 1),
+		.normalIndex = DUMMY_NORMAL_TEX_INDEX,
+		.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX,
+		.alphaCutoff = 0.5f
+	}); // add decal texture
+}
+
+void HAssetDrawer::loadAnimation(std::string meshName, std::string filename, std::string animName) {
+	if (skinnedMeshes.find(meshName) == skinnedMeshes.end()) {
+		std::cout << "Animation: " << animName << " not found in file : " << filename << std::endl;
+		throw std::runtime_error("Animation not found in file: " + filename);
+	}
+	LightLoader::loadAnimation(filename, animName, skinnedMeshes[meshName]);
 }
 
 void HAssetDrawer::loadMesh(std::string fileName, std::string meshName, bool skinned, bool loadMaterials) {
@@ -144,9 +162,9 @@ HAssetDrawer::HAssetDrawer() {
 	FullscreenQuad::addFullscreenQuad(vertices, indices);
 	UnitCube::addUnitCube(vertices, indices);
 
-	for (const auto& [o, n] : EXTRA_OBJECTS) {
-		loadMesh(o, n, false, false);
-	}
+	// for (const auto& [o, n] : EXTRA_OBJECTS) {
+	// 	loadMesh(o, n, false, false);
+	// }
 
 	materials.push_back(LightMaterialInstance{
 		.baseColorIndex = DUMMY_COLOR_TEX_INDEX,

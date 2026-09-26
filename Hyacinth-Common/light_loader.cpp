@@ -111,84 +111,87 @@ void loadSkins(tinygltf::Model* input, LightMesh* mesh) {
     printProgress();
 }
 
-void loadAnimations(tinygltf::Model* input, LightMesh* mesh)
-{
-    mesh->animations.resize(input->animations.size());
+void loadSingleAnimation(LightMesh* meshToAddAnim, tinygltf::Model* input, size_t animIndex) {
+    tinygltf::Animation glTFAnimation = input->animations[animIndex];
+    std::string animName = glTFAnimation.name;
 
-    for (size_t i = 0; i < input->animations.size(); i++)
+    meshToAddAnim->animations[animName] = LightAnimation();
+    meshToAddAnim->animations[animName].samplers.resize(glTFAnimation.samplers.size());
+    for (size_t j = 0; j < glTFAnimation.samplers.size(); j++)
     {
-        tinygltf::Animation glTFAnimation = input->animations[i];
+        tinygltf::AnimationSampler glTFSampler = glTFAnimation.samplers[j];
+        LightAnimSampler& dstSampler = meshToAddAnim->animations[animName].samplers[j];
+        dstSampler.interpolation = glTFSampler.interpolation;
 
-        mesh->animations[i].samplers.resize(glTFAnimation.samplers.size());
-        for (size_t j = 0; j < glTFAnimation.samplers.size(); j++)
         {
-            tinygltf::AnimationSampler glTFSampler = glTFAnimation.samplers[j];
-            LightAnimSampler& dstSampler = mesh->animations[i].samplers[j];
-            dstSampler.interpolation = glTFSampler.interpolation;
-
+            const tinygltf::Accessor& accessor = input->accessors[glTFSampler.input];
+            const tinygltf::BufferView& bufferView = input->bufferViews[accessor.bufferView];
+            const tinygltf::Buffer& buffer = input->buffers[bufferView.buffer];
+            const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
+            const float* buf = static_cast<const float*>(dataPtr);
+            for (size_t index = 0; index < accessor.count; index++)
             {
-                const tinygltf::Accessor& accessor = input->accessors[glTFSampler.input];
-                const tinygltf::BufferView& bufferView = input->bufferViews[accessor.bufferView];
-                const tinygltf::Buffer& buffer = input->buffers[bufferView.buffer];
-                const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
-                const float* buf = static_cast<const float*>(dataPtr);
+                dstSampler.inputs.push_back(buf[index]);
+            }
+            for (auto input : meshToAddAnim->animations[animName].samplers[j].inputs)
+            {
+                if (input < meshToAddAnim->animations[animName].start)
+                {
+                    meshToAddAnim->animations[animName].start = input;
+                };
+                if (input > meshToAddAnim->animations[animName].end)
+                {
+                    meshToAddAnim->animations[animName].end = input;
+                }
+            }
+        }
+
+        {
+            const tinygltf::Accessor& accessor = input->accessors[glTFSampler.output];
+            const tinygltf::BufferView& bufferView = input->bufferViews[accessor.bufferView];
+            const tinygltf::Buffer& buffer = input->buffers[bufferView.buffer];
+            const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
+            switch (accessor.type)
+            {
+            case TINYGLTF_TYPE_VEC3: {
+                const glm::vec3* buf = static_cast<const glm::vec3*>(dataPtr);
                 for (size_t index = 0; index < accessor.count; index++)
                 {
-                    dstSampler.inputs.push_back(buf[index]);
+                    dstSampler.outputsVec4.push_back(glm::vec4(buf[index], 0.0f));
                 }
-                for (auto input : mesh->animations[i].samplers[j].inputs)
-                {
-                    if (input < mesh->animations[i].start)
-                    {
-                        mesh->animations[i].start = input;
-                    };
-                    if (input > mesh->animations[i].end)
-                    {
-                        mesh->animations[i].end = input;
-                    }
-                }
+                break;
             }
-
-            {
-                const tinygltf::Accessor& accessor = input->accessors[glTFSampler.output];
-                const tinygltf::BufferView& bufferView = input->bufferViews[accessor.bufferView];
-                const tinygltf::Buffer& buffer = input->buffers[bufferView.buffer];
-                const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
-                switch (accessor.type)
+            case TINYGLTF_TYPE_VEC4: {
+                const glm::vec4* buf = static_cast<const glm::vec4*>(dataPtr);
+                for (size_t index = 0; index < accessor.count; index++)
                 {
-                case TINYGLTF_TYPE_VEC3: {
-                    const glm::vec3* buf = static_cast<const glm::vec3*>(dataPtr);
-                    for (size_t index = 0; index < accessor.count; index++)
-                    {
-                        dstSampler.outputsVec4.push_back(glm::vec4(buf[index], 0.0f));
-                    }
-                    break;
+                    dstSampler.outputsVec4.push_back(buf[index]);
                 }
-                case TINYGLTF_TYPE_VEC4: {
-                    const glm::vec4* buf = static_cast<const glm::vec4*>(dataPtr);
-                    for (size_t index = 0; index < accessor.count; index++)
-                    {
-                        dstSampler.outputsVec4.push_back(buf[index]);
-                    }
-                    break;
-                }
-                default: {
-                    LPRINT("Unknown accessor type");
-                    break;
-                }
-                }
+                break;
+            }
+            default: {
+                LPRINT("Unknown accessor type");
+                break;
+            }
             }
         }
+    }
 
-        mesh->animations[i].channels.resize(glTFAnimation.channels.size());
-        for (size_t j = 0; j < glTFAnimation.channels.size(); j++)
-        {
-            tinygltf::AnimationChannel glTFChannel = glTFAnimation.channels[j];
-            LightAnimChannel& dstChannel = mesh->animations[i].channels[j];
-            dstChannel.path = glTFChannel.target_path;
-            dstChannel.samplerIndex = glTFChannel.sampler;
-            dstChannel.node = mesh->getNodeByIndex(glTFChannel.target_node);
-        }
+    meshToAddAnim->animations[animName].channels.resize(glTFAnimation.channels.size());
+    for (size_t j = 0; j < glTFAnimation.channels.size(); j++)
+    {
+        tinygltf::AnimationChannel glTFChannel = glTFAnimation.channels[j];
+        LightAnimChannel& dstChannel = meshToAddAnim->animations[animName].channels[j];
+        dstChannel.path = glTFChannel.target_path;
+        dstChannel.samplerIndex = glTFChannel.sampler;
+        dstChannel.node = meshToAddAnim->getNodeByIndex(glTFChannel.target_node);
+    }
+}
+
+void loadAnimations(tinygltf::Model* input, LightMesh* mesh) {
+    for (size_t i = 0; i < input->animations.size(); i++)
+    {
+        loadSingleAnimation(mesh, input, i);
 
         loaded++;
         printProgress();
@@ -196,6 +199,8 @@ void loadAnimations(tinygltf::Model* input, LightMesh* mesh)
 }
 
 void loadNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightMesh* mesh, uint32_t nodeIndex, LightNode* parent, uint32_t materialOffset) {
+    SMikkTSpaceContext mikktContext = { .m_pInterface = &MikkTInterface };
+
     LightNode* node = new LightNode();
     node->parent = parent;
     node->nodeIndex = nodeIndex;
@@ -357,6 +362,14 @@ void loadNode(const tinygltf::Model* model, const tinygltf::Node& nodeIn, LightM
                 throw std::runtime_error("index component type not supported");
             }
 
+            if (!tangentsBuff) {
+                LightGeomCapsule cap{
+                    .v = primVertices,
+                    .i = primIndices
+                };
+                generateTangents(&cap, mikktContext);
+            }
+
             p.firstIndex = static_cast<uint32_t>(mesh->indices.size()) + mesh->firstIndex;
             p.indexCount = static_cast<uint32_t>(primIndices.size());
             p.firstVertex = static_cast<uint32_t>(mesh->vertices.size()) + mesh->vertexOffset;
@@ -433,6 +446,7 @@ namespace LightLoader {
             throw std::runtime_error("[LIGHTLOADER] Failed to load glTF file: " + filename);
         }
 
+        loaded = 0;
         numLoadingTasks = static_cast<uint32_t>(model->nodes.size() + model->materials.size() + model->images.size() + model->skins.size() + model->animations.size());
 
         const tinygltf::Scene& scene = model->scenes[model->defaultScene];
@@ -451,6 +465,9 @@ namespace LightLoader {
             for (size_t i = 0; i < model->materials.size(); i++) {
                 LightMaterialInstance material;
                 tinygltf::Material gltfMat = model->materials[i];
+                if (gltfMat.values.find("baseColorFactor") != gltfMat.values.end()) {
+                    material.baseColor = glm::make_vec4(gltfMat.values["baseColorFactor"].ColorFactor().data());
+                }
                 if (gltfMat.values.find("baseColorTexture") != gltfMat.values.end()) {
                     material.baseColorIndex = textureIndices[gltfMat.values["baseColorTexture"].TextureIndex()] + options.textureOffset;
                     imageIsSRGB.insert(material.baseColorIndex - options.textureOffset);
@@ -465,6 +482,16 @@ namespace LightLoader {
                 }
                 else { material.metallicRoughnessIndex = DUMMY_METALROUGH_TEX_INDEX; }
                 material.alphaCutoff = (float) gltfMat.alphaCutoff;
+
+                if (gltfMat.values.find("metallicFactor") != gltfMat.values.end()) {
+                    material.useTextures = 0;
+                    material.metallic = (float)gltfMat.values["metallicFactor"].Factor();
+                }
+
+                if (gltfMat.values.find("roughnessFactor") != gltfMat.values.end()) {
+                    material.useTextures = 0;
+                    material.roughness = (float)gltfMat.values["roughnessFactor"].Factor();
+                }
 
                 mesh->materials.push_back(material);
                 loaded++;
@@ -486,6 +513,47 @@ namespace LightLoader {
 
         delete model;
         return mesh;
+    }
+
+    void loadAnimation(const std::string& filename, const std::string& animName, LightMesh* meshToAddAnim) {
+        LPRINT("Loading from : " + filename);
+
+        tinygltf::Model* model;
+        model = new tinygltf::Model();
+        tinygltf::TinyGLTF gltfContext;
+        std::string error, warning;
+
+        bool fileLoaded = false;
+        if (getFileExtension(filename) == "glb") {
+            fileLoaded = gltfContext.LoadBinaryFromFile(model, &error, &warning, filename);
+        }
+        else {
+            fileLoaded = gltfContext.LoadASCIIFromFile(model, &error, &warning, filename);
+        }
+
+        if (error.size() > 0) {
+            LPRINT("Loading Errors: " + error);
+        }
+        if (warning.size() > 0) {
+            LPRINT("Loading Warnings: " + warning);
+        }
+
+        if (!fileLoaded) {
+            LPRINT("Failed to load glTF file: " + filename);
+            throw std::runtime_error("[LIGHTLOADER] Failed to load glTF file: " + filename);
+        }
+
+        size_t i = 0;
+        for (; i < model->animations.size(); i++) {
+            if (model->animations[i].name == animName) {
+                loadSingleAnimation(meshToAddAnim, model, i);
+                break;
+            }
+        }
+        if (i == model->animations.size()) {
+            LPRINT("Animation named: " + animName + " not found in file: " + filename);
+            throw std::runtime_error("[LIGHTLOADER] Animation named: " + animName + " not found in file: " + filename);
+        }
     }
 }
 

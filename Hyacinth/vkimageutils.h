@@ -9,6 +9,7 @@
 
 struct VulkanImage {
 	VkImage image;
+	VkImageView stencilImageView;
 	VkImageView imageView;
 	VkSampler imageSampler;
 	VmaAllocation imageAllocation;
@@ -37,11 +38,12 @@ namespace vkimageutils {
 	void						generateMipmaps(VkCommandBuffer& commandBuffer, VulkanImage& image);
 	VkRenderingAttachmentInfo	createColorAttachmentInfo(VkImageView& msaaColorView, const VkClearValue& clearColor, VkImageLayout imageLayout, bool clear = true);
 	VkRenderingAttachmentInfo	createDepthAttachmentInfo(VkImageView& msaaDepthView, bool clear = true);
-	VkRenderingAttachmentInfo	createStencilAttachmentInfo(VkImageView& stencilImageView, bool clear = true);
+	VkRenderingAttachmentInfo	createStencilAttachmentInfo(VkImageView& stencilImageView, bool clear = true, uint8_t clearValue = 0);
 	VkRenderingAttachmentInfo	createShadowAttachmentInfo(VkImageView& view);
 	VulkanImage					createImageFromFloatData(uint32_t width, uint32_t height, VkFormat format, void* data);
 
 	// in rendering progress, avoids stalling whole pipeline
+	void						transitionImageGeneral(VkCommandBuffer& cmd, VulkanImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess, VkImageAspectFlags aspectMask);
 	void						transitionImageShaderRead(VkCommandBuffer& cmd, VulkanImage& image, VkImageAspectFlags aspectMask);
 	void						transitionImageDepthRead(VkCommandBuffer& cmd, VulkanImage& image);
 	void						transitionImagePresent(VkCommandBuffer& cmd, VulkanImage& image);

@@ -13,7 +13,7 @@
 #include "vkmeshutils.h"
 #include "fpcam.h"
 
-constexpr int SHADOW_MAP_CASCADE_COUNT = 1;
+constexpr int SHADOW_MAP_CASCADE_COUNT = 3;
 constexpr int cascadeImageSize = 4096;
 
 struct shadowUniform {
@@ -68,6 +68,6 @@ public:
 	void setup(int maxFramesInFlight, VkDescriptorSetLayout& cullLayout);
 	void setupImGui();
 	void update(Camera& cam, AABB worldSpaceSceneBouunds, int currentFrame);
-	void drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer);
+	void drawShadowMaps(VkCommandBuffer& cmd, uint32_t numStaticDraws, uint32_t dynamicDrawOffset, uint32_t numDynamicDraws, uint32_t frameIndex, VkDeviceAddress& renderCallAddress, VulkanBuffer& vertBuffer, VulkanBuffer& skinnedVertBuffer);
 	void shutdown();
 };

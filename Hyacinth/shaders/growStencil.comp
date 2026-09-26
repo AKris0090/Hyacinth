@@ -1,0 +1,42 @@
+#version 460
+#extension GL_EXT_buffer_reference : require
+
+#include "bufferInfo.glsl"
+
+layout(set = 0, binding = 0) uniform usampler2D stencilImage;
+layout(set = 0, binding = 1, rgba8) uniform image2D amrImage;
+layout(set = 0, binding = 2) uniform sampler2D depthImage;
+layout(set = 0, binding = 3) uniform sampler2D characterDepthImage;
+
+const uint OUTLINE_BIT = 0x01;
+const int OUTLINE_PIXEL_SIZE = 2;
+
+layout(push_constant) uniform PushConstants {
+    vec2 targetResolution;
+} pc;
+
+void main()
+{
+	ivec2 basePixelCoord = ivec2(int(gl_GlobalInvocationID.x), int(gl_GlobalInvocationID.y));
+
+	uint stencil = texelFetch(stencilImage, basePixelCoord, 0).r;
+	if (stencil != OUTLINE_BIT) {
+		return;
+	}
+	
+	// for each stenciled pixel, go in a 2x2 round to see if outlines are possible
+	for (int i = -OUTLINE_PIXEL_SIZE; i < OUTLINE_PIXEL_SIZE + 1; i++) {
+		for (int j = -OUTLINE_PIXEL_SIZE; j < OUTLINE_PIXEL_SIZE + 1; j++) {
+			ivec2 sampledPixelCoord = basePixelCoord + ivec2(i, j);
+			sampledPixelCoord = clamp(sampledPixelCoord, ivec2(0), ivec2(pc.targetResolution) - 1);
+	
+			// check depth against depth image
+			float baseDepthSample = texelFetch(characterDepthImage, basePixelCoord, 0).r;
+			float expansionDepthSample = texelFetch(depthImage, sampledPixelCoord, 0).r;
+			
+			if (expansionDepthSample > baseDepthSample) { // expansion is the search factor, so it should be further from the screen than the other
+				imageStore(amrImage, sampledPixelCoord, vec4(1.0, 0.0, 0.0, 1.0));
+			}
+		}
+	}
+}

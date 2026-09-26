@@ -90,6 +90,7 @@ namespace vkimageutils {
 		if (mipped) {
 			imgInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2((std::max)(size.width, size.height)))) + 1;
 		}
+
 		newImage.mipLevels = imgInfo.mipLevels;
 
 		VmaAllocationCreateInfo allocInfo = {};
@@ -102,11 +103,12 @@ namespace vkimageutils {
 		}
 
 		VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
-		if (format == VK_FORMAT_D32_SFLOAT) {
+		if (format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D32_SFLOAT) {
 			aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
 		}
-		if (format == VK_FORMAT_S8_UINT) {
-			aspectFlag = VK_IMAGE_ASPECT_STENCIL_BIT;
+
+		if (format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
+			newImage.stencilImageView = createImageView(newImage, 0, 1, VK_IMAGE_ASPECT_STENCIL_BIT, false);
 		}
 
 		newImage.imageView = vkimageutils::createImageView(newImage, 0, arrayLayers, aspectFlag, cube);
@@ -264,6 +266,39 @@ namespace vkimageutils {
 		vkCmdPipelineBarrier2(cmd, &dependecyInfo);
 	}
 
+	void vkimageutils::transitionImageGeneral(VkCommandBuffer& cmd, VulkanImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess, VkImageAspectFlags aspectMask)
+	{
+		VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		imageBarrier.pNext = nullptr;
+
+		imageBarrier.srcStageMask = srcStage;
+		imageBarrier.srcAccessMask = srcAccess;
+		imageBarrier.dstStageMask = dstStage;
+		imageBarrier.dstAccessMask = dstAccess;
+
+		imageBarrier.oldLayout = currentLayout;
+		imageBarrier.newLayout = newLayout;
+
+		VkImageSubresourceRange subImage{};
+		subImage.aspectMask = aspectMask;
+		subImage.baseMipLevel = 0;
+		subImage.levelCount = VK_REMAINING_MIP_LEVELS;
+		subImage.baseArrayLayer = 0;
+		subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
+		imageBarrier.subresourceRange = subImage;
+		imageBarrier.image = image.image;
+
+		VkDependencyInfo depInfo{};
+		depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+		depInfo.pNext = nullptr;
+
+		depInfo.imageMemoryBarrierCount = 1;
+		depInfo.pImageMemoryBarriers = &imageBarrier;
+
+		vkCmdPipelineBarrier2(cmd, &depInfo);
+		image.layout = newLayout;
+	}
+
 	void vkimageutils::transitionTexImage(VkCommandBuffer& cmd, VulkanImage& image, VkImageLayout currentLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask)
 	{
 		VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
@@ -391,7 +426,7 @@ namespace vkimageutils {
 		return attachmentInfo;
 	}
 
-	VkRenderingAttachmentInfo createStencilAttachmentInfo(VkImageView& stencilImageView, bool clear) {
+	VkRenderingAttachmentInfo createStencilAttachmentInfo(VkImageView& stencilImageView, bool clear, uint8_t clearValue) {
 		VkRenderingAttachmentInfo attachmentInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		attachmentInfo.imageView = stencilImageView;
 		attachmentInfo.imageLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
@@ -400,7 +435,7 @@ namespace vkimageutils {
 			attachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		}
 		attachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachmentInfo.clearValue.depthStencil.stencil = 0;
+		attachmentInfo.clearValue.depthStencil.stencil = clearValue;
 
 		return attachmentInfo;
 	}
@@ -498,6 +533,7 @@ namespace vkimageutils {
 	void destroyImage(VulkanImage& image) {
 		if (image.imageSampler != VK_NULL_HANDLE) vkDestroySampler(vkdeviceutils::device, image.imageSampler, nullptr);
 		if (image.imageView != VK_NULL_HANDLE) vkDestroyImageView(vkdeviceutils::device, image.imageView, nullptr);
+		if (image.stencilImageView != VK_NULL_HANDLE) vkDestroyImageView(vkdeviceutils::device, image.stencilImageView, nullptr);
 		vmaDestroyImage(vkdeviceutils::allocator, image.image, image.imageAllocation);
 	}
 

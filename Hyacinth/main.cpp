@@ -36,6 +36,8 @@ void simulationTick() {
 		p.movementFB = netClient.netEntManager.inputAccumulator.movementFB;
 		p.movementLR = netClient.netEntManager.inputAccumulator.movementLR;
 		p.jump = netClient.netEntManager.inputAccumulator.jump;
+		p.sprint = netClient.netEntManager.inputAccumulator.sprint;
+		p.crouch = netClient.netEntManager.inputAccumulator.crouch;
 		p.lmb = netClient.netEntManager.inputAccumulator.shooting;
 		p.r = netClient.netEntManager.inputAccumulator.reloading;
 		p.num1 = netClient.netEntManager.inputAccumulator.num1;
@@ -45,6 +47,8 @@ void simulationTick() {
 			p.movementLR = b.update(SERVER_TIMESTEP);
 			p.movementFB = 0;
 			p.jump = false;
+			p.sprint = false;
+			p.crouch = false;
 		}
 
 		// update physics
@@ -53,8 +57,9 @@ void simulationTick() {
 		hyacinthEngine.m_camera.prevPitch = hyacinthEngine.m_camera.m_transform.pitch;
 		hyacinthEngine.m_camera.prevYaw = hyacinthEngine.m_camera.m_transform.yaw;
 
-		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self->moveSpeed, netClient.netEntManager.self->transform, netClient.netEntManager.inputAccumulator);
-
+		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self, netClient.netEntManager.self->transform, netClient.netEntManager.inputAccumulator);
+		hyacinthEngine.m_camera.fovMod.updateSprintFOV(netClient.netEntManager.self->isSprinting);
+		hyacinthEngine.m_camera.crouchMod.updateCrouchHeight(netClient.netEntManager.self->isCrouching);
 		hyacinthEngine.p_netEntManager->inputAccumulatorMutex.unlock();
 
 		p.pitch = netClient.netEntManager.self->transform.pitch;
@@ -69,25 +74,15 @@ void simulationTick() {
 #ifdef DEBUG_NETWORK
 			for (const auto& e : hyacinthEngine.p_netEntManager->entities) {
 				if (e.first == 1) {
-					hyacinthEngine.m_netDebugRenderer.clientEntityPosition = glm::vec4(e.second->transform.position, 1.f);
+					hyacinthEngine.m_netDebugRenderer.clientEntityPosition = glm::vec4(e.second->transform.position, 1.f);  
 				}
 			}
 #endif
 			// if shot fired, then draw trace and draw the tracer to connect the two
-			glm::vec3 hitPos = physicsManager.traceBullet(netClient.netEntManager.self->transform);
-			glm::vec3 origin = netClient.netEntManager.self->transform.position + glm::vec3(0.f, 1.85f, 0.f);
-			origin += netClient.netEntManager.self->transform.forward * 1.6f;
-			origin += netClient.netEntManager.self->transform.right * 0.9f;
-			origin -= netClient.netEntManager.self->transform.up * 0.2f;
-			glm::vec3 dir = hitPos - origin;
-			glm::vec3 normDir = glm::normalize(dir);
-			Transform t;
-			t.scale.x = glm::length(dir);
-			t.yaw = glm::degrees(glm::atan2(normDir.z, normDir.x));
-			t.pitch = glm::degrees(glm::asin(normDir.y));
-			t.setRotationPitchYaw();
-			t.position = origin;
-			hyacinthEngine.m_tracerManager.addTracer(t.getMatrix(), hyacinthEngine.m_assetDrawer.getStaticMeshRef("tracer"));
+			hitReg hit = physicsManager.traceBullet(hyacinthEngine.m_camera.m_transform);
+			if (hit.hit) {
+				hyacinthEngine.m_decalManager.addDecal(hit.hitPos + (hit.hitNormal * 0.001f), hit.hitNormal);
+			}
 
 			netClient.netEntManager.self->recoil.startRecoil();
 		}
@@ -132,45 +127,55 @@ HFlashBang* flashObject;
 
 void addGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
 	worldObject = new HStaticGameObject(engine.m_assetDrawer.getStaticMeshRef("world"));
-	engine.addStaticGameObject(worldObject);  
+	engine.addStaticGameObject(worldObject);
 
 	armsObject = new HFPArms(engine.m_assetDrawer.getAnimatedMeshRef("fp_arms"));
+	armsObject->isViewModel = true;
 	engine.addAnimatedGameObject(armsObject);
+	armsObject->transform.parent = &engine.m_camera.m_transform;
+	armsObject->transform.rotation = glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));
 	
 	pistolObject = new HPistol(engine.m_assetDrawer.getAnimatedMeshRef("pistol"));
+	pistolObject->isViewModel = true;
 	engine.addAnimatedGameObject(pistolObject);
-	pistolObject->setParentObject(armsObject, pistolObject->controller.baseNode, armsObject->controller.gunBone);
-	
-	flashObject = new HFlashBang(engine.m_assetDrawer.getAnimatedMeshRef("flashbang"));
-	engine.addAnimatedGameObject(flashObject);
-	flashObject->setParentObject(armsObject, flashObject->controller.baseNode, armsObject->controller.gunBone);
+	pistolObject->transform.parent = &engine.m_camera.m_transform;
+	pistolObject->transform.rotation = glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));;
+
+	LightNode* camNode = hyacinthEngine.m_assetDrawer.getAnimatedMeshRef("fp_arms")->getNodeByName("cameraref");
+	hyacinthEngine.m_camera.camAnimationNodeTransform = &armsObject->nodeTransforms[camNode->nodeIndex];
+
+	// flashObject = new HFlashBang(engine.m_assetDrawer.getAnimatedMeshRef("flashbang"));
+	// engine.addAnimatedGameObject(flashObject);
+	// flashObject->setParentObject(armsObject, flashObject->controller.baseNode, armsObject->controller.gunBone);
 }
 
-void updateGameObjects(HyacinthEngine& engine, HyacinthNetworkClient& netClient) {
-	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, engine.m_camera.m_transform.pitch - engine.m_camera.prevPitch, engine.m_camera.m_transform.yaw - engine.m_camera.prevYaw);
-	armsObject->transform.position = engine.m_camera.m_transform.position;
-	armsObject->transform.rotation = engine.m_camera.m_transform.rotation;
-	
-	flashObject->transform.position = engine.m_camera.m_transform.position;
-	flashObject->transform.rotation = engine.m_camera.m_transform.rotation;
-	pistolObject->transform.position = engine.m_camera.m_transform.position;
-	pistolObject->transform.rotation = engine.m_camera.m_transform.rotation;
-	
-	if (netClient.netEntManager.self->currentWeapon == PISTOL) {
-		pistolObject->active = true;
-		pistolObject->controller.updateAnimParams(armsObject->controller.shootTrigger, armsObject->controller.reloadTrigger);
-		flashObject->active = false;
-	}
-	else if (netClient.netEntManager.self->currentWeapon == GRENADE && netClient.netEntManager.self->currentState != GRENADE_THROW) {
-		flashObject->active = true;
-		pistolObject->active = false;
-	}
-	else {
-		flashObject->active = false;
-		pistolObject->active = false;
-	}
+constexpr glm::vec3 blenderCamPos = glm::vec3(0.f, 0.37f, 0.f);
 
-	for (const auto& ao : engine.m_animatedObjects) {
+void updateGameObjects() {
+	armsObject->controller.updateAnimParams(netClient.netEntManager.self->currentState, physicsManager.clientPhysicsObjects[0].moveState, hyacinthEngine.m_camera.m_transform.pitch - hyacinthEngine.m_camera.prevPitch, hyacinthEngine.m_camera.m_transform.yaw - hyacinthEngine.m_camera.prevYaw);
+	// armsObject->transform.position = engine.m_camera.m_transform.position;
+	// armsObject->transform.rotation = engine.m_camera.m_transform.rotation * glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));
+	// 
+	// flashObject->transform.position = engine.m_camera.m_transform.position;
+	// flashObject->transform.rotation = engine.m_camera.m_transform.rotation;
+	// pistolObject->transform.position = engine.m_camera.m_transform.position;
+	// pistolObject->transform.rotation = engine.m_camera.m_transform.rotation * glm::quat(glm::radians(glm::vec3(0.f, 90.f, 0.f)));;
+	// 
+	if (netClient.netEntManager.self->currentWeapon == PISTOL) {
+	// 	pistolObject->active = true;
+		pistolObject->controller.updateAnimParams(physicsManager.clientPhysicsObjects[0].moveState, armsObject->controller.shootTrigger, armsObject->controller.reloadTrigger);
+	// 	flashObject->active = false;
+	}
+	// else if (netClient.netEntManager.self->currentWeapon == GRENADE && netClient.netEntManager.self->currentState != GRENADE_THROW) {
+	// 	flashObject->active = true;
+	// 	pistolObject->active = false;
+	// }
+	// else {
+	// 	flashObject->active = false;
+	// 	pistolObject->active = false;
+	// }
+
+	for (const auto& ao : hyacinthEngine.m_animatedObjects) {
 		ao.gameObject->updateAnimation(Time::getDeltaTime());
 		memcpy(ao.jointMatrixBuffer.pMappedData, ao.gameObject->jointMatrixData, ao.gameObject->mesh->jointMatrixSize);
 	}
@@ -184,7 +189,7 @@ int main() {
 	hyacinthEngine.init();
 
 	physicsManager.initPhysics(false); // initialize PVD?
-	//   auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
+	// auto path = vkdebugutils::getExeDir() / "objects" / "sponza" / "sponza_physics.glb";
 	auto path = vkdebugutils::getExeDir() / "objects" / "test_scene.glb";
 	LightLoaderOptions op{};
 	physicsManager.addStaticPhysicsObject(LightLoader::loadFromFile(path.string(), op));
@@ -192,9 +197,7 @@ int main() {
 
 	hyacinthEngine.p_netEntManager = &netClient.netEntManager;
 	netClient.netEntManager.inputAccumulator.id = 0;
-	netClient.netEntManager.tracerManager = &hyacinthEngine.m_tracerManager;
 	Entity* thisEnt = nullptr;
-
 	addGameObjects(hyacinthEngine, netClient);
 	hyacinthEngine.bakeDDGI();
 
@@ -222,7 +225,7 @@ int main() {
 		s.id = 0;
 		s.movementFB = fb;
 		s.movementLR = lr;
-		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self->moveSpeed, t, s);
+		physicsManager.updatePlayerMovement(0, netClient.netEntManager.self, t, s);
 	});
 #endif
 #ifndef CONNECT_SERVER
@@ -269,6 +272,8 @@ int main() {
 		p.movementLR = m[1];
 		p.movementUD = m[2];
 		p.jump = InputManager::getSpaceButton();
+		p.sprint = InputManager::shiftKeyDown();
+		p.crouch = InputManager::ctrlKeyDown();
 		p.pitch = mo.first;
 		p.yaw = mo.second;
 		p.lmb = InputManager::mouseDown();
@@ -296,16 +301,15 @@ int main() {
 				hyacinthEngine.p_netEntManager->selfMutex.unlock();
 
 				ServerSnapshot selfInterp = netClient.netEntManager.selfSimBuffer.getInterpolatedSimPacket(Time::getDeltaTime());
-				hyacinthEngine.m_camera.m_transform.position = selfInterp.entities[0].transform.position;
-				hyacinthEngine.m_camera.m_transform.position.y += 1.85f;
+				hyacinthEngine.m_camera.m_transform.position = selfInterp.entities[0].transform.position + glm::vec3(0.f, hyacinthEngine.m_camera.crouchMod.crouchLerpMod, 0.f);
 
-				hyacinthEngine.m_camera.update(false); // not flycam
+				hyacinthEngine.m_camera.update(false, Time::getDeltaTime()); // not flycam
 				hyacinthEngine.camMutex.unlock();
 			}
 			else {
 				hyacinthEngine.camMutex.lock();
 				hyacinthEngine.m_camera.updateFlyCamera(p, Time::getDeltaTime(), netClient.netEntManager.self->camSpeed, netClient.netEntManager.self->moveSpeed);
-				hyacinthEngine.m_camera.update(true); // flycam
+				hyacinthEngine.m_camera.update(true, Time::getDeltaTime()); // flycam
 				hyacinthEngine.camMutex.unlock();
 			}
 		}
@@ -325,7 +329,7 @@ int main() {
 #endif
 
 #endif
-		updateGameObjects(hyacinthEngine, netClient);
+		updateGameObjects();
 
 		hyacinthEngine.draw();
 

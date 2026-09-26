@@ -19,7 +19,6 @@
 
 #include "frustumcull.h"
 
-#include "tracer_manager.h"
 #include "worldspace_health.h"
 
 #include "csm.h"
@@ -30,6 +29,9 @@
 
 #include "skybox.h"
 #include "ambient.h"
+#include "specular.h"
+#include "outline.h"
+#include "decals.h"
 
 #include "net_ent.h"
 #include "netDebugRenderer.h"
@@ -53,8 +55,10 @@ const bool enableValLayers = true;
 
 // #define DEBUG_NETWORK
 
+// stencil bits
 constexpr uint8_t CURRENT_BIT = 0x01;
 constexpr uint8_t ANY_BIT = 0x02;
+constexpr uint8_t VIEW_MODEL_BIT = 0x04;
 
 const VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
 
@@ -83,6 +87,7 @@ struct computeSkinPushConstant {
 struct UBO {
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::mat4 viewModelProj;
 	glm::vec4 viewPos;
 	glm::vec4 lightPos;
 	glm::vec4 ABOD;
@@ -98,7 +103,6 @@ struct GBuffer {
 	VulkanImage normal;
 	VulkanImage AMR;
 
-	VulkanImage stencilDepth;
 	VulkanImage ddgiImage;
 	VulkanImage depth;
 
@@ -106,19 +110,6 @@ struct GBuffer {
 
 	VkDescriptorSet					m_compositeSet{ VK_NULL_HANDLE };
 	VkDescriptorSet					m_postProcessSet{ VK_NULL_HANDLE };
-};
-
-struct HRenderCall {
-	glm::mat4 transformMatrix;
-	alignas(16) glm::vec3 aaBBMin;
-	alignas(16) glm::vec3 aabbMax;
-
-	uint32_t	materialIndex;
-	uint32_t    indexCount;
-	uint32_t    firstIndex;
-	uint32_t    vertexOffset;
-
-	uint32_t meshID;
 };
 
 class HyacinthEngine {
@@ -131,7 +122,7 @@ public:
 	WorldHealthManager				m_worldHealthManager;
 	std::mutex camMutex;
 	Camera m_camera;
-	TracerManager					m_tracerManager;
+	DecalManager					m_decalManager;
 
 	HAssetDrawer					m_assetDrawer;
 	owDDGI							m_owDDGIHelper;
@@ -164,6 +155,16 @@ private:
 		void*			mappedUniformBuffer;
 		VkDescriptorSet uniformDescriptorSet;
 		VkDescriptorSet shadowDescriptorSet;
+
+		// TOOD: MAKE THE DECALS INSTANCED, RATHER THAN THIS
+		uint32_t worldDrawCommandOffset = 0;
+		uint32_t numWorldDrawCommands = 0;
+		uint32_t dynamicDrawCommandOffset = 0;
+		uint32_t numDynamicDrawCommands = 0;
+		uint32_t viewModelDrawCommandOffset = 0;
+		uint32_t numViewModelDrawCommands = 0;
+		uint32_t decalDrawCommandOffset = 0;
+		uint32_t numDecalDrawCommands = 0;
 	};
 
 	float volANormalBias;
@@ -171,12 +172,9 @@ private:
 	float volAViewBias;
 	float volBViewBias;
 
-	uint32_t numStaticDrawCommands;
-	uint32_t numDynamicDrawCommands;
-
 	bool m_initialized = false;
 	bool m_showImGui = false;
-	bool ambientToggle = false;
+	float renderingModeToggle = 0;
 	uint32_t m_frameIndex = 0;
 	uint32_t m_swImageIndex = 0;
 	uint32_t maxTracers = 10;
@@ -200,7 +198,7 @@ private:
 	std::vector<GBuffer>			m_gBuffers				{};
 	std::vector<VulkanImage>		m_swapChainImages		{}; // a.k.a color resolve
 	VulkanPipelineBuilder 			m_pipelineUtil			{};
-	VulkanPipelineBuilder 			m_depthPipelineUtil		{};
+	VulkanPipelineBuilder 			m_viewModelPipelineUtil {};
 	VulkanPipelineBuilder 			m_tracerPipelineUtil	{};
 	VulkanPipelineBuilder 			m_compositePipelineUtil {};
 	VulkanPipelineBuilder			m_ddgiPipelineUtil		{};
@@ -210,8 +208,8 @@ private:
 	VulkanPipeline					m_computeSkinPipeline	{};
 
 	std::vector<HRenderCall>		m_renderList;
+	std::vector<VkDrawIndexedIndirectCommand>		m_stencilDrawList;
 
-	uint32_t dynamicDrawCommandOffset = 0;
 	std::vector<VkDrawIndexedIndirectCommand> m_drawCommands; // includes static and dynamic
 
 	perFrame						m_uploadFrame			{};
@@ -224,7 +222,6 @@ private:
 
 	VkDescriptorSetLayout			m_shadowSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_diffuseSetLayout		{ VK_NULL_HANDLE };
-	VkDescriptorSetLayout			m_specularSetLayout		{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_compositeSetLayout	{ VK_NULL_HANDLE };
 	VkDescriptorSetLayout			m_postProcessSetLayout	{ VK_NULL_HANDLE };
 	shadowHelper					m_shadowHelper;
@@ -233,6 +230,8 @@ private:
 	HyacinthUIManager				m_uiHelper;
 	SkyboxHelper					m_skyboxHelper;
 	AmbientHelper					m_ambientHelper;
+	SpecularTraceHelper				m_specularTraceHelper;
+	OutlineHelper					m_outlineHelper;
 
 	void createInstance(); // also creates vma allocator
 	void createSwapchain();
@@ -240,8 +239,8 @@ private:
 	void recreateSwapchain();
 	void createCommandBuffers();
 	void createSyncObjects();
-	void createDepthPipeline();
 	void createGraphicsPipeline();
+	void createViewModelPipeline();
 	void createCompositePipeline();
 	void createDDGIPipeline();
 	void createDDGIVolumePipeline();

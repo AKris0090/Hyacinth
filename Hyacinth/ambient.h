@@ -9,10 +9,11 @@
 #include "fullscreen_quad.h"
 #include <random>
 
-constexpr int NUM_SAMPLES = 64;
+constexpr int NUM_SAMPLES = 16;
 
 struct AmbientPC {
-	glm::vec4 samples[64];
+	glm::mat4 inverseProj;
+	glm::vec4 samples[NUM_SAMPLES];
 	glm::vec2 screenSize;
 };
 
@@ -20,17 +21,18 @@ class AmbientHelper {
 private:
 	VulkanPipelineBuilder m_ambientPipelineUtil;
 	VulkanImage noiseTexture;
-	VulkanBuffer samplesUBO;
+	std::vector<VulkanBuffer> samplesUBO;
 
 	DescriptorAllocator	descriptorAllocator{};
 	VkDescriptorSetLayout noiseLayout;
-	VkDescriptorSet noiseSet;
+	std::vector<VkDescriptorSet> noiseSet;
 
 public:
 	std::vector<glm::vec4> ssaoKernel;
 	std::vector<glm::vec4> ssaoNoise;
 
-	void setup(VkDescriptorSetLayout& uboLayout, VkDescriptorSetLayout& compLayout, SWChainImageFormat& swapchainFormat);
-	void drawAO(VkCommandBuffer& cmd, VkDescriptorSet& compSet, VkDescriptorSet& uboSet, VulkanImage ambientImage, SWChainImageFormat& swapchainFormat);
+	void setup(VkDescriptorSetLayout& uboLayout, VkDescriptorSetLayout& compLayout, SWChainImageFormat& swapchainFormat, glm::mat4 camProj);
+	void update(uint32_t imageIndex, SWChainImageFormat& swapchainFormat, glm::mat4 camProj);
+	void drawAO(VkCommandBuffer& cmd, uint32_t imageIndex, VkDescriptorSet& compSet, VkDescriptorSet& uboSet, VulkanImage ambientImage, SWChainImageFormat& swapchainFormat);
 	void shutdown();
 };

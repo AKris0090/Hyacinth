@@ -10,10 +10,10 @@ ThirdPersonAnimationController::ThirdPersonAnimationController(LightMesh* mesh) 
 	spine003 = mesh->getNodeByName("spine.003");     // upper body yaw controller
 	spine = mesh->getNodeByName("spine");
 
-	animations[A_TP_IDLE] = &mesh->animations[0];
-	animations[A_TP_RUNNING] = &mesh->animations[1];
-	animations[A_TP_LEFT_TURN] = &mesh->animations[2];
-	animations[A_TP_RIGHT_TURN] = &mesh->animations[3];
+	animations[A_TP_IDLE] = &mesh->animations["idle"];
+	animations[A_TP_RUNNING] = &mesh->animations["runForward"];
+	animations[A_TP_LEFT_TURN] = &mesh->animations["turnLeft"];
+	animations[A_TP_RIGHT_TURN] = &mesh->animations["turnRight"];
 
 	currentLowerBodyAnim = currentUpperBodyAnim = previousAnimation = animations[A_TP_IDLE];
 
