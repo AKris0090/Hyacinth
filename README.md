@@ -67,5 +67,10 @@ By keeping track of the shoulder and neck bones, I can modulate them with the ca
 
 https://github.com/user-attachments/assets/2e9d6ad5-6c81-4151-86ed-96d7d9df83c7
 
+## Throwable Objects
+Implementing a flashbang was as simple as creating a new entity type, assigning it a spherical physics collider, and hooking up the client animations to match. When the client throws a flashbang, it disappears immediately on the client side, and is spawned on the server in the same position as on the client. After a few seconds, the flashbang object is removed from the server (and therefore the client), and the server informs the client if they are flashed, providing NDC coordinates of the flash position from the server-side representation of the player's viewpoint if so. Those coordinates determine the UV coords of the flash UI element, and a 'flashAmount' parameter is also sent over the network to manage fading the flash out.
+
+https://github.com/user-attachments/assets/468edd6e-22c1-42ac-b9f6-a352e64008a2
+
 # Credits:
 Gun model: https://www.cgtrader.com/free-3d-models/military/gun/stylized-gun
