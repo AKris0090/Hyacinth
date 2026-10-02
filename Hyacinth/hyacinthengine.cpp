@@ -970,6 +970,7 @@ void HyacinthEngine::addAnimatedGameObject(HAnimatedGameObject* gameObjectRef) {
 }
 
 void HyacinthEngine::generateRenderList() {
+    vkdeviceutils::clearDeletionQueue(m_frameIndex);
     m_renderList.clear();
     m_frameData[m_frameIndex].numViewModelDrawCommands = 0;
 
@@ -1057,9 +1058,9 @@ void HyacinthEngine::generateRenderList() {
     m_frameData[m_frameIndex].numDynamicDrawCommands = static_cast<uint32_t>(m_renderList.size()) - (m_frameData[m_frameIndex].dynamicDrawCommandOffset);
 
     if (m_frameData[m_frameIndex].m_skinnedVertexBuffer.info.size < (animatedVertexOffset * sizeof(Vertex))) {
-        vkdeviceutils::resizeBuffer(m_frameData[m_frameIndex].m_skinnedVertexBuffer, (animatedVertexOffset * sizeof(Vertex)));
+        vkdeviceutils::resizeBuffer(m_frameData[m_frameIndex].m_skinnedVertexBuffer, (animatedVertexOffset * sizeof(Vertex)), m_frameIndex);
     }
-    vkdeviceutils::updateBuffer(m_frameData[m_frameIndex].m_renderListBuffer, m_renderList.size() * sizeof(HRenderCall), m_renderList.data());
+    vkdeviceutils::updateBuffer(m_frameData[m_frameIndex].m_renderListBuffer, m_renderList.size() * sizeof(HRenderCall), m_renderList.data(), m_frameIndex);
 }
 
 void HyacinthEngine::generateDrawCommands() {
@@ -1081,9 +1082,9 @@ void HyacinthEngine::generateDrawCommands() {
         drawIndex++;
     }
 
-    vkdeviceutils::updateBuffer(m_frameData[m_frameIndex].m_indirectDrawBuffer, m_drawCommands.size() * sizeof(VkDrawIndexedIndirectCommand), m_drawCommands.data());
+    vkdeviceutils::updateBuffer(m_frameData[m_frameIndex].m_indirectDrawBuffer, m_drawCommands.size() * sizeof(VkDrawIndexedIndirectCommand), m_drawCommands.data(), m_frameIndex);
     for (int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-        vkdeviceutils::updateBuffer(m_shadowHelper.m_cascades[i].cascadeDrawBuffer, m_drawCommands.size() * sizeof(VkDrawIndexedIndirectCommand), m_drawCommands.data());
+        vkdeviceutils::updateBuffer(m_shadowHelper.m_cascades[i].cascadeDrawBuffer, m_drawCommands.size() * sizeof(VkDrawIndexedIndirectCommand), m_drawCommands.data(), m_frameIndex);
     }
 }
 

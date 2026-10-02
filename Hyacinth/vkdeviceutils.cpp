@@ -7,6 +7,8 @@ namespace vkdeviceutils {
     VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
     VkFence uploadFence = VK_NULL_HANDLE;
 
+    std::unordered_map<int, std::queue<VulkanBuffer>> deletionQueue;
+
     void setDevice(VkDevice& dev) { device = dev; }
     void setAllocator(VmaAllocator& alloc) { allocator = alloc; }
     void setGraphicsQueue(VkQueue& queue) { graphicsQueue = queue; }
@@ -271,7 +273,14 @@ namespace vkdeviceutils {
 		});
     }
 
-    void resizeBuffer(VulkanBuffer& buffer, size_t newSize) {
+    void clearDeletionQueue(uint32_t frameIndex) {
+        while (!deletionQueue[frameIndex].empty()) {
+            destroyBuffer(deletionQueue[frameIndex].front());
+            deletionQueue[frameIndex].pop();
+        }
+    }
+
+    void resizeBuffer(VulkanBuffer& buffer, size_t newSize, uint32_t frameIndex) {
         std::string prevBufferName = buffer.qualName;
         VkBufferUsageFlags pusageFlags = buffer.usageFlags;
         VmaMemoryUsage pmemUsage = buffer.memUsage;
@@ -279,12 +288,13 @@ namespace vkdeviceutils {
         VulkanBuffer prevBuffer = buffer;
 
         buffer = createBuffer(newSize, pusageFlags, pmemUsage, pvmaFlags, prevBufferName);
-        destroyBuffer(prevBuffer);
+
+        deletionQueue[frameIndex].push(prevBuffer);
     }
 
-    void updateBuffer(VulkanBuffer& buffer, size_t newSize, void* newData) {
+    void updateBuffer(VulkanBuffer& buffer, size_t newSize, void* newData, uint32_t frameIndex) {
         if (buffer.info.size < newSize) { // need to allocate new buffer and replace
-            resizeBuffer(buffer, newSize);
+            resizeBuffer(buffer, newSize, frameIndex);
         }
 
         memcpy(buffer.pMappedData, newData, newSize);

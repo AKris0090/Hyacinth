@@ -10,7 +10,7 @@ void DecalManager::setup(SWChainImageFormat swImageFormat, VkFormat depthImageFo
     decalPipelineUtil.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
     decalPipelineUtil.setColorAttachmentFormat(VK_FORMAT_R16G16B16A16_SFLOAT, 1);
     decalPipelineUtil.setMultisampling(VK_SAMPLE_COUNT_1_BIT);
-    decalPipelineUtil.disableBlending();
+    decalPipelineUtil.enableBlending();
     decalPipelineUtil.enableDepthTest(true, VK_COMPARE_OP_LESS);
     decalPipelineUtil.setDepthAttachmentFormat(depthImageFormat);
     decalPipelineUtil.numColorAttachments = 1;
@@ -64,7 +64,7 @@ void DecalManager::addDecal(glm::vec3 pos, glm::vec3 normal) {
 
     {
         std::unique_lock<std::shared_mutex> lock(instanceLock);
-        if (decalInstances.size() >= 50) {
+        if (decalInstances.size() >= MAX_BULLET_DECALS) {
             decalInstances.pop_front();
         }
         decalInstances.push_back(mat);

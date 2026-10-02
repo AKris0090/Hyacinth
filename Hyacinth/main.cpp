@@ -24,6 +24,8 @@ PhysicsManager physicsManager;
 HyacinthNetworkClient netClient;
 
 void simulationTick() {
+	SetThreadDescription(GetCurrentThread(), L"HCSimTick");
+
 	auto epoch = std::chrono::steady_clock::now();
 	while (dontEnd) {
 		auto nextTick = epoch + (tickNum + 1) * SERVER_TIMESTEP_MS;

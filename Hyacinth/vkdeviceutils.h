@@ -4,6 +4,8 @@
 #include "vkdebugutils.h"
 #include "vk_mem_alloc.h"
 
+#include <queue>
+
 #include <string>
 #include <set>
 #include <optional>
@@ -100,7 +102,8 @@ namespace vkdeviceutils {
     // synch functions
     void generalPipelineBarrier(VkCommandBuffer& cmd, VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess);
 
-    void resizeBuffer(VulkanBuffer& buffer, size_t newSize);
+    void clearDeletionQueue(uint32_t frameIndex);
+    void resizeBuffer(VulkanBuffer& buffer, size_t newSize, uint32_t frameIndex);
     // assumes that buffer is mapped
-    void updateBuffer(VulkanBuffer& buffer, size_t newSize, void* newData);
+    void updateBuffer(VulkanBuffer& buffer, size_t newSize, void* newData, uint32_t frameIndex);
 }
