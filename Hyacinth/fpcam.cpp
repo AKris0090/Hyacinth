@@ -15,9 +15,13 @@ void Camera::GetFrustumPlanes(glm::vec4* planes, glm::mat4 matrix) {
 
 glm::mat4 createViewMatrix(Transform& t) {
     glm::vec3 forward = glm::normalize(glm::vec3(
-        cos(glm::radians(t.yaw)) * cos(glm::radians(t.pitch + t.pitchAdditional)),
-        sin(glm::radians(t.pitch + t.pitchAdditional)),
-        sin(glm::radians(t.yaw)) * cos(glm::radians(t.pitch + t.pitchAdditional))
+        // cos(glm::radians(t.yaw)) * cos(glm::radians(t.pitch + t.pitchAdditional)),
+        // sin(glm::radians(t.pitch + t.pitchAdditional)),
+        // sin(glm::radians(t.yaw)) * cos(glm::radians(t.pitch + t.pitchAdditional))
+
+        cos(glm::radians(t.yaw)) * cos(glm::radians(t.pitch)),
+        sin(glm::radians(t.pitch)),
+        sin(glm::radians(t.yaw)) * cos(glm::radians(t.pitch))
     ));
 
     return glm::lookAt(t.position, t.position + forward, t.up);

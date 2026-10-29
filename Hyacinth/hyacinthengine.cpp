@@ -32,14 +32,14 @@ void HyacinthEngine::createInstance()
 	requiredExtensions.assign(extensions, extensions + extensionCount);
     requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+
     if (enableValLayers) {
         if (!vkdebugutils::CheckValLayerSupport()) {
             throw std::runtime_error("Validation layers requested, but not available!");
 		}
 
         requiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
-        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 
         vkdebugutils::PopulateDebugMessengerCreateInfo(debugCreateInfo);
         instanceCInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
